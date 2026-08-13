@@ -1,0 +1,17 @@
+### Inserir empresas
+POST http://localhost:8080/empresas
+Content-Type: application/json
+
+{
+  "razaoSocial": "Novexa Sistemas LTDA",
+  "nomeFantasia": "Novexa",
+  "cnpj": "12345678000190",
+  "inscricaoEstadual": "123456789",
+  "email": "contato@novexa.com.br",
+  "telefone": "11999999999",
+  "endereco": "Rua Exemplo, 100",
+  "ativo": true
+}
+
+### Listar empresas
+GET http://localhost:8080/empresas
