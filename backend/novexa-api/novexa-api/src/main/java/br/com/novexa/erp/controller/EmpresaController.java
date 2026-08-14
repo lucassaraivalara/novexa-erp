@@ -1,5 +1,6 @@
 package br.com.novexa.erp.controller;
 
+import br.com.novexa.erp.dto.EmpresaRequestDTO;
 import br.com.novexa.erp.entity.EmpresaEntity;
 import br.com.novexa.erp.service.EmpresaService;
 import org.springframework.http.HttpStatus;
@@ -28,7 +29,17 @@ public class EmpresaController {
     // e transforma em um objeto EmpresaEntity.
     @PostMapping
     public ResponseEntity<EmpresaEntity> salvar(
-            @RequestBody EmpresaEntity empresa) {
+            @RequestBody EmpresaRequestDTO empresaDTO) {
+
+        EmpresaEntity empresa = new EmpresaEntity();
+        empresa.setRazaoSocial(empresaDTO.getRazaoSocial());
+        empresa.setNomeFantasia(empresaDTO.getNomeFantasia());
+        empresa.setCnpj(empresaDTO.getCnpj());
+        empresa.setInscricaoEstadual(empresaDTO.getInscricaoEstadual());
+        empresa.setEmail(empresaDTO.getEmail());
+        empresa.setTelefone(empresaDTO.getTelefone());
+        empresa.setEndereco(empresaDTO.getEndereco());
+        empresa.setAtivo(empresaDTO.getAtivo());
 
         EmpresaEntity empresaSalva = empresaService.salvar(empresa);
 
