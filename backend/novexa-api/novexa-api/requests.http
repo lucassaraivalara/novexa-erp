@@ -17,21 +17,21 @@ Content-Type: application/json
 GET http://localhost:8080/empresas
 
 ### Listar uma empresa
-GET http://localhost:8080/empresas/1
+GET http://localhost:8080/empresas/4
 
 ### Atualizar empresa
-PUT http://localhost:8080/empresas/1
+PUT http://localhost:8080/empresas/4
 Content-Type: application/json
 
 {
   "razaoSocial": "Novexa Sistemas LTDA",
   "nomeFantasia": "Novexa ERP",
-  "cnpj": "12345678000190",
+  "cnpj": "12345678000134",
   "inscricaoEstadual": "123456789",
   "email": "contato@novexa.com.br",
   "telefone": "11988888888",
   "endereco": "Avenida Exemplo, 200",
-  "ativo": true
+  "ativo": false
 }
 
 ### Excluir empresa

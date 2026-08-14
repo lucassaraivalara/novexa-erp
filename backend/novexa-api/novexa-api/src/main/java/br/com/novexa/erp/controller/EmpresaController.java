@@ -2,6 +2,8 @@ package br.com.novexa.erp.controller;
 
 import br.com.novexa.erp.entity.EmpresaEntity;
 import br.com.novexa.erp.service.EmpresaService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,34 +27,45 @@ public class EmpresaController {
     // @RequestBody pega o JSON enviado na requisição
     // e transforma em um objeto EmpresaEntity.
     @PostMapping
-    public EmpresaEntity salvar(@RequestBody EmpresaEntity empresa) {
+    public ResponseEntity<EmpresaEntity> salvar(
+            @RequestBody EmpresaEntity empresa) {
 
-        // Envia o objeto recebido para o Service.
-        return empresaService.salvar(empresa);
+        EmpresaEntity empresaSalva = empresaService.salvar(empresa);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(empresaSalva);
     }
     // GET /empresas
     @GetMapping
-    public List<EmpresaEntity> listar() {
-        return empresaService.listar();
+    public ResponseEntity<List<EmpresaEntity>> listar() {
+        List<EmpresaEntity> empresas = empresaService.listar();
+
+        return ResponseEntity.ok(empresas);
     }
 
     @GetMapping("/{id}")
-    public EmpresaEntity buscarPorId(@PathVariable Long id) {
+    public ResponseEntity<EmpresaEntity> buscarPorId(
+            @PathVariable Long id) {
 
-        // Envia o ID recebido na URL para o Service
-        return empresaService.buscarPorId(id);
+        EmpresaEntity empresa = empresaService.buscarPorId(id);
+
+        return ResponseEntity.ok(empresa);
     }
 
     @PutMapping("/{id}")
-    public EmpresaEntity atualizarPorId(
+    public ResponseEntity<EmpresaEntity> atualizarPorId(
             @PathVariable Long id,
             @RequestBody EmpresaEntity empresa) {
 
-        return empresaService.atualizarPorId(id, empresa);
+        EmpresaEntity empresaAtualizada = empresaService.atualizarPorId(id, empresa);
+
+        return ResponseEntity.ok(empresaAtualizada);
     }
 
     @DeleteMapping("/{id}")
-    public void deletarPorId(@PathVariable Long id) {
+    public ResponseEntity<Void> deletarPorId(@PathVariable Long id) {
         empresaService.deletarPorId(id);
+
+        return ResponseEntity.noContent().build();
     }
 }
