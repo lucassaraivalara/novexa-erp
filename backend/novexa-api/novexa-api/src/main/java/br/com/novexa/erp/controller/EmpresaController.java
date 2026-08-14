@@ -65,11 +65,37 @@ public class EmpresaController {
 
     @PutMapping("/{id}")
     public ResponseEntity<EmpresaEntity> atualizarPorId(
+
+            // Pega o ID que veio na URL.
+            // Em /empresas/4, o valor de id será 4.
             @PathVariable Long id,
-            @RequestBody EmpresaEntity empresa) {
 
-        EmpresaEntity empresaAtualizada = empresaService.atualizarPorId(id, empresa);
+            // Recebe o JSON enviado na requisição
+            // e o transforma em um objeto EmpresaRequestDTO.
+            @RequestBody EmpresaRequestDTO empresaDTO) {
 
+        // Cria uma EmpresaEntity, que é o objeto usado
+        // pelo service e pelo banco de dados.
+        EmpresaEntity empresa = new EmpresaEntity();
+
+        // Copia cada dado recebido no DTO para a entidade.
+        empresa.setRazaoSocial(empresaDTO.getRazaoSocial());
+        empresa.setNomeFantasia(empresaDTO.getNomeFantasia());
+        empresa.setCnpj(empresaDTO.getCnpj());
+        empresa.setInscricaoEstadual(empresaDTO.getInscricaoEstadual());
+        empresa.setEmail(empresaDTO.getEmail());
+        empresa.setTelefone(empresaDTO.getTelefone());
+        empresa.setEndereco(empresaDTO.getEndereco());
+        empresa.setAtivo(empresaDTO.getAtivo());
+
+        // Envia o ID e os novos dados para o service.
+        // O service encontra a empresa existente no banco,
+        // atualiza os campos e salva as alterações.
+        EmpresaEntity empresaAtualizada =
+                empresaService.atualizarPorId(id, empresa);
+
+        // Devolve a empresa atualizada como JSON
+        // com o status HTTP 200 OK.
         return ResponseEntity.ok(empresaAtualizada);
     }
 
