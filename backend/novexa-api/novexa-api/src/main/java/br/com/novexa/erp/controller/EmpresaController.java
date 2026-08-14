@@ -2,11 +2,7 @@ package br.com.novexa.erp.controller;
 
 import br.com.novexa.erp.entity.EmpresaEntity;
 import br.com.novexa.erp.service.EmpresaService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -38,5 +34,25 @@ public class EmpresaController {
     @GetMapping
     public List<EmpresaEntity> listar() {
         return empresaService.listar();
+    }
+
+    @GetMapping("/{id}")
+    public EmpresaEntity buscarPorId(@PathVariable Long id) {
+
+        // Envia o ID recebido na URL para o Service
+        return empresaService.buscarPorId(id);
+    }
+
+    @PutMapping("/{id}")
+    public EmpresaEntity atualizarPorId(
+            @PathVariable Long id,
+            @RequestBody EmpresaEntity empresa) {
+
+        return empresaService.atualizarPorId(id, empresa);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deletarPorId(@PathVariable Long id) {
+        empresaService.deletarPorId(id);
     }
 }
