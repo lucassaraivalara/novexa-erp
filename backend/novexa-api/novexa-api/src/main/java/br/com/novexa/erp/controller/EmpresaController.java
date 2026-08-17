@@ -1,108 +1,235 @@
 package br.com.novexa.erp.controller;
 
 import br.com.novexa.erp.dto.EmpresaRequestDTO;
+import br.com.novexa.erp.dto.EmpresaResponseDTO;
 import br.com.novexa.erp.entity.EmpresaEntity;
+import br.com.novexa.erp.mapper.EmpresaMapper;
 import br.com.novexa.erp.service.EmpresaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
+/**
+ * Controller responsável pelas requisições relacionadas às empresas.
+ *
+ * O Controller é a porta de entrada da API.
+ * Ele recebe as requisições HTTP e encaminha as informações
+ * para a camada de Service.
+ */
 @RestController
 @RequestMapping("/empresas")
 public class EmpresaController {
 
+    /*
+     * Service responsável pelas regras de negócio
+     * relacionadas à empresa.
+     */
     private final EmpresaService empresaService;
 
-    // O Spring entrega o EmpresaService para o Controller
-    // através do construtor.
-    public EmpresaController(EmpresaService empresaService) {
+    /*
+     * Mapper responsável por converter os objetos:
+     *
+     * EmpresaRequestDTO  → EmpresaEntity
+     * EmpresaEntity      → EmpresaResponseDTO
+     */
+    private final EmpresaMapper empresaMapper;
+
+    /*
+     * Construtor do Controller.
+     *
+     * O Spring entrega automaticamente o Service
+     * e o Mapper através da injeção de dependência.
+     */
+    public EmpresaController(
+            EmpresaService empresaService,
+            EmpresaMapper empresaMapper) {
+
         this.empresaService = empresaService;
+        this.empresaMapper = empresaMapper;
     }
 
-    // Cadastra uma nova empresa
-    //
-    // POST /empresas
-    //
-    // @RequestBody pega o JSON enviado na requisição
-    // e transforma em um objeto EmpresaEntity.
+    /*
+     * =========================================================
+     * CADASTRAR EMPRESA
+     * =========================================================
+     *
+     * POST /empresas
+     */
     @PostMapping
-    public ResponseEntity<EmpresaEntity> salvar(
+    public ResponseEntity<EmpresaResponseDTO> salvar(
             @RequestBody EmpresaRequestDTO empresaDTO) {
 
-        EmpresaEntity empresa = new EmpresaEntity();
-        empresa.setRazaoSocial(empresaDTO.getRazaoSocial());
-        empresa.setNomeFantasia(empresaDTO.getNomeFantasia());
-        empresa.setCnpj(empresaDTO.getCnpj());
-        empresa.setInscricaoEstadual(empresaDTO.getInscricaoEstadual());
-        empresa.setEmail(empresaDTO.getEmail());
-        empresa.setTelefone(empresaDTO.getTelefone());
-        empresa.setEndereco(empresaDTO.getEndereco());
-        empresa.setAtivo(empresaDTO.getAtivo());
+        /*
+         * Converte o DTO recebido pela API
+         * para uma EmpresaEntity.
+         *
+         * RequestDTO → Entity
+         */
+        EmpresaEntity empresa =
+                empresaMapper.paraEntity(empresaDTO);
 
-        EmpresaEntity empresaSalva = empresaService.salvar(empresa);
+        /*
+         * Envia a Entity para o Service realizar
+         * o processo de salvamento.
+         */
+        EmpresaEntity empresaSalva =
+                empresaService.salvar(empresa);
 
+        /*
+         * Converte a Entity salva para ResponseDTO.
+         *
+         * Entity → ResponseDTO
+         */
+        EmpresaResponseDTO responseDTO =
+                empresaMapper.paraResponseDTO(empresaSalva);
+
+        /*
+         * Retorna a empresa criada com HTTP 201 CREATED.
+         */
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(empresaSalva);
+                .body(responseDTO);
     }
-    // GET /empresas
+
+    /*
+     * =========================================================
+     * LISTAR EMPRESAS
+     * =========================================================
+     *
+     * GET /empresas
+     */
     @GetMapping
-    public ResponseEntity<List<EmpresaEntity>> listar() {
-        List<EmpresaEntity> empresas = empresaService.listar();
+    public ResponseEntity<List<EmpresaResponseDTO>> listar() {
 
-        return ResponseEntity.ok(empresas);
+        /*
+         * Busca todas as empresas através do Service.
+         */
+        List<EmpresaEntity> empresas =
+                empresaService.listar();
+
+        /*
+         * Converte cada EmpresaEntity para
+         * EmpresaResponseDTO.
+         *
+         * Entity → ResponseDTO
+         */
+        List<EmpresaResponseDTO> empresasResponse =
+                empresas.stream()
+                        .map(empresaMapper::paraResponseDTO)
+                        .collect(Collectors.toList());
+
+        /*
+         * Retorna a lista com HTTP 200 OK.
+         */
+        return ResponseEntity.ok(empresasResponse);
     }
 
+    /*
+     * =========================================================
+     * BUSCAR EMPRESA POR ID
+     * =========================================================
+     *
+     * GET /empresas/{id}
+     */
     @GetMapping("/{id}")
-    public ResponseEntity<EmpresaEntity> buscarPorId(
+    public ResponseEntity<EmpresaResponseDTO> buscarPorId(
             @PathVariable Long id) {
 
-        EmpresaEntity empresa = empresaService.buscarPorId(id);
+        /*
+         * Busca a empresa no Service.
+         */
+        EmpresaEntity empresa =
+                empresaService.buscarPorId(id);
 
-        return ResponseEntity.ok(empresa);
+        /*
+         * Converte a Entity encontrada
+         * para ResponseDTO.
+         */
+        EmpresaResponseDTO responseDTO =
+                empresaMapper.paraResponseDTO(empresa);
+
+        /*
+         * Retorna a empresa encontrada.
+         */
+        return ResponseEntity.ok(responseDTO);
     }
 
+    /*
+     * =========================================================
+     * ATUALIZAR EMPRESA
+     * =========================================================
+     *
+     * PUT /empresas/{id}
+     */
     @PutMapping("/{id}")
-    public ResponseEntity<EmpresaEntity> atualizarPorId(
+    public ResponseEntity<EmpresaResponseDTO> atualizarPorId(
 
-            // Pega o ID que veio na URL.
-            // Em /empresas/4, o valor de id será 4.
+            /*
+             * Pega o ID que veio na URL.
+             *
+             * Exemplo:
+             * /empresas/4
+             *
+             * id = 4
+             */
             @PathVariable Long id,
 
-            // Recebe o JSON enviado na requisição
-            // e o transforma em um objeto EmpresaRequestDTO.
+            /*
+             * Recebe o JSON enviado na requisição
+             * e transforma em EmpresaRequestDTO.
+             */
             @RequestBody EmpresaRequestDTO empresaDTO) {
 
-        // Cria uma EmpresaEntity, que é o objeto usado
-        // pelo service e pelo banco de dados.
-        EmpresaEntity empresa = new EmpresaEntity();
+        /*
+         * Converte o RequestDTO para Entity.
+         */
+        EmpresaEntity empresa =
+                empresaMapper.paraEntity(empresaDTO);
 
-        // Copia cada dado recebido no DTO para a entidade.
-        empresa.setRazaoSocial(empresaDTO.getRazaoSocial());
-        empresa.setNomeFantasia(empresaDTO.getNomeFantasia());
-        empresa.setCnpj(empresaDTO.getCnpj());
-        empresa.setInscricaoEstadual(empresaDTO.getInscricaoEstadual());
-        empresa.setEmail(empresaDTO.getEmail());
-        empresa.setTelefone(empresaDTO.getTelefone());
-        empresa.setEndereco(empresaDTO.getEndereco());
-        empresa.setAtivo(empresaDTO.getAtivo());
-
-        // Envia o ID e os novos dados para o service.
-        // O service encontra a empresa existente no banco,
-        // atualiza os campos e salva as alterações.
+        /*
+         * Envia o ID e a Entity para o Service.
+         */
         EmpresaEntity empresaAtualizada =
                 empresaService.atualizarPorId(id, empresa);
 
-        // Devolve a empresa atualizada como JSON
-        // com o status HTTP 200 OK.
-        return ResponseEntity.ok(empresaAtualizada);
+        /*
+         * Converte a Entity atualizada
+         * para ResponseDTO.
+         */
+        EmpresaResponseDTO responseDTO =
+                empresaMapper.paraResponseDTO(empresaAtualizada);
+
+        /*
+         * Retorna a empresa atualizada.
+         */
+        return ResponseEntity.ok(responseDTO);
     }
 
+    /*
+     * =========================================================
+     * EXCLUIR EMPRESA
+     * =========================================================
+     *
+     * DELETE /empresas/{id}
+     */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletarPorId(@PathVariable Long id) {
+    public ResponseEntity<Void> deletarPorId(
+            @PathVariable Long id) {
+
+        /*
+         * Solicita ao Service a exclusão
+         * da empresa pelo ID.
+         */
         empresaService.deletarPorId(id);
 
+        /*
+         * HTTP 204 NO CONTENT.
+         *
+         * A exclusão foi realizada com sucesso
+         * e não há conteúdo para retornar.
+         */
         return ResponseEntity.noContent().build();
     }
 }
