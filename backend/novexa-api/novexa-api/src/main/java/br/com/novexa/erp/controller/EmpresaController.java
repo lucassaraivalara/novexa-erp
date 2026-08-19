@@ -1,5 +1,7 @@
 package br.com.novexa.erp.controller;
 
+
+import jakarta.validation.Valid;
 import br.com.novexa.erp.dto.EmpresaRequestDTO;
 import br.com.novexa.erp.dto.EmpresaResponseDTO;
 import br.com.novexa.erp.entity.EmpresaEntity;
@@ -7,6 +9,7 @@ import br.com.novexa.erp.mapper.EmpresaMapper;
 import br.com.novexa.erp.service.EmpresaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -60,7 +63,7 @@ public class EmpresaController {
      */
     @PostMapping
     public ResponseEntity<EmpresaResponseDTO> salvar(
-            @RequestBody EmpresaRequestDTO empresaDTO) {
+          @Valid @RequestBody EmpresaRequestDTO empresaDTO) {
 
         /*
          * Converte o DTO recebido pela API
