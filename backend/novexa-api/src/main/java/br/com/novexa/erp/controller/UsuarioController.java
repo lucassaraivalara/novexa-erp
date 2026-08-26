@@ -84,4 +84,38 @@ public class UsuarioController {
         // Converte a Entity para ResponseDTO.
         return usuarioMapper.toResponse(usuario);
     }
+// =========================================================
+// PUT - ATUALIZAR
+// =========================================================
+
+    // PUT /usuarios/{id}
+    @PutMapping("/{id}")
+    public UsuarioResponseDTO atualizar(
+            @PathVariable Long id,
+            @RequestBody UsuarioRequestDTO request) {
+
+        // Primeiro converte os dados recebidos no JSON
+        // para uma UsuarioEntity.
+        UsuarioEntity dadosNovos =
+                usuarioMapper.toEntity(request);
+
+        // Envia o ID e os novos dados para o Service.
+        UsuarioEntity usuarioAtualizado =
+                usuarioService.atualizar(id, dadosNovos);
+
+        // Converte a Entity atualizada para ResponseDTO.
+        return usuarioMapper.toResponse(usuarioAtualizado);
+    }
+
+// =========================================================
+// DELETE - EXCLUIR
+// =========================================================
+
+    // DELETE /usuarios/{id}
+    @DeleteMapping("/{id}")
+    public void excluir(@PathVariable Long id) {
+
+        // Envia o ID recebido na URL para o Service.
+        usuarioService.excluir(id);
+    }
 }

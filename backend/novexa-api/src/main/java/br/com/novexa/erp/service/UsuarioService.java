@@ -64,4 +64,73 @@ public class UsuarioService {
                         )
                 );
     }
+// =========================================================
+// ATUALIZAR
+// =========================================================
+
+    // Atualiza um usuário existente.
+    public UsuarioEntity atualizar(
+            Long id,
+            UsuarioEntity dadosNovos) {
+
+        // Primeiro procura o usuário existente no banco.
+        UsuarioEntity usuarioExistente =
+                usuarioRepository.findById(id)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Usuário não encontrado."
+                                )
+                        );
+
+        // Verifica se o CPF informado já pertence
+        // a OUTRO usuário.
+        if (usuarioRepository.existsByCpfAndIdNot(
+                dadosNovos.getCpf(),
+                id)) {
+
+            throw new RuntimeException(
+                    "Já existe outro usuário com este CPF."
+            );
+        }
+
+        // Atualiza os dados do usuário existente.
+        usuarioExistente.setNomeUsuario(
+                dadosNovos.getNomeUsuario()
+        );
+
+        usuarioExistente.setCpf(
+                dadosNovos.getCpf()
+        );
+
+        usuarioExistente.setEmail(
+                dadosNovos.getEmail()
+        );
+
+        usuarioExistente.setSenha(
+                dadosNovos.getSenha()
+        );
+
+        // Salva novamente a Entity atualizada.
+        return usuarioRepository.save(usuarioExistente);
+    }
+// =========================================================
+// EXCLUIR
+// =========================================================
+
+    // Exclui um usuário pelo ID.
+    public void excluir(Long id) {
+
+        // Primeiro verifica se o usuário existe.
+        if (!usuarioRepository.existsById(id)) {
+
+            // Se não existir, informa que o usuário não foi encontrado.
+            throw new RuntimeException(
+                    "Usuário não encontrado."
+            );
+        }
+
+        // Se existir, solicita ao Repository
+        // a exclusão pelo ID.
+        usuarioRepository.deleteById(id);
+    }
 }

@@ -51,4 +51,20 @@ public class UsuarioMapper {
         // Retorna o DTO de resposta.
         return response;
     }
+    public void updateEntity(
+            UsuarioRequestDTO request,
+            UsuarioEntity usuario) {
+
+        // Atualiza o nome do usuário.
+        usuario.setNomeUsuario(request.getNomeUsuario());
+
+        // Atualiza o CPF.
+        usuario.setCpf(request.getCpf());
+
+        // Atualiza o e-mail.
+        usuario.setEmail(request.getEmail());
+
+        // Atualiza a senha.
+        usuario.setSenha(request.getSenha());
+    }
 }
