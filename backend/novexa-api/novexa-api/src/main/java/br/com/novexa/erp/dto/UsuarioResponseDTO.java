@@ -1,39 +1,18 @@
-package br.com.novexa.erp.entity;
+package br.com.novexa.erp.dto;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+public class UsuarioResponseDTO {
 
-@Entity
-@Table(name = "usuario")
-public class UsuarioEntity {
-
-    // Identificador único do usuário.
-    // O banco de dados gera esse valor automaticamente.
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    // Nome do usuário no sistema.
     private String nomeUsuario;
-
-    // CPF do usuário.
     private String cpf;
-
-    // E-mail do usuário.
     private String email;
-
-    // Senha do usuário.
-    private String senha;
 
     // =========================================================
     // CONSTRUTOR
     // =========================================================
 
-    // Construtor vazio utilizado pelo JPA.
-    public UsuarioEntity() {
+    // Construtor vazio.
+    public UsuarioResponseDTO() {
     }
 
     // =========================================================
@@ -70,13 +49,5 @@ public class UsuarioEntity {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getSenha() {
-        return senha;
-    }
-
-    public void setSenha(String senha) {
-        this.senha = senha;
     }
 }

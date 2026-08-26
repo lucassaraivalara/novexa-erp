@@ -9,24 +9,59 @@ public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
 
-    // Construtor:
-    // recebe o UsuarioRepository e guarda a dependência
-    // dentro do UsuarioService.
+    // =========================================================
+    // CONSTRUTOR
+    // =========================================================
+
+    // O Spring entrega o UsuarioRepository
+    // através deste construtor.
     public UsuarioService(UsuarioRepository usuarioRepository) {
         this.usuarioRepository = usuarioRepository;
     }
 
-    // Método responsável por salvar um novo usuário.
+    // =========================================================
+    // SALVAR
+    // =========================================================
+
+    // Responsável por cadastrar um novo usuário.
     public UsuarioEntity salvar(UsuarioEntity usuario) {
 
-        // Verifica se já existe um usuário cadastrado
-        // com o mesmo CPF.
+        // Verifica se já existe um usuário
+        // utilizando o CPF informado.
         if (usuarioRepository.existsByCpf(usuario.getCpf())) {
-            throw new RuntimeException("Já existe um usuário com este CPF.");
+
+            // Se existir, interrompe o cadastro.
+            throw new RuntimeException(
+                    "Já existe um usuário com este CPF."
+            );
         }
 
-        // Se o CPF ainda não estiver cadastrado,
-        // salva o usuário no banco.
+        // Se não existir, salva o usuário no banco.
         return usuarioRepository.save(usuario);
+    }
+
+    // =========================================================
+    // LISTAR
+    // =========================================================
+
+    // Busca todos os usuários cadastrados.
+    public java.util.List<UsuarioEntity> listar() {
+
+        return usuarioRepository.findAll();
+    }
+
+    // =========================================================
+    // BUSCAR POR ID
+    // =========================================================
+
+    // Busca um usuário específico pelo ID.
+    public UsuarioEntity buscarPorId(Long id) {
+
+        return usuarioRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Usuário não encontrado."
+                        )
+                );
     }
 }
