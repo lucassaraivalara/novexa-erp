@@ -3,154 +3,91 @@ package br.com.novexa.erp.service;
 import br.com.novexa.erp.entity.UsuarioEntity;
 import br.com.novexa.erp.exception.AutenticacaoException;
 import br.com.novexa.erp.repository.UsuarioRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    // =========================================================
-    // CONSTRUTOR
-    // =========================================================
+    public UsuarioService(
+            UsuarioRepository usuarioRepository,
+            PasswordEncoder passwordEncoder) {
 
-    // O Spring entrega o UsuarioRepository
-    // através deste construtor.
-    public UsuarioService(UsuarioRepository usuarioRepository) {
         this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
-    // =========================================================
-    // SALVAR
-    // =========================================================
-
-    // Responsável por cadastrar um novo usuário.
     public UsuarioEntity salvar(UsuarioEntity usuario) {
         usuario.setCpf(normalizarCpf(usuario.getCpf()));
 
-        // Verifica se já existe um usuário
-        // utilizando o CPF informado.
         if (usuarioRepository.existsByCpf(usuario.getCpf())) {
-
-            // Se existir, interrompe o cadastro.
-            throw new RuntimeException(
-                    "Já existe um usuário com este CPF."
-            );
+            throw new RuntimeException("Já existe um usuário com este CPF.");
         }
 
-        // Se não existir, salva o usuário no banco.
+        usuario.setSenha(criptografarSenha(usuario.getSenha()));
+
+        if (usuario.getAtivo() == null) {
+            usuario.setAtivo(true);
+        }
+
         return usuarioRepository.save(usuario);
     }
 
-    // =========================================================
-    // LISTAR
-    // =========================================================
-
-    // Busca todos os usuários cadastrados.
-    public java.util.List<UsuarioEntity> listar() {
-
+    public List<UsuarioEntity> listar() {
         return usuarioRepository.findAll();
     }
 
-    // =========================================================
-    // BUSCAR POR ID
-    // =========================================================
-
-    // Busca um usuário específico pelo ID.
     public UsuarioEntity buscarPorId(Long id) {
-
         return usuarioRepository.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Usuário não encontrado."
-                        )
-                );
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
     }
-// =========================================================
-// ATUALIZAR
-// =========================================================
 
-    // Atualiza um usuário existente.
-    public UsuarioEntity atualizar(
-            Long id,
-            UsuarioEntity dadosNovos) {
+    public UsuarioEntity atualizar(Long id, UsuarioEntity dadosNovos) {
         dadosNovos.setCpf(normalizarCpf(dadosNovos.getCpf()));
 
-        // Primeiro procura o usuário existente no banco.
-        UsuarioEntity usuarioExistente =
-                usuarioRepository.findById(id)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Usuário não encontrado."
-                                )
-                        );
+        UsuarioEntity usuarioExistente = usuarioRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
 
-        // Verifica se o CPF informado já pertence
-        // a OUTRO usuário.
-        if (usuarioRepository.existsByCpfAndIdNot(
-                dadosNovos.getCpf(),
-                id)) {
-
-            throw new RuntimeException(
-                    "Já existe outro usuário com este CPF."
-            );
+        if (usuarioRepository.existsByCpfAndIdNot(dadosNovos.getCpf(), id)) {
+            throw new RuntimeException("Já existe outro usuário com este CPF.");
         }
 
-        // Atualiza os dados do usuário existente.
-        usuarioExistente.setNomeUsuario(
-                dadosNovos.getNomeUsuario()
-        );
+        usuarioExistente.setNomeUsuario(dadosNovos.getNomeUsuario());
+        usuarioExistente.setCpf(dadosNovos.getCpf());
+        usuarioExistente.setEmail(dadosNovos.getEmail());
+        usuarioExistente.setSenha(criptografarSenha(dadosNovos.getSenha()));
 
-        usuarioExistente.setCpf(
-                dadosNovos.getCpf()
-        );
-
-        usuarioExistente.setEmail(
-                dadosNovos.getEmail()
-        );
-
-        usuarioExistente.setSenha(
-                dadosNovos.getSenha()
-        );
-
-        // Salva novamente a Entity atualizada.
         return usuarioRepository.save(usuarioExistente);
     }
-// =========================================================
-// EXCLUIR
-// =========================================================
 
-    // Exclui um usuário pelo ID.
     public void excluir(Long id) {
-
-        // Primeiro verifica se o usuário existe.
         if (!usuarioRepository.existsById(id)) {
-
-            // Se não existir, informa que o usuário não foi encontrado.
-            throw new RuntimeException(
-                    "Usuário não encontrado."
-            );
+            throw new RuntimeException("Usuário não encontrado.");
         }
 
-        // Se existir, solicita ao Repository
-        // a exclusão pelo ID.
         usuarioRepository.deleteById(id);
     }
 
-    // =========================================================
-    // AUTENTICAR
-    // =========================================================
-
+    // O controller chama este método; o repository não é acessado diretamente pela web.
     public UsuarioEntity autenticar(String cpf, String senha) {
         String cpfNormalizado = normalizarCpf(cpf);
 
         UsuarioEntity usuario = usuarioRepository.findByCpfNormalizado(cpfNormalizado)
                 .or(() -> usuarioRepository.findByCpf(cpfNormalizado))
-                .orElseThrow(() -> new AutenticacaoException(
-                        "CPF ou senha inválidos."
-                ));
+                .orElseThrow(() -> new AutenticacaoException("CPF ou senha inválidos."));
 
-        if (!usuario.getSenha().equals(senha)) {
+        // O campo null é aceito temporariamente para não bloquear usuários antigos
+        // durante a migração automática de schema do Hibernate.
+        if (Boolean.FALSE.equals(usuario.getAtivo())) {
+            throw new AutenticacaoException("CPF ou senha inválidos.");
+        }
+
+        if (!senhaConfere(senha, usuario.getSenha())) {
             throw new AutenticacaoException("CPF ou senha inválidos.");
         }
 
@@ -159,5 +96,22 @@ public class UsuarioService {
 
     private String normalizarCpf(String cpf) {
         return cpf == null ? "" : cpf.replaceAll("\\D", "");
+    }
+
+    private String criptografarSenha(String senha) {
+        if (senha == null || senha.isBlank()) {
+            throw new IllegalArgumentException("A senha é obrigatória.");
+        }
+
+        return passwordEncoder.encode(senha);
+    }
+
+    private boolean senhaConfere(String senhaInformada, String senhaCriptografada) {
+        if (senhaInformada == null || senhaInformada.isBlank()
+                || senhaCriptografada == null || senhaCriptografada.isBlank()) {
+            return false;
+        }
+
+        return passwordEncoder.matches(senhaInformada, senhaCriptografada);
     }
 }

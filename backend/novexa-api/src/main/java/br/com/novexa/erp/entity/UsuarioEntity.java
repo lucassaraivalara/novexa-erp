@@ -10,35 +10,25 @@ import jakarta.persistence.Table;
 @Table(name = "usuario")
 public class UsuarioEntity {
 
-    // Identificador único do usuário.
-    // O banco de dados gera esse valor automaticamente.
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Nome do usuário no sistema.
     private String nomeUsuario;
 
-    // CPF do usuário.
     private String cpf;
 
-    // E-mail do usuário.
     private String email;
 
-    // Senha do usuário.
+    // A senha é armazenada como hash BCrypt, nunca em texto puro.
     private String senha;
 
-    // =========================================================
-    // CONSTRUTOR
-    // =========================================================
+    // Novos usuários já nascem ativos.
+    // Registros antigos podem ficar nulos até a próxima atualização do banco.
+    private Boolean ativo = true;
 
-    // Construtor vazio utilizado pelo JPA.
     public UsuarioEntity() {
     }
-
-    // =========================================================
-    // GETTERS E SETTERS
-    // =========================================================
 
     public Long getId() {
         return id;
@@ -78,5 +68,13 @@ public class UsuarioEntity {
 
     public void setSenha(String senha) {
         this.senha = senha;
+    }
+
+    public Boolean getAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(Boolean ativo) {
+        this.ativo = ativo;
     }
 }

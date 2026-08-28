@@ -1,85 +1,76 @@
-import { useState } from "react";
-
-// Componentes visuais do MUI
+import { type FormEvent, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import HubRoundedIcon from "@mui/icons-material/HubRounded";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import {
+    Alert,
     Box,
     Button,
+    IconButton,
+    InputAdornment,
     Paper,
+    Stack,
     TextField,
     Typography,
 } from "@mui/material";
-
-// Função responsável por formatar o CPF enquanto o usuário digita
 import { formatarCPF } from "../../utils/masks/cpfMask";
-
-// Função responsável por validar o CPF
+import { salvarSessao } from "../../utils/auth/sessao";
 import { validarCPF } from "../../utils/validators/cpfValidator";
 
-
 function Login() {
-
-    // Guarda o CPF digitado pelo usuário
+    const navigate = useNavigate();
     const [cpf, setCpf] = useState("");
-
-    // Guarda a senha digitada pelo usuário
     const [senha, setSenha] = useState("");
-
-    // Guarda a mensagem de erro do CPF
     const [erroCPF, setErroCPF] = useState("");
-
-    // Indica quando o login está sendo processado
-    const [carregando, setCarregando] = useState(false);
-
-    // Guarda a mensagem de erro geral do login
     const [erroLogin, setErroLogin] = useState("");
+    const [carregando, setCarregando] = useState(false);
+    const [mostrarSenha, setMostrarSenha] = useState(false);
 
+    async function handleLogin(evento: FormEvent<HTMLFormElement>) {
+        evento.preventDefault();
 
-    // Executado quando o usuário clica no botão "Entrar"
-    async function handleLogin() {
-
-        // Evita duplo clique enquanto o login está em andamento.
         if (carregando) {
             return;
         }
 
-        // Verifica se o CPF informado é válido
-        const cpfValido = validarCPF(cpf);
-
-        // Se o CPF for inválido, mostra a mensagem de erro
-        // e interrompe a execução da função.
-        if (!cpfValido) {
-            setErroCPF("CPF inválido");
+        if (!validarCPF(cpf)) {
+            setErroCPF("Informe um CPF válido.");
             return;
         }
 
-        // Validação básica da senha antes de tentar sincronizar.
         if (!senha.trim()) {
-            setErroLogin("Informe a senha.");
+            setErroLogin("Informe sua senha.");
             return;
         }
 
-        // Se chegou aqui, significa que o CPF é válido.
         setErroCPF("");
         setErroLogin("");
         setCarregando(true);
 
         try {
-            // Em desenvolvimento, o Spring Boot utiliza a porta 8080 por padrão.
-            // VITE_API_URL continua podendo sobrescrever este valor em outros ambientes.
+            // A variável permite trocar a API em outro ambiente.
+            // Localmente, o backend Spring Boot usa a porta 8080.
             const apiBase =
                 (import.meta.env.VITE_API_URL as string | undefined) ??
                 "http://localhost:8080";
 
-            const resposta = await fetch(`${apiBase.replace(/\/$/, "")}/auth/login`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    cpf: cpf.replace(/\D/g, ""),
-                    senha,
-                }),
-            });
+            const resposta = await fetch(
+                `${apiBase.replace(/\/$/, "")}/auth/login`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        cpf: cpf.replace(/\D/g, ""),
+                        senha,
+                    }),
+                }
+            );
 
             if (!resposta.ok) {
                 const mensagem = await resposta.text();
@@ -88,25 +79,18 @@ function Login() {
 
             const dados = await resposta.json();
 
-            localStorage.setItem(
-                "novexa-auth",
-                JSON.stringify({
-                    id: dados.id,
-                    nomeUsuario: dados.nomeUsuario,
-                    cpf: dados.cpf,
-                    email: dados.email,
-                    token: dados.token,
-                    autenticadoEm: new Date().toISOString(),
-                })
-            );
+            salvarSessao({
+                id: dados.id,
+                nomeUsuario: dados.nomeUsuario,
+                cpf: dados.cpf,
+                email: dados.email,
+                autenticadoEm: new Date().toISOString(),
+            });
 
-            console.log("Login sincronizado com o backend.");
+            navigate("/inicio", { replace: true });
         } catch (erro) {
-            console.error("Falha no login:", erro);
             const mensagem =
-                erro instanceof Error
-                    ? erro.message
-                    : "Não foi possível entrar.";
+                erro instanceof Error ? erro.message : "Não foi possível entrar.";
 
             setErroLogin(mensagem);
         } finally {
@@ -114,158 +98,222 @@ function Login() {
         }
     }
 
-
     return (
-
-        /*
-         * Box
-         *
-         * O Box é um dos principais componentes do MUI.
-         *
-         * Ele funciona como um container e permite utilizar
-         * as propriedades do sistema de estilos do MUI através
-         * da propriedade "sx".
-         */
         <Box
             sx={{
+                display: "grid",
                 minHeight: "100vh",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "#f5f7fa",
-                padding: 3,
+                gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "minmax(360px, 0.95fr) minmax(420px, 1.05fr)",
+                },
+                backgroundColor: "background.default",
             }}
         >
-
-            {/*
-             * Paper
-             *
-             * O Paper representa uma superfície elevada.
-             *
-             * É muito utilizado para:
-             * - cards
-             * - formulários
-             * - painéis
-             * - caixas de conteúdo
-             */}
-            <Paper
-                elevation={4}
+            <Box
                 sx={{
-                    width: "100%",
-                    maxWidth: 420,
-                    padding: 4,
-                    borderRadius: 3,
+                    display: { xs: "none", md: "flex" },
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    position: "relative",
+                    overflow: "hidden",
+                    p: { md: 5, lg: 7 },
+                    color: "common.white",
+                    background: (theme) =>
+                        `linear-gradient(145deg, ${theme.palette.secondary.main} 0%, ${theme.palette.primary.dark} 100%)`,
                 }}
             >
-
-                {/*
-                 * Typography
-                 *
-                 * É o componente do MUI utilizado para textos.
-                 *
-                 * Em vez de usar:
-                 *
-                 * <h1>Login</h1>
-                 *
-                 * usamos Typography.
-                 */}
-                <Typography
-                    variant="h4"
-                    component="h1"
+                <Box
                     sx={{
-                        fontWeight: 600,
-                        marginBottom: 3,
+                        position: "absolute",
+                        top: -160,
+                        right: -120,
+                        width: 360,
+                        height: 360,
+                        borderRadius: "50%",
+                        backgroundColor: "rgba(255, 255, 255, 0.07)",
                     }}
-                >
-                    Login
+                />
+
+                <Stack spacing={3} sx={{ position: "relative", maxWidth: 420 }}>
+                    <Box
+                        sx={{
+                            display: "grid",
+                            width: 64,
+                            height: 64,
+                            placeItems: "center",
+                            borderRadius: 3,
+                            backgroundColor: "rgba(255, 255, 255, 0.14)",
+                        }}
+                    >
+                        <HubRoundedIcon fontSize="large" />
+                    </Box>
+
+                    <Box>
+                        <Typography variant="h3" component="h1" sx={{ fontWeight: 700 }}>
+                            NOVEXA
+                        </Typography>
+                        <Typography sx={{ mt: 0.5, opacity: 0.78 }}>
+                            ERP conectado à sua operação.
+                        </Typography>
+                    </Box>
+                </Stack>
+
+                <Typography variant="body2" sx={{ position: "relative", opacity: 0.72 }}>
+                    Gestão simples, organizada e preparada para crescer.
                 </Typography>
+            </Box>
 
+            <Box
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    p: { xs: 3, sm: 5, md: 7 },
+                }}
+            >
+                <Box sx={{ width: "100%", maxWidth: 440 }}>
+                    <Stack
+                        direction="row"
+                        spacing={1.5}
+                        sx={{
+                            display: { xs: "flex", md: "none" },
+                            alignItems: "center",
+                            mb: 5,
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                display: "grid",
+                                width: 48,
+                                height: 48,
+                                placeItems: "center",
+                                borderRadius: 2.5,
+                                color: "primary.contrastText",
+                                backgroundColor: "primary.main",
+                            }}
+                        >
+                            <HubRoundedIcon />
+                        </Box>
+                        <Box>
+                            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                                NOVEXA
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                ERP
+                            </Typography>
+                        </Box>
+                    </Stack>
 
-                {/*
-                 * Campo CPF
-                 *
-                 * TextField é o componente de campo de texto
-                 * do MUI.
-                 */}
-                <TextField
-                    fullWidth
-                    label="CPF"
-                    placeholder="000.000.000-00"
-                    value={cpf}
-                    error={Boolean(erroCPF)}
-                    helperText={erroCPF}
-                    margin="normal"
+                    <Typography variant="h4" component="h2" sx={{ fontWeight: 700 }}>
+                        Acesse sua conta
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ mt: 1 }}>
+                        Informe suas credenciais para continuar.
+                    </Typography>
 
-                    /*
-                     * Executado sempre que o usuário altera
-                     * o conteúdo do campo.
-                     */
-                    onChange={(evento) => {
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            mt: 4,
+                            p: { xs: 2.5, sm: 4 },
+                            borderColor: "divider",
+                            boxShadow: "0 24px 48px rgba(16, 42, 67, 0.08)",
+                        }}
+                    >
+                        <Box component="form" noValidate onSubmit={handleLogin}>
+                            <Stack spacing={2.5}>
+                                {erroLogin && <Alert severity="error">{erroLogin}</Alert>}
 
-                        // Pega o valor digitado
-                        const valorDigitado = evento.target.value;
+                                <TextField
+                                    fullWidth
+                                    autoFocus
+                                    autoComplete="username"
+                                    label="CPF"
+                                    placeholder="000.000.000-00"
+                                    value={cpf}
+                                    error={Boolean(erroCPF)}
+                                    helperText={erroCPF}
+                                    onChange={(evento) => {
+                                        setCpf(formatarCPF(evento.target.value));
+                                        setErroCPF("");
+                                        setErroLogin("");
+                                    }}
+                                    slotProps={{
+                                        input: {
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <BadgeOutlinedIcon color="action" />
+                                                </InputAdornment>
+                                            ),
+                                        },
+                                    }}
+                                />
 
-                        // Formata o CPF utilizando a função
-                        // que já criamos anteriormente.
-                        const cpfFormatado = formatarCPF(valorDigitado);
+                                <TextField
+                                    fullWidth
+                                    autoComplete="current-password"
+                                    label="Senha"
+                                    type={mostrarSenha ? "text" : "password"}
+                                    value={senha}
+                                    onChange={(evento) => {
+                                        setSenha(evento.target.value);
+                                        setErroLogin("");
+                                    }}
+                                    slotProps={{
+                                        input: {
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <LockOutlinedIcon color="action" />
+                                                </InputAdornment>
+                                            ),
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        edge="end"
+                                                        aria-label={
+                                                            mostrarSenha
+                                                                ? "Ocultar senha"
+                                                                : "Mostrar senha"
+                                                        }
+                                                        onClick={() =>
+                                                            setMostrarSenha((atual) => !atual)
+                                                        }
+                                                    >
+                                                        {mostrarSenha ? (
+                                                            <VisibilityOffOutlinedIcon />
+                                                        ) : (
+                                                            <VisibilityOutlinedIcon />
+                                                        )}
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            ),
+                                        },
+                                    }}
+                                />
 
-                        // Guarda o CPF formatado no estado.
-                        setCpf(cpfFormatado);
-
-                        // Remove a mensagem de erro enquanto
-                        // o usuário estiver corrigindo o campo.
-                        setErroCPF("");
-                    }}
-                />
-
-
-                {/*
-                 * Campo de senha
-                 */}
-                <TextField
-                    fullWidth
-                    label="Senha"
-                    type="password"
-                    value={senha}
-                    margin="normal"
-                    error={Boolean(erroLogin)}
-                    helperText={erroLogin}
-
-                    onChange={(evento) => {
-
-                        // Guarda a senha digitada no estado.
-                        setSenha(evento.target.value);
-                    }}
-                />
-
-
-                {/*
-                 * Button
-                 *
-                 * Botão padrão do MUI.
-                 *
-                 * O "variant" define o estilo visual.
-                 *
-                 * "contained" cria um botão preenchido.
-                 */}
-                <Button
-                    fullWidth
-                    variant="contained"
-                    size="large"
-                    onClick={handleLogin}
-                    disabled={carregando}
-                    sx={{
-                        marginTop: 3,
-                    }}
-                >
-                    {carregando ? "Entrando..." : "Entrar"}
-                </Button>
-
-            </Paper>
-
+                                <Button
+                                    fullWidth
+                                    type="submit"
+                                    variant="contained"
+                                    size="large"
+                                    disabled={carregando}
+                                    startIcon={<LoginRoundedIcon />}
+                                    sx={{
+                                        minHeight: 48,
+                                        fontWeight: 700,
+                                        textTransform: "none",
+                                    }}
+                                >
+                                    {carregando ? "Entrando..." : "Entrar"}
+                                </Button>
+                            </Stack>
+                        </Box>
+                    </Paper>
+                </Box>
+            </Box>
         </Box>
     );
 }
-
 
 export default Login;
