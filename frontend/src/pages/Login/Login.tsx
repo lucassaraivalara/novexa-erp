@@ -17,6 +17,7 @@ import {
     TextField,
     Typography,
 } from "@mui/material";
+import { realizarLogin } from "../../services/authService";
 import { formatarCPF } from "../../utils/masks/cpfMask";
 import { salvarSessao } from "../../utils/auth/sessao";
 import { validarCPF } from "../../utils/validators/cpfValidator";
@@ -52,32 +53,10 @@ function Login() {
         setCarregando(true);
 
         try {
-            // A variável permite trocar a API em outro ambiente.
-            // Localmente, o backend Spring Boot usa a porta 8080.
-            const apiBase =
-                (import.meta.env.VITE_API_URL as string | undefined) ??
-                "http://localhost:8080";
-
-            const resposta = await fetch(
-                `${apiBase.replace(/\/$/, "")}/auth/login`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        cpf: cpf.replace(/\D/g, ""),
-                        senha,
-                    }),
-                }
-            );
-
-            if (!resposta.ok) {
-                const mensagem = await resposta.text();
-                throw new Error(mensagem || "CPF ou senha inválidos.");
-            }
-
-            const dados = await resposta.json();
+            const dados = await realizarLogin({
+                cpf: cpf.replace(/\D/g, ""),
+                senha,
+            });
 
             salvarSessao({
                 id: dados.id,
