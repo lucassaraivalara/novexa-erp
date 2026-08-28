@@ -1,6 +1,7 @@
 package br.com.novexa.erp.service;
 
 import br.com.novexa.erp.entity.UsuarioEntity;
+import br.com.novexa.erp.exception.AutenticacaoException;
 import br.com.novexa.erp.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,7 @@ public class UsuarioService {
 
     // Responsável por cadastrar um novo usuário.
     public UsuarioEntity salvar(UsuarioEntity usuario) {
+        usuario.setCpf(normalizarCpf(usuario.getCpf()));
 
         // Verifica se já existe um usuário
         // utilizando o CPF informado.
@@ -72,6 +74,7 @@ public class UsuarioService {
     public UsuarioEntity atualizar(
             Long id,
             UsuarioEntity dadosNovos) {
+        dadosNovos.setCpf(normalizarCpf(dadosNovos.getCpf()));
 
         // Primeiro procura o usuário existente no banco.
         UsuarioEntity usuarioExistente =
@@ -132,5 +135,29 @@ public class UsuarioService {
         // Se existir, solicita ao Repository
         // a exclusão pelo ID.
         usuarioRepository.deleteById(id);
+    }
+
+    // =========================================================
+    // AUTENTICAR
+    // =========================================================
+
+    public UsuarioEntity autenticar(String cpf, String senha) {
+        String cpfNormalizado = normalizarCpf(cpf);
+
+        UsuarioEntity usuario = usuarioRepository.findByCpfNormalizado(cpfNormalizado)
+                .or(() -> usuarioRepository.findByCpf(cpfNormalizado))
+                .orElseThrow(() -> new AutenticacaoException(
+                        "CPF ou senha inválidos."
+                ));
+
+        if (!usuario.getSenha().equals(senha)) {
+            throw new AutenticacaoException("CPF ou senha inválidos.");
+        }
+
+        return usuario;
+    }
+
+    private String normalizarCpf(String cpf) {
+        return cpf == null ? "" : cpf.replaceAll("\\D", "");
     }
 }

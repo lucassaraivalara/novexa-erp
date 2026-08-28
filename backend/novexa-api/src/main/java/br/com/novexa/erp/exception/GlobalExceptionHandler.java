@@ -27,4 +27,14 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.CONFLICT)
                 .body(exception.getMessage());
     }
+
+    // Trata falhas de autenticação.
+    @ExceptionHandler(AutenticacaoException.class)
+    public ResponseEntity<String> tratarAutenticacao(
+            AutenticacaoException exception) {
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(exception.getMessage());
+    }
 }
