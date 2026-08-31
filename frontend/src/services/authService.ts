@@ -1,38 +1,28 @@
-export type LoginRequest = {
-    cpf: string;
-    senha: string;
-};
-
-export type LoginResponse = {
-    id: number;
-    nomeUsuario: string;
-    cpf: string;
-    email: string;
-};
-
-const apiBase =
-    (import.meta.env.VITE_API_URL as string | undefined) ??
-    "http://localhost:8080";
+import axios from "axios";
+import type { LoginRequest, LoginResponse } from "../types/auth";
+import api from "./api";
 
 export async function realizarLogin({
     cpf,
     senha,
 }: LoginRequest): Promise<LoginResponse> {
-    const resposta = await fetch(
-        `${apiBase.replace(/\/$/, "")}/auth/login`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ cpf, senha }),
+    try {
+        const resposta = await api.post<LoginResponse>("/auth/login", {
+            cpf,
+            senha,
+        });
+
+        return resposta.data;
+    } catch (erro) {
+        if (axios.isAxiosError(erro)) {
+            const mensagem =
+                typeof erro.response?.data === "string"
+                    ? erro.response.data
+                    : "Não foi possível entrar. Verifique se o backend está em execução.";
+
+            throw new Error(mensagem, { cause: erro });
         }
-    );
 
-    if (!resposta.ok) {
-        const mensagem = await resposta.text();
-        throw new Error(mensagem || "CPF ou senha inválidos.");
+        throw new Error("Não foi possível entrar.", { cause: erro });
     }
-
-    return resposta.json() as Promise<LoginResponse>;
 }

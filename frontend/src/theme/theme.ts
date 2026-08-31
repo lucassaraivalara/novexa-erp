@@ -3,30 +3,32 @@ import { createTheme } from "@mui/material/styles";
 const theme = createTheme({
     palette: {
         primary: {
-            main: "#087EBC",
-            dark: "#075C91",
-            light: "#E6F4FB",
+            main: "#0F766E",
+            dark: "#115E59",
+            light: "#CCFBF1",
             contrastText: "#FFFFFF",
         },
         secondary: {
-            main: "#102A43",
+            main: "#0F172A",
+            contrastText: "#FFFFFF",
         },
         background: {
-            default: "#F4F7FA",
+            default: "#F8FAFC",
             paper: "#FFFFFF",
         },
         text: {
-            primary: "#172033",
-            secondary: "#64748B",
+            primary: "#0F172A",
+            secondary: "#475569",
         },
     },
 
     typography: {
-        fontFamily: "Roboto, Arial, sans-serif",
+        fontFamily:
+            'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     },
 
     shape: {
-        borderRadius: 12,
+        borderRadius: 14,
     },
 });
 

@@ -1,8 +1,6 @@
-export type SessaoUsuario = {
-    id: number;
-    nomeUsuario: string;
-    cpf: string;
-    email: string;
+import type { LoginResponse } from "../../types/auth";
+
+export type SessaoUsuario = LoginResponse & {
     autenticadoEm: string;
 };
 
@@ -13,7 +11,22 @@ export function salvarSessao(sessao: SessaoUsuario): void {
 }
 
 export function possuiSessao(): boolean {
-    return localStorage.getItem(CHAVE_SESSAO) !== null;
+    return obterSessao() !== null;
+}
+
+export function obterSessao(): SessaoUsuario | null {
+    const sessaoArmazenada = localStorage.getItem(CHAVE_SESSAO);
+
+    if (!sessaoArmazenada) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(sessaoArmazenada) as SessaoUsuario;
+    } catch {
+        removerSessao();
+        return null;
+    }
 }
 
 export function removerSessao(): void {

@@ -1,15 +1,19 @@
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
-import HubRoundedIcon from "@mui/icons-material/HubRounded";
+import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
+import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
+import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
+import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import {
     Alert,
     Box,
     Button,
+    Chip,
     IconButton,
     InputAdornment,
     Paper,
@@ -18,9 +22,11 @@ import {
     Typography,
 } from "@mui/material";
 import { realizarLogin } from "../../services/authService";
-import { formatarCPF } from "../../utils/masks/cpfMask";
 import { salvarSessao } from "../../utils/auth/sessao";
+import { formatarCPF } from "../../utils/masks/cpfMask";
 import { validarCPF } from "../../utils/validators/cpfValidator";
+
+const modulos = ["Vendas", "Estoque", "Clientes", "Compras", "Financeiro", "PDV"];
 
 function Login() {
     const navigate = useNavigate();
@@ -66,7 +72,7 @@ function Login() {
                 autenticadoEm: new Date().toISOString(),
             });
 
-            navigate("/inicio", { replace: true });
+            navigate("/dashboard", { replace: true });
         } catch (erro) {
             const mensagem =
                 erro instanceof Error ? erro.message : "Não foi possível entrar.";
@@ -82,39 +88,48 @@ function Login() {
             sx={{
                 display: "grid",
                 minHeight: "100vh",
-                gridTemplateColumns: {
-                    xs: "1fr",
-                    md: "minmax(360px, 0.95fr) minmax(420px, 1.05fr)",
-                },
-                backgroundColor: "background.default",
+                gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1.35fr) minmax(460px, 0.9fr)" },
+                backgroundColor: "#FFFFFF",
             }}
         >
             <Box
                 sx={{
-                    display: { xs: "none", md: "flex" },
+                    display: { xs: "none", lg: "flex" },
                     flexDirection: "column",
                     justifyContent: "space-between",
                     position: "relative",
                     overflow: "hidden",
-                    p: { md: 5, lg: 7 },
-                    color: "common.white",
-                    background: (theme) =>
-                        `linear-gradient(145deg, ${theme.palette.secondary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                    px: { lg: 6, xl: 8 },
+                    py: { lg: 5, xl: 6 },
+                    color: "#E2ECFA",
+                    background:
+                        "radial-gradient(circle at 82% 34%, rgba(14, 165, 233, 0.18) 0 4px, transparent 5px), radial-gradient(circle at 42% 70%, rgba(14, 165, 233, 0.15) 0 4px, transparent 5px), linear-gradient(135deg, #071B35 0%, #0A2444 58%, #06162D 100%)",
+                    "&::before": {
+                        content: '""',
+                        position: "absolute",
+                        inset: 0,
+                        opacity: 0.45,
+                        backgroundImage:
+                            "linear-gradient(135deg, transparent 49.8%, rgba(29, 148, 206, 0.28) 50%, transparent 50.2%), linear-gradient(35deg, transparent 49.8%, rgba(29, 148, 206, 0.16) 50%, transparent 50.2%)",
+                        backgroundSize: "420px 420px, 530px 530px",
+                    },
+                    "&::after": {
+                        content: '""',
+                        position: "absolute",
+                        top: "-24%",
+                        right: "-14%",
+                        width: 520,
+                        height: 520,
+                        borderRadius: "50%",
+                        border: "1px solid rgba(56, 189, 248, 0.12)",
+                    },
                 }}
             >
-                <Box
-                    sx={{
-                        position: "absolute",
-                        top: -160,
-                        right: -120,
-                        width: 360,
-                        height: 360,
-                        borderRadius: "50%",
-                        backgroundColor: "rgba(255, 255, 255, 0.07)",
-                    }}
-                />
-
-                <Stack spacing={3} sx={{ position: "relative", maxWidth: 420 }}>
+                <Stack
+                    direction="row"
+                    spacing={1.75}
+                    sx={{ position: "relative", alignItems: "center" }}
+                >
                     <Box
                         sx={{
                             display: "grid",
@@ -122,25 +137,91 @@ function Login() {
                             height: 64,
                             placeItems: "center",
                             borderRadius: 3,
-                            backgroundColor: "rgba(255, 255, 255, 0.14)",
+                            color: "#E0F7FF",
+                            background:
+                                "linear-gradient(145deg, rgba(25, 154, 221, 0.62), rgba(30, 64, 175, 0.72))",
+                            boxShadow: "0 18px 32px rgba(1, 13, 31, 0.32)",
                         }}
                     >
-                        <HubRoundedIcon fontSize="large" />
+                        <StorefrontRoundedIcon sx={{ fontSize: 36 }} />
                     </Box>
 
                     <Box>
-                        <Typography variant="h3" component="h1" sx={{ fontWeight: 700 }}>
+                        <Typography
+                            variant="h4"
+                            component="h1"
+                            sx={{ color: "#F8FCFF", fontWeight: 800, letterSpacing: "0.04em" }}
+                        >
                             NOVEXA
                         </Typography>
-                        <Typography sx={{ mt: 0.5, opacity: 0.78 }}>
-                            ERP conectado à sua operação.
+                        <Typography
+                            sx={{ color: "#38BDF8", fontSize: "0.95rem", fontWeight: 700, letterSpacing: "0.12em" }}
+                        >
+                            ERP &amp; PDV
                         </Typography>
                     </Box>
                 </Stack>
 
-                <Typography variant="body2" sx={{ position: "relative", opacity: 0.72 }}>
-                    Gestão simples, organizada e preparada para crescer.
-                </Typography>
+                <Stack spacing={3.25} sx={{ position: "relative", maxWidth: 520 }}>
+                    <Box sx={{ width: 56, height: 3, borderRadius: 99, backgroundColor: "#38BDF8" }} />
+
+                    <Typography
+                        component="p"
+                        sx={{
+                            maxWidth: 480,
+                            color: "#D7E5F8",
+                            fontSize: { lg: "1.75rem", xl: "2.05rem" },
+                            fontWeight: 400,
+                            lineHeight: 1.3,
+                            letterSpacing: "-0.025em",
+                        }}
+                    >
+                        Gestão completa para o seu negócio crescer todos os dias.
+                    </Typography>
+
+                    <Stack
+                        direction="row"
+                        useFlexGap
+                        spacing={1.25}
+                        sx={{ flexWrap: "wrap" }}
+                    >
+                        {modulos.map((modulo) => (
+                            <Chip
+                                key={modulo}
+                                label={modulo}
+                                variant="outlined"
+                                sx={{
+                                    height: 32,
+                                    borderColor: "rgba(148, 209, 238, 0.24)",
+                                    color: "#B6CCE3",
+                                    fontWeight: 600,
+                                    letterSpacing: "0.08em",
+                                    textTransform: "uppercase",
+                                    "& .MuiChip-label": { px: 1.75 },
+                                }}
+                            />
+                        ))}
+                    </Stack>
+                </Stack>
+
+                <Stack
+                    direction="row"
+                    spacing={3}
+                    sx={{ position: "relative", alignItems: "center", color: "#8EA7C3" }}
+                >
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                        <VerifiedUserOutlinedIcon sx={{ color: "#38BDF8", fontSize: 20 }} />
+                        <Typography variant="body2">Seguro</Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                        <CloudOutlinedIcon sx={{ color: "#38BDF8", fontSize: 20 }} />
+                        <Typography variant="body2">Na nuvem</Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                        <PointOfSaleRoundedIcon sx={{ color: "#38BDF8", fontSize: 20 }} />
+                        <Typography variant="body2">Pronto para PDV</Typography>
+                    </Stack>
+                </Stack>
             </Box>
 
             <Box
@@ -148,68 +229,92 @@ function Login() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    p: { xs: 3, sm: 5, md: 7 },
+                    minHeight: "100vh",
+                    px: { xs: 3, sm: 5, lg: 5, xl: 6 },
+                    py: { xs: 3, sm: 4, lg: 4 },
+                    background:
+                        "linear-gradient(rgba(231, 238, 247, 0.42) 1px, transparent 1px), linear-gradient(90deg, rgba(231, 238, 247, 0.42) 1px, transparent 1px), #FFFFFF",
+                    backgroundSize: "64px 64px",
                 }}
             >
-                <Box sx={{ width: "100%", maxWidth: 440 }}>
-                    <Stack
-                        direction="row"
-                        spacing={1.5}
-                        sx={{
-                            display: { xs: "flex", md: "none" },
-                            alignItems: "center",
-                            mb: 5,
-                        }}
-                    >
-                        <Box
-                            sx={{
-                                display: "grid",
-                                width: 48,
-                                height: 48,
-                                placeItems: "center",
-                                borderRadius: 2.5,
-                                color: "primary.contrastText",
-                                backgroundColor: "primary.main",
-                            }}
+                <Paper
+                    elevation={0}
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        width: "100%",
+                        maxWidth: 420,
+                        minHeight: { xs: "auto", sm: 500, lg: 515 },
+                        border: { xs: 0, sm: "1px solid rgba(226, 232, 240, 0.9)" },
+                        borderRadius: { xs: 0, sm: "22px" },
+                        p: { xs: 0, sm: 4.5, lg: 5 },
+                        backgroundColor: "#FFFFFF",
+                        boxShadow: { xs: "none", sm: "0 18px 45px rgba(15, 23, 42, 0.1)" },
+                    }}
+                >
+                    <Stack spacing={3.25} sx={{ width: "100%" }}>
+                        <Stack
+                            direction="row"
+                            spacing={1.25}
+                            sx={{ alignItems: "center", justifyContent: "center" }}
                         >
-                            <HubRoundedIcon />
-                        </Box>
+                            <Box
+                                sx={{
+                                    display: "grid",
+                                    width: 40,
+                                    height: 40,
+                                    placeItems: "center",
+                                    borderRadius: 2,
+                                    color: "#E0F7FF",
+                                    background:
+                                        "linear-gradient(145deg, #179DE0 0%, #164FAD 100%)",
+                                    boxShadow: "0 10px 18px rgba(22, 79, 173, 0.22)",
+                                }}
+                            >
+                                <StorefrontRoundedIcon fontSize="small" />
+                            </Box>
+                            <Box>
+                                <Typography sx={{ color: "#0B2550", fontWeight: 800, lineHeight: 1 }}>
+                                    NOVEXA
+                                </Typography>
+                                <Typography
+                                    sx={{ color: "#1697DB", fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.1em" }}
+                                >
+                                    ERP &amp; PDV
+                                </Typography>
+                            </Box>
+                        </Stack>
+
                         <Box>
-                            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                                NOVEXA
+                            <Typography
+                                variant="h4"
+                                component="h2"
+                                sx={{
+                                    color: "#101B35",
+                                    fontSize: { xs: "1.65rem", sm: "1.85rem" },
+                                    fontWeight: 700,
+                                    lineHeight: 1.15,
+                                    letterSpacing: "-0.03em",
+                                }}
+                            >
+                                Acesso ao sistema
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                ERP
+                            <Typography
+                                sx={{ mt: 0.75, color: "#64748B", fontSize: { xs: "0.9rem", sm: "0.95rem" } }}
+                            >
+                                Entre para gerenciar sua operação.
                             </Typography>
                         </Box>
-                    </Stack>
 
-                    <Typography variant="h4" component="h2" sx={{ fontWeight: 700 }}>
-                        Acesse sua conta
-                    </Typography>
-                    <Typography color="text.secondary" sx={{ mt: 1 }}>
-                        Informe suas credenciais para continuar.
-                    </Typography>
-
-                    <Paper
-                        variant="outlined"
-                        sx={{
-                            mt: 4,
-                            p: { xs: 2.5, sm: 4 },
-                            borderColor: "divider",
-                            boxShadow: "0 24px 48px rgba(16, 42, 67, 0.08)",
-                        }}
-                    >
                         <Box component="form" noValidate onSubmit={handleLogin}>
-                            <Stack spacing={2.5}>
+                            <Stack spacing={2}>
                                 {erroLogin && <Alert severity="error">{erroLogin}</Alert>}
 
                                 <TextField
                                     fullWidth
                                     autoFocus
                                     autoComplete="username"
-                                    label="CPF"
-                                    placeholder="000.000.000-00"
+                                    placeholder="CPF"
                                     value={cpf}
                                     error={Boolean(erroCPF)}
                                     helperText={erroCPF}
@@ -219,20 +324,37 @@ function Login() {
                                         setErroLogin("");
                                     }}
                                     slotProps={{
+                                        htmlInput: { "aria-label": "CPF" },
                                         input: {
                                             startAdornment: (
                                                 <InputAdornment position="start">
-                                                    <BadgeOutlinedIcon color="action" />
+                                                    <BadgeOutlinedIcon sx={{ color: "#91A4BF" }} />
                                                 </InputAdornment>
                                             ),
                                         },
+                                    }}
+                                    sx={{
+                                        "& .MuiOutlinedInput-root": {
+                                            minHeight: 54,
+                                            borderRadius: 1.75,
+                                            backgroundColor: "rgba(248, 250, 252, 0.9)",
+                                            "& fieldset": { borderColor: "#DCE5F0", borderWidth: 2 },
+                                            "&:hover fieldset": { borderColor: "#A8D9F2" },
+                                            "&.Mui-focused fieldset": { borderColor: "#1697DB" },
+                                        },
+                                        "& .MuiInputBase-input": {
+                                            color: "#1E293B",
+                                            fontSize: "0.975rem",
+                                            fontWeight: 500,
+                                        },
+                                        "& .MuiInputBase-input::placeholder": { color: "#91A4BF", opacity: 1 },
                                     }}
                                 />
 
                                 <TextField
                                     fullWidth
                                     autoComplete="current-password"
-                                    label="Senha"
+                                    placeholder="Senha"
                                     type={mostrarSenha ? "text" : "password"}
                                     value={senha}
                                     onChange={(evento) => {
@@ -240,10 +362,11 @@ function Login() {
                                         setErroLogin("");
                                     }}
                                     slotProps={{
+                                        htmlInput: { "aria-label": "Senha" },
                                         input: {
                                             startAdornment: (
                                                 <InputAdornment position="start">
-                                                    <LockOutlinedIcon color="action" />
+                                                    <LockOutlinedIcon sx={{ color: "#91A4BF" }} />
                                                 </InputAdornment>
                                             ),
                                             endAdornment: (
@@ -260,14 +383,30 @@ function Login() {
                                                         }
                                                     >
                                                         {mostrarSenha ? (
-                                                            <VisibilityOffOutlinedIcon />
+                                                            <VisibilityOffOutlinedIcon sx={{ color: "#91A4BF" }} />
                                                         ) : (
-                                                            <VisibilityOutlinedIcon />
+                                                            <VisibilityOutlinedIcon sx={{ color: "#91A4BF" }} />
                                                         )}
                                                     </IconButton>
                                                 </InputAdornment>
                                             ),
                                         },
+                                    }}
+                                    sx={{
+                                        "& .MuiOutlinedInput-root": {
+                                            minHeight: 54,
+                                            borderRadius: 1.75,
+                                            backgroundColor: "rgba(248, 250, 252, 0.9)",
+                                            "& fieldset": { borderColor: "#DCE5F0", borderWidth: 2 },
+                                            "&:hover fieldset": { borderColor: "#A8D9F2" },
+                                            "&.Mui-focused fieldset": { borderColor: "#1697DB" },
+                                        },
+                                        "& .MuiInputBase-input": {
+                                            color: "#1E293B",
+                                            fontSize: "0.975rem",
+                                            fontWeight: 500,
+                                        },
+                                        "& .MuiInputBase-input::placeholder": { color: "#91A4BF", opacity: 1 },
                                     }}
                                 />
 
@@ -277,19 +416,34 @@ function Login() {
                                     variant="contained"
                                     size="large"
                                     disabled={carregando}
-                                    startIcon={<LoginRoundedIcon />}
+                                    endIcon={<ArrowForwardRoundedIcon />}
                                     sx={{
-                                        minHeight: 48,
-                                        fontWeight: 700,
+                                        minHeight: 52,
+                                        mt: 1,
+                                        borderRadius: 1.75,
+                                        fontSize: "1rem",
+                                        fontWeight: 800,
                                         textTransform: "none",
+                                        color: "#FFFFFF",
+                                        background:
+                                            "linear-gradient(100deg, #1FA6E4 0%, #0877B7 100%)",
+                                        boxShadow: "0 8px 18px rgba(8, 119, 183, 0.2)",
+                                        "&:hover": {
+                                            background:
+                                                "linear-gradient(100deg, #1597D4 0%, #07689E 100%)",
+                                        },
                                     }}
                                 >
                                     {carregando ? "Entrando..." : "Entrar"}
                                 </Button>
                             </Stack>
                         </Box>
-                    </Paper>
-                </Box>
+
+                        <Typography align="center" variant="body2" sx={{ color: "#94A3B8", fontSize: "0.75rem" }}>
+                            Novexa ERP · Gestão para pequenos negócios
+                        </Typography>
+                    </Stack>
+                </Paper>
             </Box>
         </Box>
     );
