@@ -6,6 +6,7 @@ public class UsuarioResponseDTO {
     private String nomeUsuario;
     private String cpf;
     private String email;
+    private EmpresaResponseDTO empresa;
 
     // =========================================================
     // CONSTRUTOR
@@ -49,5 +50,13 @@ public class UsuarioResponseDTO {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public EmpresaResponseDTO getEmpresa() {
+        return empresa;
+    }
+
+    public void setEmpresa(EmpresaResponseDTO empresa) {
+        this.empresa = empresa;
     }
 }

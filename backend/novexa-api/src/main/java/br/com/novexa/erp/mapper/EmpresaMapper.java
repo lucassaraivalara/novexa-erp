@@ -26,6 +26,10 @@ public class EmpresaMapper {
 
     public EmpresaResponseDTO paraResponseDTO(EmpresaEntity empresa) {
 
+        if (empresa == null) {
+            return null;
+        }
+
         EmpresaResponseDTO responseDTO = new EmpresaResponseDTO();
 
         responseDTO.setId(empresa.getId());

@@ -1,5 +1,6 @@
 package br.com.novexa.erp.service;
 
+import br.com.novexa.erp.entity.EmpresaEntity;
 import br.com.novexa.erp.entity.UsuarioEntity;
 import br.com.novexa.erp.exception.AutenticacaoException;
 import br.com.novexa.erp.repository.UsuarioRepository;
@@ -12,17 +13,21 @@ import java.util.List;
 public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
+    private final EmpresaService empresaService;
     private final PasswordEncoder passwordEncoder;
 
     public UsuarioService(
             UsuarioRepository usuarioRepository,
+            EmpresaService empresaService,
             PasswordEncoder passwordEncoder) {
 
         this.usuarioRepository = usuarioRepository;
+        this.empresaService = empresaService;
         this.passwordEncoder = passwordEncoder;
     }
 
-    public UsuarioEntity salvar(UsuarioEntity usuario) {
+    public UsuarioEntity salvar(UsuarioEntity usuario, Long empresaId) {
+        usuario.setEmpresa(buscarEmpresaObrigatoria(empresaId));
         usuario.setCpf(normalizarCpf(usuario.getCpf()));
 
         if (usuarioRepository.existsByCpf(usuario.getCpf())) {
@@ -47,7 +52,11 @@ public class UsuarioService {
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
     }
 
-    public UsuarioEntity atualizar(Long id, UsuarioEntity dadosNovos) {
+    public UsuarioEntity atualizar(
+            Long id,
+            UsuarioEntity dadosNovos,
+            Long empresaId) {
+
         dadosNovos.setCpf(normalizarCpf(dadosNovos.getCpf()));
 
         UsuarioEntity usuarioExistente = usuarioRepository.findById(id)
@@ -61,6 +70,7 @@ public class UsuarioService {
         usuarioExistente.setCpf(dadosNovos.getCpf());
         usuarioExistente.setEmail(dadosNovos.getEmail());
         usuarioExistente.setSenha(criptografarSenha(dadosNovos.getSenha()));
+        usuarioExistente.setEmpresa(buscarEmpresaObrigatoria(empresaId));
 
         return usuarioRepository.save(usuarioExistente);
     }
@@ -91,7 +101,25 @@ public class UsuarioService {
             throw new AutenticacaoException("CPF ou senha inválidos.");
         }
 
+        if (usuario.getEmpresa() == null) {
+            throw new AutenticacaoException(
+                    "Usuário sem empresa vinculada. Vincule uma empresa antes de entrar."
+            );
+        }
+
+        if (Boolean.FALSE.equals(usuario.getEmpresa().getAtivo())) {
+            throw new AutenticacaoException("A empresa vinculada ao usuário está inativa.");
+        }
+
         return usuario;
+    }
+
+    private EmpresaEntity buscarEmpresaObrigatoria(Long empresaId) {
+        if (empresaId == null) {
+            throw new IllegalArgumentException("A empresa é obrigatória para o usuário.");
+        }
+
+        return empresaService.buscarPorId(empresaId);
     }
 
     private String normalizarCpf(String cpf) {

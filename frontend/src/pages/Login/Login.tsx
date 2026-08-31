@@ -69,6 +69,7 @@ function Login() {
                 nomeUsuario: dados.nomeUsuario,
                 cpf: dados.cpf,
                 email: dados.email,
+                empresa: dados.empresa,
                 autenticadoEm: new Date().toISOString(),
             });
 

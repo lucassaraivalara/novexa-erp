@@ -1,4 +1,4 @@
-import type { LoginResponse } from "../../types/auth";
+import type { EmpresaAtiva, LoginResponse } from "../../types/auth";
 
 export type SessaoUsuario = LoginResponse & {
     autenticadoEm: string;
@@ -11,7 +11,19 @@ export function salvarSessao(sessao: SessaoUsuario): void {
 }
 
 export function possuiSessao(): boolean {
-    return obterSessao() !== null;
+    const sessao = obterSessao();
+
+    if (sessao?.empresa) {
+        return true;
+    }
+
+    // Sessões criadas antes da fundação multiempresa não possuem empresa ativa.
+    // Elas precisam de um novo login para receber o contexto correto da API.
+    if (sessao) {
+        removerSessao();
+    }
+
+    return false;
 }
 
 export function obterSessao(): SessaoUsuario | null {
@@ -31,4 +43,8 @@ export function obterSessao(): SessaoUsuario | null {
 
 export function removerSessao(): void {
     localStorage.removeItem(CHAVE_SESSAO);
+}
+
+export function obterEmpresaAtiva(): EmpresaAtiva | null {
+    return obterSessao()?.empresa ?? null;
 }

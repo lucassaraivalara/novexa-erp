@@ -5,6 +5,7 @@ import br.com.novexa.erp.dto.UsuarioResponseDTO;
 import br.com.novexa.erp.entity.UsuarioEntity;
 import br.com.novexa.erp.mapper.UsuarioMapper;
 import br.com.novexa.erp.service.UsuarioService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,14 +38,14 @@ public class UsuarioController {
     // POST /usuarios
     @PostMapping
     public UsuarioResponseDTO salvar(
-            @RequestBody UsuarioRequestDTO request) {
+            @Valid @RequestBody UsuarioRequestDTO request) {
 
         // Converte o JSON recebido para UsuarioEntity.
         UsuarioEntity usuario = usuarioMapper.toEntity(request);
 
         // Envia a Entity para o Service.
         UsuarioEntity usuarioSalvo =
-                usuarioService.salvar(usuario);
+                usuarioService.salvar(usuario, request.getEmpresaId());
 
         // Converte a Entity salva para ResponseDTO.
         return usuarioMapper.toResponse(usuarioSalvo);
@@ -92,7 +93,7 @@ public class UsuarioController {
     @PutMapping("/{id}")
     public UsuarioResponseDTO atualizar(
             @PathVariable Long id,
-            @RequestBody UsuarioRequestDTO request) {
+            @Valid @RequestBody UsuarioRequestDTO request) {
 
         // Primeiro converte os dados recebidos no JSON
         // para uma UsuarioEntity.
@@ -101,7 +102,7 @@ public class UsuarioController {
 
         // Envia o ID e os novos dados para o Service.
         UsuarioEntity usuarioAtualizado =
-                usuarioService.atualizar(id, dadosNovos);
+                usuarioService.atualizar(id, dadosNovos, request.getEmpresaId());
 
         // Converte a Entity atualizada para ResponseDTO.
         return usuarioMapper.toResponse(usuarioAtualizado);

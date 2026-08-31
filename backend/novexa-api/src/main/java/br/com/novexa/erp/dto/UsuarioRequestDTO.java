@@ -1,11 +1,16 @@
 package br.com.novexa.erp.dto;
 
+import jakarta.validation.constraints.NotNull;
+
 public class UsuarioRequestDTO {
 
     private String nomeUsuario;
     private String cpf;
     private String email;
     private String senha;
+
+    @NotNull(message = "A empresa é obrigatória.")
+    private Long empresaId;
 
     // =========================================================
     // CONSTRUTOR
@@ -51,5 +56,13 @@ public class UsuarioRequestDTO {
 
     public void setSenha(String senha) {
         this.senha = senha;
+    }
+
+    public Long getEmpresaId() {
+        return empresaId;
+    }
+
+    public void setEmpresaId(Long empresaId) {
+        this.empresaId = empresaId;
     }
 }

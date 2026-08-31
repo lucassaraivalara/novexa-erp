@@ -4,7 +4,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "empresas")
@@ -30,6 +34,8 @@ public class EmpresaEntity {
 
     private Boolean ativo;
 
+    @OneToMany(mappedBy = "empresa")
+    private List<UsuarioEntity> usuarios = new ArrayList<>();
 
     public EmpresaEntity() {
     }
@@ -74,6 +80,10 @@ public class EmpresaEntity {
         return ativo;
     }
 
+    public List<UsuarioEntity> getUsuarios() {
+        return usuarios;
+    }
+
 
     // =========================
     // SETTERS
@@ -113,6 +123,10 @@ public class EmpresaEntity {
 
     public void setAtivo(Boolean ativo) {
         this.ativo = ativo;
+    }
+
+    public void setUsuarios(List<UsuarioEntity> usuarios) {
+        this.usuarios = usuarios;
     }
 
 }

@@ -10,6 +10,7 @@ function AppHeader() {
     const navigate = useNavigate();
     const sessao = obterSessao();
     const nomeUsuario = sessao?.nomeUsuario ?? "Usuário";
+    const nomeEmpresa = sessao?.empresa?.nomeFantasia ?? "Empresa";
 
     function handleSair() {
         removerSessao();
@@ -62,16 +63,31 @@ function AppHeader() {
                         {nomeUsuario.charAt(0).toUpperCase()}
                     </Avatar>
 
-                    <Typography
-                        variant="body2"
+                    <Box
                         sx={{
                             display: { xs: "none", sm: "block" },
-                            fontSize: "0.8125rem",
-                            fontWeight: 600,
+                            maxWidth: 190,
                         }}
                     >
-                        {nomeUsuario}
-                    </Typography>
+                        <Typography
+                            noWrap
+                            sx={{
+                                color: "text.secondary",
+                                fontSize: "0.6875rem",
+                                fontWeight: 600,
+                                lineHeight: 1.15,
+                            }}
+                        >
+                            {nomeEmpresa}
+                        </Typography>
+                        <Typography
+                            noWrap
+                            variant="body2"
+                            sx={{ fontSize: "0.8125rem", fontWeight: 600, lineHeight: 1.25 }}
+                        >
+                            {nomeUsuario}
+                        </Typography>
+                    </Box>
 
                     <Button
                         color="inherit"

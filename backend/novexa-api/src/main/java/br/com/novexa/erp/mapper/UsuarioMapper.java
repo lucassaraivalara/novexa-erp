@@ -1,5 +1,6 @@
 package br.com.novexa.erp.mapper;
 
+import br.com.novexa.erp.dto.LoginResponseDTO;
 import br.com.novexa.erp.dto.UsuarioRequestDTO;
 import br.com.novexa.erp.dto.UsuarioResponseDTO;
 import br.com.novexa.erp.entity.UsuarioEntity;
@@ -7,6 +8,12 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class UsuarioMapper {
+
+    private final EmpresaMapper empresaMapper;
+
+    public UsuarioMapper(EmpresaMapper empresaMapper) {
+        this.empresaMapper = empresaMapper;
+    }
 
     // =========================================================
     // REQUEST DTO → ENTITY
@@ -45,10 +52,23 @@ public class UsuarioMapper {
         response.setNomeUsuario(usuario.getNomeUsuario());
         response.setCpf(usuario.getCpf());
         response.setEmail(usuario.getEmail());
+        response.setEmpresa(empresaMapper.paraResponseDTO(usuario.getEmpresa()));
 
         // A senha não é copiada para o ResponseDTO.
 
         // Retorna o DTO de resposta.
+        return response;
+    }
+
+    public LoginResponseDTO toLoginResponse(UsuarioEntity usuario) {
+        LoginResponseDTO response = new LoginResponseDTO();
+
+        response.setId(usuario.getId());
+        response.setNomeUsuario(usuario.getNomeUsuario());
+        response.setCpf(usuario.getCpf());
+        response.setEmail(usuario.getEmail());
+        response.setEmpresa(empresaMapper.paraResponseDTO(usuario.getEmpresa()));
+
         return response;
     }
     public void updateEntity(

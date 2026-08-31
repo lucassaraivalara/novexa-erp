@@ -1,9 +1,12 @@
 package br.com.novexa.erp.entity;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -26,6 +29,19 @@ public class UsuarioEntity {
     // Novos usuários já nascem ativos.
     // Registros antigos podem ficar nulos até a próxima atualização do banco.
     private Boolean ativo = true;
+
+    /*
+     * Cada usuário trabalha em uma empresa. A coluna permanece nullable nesta
+     * primeira evolução para que registros legados possam ser vinculados sem
+     * impedir a atualização automática do schema. A camada de serviço exige
+     * empresa para novos cadastros e bloqueia o login sem esse vínculo.
+     */
+    @ManyToOne
+    @JoinColumn(
+            name = "empresa_id",
+            foreignKey = @ForeignKey(name = "fk_usuario_empresa")
+    )
+    private EmpresaEntity empresa;
 
     public UsuarioEntity() {
     }
@@ -76,5 +92,13 @@ public class UsuarioEntity {
 
     public void setAtivo(Boolean ativo) {
         this.ativo = ativo;
+    }
+
+    public EmpresaEntity getEmpresa() {
+        return empresa;
+    }
+
+    public void setEmpresa(EmpresaEntity empresa) {
+        this.empresa = empresa;
     }
 }

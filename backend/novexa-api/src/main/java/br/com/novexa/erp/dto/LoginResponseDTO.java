@@ -7,6 +7,7 @@ public class LoginResponseDTO {
     private String nomeUsuario;
     private String cpf;
     private String email;
+    private EmpresaResponseDTO empresa;
 
     public LoginResponseDTO() {
     }
@@ -41,5 +42,13 @@ public class LoginResponseDTO {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public EmpresaResponseDTO getEmpresa() {
+        return empresa;
+    }
+
+    public void setEmpresa(EmpresaResponseDTO empresa) {
+        this.empresa = empresa;
     }
 }
