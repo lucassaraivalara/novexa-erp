@@ -1,6 +1,7 @@
 package br.com.novexa.erp.service;
 
 import br.com.novexa.erp.entity.EmpresaEntity;
+import br.com.novexa.erp.entity.PerfilUsuario;
 import br.com.novexa.erp.entity.UsuarioEntity;
 import br.com.novexa.erp.exception.AutenticacaoException;
 import br.com.novexa.erp.repository.UsuarioRepository;
@@ -40,6 +41,10 @@ public class UsuarioService {
             usuario.setAtivo(true);
         }
 
+        if (usuario.getPerfil() == null) {
+            usuario.setPerfil(PerfilUsuario.USUARIO);
+        }
+
         return usuarioRepository.save(usuario);
     }
 
@@ -70,6 +75,9 @@ public class UsuarioService {
         usuarioExistente.setCpf(dadosNovos.getCpf());
         usuarioExistente.setEmail(dadosNovos.getEmail());
         usuarioExistente.setSenha(criptografarSenha(dadosNovos.getSenha()));
+        if (dadosNovos.getPerfil() != null) {
+            usuarioExistente.setPerfil(dadosNovos.getPerfil());
+        }
         usuarioExistente.setEmpresa(buscarEmpresaObrigatoria(empresaId));
 
         return usuarioRepository.save(usuarioExistente);

@@ -1,5 +1,7 @@
 package br.com.novexa.erp.dto;
 
+import br.com.novexa.erp.entity.PerfilUsuario;
+
 // Retorna somente os dados necessários para identificar o usuário no frontend.
 public class LoginResponseDTO {
 
@@ -7,6 +9,7 @@ public class LoginResponseDTO {
     private String nomeUsuario;
     private String cpf;
     private String email;
+    private PerfilUsuario perfil;
     private EmpresaResponseDTO empresa;
 
     public LoginResponseDTO() {
@@ -42,6 +45,14 @@ public class LoginResponseDTO {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public PerfilUsuario getPerfil() {
+        return perfil;
+    }
+
+    public void setPerfil(PerfilUsuario perfil) {
+        this.perfil = perfil;
     }
 
     public EmpresaResponseDTO getEmpresa() {

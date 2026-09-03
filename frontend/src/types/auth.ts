@@ -20,5 +20,6 @@ export type LoginResponse = {
     nomeUsuario: string;
     cpf: string;
     email: string;
+    perfil: "ADMIN" | "USUARIO";
     empresa: EmpresaAtiva;
 };

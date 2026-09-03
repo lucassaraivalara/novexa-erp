@@ -5,7 +5,6 @@ import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
-import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -69,6 +68,7 @@ function Login() {
                 nomeUsuario: dados.nomeUsuario,
                 cpf: dados.cpf,
                 email: dados.email,
+                perfil: dados.perfil,
                 empresa: dados.empresa,
                 autenticadoEm: new Date().toISOString(),
             });
@@ -132,20 +132,18 @@ function Login() {
                     sx={{ position: "relative", alignItems: "center" }}
                 >
                     <Box
+                        component="img"
+                        src="/favicon.png"
+                        alt="Logo Novexa"
                         sx={{
-                            display: "grid",
                             width: 64,
                             height: 64,
-                            placeItems: "center",
                             borderRadius: 3,
-                            color: "#E0F7FF",
-                            background:
-                                "linear-gradient(145deg, rgba(25, 154, 221, 0.62), rgba(30, 64, 175, 0.72))",
-                            boxShadow: "0 18px 32px rgba(1, 13, 31, 0.32)",
+                            objectFit: "cover",
+                            boxShadow:
+                                "0 0 0 1px rgba(72, 230, 220, 0.18), 0 18px 36px rgba(1, 13, 31, 0.42)",
                         }}
-                    >
-                        <StorefrontRoundedIcon sx={{ fontSize: 36 }} />
-                    </Box>
+                    />
 
                     <Box>
                         <Typography
@@ -260,20 +258,18 @@ function Login() {
                             sx={{ alignItems: "center", justifyContent: "center" }}
                         >
                             <Box
+                                component="img"
+                                src="/favicon.png"
+                                alt="Logo Novexa"
                                 sx={{
-                                    display: "grid",
-                                    width: 40,
-                                    height: 40,
-                                    placeItems: "center",
+                                    width: 44,
+                                    height: 44,
                                     borderRadius: 2,
-                                    color: "#E0F7FF",
-                                    background:
-                                        "linear-gradient(145deg, #179DE0 0%, #164FAD 100%)",
-                                    boxShadow: "0 10px 18px rgba(22, 79, 173, 0.22)",
+                                    objectFit: "cover",
+                                    boxShadow:
+                                        "0 0 0 1px rgba(15, 199, 191, 0.16), 0 10px 22px rgba(7, 35, 62, 0.24)",
                                 }}
-                            >
-                                <StorefrontRoundedIcon fontSize="small" />
-                            </Box>
+                            />
                             <Box>
                                 <Typography sx={{ color: "#0B2550", fontWeight: 800, lineHeight: 1 }}>
                                     NOVEXA

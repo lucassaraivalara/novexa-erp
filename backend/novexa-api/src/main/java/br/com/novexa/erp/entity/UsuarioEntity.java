@@ -5,6 +5,8 @@ import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -29,6 +31,9 @@ public class UsuarioEntity {
     // Novos usuários já nascem ativos.
     // Registros antigos podem ficar nulos até a próxima atualização do banco.
     private Boolean ativo = true;
+
+    @Enumerated(EnumType.STRING)
+    private PerfilUsuario perfil = PerfilUsuario.USUARIO;
 
     /*
      * Cada usuário trabalha em uma empresa. A coluna permanece nullable nesta
@@ -92,6 +97,14 @@ public class UsuarioEntity {
 
     public void setAtivo(Boolean ativo) {
         this.ativo = ativo;
+    }
+
+    public PerfilUsuario getPerfil() {
+        return perfil;
+    }
+
+    public void setPerfil(PerfilUsuario perfil) {
+        this.perfil = perfil;
     }
 
     public EmpresaEntity getEmpresa() {

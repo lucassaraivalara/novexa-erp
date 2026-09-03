@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Novexa Full Stack" type="CompoundRunConfigurationType">
+    <toRun name="Backend" type="MavenRunConfiguration" />
+    <toRun name="Frontend" type="js.build_tools.npm" />
+    <method v="2" />
+  </configuration>
+</component>

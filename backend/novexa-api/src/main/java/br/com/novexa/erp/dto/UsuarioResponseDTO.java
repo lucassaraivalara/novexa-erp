@@ -1,11 +1,14 @@
 package br.com.novexa.erp.dto;
 
+import br.com.novexa.erp.entity.PerfilUsuario;
+
 public class UsuarioResponseDTO {
 
     private Long id;
     private String nomeUsuario;
     private String cpf;
     private String email;
+    private PerfilUsuario perfil;
     private EmpresaResponseDTO empresa;
 
     // =========================================================
@@ -50,6 +53,14 @@ public class UsuarioResponseDTO {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public PerfilUsuario getPerfil() {
+        return perfil;
+    }
+
+    public void setPerfil(PerfilUsuario perfil) {
+        this.perfil = perfil;
     }
 
     public EmpresaResponseDTO getEmpresa() {
