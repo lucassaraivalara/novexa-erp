@@ -20,6 +20,17 @@ public class EmpresaResponseDTO {
     private String endereco;
     private Boolean ativo;
 
+    private br.com.novexa.erp.entity.EmpresaCadastroDados cadastro;
+    private String logomarca;
+    private java.util.List<EmpresaInscricaoStDTO> inscricoesSt;
+
+    public br.com.novexa.erp.entity.EmpresaCadastroDados getCadastro() { return cadastro; }
+    public void setCadastro(br.com.novexa.erp.entity.EmpresaCadastroDados valor) { cadastro = valor; }
+    public String getLogomarca() { return logomarca; }
+    public void setLogomarca(String valor) { logomarca = valor; }
+    public java.util.List<EmpresaInscricaoStDTO> getInscricoesSt() { return inscricoesSt; }
+    public void setInscricoesSt(java.util.List<EmpresaInscricaoStDTO> valor) { inscricoesSt = valor; }
+
     /*
      * Construtor vazio.
      *

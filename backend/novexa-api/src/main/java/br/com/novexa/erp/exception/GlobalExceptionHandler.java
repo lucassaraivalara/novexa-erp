@@ -63,6 +63,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             DocumentoInvalidoException.class,
+            EmpresaInvalidaException.class,
             ProdutoInvalidoException.class
     })
     public ResponseEntity<String> tratarCadastroInvalido(

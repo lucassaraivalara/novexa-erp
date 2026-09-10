@@ -9,7 +9,6 @@ import br.com.novexa.erp.mapper.EmpresaMapper;
 import br.com.novexa.erp.service.EmpresaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,8 +22,15 @@ import java.util.stream.Collectors;
  * para a camada de Service.
  */
 @RestController
+@org.springframework.transaction.annotation.Transactional
 @RequestMapping("/empresas")
 public class EmpresaController {
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<String> tratarConflito() {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body("Não foi possível gravar: documento ou inscrição duplicada, ou empresa vinculada a outros registros.");
+    }
 
     /*
      * Service responsável pelas regras de negócio
@@ -87,7 +93,7 @@ public class EmpresaController {
          * Entity → ResponseDTO
          */
         EmpresaResponseDTO responseDTO =
-                empresaMapper.paraResponseDTO(empresaSalva);
+                empresaMapper.paraDetalheDTO(empresaSalva);
 
         /*
          * Retorna a empresa criada com HTTP 201 CREATED.
@@ -151,7 +157,7 @@ public class EmpresaController {
          * para ResponseDTO.
          */
         EmpresaResponseDTO responseDTO =
-                empresaMapper.paraResponseDTO(empresa);
+                empresaMapper.paraDetalheDTO(empresa);
 
         /*
          * Retorna a empresa encontrada.
@@ -183,7 +189,7 @@ public class EmpresaController {
              * Recebe o JSON enviado na requisição
              * e transforma em EmpresaRequestDTO.
              */
-            @RequestBody EmpresaRequestDTO empresaDTO) {
+            @Valid @RequestBody EmpresaRequestDTO empresaDTO) {
 
         /*
          * Converte o RequestDTO para Entity.
@@ -202,7 +208,7 @@ public class EmpresaController {
          * para ResponseDTO.
          */
         EmpresaResponseDTO responseDTO =
-                empresaMapper.paraResponseDTO(empresaAtualizada);
+                empresaMapper.paraDetalheDTO(empresaAtualizada);
 
         /*
          * Retorna a empresa atualizada.

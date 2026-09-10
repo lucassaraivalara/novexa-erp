@@ -22,6 +22,7 @@ public class EmpresaEntity {
 
     private String nomeFantasia;
 
+    @jakarta.persistence.Column(unique = true)
     private String cnpj;
 
     private String inscricaoEstadual;
@@ -33,6 +34,22 @@ public class EmpresaEntity {
     private String endereco;
 
     private Boolean ativo;
+
+    @jakarta.persistence.Embedded
+    private EmpresaCadastroDados cadastro = new EmpresaCadastroDados();
+
+    @jakarta.persistence.Column(columnDefinition = "text")
+    private String logomarca;
+
+    @OneToMany(mappedBy = "empresa", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+    @jakarta.persistence.OrderBy("uf ASC")
+    private List<EmpresaInscricaoSt> inscricoesSt = new ArrayList<>();
+
+    public EmpresaCadastroDados getCadastro() { return cadastro; }
+    public void setCadastro(EmpresaCadastroDados valor) { cadastro = valor; }
+    public String getLogomarca() { return logomarca; }
+    public void setLogomarca(String valor) { logomarca = valor; }
+    public List<EmpresaInscricaoSt> getInscricoesSt() { return inscricoesSt; }
 
     @OneToMany(mappedBy = "empresa")
     private List<UsuarioEntity> usuarios = new ArrayList<>();

@@ -1,7 +1,7 @@
 // Importa o StrictMode do React.
 // Ele ajuda a identificar possíveis problemas durante o desenvolvimento.
 import { StrictMode } from "react";
-import { BrowserRouter } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 // Importa a função responsável por criar a aplicação React
 // e colocá-la dentro do elemento "root" do HTML.
@@ -21,6 +21,8 @@ import App from "./App.tsx";
 
 // Importa o tema que criamos no arquivo theme.ts.
 import theme from "./theme/theme.ts";
+
+const router = createBrowserRouter([{ path: "*", element: <App /> }]);
 
 
 // Procura no arquivo index.html o elemento que possui o id "root"
@@ -48,9 +50,7 @@ createRoot(document.getElementById("root")!).render(
                 Tudo que estiver dentro do App poderá utilizar
                 o tema do MUI.
             */}
-            <BrowserRouter>
-                <App />
-            </BrowserRouter>
+            <RouterProvider router={router} />
 
         </ThemeProvider>
 

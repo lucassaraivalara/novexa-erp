@@ -32,6 +32,16 @@ public class ClienteMapper {
         response.setAtivo(cliente.getAtivo());
         response.setDataCadastro(cliente.getDataCadastro());
 
+        response.setNomeFantasia(cliente.getNomeFantasia());
+        response.setInscricaoEstadual(cliente.getInscricaoEstadual());
+        response.setVendedor(cliente.getVendedor());
+        response.setCondicaoPagamento(cliente.getCondicaoPagamento());
+        response.setLimiteCredito(cliente.getLimiteCredito());
+        response.setObservacoesInternas(cliente.getObservacoesInternas());
+        response.setInstrucoesEntrega(cliente.getInstrucoesEntrega());
+        response.setEnderecos(cliente.getEnderecos());
+        response.setContatos(cliente.getContatos());
+
         return response;
     }
 
@@ -43,5 +53,14 @@ public class ClienteMapper {
         cliente.setTelefone(request.getTelefone());
         cliente.setEndereco(request.getEndereco());
         cliente.setAtivo(request.getAtivo());
+        cliente.setNomeFantasia(request.getNomeFantasia());
+        cliente.setInscricaoEstadual(request.getInscricaoEstadual());
+        cliente.setVendedor(request.getVendedor());
+        cliente.setCondicaoPagamento(request.getCondicaoPagamento());
+        cliente.setLimiteCredito(request.getLimiteCredito());
+        cliente.setObservacoesInternas(request.getObservacoesInternas());
+        cliente.setInstrucoesEntrega(request.getInstrucoesEntrega());
+        cliente.setEnderecos(request.getEnderecos());
+        cliente.setContatos(request.getContatos());
     }
 }

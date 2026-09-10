@@ -99,4 +99,42 @@ public class ClienteResponseDTO {
     public void setDataCadastro(LocalDateTime dataCadastro) {
         this.dataCadastro = dataCadastro;
     }
+    private String nomeFantasia;
+
+    private String inscricaoEstadual;
+
+    private String vendedor;
+
+    private String condicaoPagamento;
+
+    private java.math.BigDecimal limiteCredito;
+
+    private String observacoesInternas;
+
+    private String instrucoesEntrega;
+
+    private java.util.List<br.com.novexa.erp.entity.ClienteEndereco> enderecos = new java.util.ArrayList<>();
+
+    public java.util.List<br.com.novexa.erp.entity.ClienteEndereco> getEnderecos() { return enderecos; }
+    public void setEnderecos(java.util.List<br.com.novexa.erp.entity.ClienteEndereco> valor) { this.enderecos = valor; }
+
+    private java.util.List<br.com.novexa.erp.entity.ClienteContato> contatos = new java.util.ArrayList<>();
+
+    public java.util.List<br.com.novexa.erp.entity.ClienteContato> getContatos() { return contatos; }
+    public void setContatos(java.util.List<br.com.novexa.erp.entity.ClienteContato> valor) { this.contatos = valor; }
+
+    public String getNomeFantasia() { return nomeFantasia; }
+    public void setNomeFantasia(String nomeFantasia) { this.nomeFantasia = nomeFantasia; }
+    public String getInscricaoEstadual() { return inscricaoEstadual; }
+    public void setInscricaoEstadual(String inscricaoEstadual) { this.inscricaoEstadual = inscricaoEstadual; }
+    public String getVendedor() { return vendedor; }
+    public void setVendedor(String vendedor) { this.vendedor = vendedor; }
+    public String getCondicaoPagamento() { return condicaoPagamento; }
+    public void setCondicaoPagamento(String condicaoPagamento) { this.condicaoPagamento = condicaoPagamento; }
+    public java.math.BigDecimal getLimiteCredito() { return limiteCredito; }
+    public void setLimiteCredito(java.math.BigDecimal limiteCredito) { this.limiteCredito = limiteCredito; }
+    public String getObservacoesInternas() { return observacoesInternas; }
+    public void setObservacoesInternas(String observacoesInternas) { this.observacoesInternas = observacoesInternas; }
+    public String getInstrucoesEntrega() { return instrucoesEntrega; }
+    public void setInstrucoesEntrega(String instrucoesEntrega) { this.instrucoesEntrega = instrucoesEntrega; }
 }

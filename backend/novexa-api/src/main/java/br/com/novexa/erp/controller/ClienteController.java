@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+@org.springframework.transaction.annotation.Transactional
 @RestController
 @RequestMapping("/clientes")
 public class ClienteController {

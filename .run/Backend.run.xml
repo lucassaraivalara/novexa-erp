@@ -24,6 +24,11 @@
         </MavenRunnerParameters>
       </option>
     </MavenSettings>
+    <envs>
+      <env name="DB_URL" value="jdbc:postgresql://localhost:5432/novexa_erp" />
+      <env name="DB_USERNAME" value="postgres" />
+      <env name="JAVA_HOME" value="C:\Users\lucas\.jdks\temurin-21\jdk-21.0.12.1+1" />
+    </envs>
     <method v="2" />
   </configuration>
 </component>

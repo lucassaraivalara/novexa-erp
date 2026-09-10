@@ -59,6 +59,15 @@ public class ClienteService {
         clienteExistente.setTelefone(dadosNovos.getTelefone());
         clienteExistente.setEndereco(dadosNovos.getEndereco());
         clienteExistente.setAtivo(dadosNovos.getAtivo());
+        clienteExistente.setNomeFantasia(dadosNovos.getNomeFantasia());
+        clienteExistente.setInscricaoEstadual(dadosNovos.getInscricaoEstadual());
+        clienteExistente.setVendedor(dadosNovos.getVendedor());
+        clienteExistente.setCondicaoPagamento(dadosNovos.getCondicaoPagamento());
+        clienteExistente.setLimiteCredito(dadosNovos.getLimiteCredito());
+        clienteExistente.setObservacoesInternas(dadosNovos.getObservacoesInternas());
+        clienteExistente.setInstrucoesEntrega(dadosNovos.getInstrucoesEntrega());
+        clienteExistente.setEnderecos(dadosNovos.getEnderecos());
+        clienteExistente.setContatos(dadosNovos.getContatos());
 
         return clienteRepository.save(clienteExistente);
     }

@@ -1,6 +1,11 @@
 package br.com.novexa.erp.service;
 
 import br.com.novexa.erp.entity.EmpresaEntity;
+import br.com.novexa.erp.entity.EmpresaInscricaoSt;
+import br.com.novexa.erp.exception.EmpresaInvalidaException;
+import br.com.novexa.erp.util.DocumentoEmpresaUtils;
+import br.com.novexa.erp.util.DocumentoUtils;
+import br.com.novexa.erp.util.LogomarcaUtils;
 import br.com.novexa.erp.exception.EmpresaNotFoundException;
 import br.com.novexa.erp.exception.CnpjDuplicadoException;
 import br.com.novexa.erp.repository.EmpresaRepository;
@@ -10,6 +15,7 @@ import java.util.List;
 
 
 @Service
+@org.springframework.transaction.annotation.Transactional
 public class EmpresaService {
 
     private final EmpresaRepository empresaRepository;
@@ -21,10 +27,11 @@ public class EmpresaService {
     // POST
     // metodo para cadastrar empresa
     public EmpresaEntity salvar(EmpresaEntity empresa) {
+        preparar(empresa);
 
         // Verifica se já existe uma empresa
         // cadastrada com o mesmo CNPJ.
-        if (empresaRepository.existsByCnpj(empresa.getCnpj())) {
+        if (empresaRepository.documentoEmUso(empresa.getCnpj(), null)) {
 
             // Se já existir, interrompe o cadastro
             // e lança a exceção personalizada.
@@ -59,6 +66,7 @@ public class EmpresaService {
     public EmpresaEntity atualizarPorId(
             Long id,
             EmpresaEntity empresa) {
+        preparar(empresa);
 
         // Primeiro verifica se a empresa que queremos
         // atualizar realmente existe.
@@ -74,7 +82,7 @@ public class EmpresaService {
         //
         // O "IdNot" faz o Spring ignorar a empresa
         // que estamos atualizando.
-        if (empresaRepository.existsByCnpjAndIdNot(
+        if (empresaRepository.documentoEmUso(
                 empresa.getCnpj(), id)) {
 
             // Se outra empresa já possui esse CNPJ,
@@ -95,6 +103,22 @@ public class EmpresaService {
         empresaExistente.setTelefone(empresa.getTelefone());
         empresaExistente.setEndereco(empresa.getEndereco());
         empresaExistente.setAtivo(empresa.getAtivo());
+        empresaExistente.setCadastro(empresa.getCadastro());
+        empresaExistente.setLogomarca(empresa.getLogomarca());
+        // Reutiliza as inscrições da mesma UF e remove apenas as retiradas do formulário.
+        var ufs = empresa.getInscricoesSt().stream().map(EmpresaInscricaoSt::getUf).toList();
+        empresaExistente.getInscricoesSt().removeIf(i -> !ufs.contains(i.getUf()));
+        for (var nova : empresa.getInscricoesSt()) {
+            var destino = empresaExistente.getInscricoesSt().stream().filter(i -> i.getUf().equals(nova.getUf())).findFirst().orElse(null);
+            if (destino == null) {
+                destino = new EmpresaInscricaoSt();
+                destino.setEmpresa(empresaExistente);
+                destino.setUf(nova.getUf());
+                empresaExistente.getInscricoesSt().add(destino);
+            }
+            destino.setInscricaoEstadual(nova.getInscricaoEstadual());
+            destino.setDifal(nova.isDifal());
+        }
 
         // Salva as alterações.
         return empresaRepository.save(empresaExistente);
@@ -114,6 +138,35 @@ public class EmpresaService {
         // Se existir, realiza a exclusão.
         empresaRepository.deleteById(id);
     }
+
+    private void preparar(EmpresaEntity empresa) {
+        var dados = empresa.getCadastro();
+        if (dados == null || dados.getRegimeTributario() == null) throw new EmpresaInvalidaException("Informe o regime tributário.");
+        empresa.setCnpj(DocumentoEmpresaUtils.validar(empresa.getCnpj(), Boolean.TRUE.equals(dados.getProdutorRural())));
+        empresa.setRazaoSocial(empresa.getRazaoSocial().trim());
+        empresa.setLogomarca(LogomarcaUtils.validar(empresa.getLogomarca()));
+        if ((dados.getLatitude() == null) != (dados.getLongitude() == null)) throw new EmpresaInvalidaException("Preencha latitude e longitude juntas.");
+        if (preenchido(dados.getContadorCpf())) {
+            if (!DocumentoEmpresaUtils.normalizar(dados.getContadorCpf()).matches("[0-9]{11}")) throw new EmpresaInvalidaException("CPF do contador inválido.");
+            dados.setContadorCpf(DocumentoUtils.normalizarEValidarCpfCnpj(dados.getContadorCpf()));
+        }
+        if (preenchido(dados.getContadorCnpjEscritorio())) dados.setContadorCnpjEscritorio(DocumentoEmpresaUtils.validar(dados.getContadorCnpjEscritorio(), false));
+        if (java.util.stream.Stream.of(dados.getContadorNome(), dados.getContadorCpf(), dados.getContadorCrc(),
+                dados.getContadorUfCrc(), dados.getContadorCnpjEscritorio(), dados.getContadorRazaoSocial(),
+                dados.getContadorTelefone(), dados.getContadorFax(), dados.getContadorEmail(), dados.getContadorCep(),
+                dados.getContadorLogradouro(), dados.getContadorNumero(), dados.getContadorComplemento(),
+                dados.getContadorBairro(), dados.getContadorUf(), dados.getContadorCodigoMunicipio()).anyMatch(this::preenchido)
+                && !preenchido(dados.getContadorCidade())) throw new EmpresaInvalidaException("Informe a cidade do contador.");
+        if (preenchido(dados.getContadorCrc()) && !preenchido(dados.getContadorUfCrc())) throw new EmpresaInvalidaException("Informe a UF do CRC.");
+        var ufs = new java.util.HashSet<String>();
+        for (var inscricao : empresa.getInscricoesSt()) {
+            if (!ufs.add(inscricao.getUf())) throw new EmpresaInvalidaException("Cadastre somente uma inscrição ST por UF.");
+            if (inscricao.getUf().equals(dados.getUf())) throw new EmpresaInvalidaException("A inscrição ST deve ser de outra UF.");
+            inscricao.setInscricaoEstadual(inscricao.getInscricaoEstadual().trim());
+        }
+    }
+
+    private boolean preenchido(String valor) { return valor != null && !valor.isBlank(); }
 }
 
 
