@@ -11,8 +11,26 @@ public class LoginResponseDTO {
     private String email;
     private PerfilUsuario perfil;
     private EmpresaResponseDTO empresa;
+    private String token;
+    private String tipo;
 
     public LoginResponseDTO() {
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
+    }
+
+    public String getTipo() {
+        return tipo;
+    }
+
+    public void setTipo(String tipo) {
+        this.tipo = tipo;
     }
 
     public Long getId() {

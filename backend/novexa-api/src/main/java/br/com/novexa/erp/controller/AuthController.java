@@ -5,6 +5,7 @@ import br.com.novexa.erp.dto.LoginResponseDTO;
 import br.com.novexa.erp.entity.UsuarioEntity;
 import br.com.novexa.erp.mapper.UsuarioMapper;
 import br.com.novexa.erp.service.UsuarioService;
+import br.com.novexa.erp.service.JwtService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,13 +18,16 @@ public class AuthController {
 
     private final UsuarioService usuarioService;
     private final UsuarioMapper usuarioMapper;
+    private final JwtService jwtService;
 
     public AuthController(
             UsuarioService usuarioService,
-            UsuarioMapper usuarioMapper) {
+            UsuarioMapper usuarioMapper,
+            JwtService jwtService) {
 
         this.usuarioService = usuarioService;
         this.usuarioMapper = usuarioMapper;
+        this.jwtService = jwtService;
     }
 
     // POST /auth/login
@@ -34,6 +38,14 @@ public class AuthController {
                 request.getSenha()
         );
 
-        return usuarioMapper.toLoginResponse(usuario);
+        LoginResponseDTO response = usuarioMapper.toLoginResponse(usuario);
+        response.setToken(jwtService.gerarToken(
+                usuario.getId(),
+                usuario.getCpf().replaceAll("\\D", ""),
+                usuario.getEmpresa().getId(),
+                usuario.getPerfil()
+        ));
+        response.setTipo("Bearer");
+        return response;
     }
 }
