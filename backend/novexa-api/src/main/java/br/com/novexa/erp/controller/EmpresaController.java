@@ -193,7 +193,12 @@ public class EmpresaController {
              * Recebe o JSON enviado na requisição
              * e transforma em EmpresaRequestDTO.
              */
-            @Valid @RequestBody EmpresaRequestDTO empresaDTO) {
+            @Valid @RequestBody EmpresaRequestDTO empresaDTO,
+
+            /*
+             * Usuário autenticado via JWT.
+             */
+            @AuthenticationPrincipal UsuarioAutenticado autenticado) {
 
         /*
          * Converte o RequestDTO para Entity.
@@ -202,10 +207,11 @@ public class EmpresaController {
                 empresaMapper.paraEntity(empresaDTO);
 
         /*
-         * Envia o ID e a Entity para o Service.
+         * Envia o ID, a Entity e o empresaId do usuário
+         * para o Service.
          */
         EmpresaEntity empresaAtualizada =
-                empresaService.atualizarPorId(id, empresa);
+                empresaService.atualizarPorId(id, empresa, autenticado.empresaId());
 
         /*
          * Converte a Entity atualizada
@@ -229,13 +235,14 @@ public class EmpresaController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletarPorId(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            @AuthenticationPrincipal UsuarioAutenticado autenticado) {
 
         /*
          * Solicita ao Service a exclusão
          * da empresa pelo ID.
          */
-        empresaService.deletarPorId(id);
+        empresaService.deletarPorId(id, autenticado.empresaId());
 
         /*
          * HTTP 204 NO CONTENT.

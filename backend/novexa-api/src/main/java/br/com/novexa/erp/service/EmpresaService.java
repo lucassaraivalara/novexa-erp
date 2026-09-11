@@ -72,6 +72,16 @@ public class EmpresaService {
 
     public EmpresaEntity atualizarPorId(
             Long id,
+            EmpresaEntity empresa,
+            Long empresaId) {
+        if (!id.equals(empresaId)) {
+            throw new EmpresaNotFoundException("Empresa não encontrada com o ID: " + id);
+        }
+        return atualizarPorId(id, empresa);
+    }
+
+    public EmpresaEntity atualizarPorId(
+            Long id,
             EmpresaEntity empresa) {
         preparar(empresa);
 
@@ -129,6 +139,13 @@ public class EmpresaService {
 
         // Salva as alterações.
         return empresaRepository.save(empresaExistente);
+    }
+
+    public void deletarPorId(Long id, Long empresaId) {
+        if (!id.equals(empresaId)) {
+            throw new EmpresaNotFoundException("Empresa não encontrada com o ID: " + id);
+        }
+        deletarPorId(id);
     }
 
     public void deletarPorId(Long id) {
