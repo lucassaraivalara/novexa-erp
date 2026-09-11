@@ -13,12 +13,19 @@ export function salvarSessao(sessao: SessaoUsuario): void {
 export function possuiSessao(): boolean {
     const sessao = obterSessao();
 
+    if (!sessao) {
+        return false;
+    }
+
+    if (!sessao.token) {
+        removerSessao();
+        return false;
+    }
+
     if (sessao?.empresa) {
         return true;
     }
 
-    // Sessões criadas antes da fundação multiempresa não possuem empresa ativa.
-    // Elas precisam de um novo login para receber o contexto correto da API.
     if (sessao) {
         removerSessao();
     }
@@ -47,4 +54,8 @@ export function removerSessao(): void {
 
 export function obterEmpresaAtiva(): EmpresaAtiva | null {
     return obterSessao()?.empresa ?? null;
+}
+
+export function obterToken(): string | null {
+    return obterSessao()?.token ?? null;
 }

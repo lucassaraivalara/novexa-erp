@@ -70,6 +70,7 @@ function Login() {
                 email: dados.email,
                 perfil: dados.perfil,
                 empresa: dados.empresa,
+                token: dados.token,
                 autenticadoEm: new Date().toISOString(),
             });
 

@@ -22,4 +22,5 @@ export type LoginResponse = {
     email: string;
     perfil: "ADMIN" | "USUARIO";
     empresa: EmpresaAtiva;
+    token: string;
 };
