@@ -4,10 +4,12 @@ import br.com.novexa.erp.dto.ProdutoRequestDTO;
 import br.com.novexa.erp.dto.ProdutoResponseDTO;
 import br.com.novexa.erp.entity.ProdutoEntity;
 import br.com.novexa.erp.mapper.ProdutoMapper;
+import br.com.novexa.erp.security.UsuarioAutenticado;
 import br.com.novexa.erp.service.ProdutoService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,10 +39,11 @@ public class ProdutoController {
 
     @PostMapping
     public ResponseEntity<ProdutoResponseDTO> salvar(
-            @Valid @RequestBody ProdutoRequestDTO request) {
+            @Valid @RequestBody ProdutoRequestDTO request,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
         ProdutoEntity produto = produtoMapper.toEntity(request);
-        ProdutoEntity produtoSalvo = produtoService.salvar(produto, request.getEmpresaId());
+        ProdutoEntity produtoSalvo = produtoService.salvar(produto, usuario.empresaId());
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -49,9 +52,9 @@ public class ProdutoController {
 
     @GetMapping
     public ResponseEntity<List<ProdutoResponseDTO>> listar(
-            @RequestParam Long empresaId) {
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
-        List<ProdutoResponseDTO> produtos = produtoService.listar(empresaId)
+        List<ProdutoResponseDTO> produtos = produtoService.listar(usuario.empresaId())
                 .stream()
                 .map(produtoMapper::toResponse)
                 .toList();
@@ -61,10 +64,10 @@ public class ProdutoController {
 
     @GetMapping("/buscar")
     public ResponseEntity<List<ProdutoResponseDTO>> buscarPorTermo(
-            @RequestParam Long empresaId,
+            @AuthenticationPrincipal UsuarioAutenticado usuario,
             @RequestParam String termo) {
 
-        List<ProdutoResponseDTO> produtos = produtoService.buscarPorTermo(empresaId, termo)
+        List<ProdutoResponseDTO> produtos = produtoService.buscarPorTermo(usuario.empresaId(), termo)
                 .stream()
                 .map(produtoMapper::toResponse)
                 .toList();
@@ -75,22 +78,23 @@ public class ProdutoController {
     @GetMapping("/{id}")
     public ResponseEntity<ProdutoResponseDTO> buscarPorId(
             @PathVariable Long id,
-            @RequestParam Long empresaId) {
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
-        ProdutoEntity produto = produtoService.buscarPorId(id, empresaId);
+        ProdutoEntity produto = produtoService.buscarPorId(id, usuario.empresaId());
         return ResponseEntity.ok(produtoMapper.toResponse(produto));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ProdutoResponseDTO> atualizar(
             @PathVariable Long id,
-            @Valid @RequestBody ProdutoRequestDTO request) {
+            @Valid @RequestBody ProdutoRequestDTO request,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
         ProdutoEntity dadosNovos = produtoMapper.toEntity(request);
         ProdutoEntity produtoAtualizado = produtoService.atualizar(
                 id,
                 dadosNovos,
-                request.getEmpresaId()
+                usuario.empresaId()
         );
 
         return ResponseEntity.ok(produtoMapper.toResponse(produtoAtualizado));
@@ -99,9 +103,9 @@ public class ProdutoController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> inativar(
             @PathVariable Long id,
-            @RequestParam Long empresaId) {
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
-        produtoService.inativar(id, empresaId);
+        produtoService.inativar(id, usuario.empresaId());
         return ResponseEntity.noContent().build();
     }
 }

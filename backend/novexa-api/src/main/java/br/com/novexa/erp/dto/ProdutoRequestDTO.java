@@ -9,9 +9,6 @@ import java.math.BigDecimal;
 
 public class ProdutoRequestDTO {
 
-    @NotNull(message = "A empresa é obrigatória.")
-    private Long empresaId;
-
     @Size(max = 60, message = "O código interno deve ter no máximo 60 caracteres.")
     private String codigoInterno;
 
@@ -46,14 +43,6 @@ public class ProdutoRequestDTO {
     private Boolean ativo;
 
     public ProdutoRequestDTO() {
-    }
-
-    public Long getEmpresaId() {
-        return empresaId;
-    }
-
-    public void setEmpresaId(Long empresaId) {
-        this.empresaId = empresaId;
     }
 
     public String getCodigoInterno() {
