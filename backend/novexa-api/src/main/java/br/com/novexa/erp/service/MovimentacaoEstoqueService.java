@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Objects;
 
 @Service
@@ -166,5 +167,9 @@ public class MovimentacaoEstoqueService {
         mov.setSaldoPosterior(saldoPosterior);
         mov.setMotivo(motivo);
         return mov;
+    }
+
+    public List<MovimentacaoEstoqueEntity> buscarPorProduto(Long empresaId, Long produtoId) {
+        return movimentacaoRepository.findByEmpresaIdAndProdutoIdOrderByDataHoraDesc(empresaId, produtoId);
     }
 }

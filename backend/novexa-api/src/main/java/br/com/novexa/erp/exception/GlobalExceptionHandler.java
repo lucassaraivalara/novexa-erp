@@ -90,4 +90,13 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(mensagem);
     }
+
+    @ExceptionHandler({EstoqueInsuficienteException.class, ProdutoNaoControlaEstoqueException.class})
+    public ResponseEntity<String> tratarEstoque(
+            RuntimeException exception) {
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(exception.getMessage());
+    }
 }

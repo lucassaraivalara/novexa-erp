@@ -109,13 +109,14 @@ export default function Vendas() {
         try {
             const venda = await finalizarVenda(pedido);
             setUltimaVenda(venda); setRascunho(novoRascunho()); setOpcional(null); setBusca("");
-            sessionStorage.setItem(chaveRascunho, JSON.stringify(novoRascunho()));
+            try { sessionStorage.setItem(chaveRascunho, JSON.stringify(novoRascunho())); } catch { /* Venda já confirmada pelo servidor. */ }
             void recarregarCatalogo();
         } catch (e) {
             const status = axios.isAxiosError(e) ? e.response?.status : undefined;
             if (status && status >= 400 && status < 500 && ![408, 429].includes(status)) {
                 setRascunho(r => ({ ...r, pendente: null }));
                 setErro(obterMensagemDaApi(e, "Venda não concluída. Revise os dados e tente novamente."));
+                if (status === 409) void recarregarCatalogo();
             } else {
                 setErro("Não foi possível confirmar a venda. Pressione F2 para tentar novamente com segurança, sem duplicá-la.");
             }
@@ -182,7 +183,7 @@ export default function Vendas() {
                                 onChange={e => alterar({ itens: rascunho.itens.map(x => x === item ? { ...x, quantidade: e.target.value } : x) })} /></TableCell>
                             <TableCell align="right">{moeda(Math.round(item.produto.precoVenda * 100))}</TableCell>
                             <TableCell align="right">{subtotalItem(item) === null ? "—" : moeda(subtotalItem(item)!)}</TableCell>
-                            <TableCell><Button size="small" color="inherit" aria-label={"Remover " + item.produto.nome} disabled={bloqueado} onClick={() => remover(item.produto.id)}>×</Button></TableCell>
+                            <TableCell><Button size="small" color="inherit" aria-label={"Remover " + item.produto.nome} disabled={bloqueado} onClick={e => { e.stopPropagation(); remover(item.produto.id); }}>×</Button></TableCell>
                         </TableRow>)}</TableBody>
                     </Table>
                     {!rascunho.itens.length && <Box sx={{ p: 5, textAlign: "center", color: "text.secondary" }}><Typography>Leia o primeiro produto para começar</Typography><Typography variant="body2">Busque pelo nome e pressione Enter para adicionar.</Typography></Box>}
