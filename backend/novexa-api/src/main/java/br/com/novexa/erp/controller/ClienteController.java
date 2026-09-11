@@ -4,10 +4,12 @@ import br.com.novexa.erp.dto.ClienteRequestDTO;
 import br.com.novexa.erp.dto.ClienteResponseDTO;
 import br.com.novexa.erp.entity.ClienteEntity;
 import br.com.novexa.erp.mapper.ClienteMapper;
+import br.com.novexa.erp.security.UsuarioAutenticado;
 import br.com.novexa.erp.service.ClienteService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,7 +17,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -38,10 +39,11 @@ public class ClienteController {
 
     @PostMapping
     public ResponseEntity<ClienteResponseDTO> salvar(
-            @Valid @RequestBody ClienteRequestDTO request) {
+            @Valid @RequestBody ClienteRequestDTO request,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
         ClienteEntity cliente = clienteMapper.toEntity(request);
-        ClienteEntity clienteSalvo = clienteService.salvar(cliente, request.getEmpresaId());
+        ClienteEntity clienteSalvo = clienteService.salvar(cliente, usuario.empresaId());
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -50,9 +52,9 @@ public class ClienteController {
 
     @GetMapping
     public ResponseEntity<List<ClienteResponseDTO>> listar(
-            @RequestParam Long empresaId) {
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
-        List<ClienteResponseDTO> clientes = clienteService.listar(empresaId)
+        List<ClienteResponseDTO> clientes = clienteService.listar(usuario.empresaId())
                 .stream()
                 .map(clienteMapper::toResponse)
                 .toList();
@@ -63,22 +65,23 @@ public class ClienteController {
     @GetMapping("/{id}")
     public ResponseEntity<ClienteResponseDTO> buscarPorId(
             @PathVariable Long id,
-            @RequestParam Long empresaId) {
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
-        ClienteEntity cliente = clienteService.buscarPorId(id, empresaId);
+        ClienteEntity cliente = clienteService.buscarPorId(id, usuario.empresaId());
         return ResponseEntity.ok(clienteMapper.toResponse(cliente));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ClienteResponseDTO> atualizar(
             @PathVariable Long id,
-            @Valid @RequestBody ClienteRequestDTO request) {
+            @Valid @RequestBody ClienteRequestDTO request,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
         ClienteEntity dadosNovos = clienteMapper.toEntity(request);
         ClienteEntity clienteAtualizado = clienteService.atualizar(
                 id,
                 dadosNovos,
-                request.getEmpresaId()
+                usuario.empresaId()
         );
 
         return ResponseEntity.ok(clienteMapper.toResponse(clienteAtualizado));
@@ -87,9 +90,9 @@ public class ClienteController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> inativar(
             @PathVariable Long id,
-            @RequestParam Long empresaId) {
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
-        clienteService.inativar(id, empresaId);
+        clienteService.inativar(id, usuario.empresaId());
         return ResponseEntity.noContent().build();
     }
 }

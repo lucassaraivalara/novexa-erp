@@ -8,9 +8,6 @@ import jakarta.validation.constraints.Size;
 
 public class ClienteRequestDTO {
 
-    @NotNull(message = "A empresa é obrigatória.")
-    private Long empresaId;
-
     @NotBlank(message = "O nome do cliente é obrigatório.")
     @Size(max = 150, message = "O nome do cliente deve ter no máximo 150 caracteres.")
     private String nome;
@@ -34,14 +31,6 @@ public class ClienteRequestDTO {
     private Boolean ativo;
 
     public ClienteRequestDTO() {
-    }
-
-    public Long getEmpresaId() {
-        return empresaId;
-    }
-
-    public void setEmpresaId(Long empresaId) {
-        this.empresaId = empresaId;
     }
 
     public String getNome() {

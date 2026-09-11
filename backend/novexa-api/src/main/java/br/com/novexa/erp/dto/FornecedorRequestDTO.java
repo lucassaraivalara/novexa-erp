@@ -2,13 +2,9 @@ package br.com.novexa.erp.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public class FornecedorRequestDTO {
-
-    @NotNull(message = "A empresa é obrigatória.")
-    private Long empresaId;
 
     @NotBlank(message = "A razão social é obrigatória.")
     @Size(max = 150, message = "A razão social deve ter no máximo 150 caracteres.")
@@ -36,14 +32,6 @@ public class FornecedorRequestDTO {
     private Boolean ativo;
 
     public FornecedorRequestDTO() {
-    }
-
-    public Long getEmpresaId() {
-        return empresaId;
-    }
-
-    public void setEmpresaId(Long empresaId) {
-        this.empresaId = empresaId;
     }
 
     public String getRazaoSocial() {

@@ -4,6 +4,7 @@ import br.com.novexa.erp.entity.EmpresaEntity;
 import br.com.novexa.erp.entity.PerfilUsuario;
 import br.com.novexa.erp.entity.UsuarioEntity;
 import br.com.novexa.erp.exception.AutenticacaoException;
+import br.com.novexa.erp.exception.UsuarioNotFoundException;
 import br.com.novexa.erp.repository.UsuarioRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -48,13 +49,13 @@ public class UsuarioService {
         return usuarioRepository.save(usuario);
     }
 
-    public List<UsuarioEntity> listar() {
-        return usuarioRepository.findAll();
+    public List<UsuarioEntity> listar(Long empresaId) {
+        return usuarioRepository.findAllByEmpresaId(empresaId);
     }
 
-    public UsuarioEntity buscarPorId(Long id) {
-        return usuarioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+    public UsuarioEntity buscarPorId(Long id, Long empresaId) {
+        return usuarioRepository.findByIdAndEmpresaId(id, empresaId)
+                .orElseThrow(() -> new UsuarioNotFoundException("Usuário não encontrado."));
     }
 
     public UsuarioEntity atualizar(
@@ -64,8 +65,7 @@ public class UsuarioService {
 
         dadosNovos.setCpf(normalizarCpf(dadosNovos.getCpf()));
 
-        UsuarioEntity usuarioExistente = usuarioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+        UsuarioEntity usuarioExistente = buscarPorId(id, empresaId);
 
         if (usuarioRepository.existsByCpfAndIdNot(dadosNovos.getCpf(), id)) {
             throw new RuntimeException("Já existe outro usuário com este CPF.");
@@ -78,17 +78,13 @@ public class UsuarioService {
         if (dadosNovos.getPerfil() != null) {
             usuarioExistente.setPerfil(dadosNovos.getPerfil());
         }
-        usuarioExistente.setEmpresa(buscarEmpresaObrigatoria(empresaId));
 
         return usuarioRepository.save(usuarioExistente);
     }
 
-    public void excluir(Long id) {
-        if (!usuarioRepository.existsById(id)) {
-            throw new RuntimeException("Usuário não encontrado.");
-        }
-
-        usuarioRepository.deleteById(id);
+    public void excluir(Long id, Long empresaId) {
+        UsuarioEntity usuario = buscarPorId(id, empresaId);
+        usuarioRepository.delete(usuario);
     }
 
     // O controller chama este método; o repository não é acessado diretamente pela web.

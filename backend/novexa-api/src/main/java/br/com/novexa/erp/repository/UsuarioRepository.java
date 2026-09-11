@@ -7,6 +7,10 @@ import org.springframework.data.repository.query.Param;
 
 public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
 
+    java.util.List<UsuarioEntity> findAllByEmpresaId(Long empresaId);
+
+    java.util.Optional<UsuarioEntity> findByIdAndEmpresaId(Long id, Long empresaId);
+
     // Verifica se já existe um usuário com o CPF informado.
     boolean existsByCpf(String cpf);
 

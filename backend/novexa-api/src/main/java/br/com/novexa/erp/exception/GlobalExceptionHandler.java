@@ -42,6 +42,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             ClienteNotFoundException.class,
             FornecedorNotFoundException.class,
+            UsuarioNotFoundException.class,
             ProdutoNotFoundException.class
     })
     public ResponseEntity<String> tratarCadastroNaoEncontrado(

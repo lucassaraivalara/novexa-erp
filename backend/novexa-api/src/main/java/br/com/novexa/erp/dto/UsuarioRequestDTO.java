@@ -1,7 +1,6 @@
 package br.com.novexa.erp.dto;
 
 import br.com.novexa.erp.entity.PerfilUsuario;
-import jakarta.validation.constraints.NotNull;
 
 public class UsuarioRequestDTO {
 
@@ -10,9 +9,6 @@ public class UsuarioRequestDTO {
     private String email;
     private String senha;
     private PerfilUsuario perfil;
-
-    @NotNull(message = "A empresa é obrigatória.")
-    private Long empresaId;
 
     // =========================================================
     // CONSTRUTOR
@@ -68,11 +64,4 @@ public class UsuarioRequestDTO {
         this.perfil = perfil;
     }
 
-    public Long getEmpresaId() {
-        return empresaId;
-    }
-
-    public void setEmpresaId(Long empresaId) {
-        this.empresaId = empresaId;
-    }
 }
