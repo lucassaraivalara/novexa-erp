@@ -10,7 +10,12 @@ import br.com.novexa.erp.util.DocumentoEmpresaUtils;
 import br.com.novexa.erp.util.LogomarcaUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import br.com.novexa.erp.security.UsuarioAutenticado;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -39,12 +44,22 @@ class EmpresaCadastroTest {
         service = new EmpresaService(repository);
         mapper = new EmpresaMapper();
         mvc = MockMvcBuilders.standaloneSetup(new EmpresaController(service, mapper))
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        new UsuarioAutenticado(1L, "02360684663", 7L, PerfilUsuario.USUARIO),
+                        null, List.of()));
         when(repository.save(any())).thenAnswer(i -> {
             EmpresaEntity empresa = i.getArgument(0);
             if (empresa.getId() == null) empresa.setId(7L);
             return empresa;
         });
+    }
+
+    @AfterEach
+    void limparAutenticacao() {
+        SecurityContextHolder.clearContext();
     }
 
     private EmpresaRequestDTO dados() {
@@ -160,7 +175,6 @@ class EmpresaCadastroTest {
     @Test void detalheRetornaInscricoesMasListagemNaoTransportaImagem() throws Exception {
         var empresa = mapper.paraEntity(dados()); empresa.setId(7L); empresa.setLogomarca("imagem");
         when(repository.findById(7L)).thenReturn(Optional.of(empresa));
-        when(repository.findAll()).thenReturn(List.of(empresa));
         mvc.perform(get("/empresas/7")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.inscricoesSt[0].uf").value("MG")).andExpect(jsonPath("$.logomarca").value("imagem"));
         mvc.perform(get("/empresas")).andExpect(status().isOk()).andExpect(jsonPath("$[0].logomarca").isEmpty());

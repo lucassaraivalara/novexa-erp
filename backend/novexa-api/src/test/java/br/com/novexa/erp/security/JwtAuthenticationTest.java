@@ -156,10 +156,10 @@ class JwtAuthenticationTest {
 
     @Test
     void tokenValidoChegaAoEndpointESegurancaNaoCriaSessao() throws Exception {
-        when(empresaService.listar()).thenReturn(List.of(usuario(PerfilUsuario.ADMIN).getEmpresa()));
+        when(empresaService.listar(10L)).thenReturn(List.of(usuario(PerfilUsuario.ADMIN).getEmpresa()));
         var resultado = mvc.perform(get("/empresas").header(HttpHeaders.AUTHORIZATION, "Bearer " + token()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(10)).andReturn();
-        verify(empresaService).listar();
+        verify(empresaService).listar(10L);
         assertThat(resultado.getRequest().getSession(false)).isNull();
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         mvc.perform(get("/empresas")).andExpect(status().isUnauthorized());

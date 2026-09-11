@@ -47,9 +47,16 @@ public class EmpresaService {
     }
 
     // GET
-    // lista todas as empresas
-    public List<EmpresaEntity> listar() {
-        return empresaRepository.findAll();
+    // Lista somente a empresa autenticada, preservando o contrato de lista.
+    public List<EmpresaEntity> listar(Long empresaId) {
+        return empresaRepository.findById(empresaId).stream().toList();
+    }
+
+    public EmpresaEntity buscarPorId(Long id, Long empresaId) {
+        if (!id.equals(empresaId)) {
+            throw new EmpresaNotFoundException("Empresa não encontrada com o ID: " + id);
+        }
+        return buscarPorId(id);
     }
 
 

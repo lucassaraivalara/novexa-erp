@@ -7,6 +7,8 @@ import br.com.novexa.erp.dto.EmpresaResponseDTO;
 import br.com.novexa.erp.entity.EmpresaEntity;
 import br.com.novexa.erp.mapper.EmpresaMapper;
 import br.com.novexa.erp.service.EmpresaService;
+import br.com.novexa.erp.security.UsuarioAutenticado;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -110,13 +112,14 @@ public class EmpresaController {
      * GET /empresas
      */
     @GetMapping
-    public ResponseEntity<List<EmpresaResponseDTO>> listar() {
+    public ResponseEntity<List<EmpresaResponseDTO>> listar(
+            @AuthenticationPrincipal UsuarioAutenticado autenticado) {
 
         /*
-         * Busca todas as empresas através do Service.
+         * Busca somente a empresa do usuário autenticado através do Service.
          */
         List<EmpresaEntity> empresas =
-                empresaService.listar();
+                empresaService.listar(autenticado.empresaId());
 
         /*
          * Converte cada EmpresaEntity para
@@ -144,13 +147,14 @@ public class EmpresaController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<EmpresaResponseDTO> buscarPorId(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            @AuthenticationPrincipal UsuarioAutenticado autenticado) {
 
         /*
          * Busca a empresa no Service.
          */
         EmpresaEntity empresa =
-                empresaService.buscarPorId(id);
+                empresaService.buscarPorId(id, autenticado.empresaId());
 
         /*
          * Converte a Entity encontrada
