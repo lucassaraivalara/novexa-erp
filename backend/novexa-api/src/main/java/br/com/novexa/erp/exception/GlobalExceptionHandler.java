@@ -43,7 +43,8 @@ public class GlobalExceptionHandler {
             ClienteNotFoundException.class,
             FornecedorNotFoundException.class,
             UsuarioNotFoundException.class,
-            ProdutoNotFoundException.class
+            ProdutoNotFoundException.class,
+            CaixaNotFoundException.class
     })
     public ResponseEntity<String> tratarCadastroNaoEncontrado(
             RuntimeException exception) {
@@ -65,13 +66,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             DocumentoInvalidoException.class,
             EmpresaInvalidaException.class,
-            ProdutoInvalidoException.class
+            ProdutoInvalidoException.class,
+            CaixaInvalidoException.class
     })
     public ResponseEntity<String> tratarCadastroInvalido(
             RuntimeException exception) {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .body(exception.getMessage());
+    }
+
+    @ExceptionHandler(CaixaDuplicadoException.class)
+    public ResponseEntity<String> tratarCaixaDuplicado(
+            CaixaDuplicadoException exception) {
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
                 .body(exception.getMessage());
     }
 

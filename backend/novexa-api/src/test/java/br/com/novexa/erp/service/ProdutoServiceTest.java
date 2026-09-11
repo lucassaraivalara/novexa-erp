@@ -54,7 +54,7 @@ class ProdutoServiceTest {
 
         assertThat(produtoSalvo.getEmpresa()).isSameAs(empresa);
         assertThat(produtoSalvo.getPrecoVenda()).isEqualByComparingTo("19.90");
-        assertThat(produtoSalvo.getEstoqueAtual()).isEqualByComparingTo("10.000");
+        assertThat(produtoSalvo.getEstoqueAtual()).isEqualByComparingTo("0.000");
     }
 
     @Test

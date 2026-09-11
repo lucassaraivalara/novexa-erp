@@ -47,7 +47,6 @@ public class ProdutoMapper {
         produto.setUnidadeMedida(request.getUnidadeMedida());
         produto.setPrecoCusto(request.getPrecoCusto());
         produto.setPrecoVenda(request.getPrecoVenda());
-        produto.setEstoqueAtual(request.getEstoqueAtual());
         produto.setEstoqueMinimo(request.getEstoqueMinimo());
         produto.setControlaEstoque(request.getControlaEstoque());
         produto.setAtivo(request.getAtivo());

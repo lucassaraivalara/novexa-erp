@@ -33,9 +33,6 @@ public class ProdutoRequestDTO {
     @DecimalMin(value = "0.00", message = "O preço de venda não pode ser negativo.")
     private BigDecimal precoVenda;
 
-    @DecimalMin(value = "0.00", message = "O estoque atual não pode ser negativo.")
-    private BigDecimal estoqueAtual;
-
     @DecimalMin(value = "0.00", message = "O estoque mínimo não pode ser negativo.")
     private BigDecimal estoqueMinimo;
 
@@ -99,14 +96,6 @@ public class ProdutoRequestDTO {
 
     public void setPrecoVenda(BigDecimal precoVenda) {
         this.precoVenda = precoVenda;
-    }
-
-    public BigDecimal getEstoqueAtual() {
-        return estoqueAtual;
-    }
-
-    public void setEstoqueAtual(BigDecimal estoqueAtual) {
-        this.estoqueAtual = estoqueAtual;
     }
 
     public BigDecimal getEstoqueMinimo() {

@@ -76,7 +76,6 @@ public class ProdutoService {
         produtoExistente.setUnidadeMedida(dadosNovos.getUnidadeMedida());
         produtoExistente.setPrecoCusto(dadosNovos.getPrecoCusto());
         produtoExistente.setPrecoVenda(dadosNovos.getPrecoVenda());
-        produtoExistente.setEstoqueAtual(dadosNovos.getEstoqueAtual());
         produtoExistente.setEstoqueMinimo(dadosNovos.getEstoqueMinimo());
         produtoExistente.setControlaEstoque(dadosNovos.getControlaEstoque());
         produtoExistente.setAtivo(dadosNovos.getAtivo());
@@ -108,10 +107,13 @@ public class ProdutoService {
                 produtoExistente == null ? ZERO : produtoExistente.getPrecoCusto()
         ));
         produto.setPrecoVenda(valorObrigatorio(produto.getPrecoVenda(), "O preço de venda é obrigatório."));
-        produto.setEstoqueAtual(valorOuAnterior(
-                produto.getEstoqueAtual(),
-                produtoExistente == null ? ZERO : produtoExistente.getEstoqueAtual()
-        ));
+        // estoqueAtual não deve ser alterado via cadastro/edição de produto.
+        // Para novo produto, inicia com ZERO. Para edição, preserva o valor existente.
+        if (produtoExistente != null) {
+            produto.setEstoqueAtual(produtoExistente.getEstoqueAtual());
+        } else {
+            produto.setEstoqueAtual(ZERO);
+        }
         produto.setEstoqueMinimo(valorOuAnterior(
                 produto.getEstoqueMinimo(),
                 produtoExistente == null ? ZERO : produtoExistente.getEstoqueMinimo()
