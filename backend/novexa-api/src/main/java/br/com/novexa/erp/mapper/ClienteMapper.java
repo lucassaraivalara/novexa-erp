@@ -39,8 +39,9 @@ public class ClienteMapper {
         response.setLimiteCredito(cliente.getLimiteCredito());
         response.setObservacoesInternas(cliente.getObservacoesInternas());
         response.setInstrucoesEntrega(cliente.getInstrucoesEntrega());
-        response.setEnderecos(cliente.getEnderecos());
-        response.setContatos(cliente.getContatos());
+        // Materializa as coleções durante a transação, antes da serialização do DTO.
+        response.setEnderecos(new java.util.ArrayList<>(cliente.getEnderecos()));
+        response.setContatos(new java.util.ArrayList<>(cliente.getContatos()));
 
         return response;
     }

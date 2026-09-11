@@ -231,6 +231,7 @@ class JwtAuthenticationTest {
     private void rejeitar(String authorization) throws Exception {
         mvc.perform(get("/empresas").header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isUnauthorized())
+                .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer error=\"invalid_token\""))
                 .andExpect(content().string("Autenticação necessária ou token inválido."));
         verifyNoInteractions(empresaService);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();

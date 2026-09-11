@@ -12,8 +12,6 @@ const api = axios.create({
     },
 });
 
-let isRefreshing = false;
-
 api.interceptors.request.use(
     (config) => {
         const token = obterToken();
@@ -31,10 +29,16 @@ api.interceptors.response.use(
         if (axios.isAxiosError(error) && error.response?.status === 401) {
             const isLoginRequest = error.config?.url === "/auth/login";
 
-            if (!isLoginRequest && !isRefreshing) {
-                isRefreshing = true;
+            const token = obterToken();
+            const tokenEnviado = error.config?.headers.Authorization;
+            const desafio = String(error.response.headers["www-authenticate"] ?? "");
+            // Apenas a rejeição explícita do token atual encerra a sessão.
+            // Uma resposta atrasada de uma sessão anterior não afeta um novo login.
+            const tokenInvalido = /^Bearer\s+.*\berror="invalid_token"/i.test(desafio);
+
+            if (!isLoginRequest && token && tokenEnviado === `Bearer ${token}` && tokenInvalido) {
                 removerSessao();
-                window.location.href = "/login";
+                window.location.assign("/login");
             }
         }
         return Promise.reject(error);

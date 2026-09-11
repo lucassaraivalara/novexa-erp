@@ -1,4 +1,4 @@
-import { Box, Button, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import { layoutTokens } from "../layout/layoutTokens";
 import type { SxProps } from "@mui/system";
 
@@ -60,21 +60,7 @@ export default function PageHeader({
 
             <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center" }}>
                 {acoesSecundarias}
-                {acaoPrincipal && (
-                    <Button
-                        variant="contained"
-                        size="medium"
-                        sx={{
-                            minHeight: 42,
-                            fontWeight: 600,
-                            borderRadius: layoutTokens.radius.button,
-                            px: 2.5,
-                            textTransform: "none",
-                        }}
-                    >
-                        {acaoPrincipal}
-                    </Button>
-                )}
+                {acaoPrincipal}
             </Box>
 
             {children}

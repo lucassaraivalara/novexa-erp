@@ -3,6 +3,7 @@ package br.com.novexa.erp.config;
 import br.com.novexa.erp.security.JwtAuthenticationFilter;
 import br.com.novexa.erp.security.SecurityErrorHandler;
 import br.com.novexa.erp.service.JwtService;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -30,6 +31,8 @@ public class SecurityConfig {
                         .authenticationEntryPoint(errorHandler)
                         .accessDeniedHandler(errorHandler))
                 .authorizeHttpRequests(auth -> auth
+                        // Preserva o status original no despacho interno de erro do servlet.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .anyRequest().authenticated())
                 // Registrado apenas na cadeia do Spring Security, evitando execução dupla pelo servlet container.
