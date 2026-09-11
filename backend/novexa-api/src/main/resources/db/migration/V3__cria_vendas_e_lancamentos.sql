@@ -6,6 +6,7 @@ CREATE TABLE vendas (
     chave_requisicao UUID NOT NULL,
     resumo_requisicao VARCHAR(64) NOT NULL,
     data_hora TIMESTAMP NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ABERTA',
     subtotal NUMERIC(19,2) NOT NULL CHECK (subtotal > 0),
     desconto NUMERIC(19,2) NOT NULL CHECK (desconto >= 0 AND desconto < subtotal),
     total NUMERIC(19,2) NOT NULL CHECK (total = subtotal - desconto),
@@ -30,6 +31,17 @@ CREATE TABLE venda_itens (
     PRIMARY KEY (venda_id, ordem),
     UNIQUE (venda_id, produto_id)
 );
+
+CREATE TABLE itens_venda (
+    id BIGSERIAL PRIMARY KEY,
+    venda_id BIGINT NOT NULL REFERENCES vendas(id),
+    produto_id BIGINT NOT NULL REFERENCES produtos(id),
+    quantidade NUMERIC(19,3) NOT NULL CHECK (quantidade > 0),
+    preco_unitario NUMERIC(19,2) NOT NULL CHECK (preco_unitario >= 0),
+    subtotal NUMERIC(19,2) NOT NULL CHECK (subtotal >= 0)
+);
+CREATE INDEX idx_item_venda_venda ON itens_venda(venda_id);
+CREATE INDEX idx_item_venda_produto ON itens_venda(produto_id);
 
 CREATE TABLE lancamentos_financeiros (
     id BIGSERIAL PRIMARY KEY,
