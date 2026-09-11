@@ -1,0 +1,57 @@
+package br.com.novexa.erp.entity;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+@Entity
+@Table(name = "vendas", uniqueConstraints = @UniqueConstraint(name = "uk_venda_requisicao",
+        columnNames = {"empresa_id", "usuario_id", "chave_requisicao"}))
+public class VendaEntity {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+    @ManyToOne(optional = false) @JoinColumn(nullable = false) private EmpresaEntity empresa;
+    @ManyToOne(optional = false) @JoinColumn(nullable = false) private UsuarioEntity usuario;
+    @ManyToOne private ClienteEntity cliente;
+    @Column(nullable = false) private UUID chaveRequisicao;
+    @Column(nullable = false, length = 64) private String resumoRequisicao;
+    @Column(nullable = false) private LocalDateTime dataHora;
+    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal subtotal;
+    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal desconto;
+    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal total;
+    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private FormaPagamento formaPagamento;
+    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal valorRecebido;
+    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal troco;
+    @Column(length = 500) private String entrega;
+    @Column(length = 2000) private String observacoes;
+    @ElementCollection @CollectionTable(name = "venda_itens", joinColumns = @JoinColumn(name = "venda_id"))
+    @OrderColumn(name = "ordem") private List<VendaItem> itens = new ArrayList<>();
+
+    protected VendaEntity() { }
+    public VendaEntity(UsuarioEntity usuario, ClienteEntity cliente, UUID chave, String resumo,
+                       BigDecimal subtotal, BigDecimal desconto, BigDecimal total, FormaPagamento forma,
+                       BigDecimal recebido, BigDecimal troco, String entrega, String observacoes) {
+        this.empresa = usuario.getEmpresa(); this.usuario = usuario; this.cliente = cliente;
+        this.chaveRequisicao = chave; this.resumoRequisicao = resumo; this.dataHora = LocalDateTime.now();
+        this.subtotal = subtotal; this.desconto = desconto; this.total = total; this.formaPagamento = forma;
+        this.valorRecebido = recebido; this.troco = troco; this.entrega = entrega; this.observacoes = observacoes;
+    }
+    public Long getId() { return id; }
+    public EmpresaEntity getEmpresa() { return empresa; }
+    public UsuarioEntity getUsuario() { return usuario; }
+    public ClienteEntity getCliente() { return cliente; }
+    public UUID getChaveRequisicao() { return chaveRequisicao; }
+    public String getResumoRequisicao() { return resumoRequisicao; }
+    public LocalDateTime getDataHora() { return dataHora; }
+    public BigDecimal getSubtotal() { return subtotal; }
+    public BigDecimal getDesconto() { return desconto; }
+    public BigDecimal getTotal() { return total; }
+    public FormaPagamento getFormaPagamento() { return formaPagamento; }
+    public BigDecimal getValorRecebido() { return valorRecebido; }
+    public BigDecimal getTroco() { return troco; }
+    public List<VendaItem> getItens() { return itens; }
+    public String getEntrega() { return entrega; }
+    public String getObservacoes() { return observacoes; }
+}

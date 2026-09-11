@@ -39,8 +39,11 @@ function AppRoutes() {
             />
 
             <Route element={<RotaProtegida />}>
+                {rotasInternas.filter(rota => rota.caminho === "vendas").map(rota => (
+                    <Route key={rota.caminho} path={rota.caminho} element={rota.elemento} />
+                ))}
                 <Route element={<MainLayout />}>
-                    {rotasInternas.map((rota) => (
+                    {rotasInternas.filter(rota => rota.caminho !== "vendas").map((rota) => (
                         <Route
                             key={rota.caminho}
                             path={rota.caminho}

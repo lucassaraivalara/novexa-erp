@@ -5,6 +5,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+
+import java.math.BigDecimal;
+
 import static org.assertj.core.api.Assertions.*;
 
 @DataJpaTest(properties = {
@@ -62,10 +65,10 @@ class MovimentacaoEstoquePersistenceTest {
         p.setCodigoBarras("7891234567890");
         p.setNome("Produto Teste Estoque");
         p.setUnidadeMedida("UN");
-        p.setPrecoCusto(new java.math.BigDecimal("10.00"));
-        p.setPrecoVenda(new java.math.BigDecimal("20.00"));
-        p.setEstoqueAtual(new java.math.BigDecimal("100.000"));
-        p.setEstoqueMinimo(new java.math.BigDecimal("10.000"));
+        p.setPrecoCusto(new BigDecimal("10.00"));
+        p.setPrecoVenda(new BigDecimal("20.00"));
+        p.setEstoqueAtual(new BigDecimal("100.000"));
+        p.setEstoqueMinimo(new BigDecimal("10.000"));
         p.setControlaEstoque(true);
         p.setAtivo(true);
         return produtoRepository.saveAndFlush(p);
@@ -82,9 +85,9 @@ class MovimentacaoEstoquePersistenceTest {
         mov.setUsuario(usuario);
         mov.setTipo(TipoMovimentacaoEstoque.ENTRADA);
         mov.setOrigem(OrigemMovimentacaoEstoque.MANUAL);
-        mov.setQuantidade(new java.math.BigDecimal("50.000"));
-        mov.setSaldoAnterior(new java.math.BigDecimal("100.000"));
-        mov.setSaldoPosterior(new java.math.BigDecimal("150.000"));
+        mov.setQuantidade(new BigDecimal("50.000"));
+        mov.setSaldoAnterior(new BigDecimal("100.000"));
+        mov.setSaldoPosterior(new BigDecimal("150.000"));
         mov.setMotivo("Entrada manual de estoque");
 
         var salva = repository.saveAndFlush(mov);
@@ -115,9 +118,9 @@ class MovimentacaoEstoquePersistenceTest {
         mov.setUsuario(usuario);
         mov.setTipo(TipoMovimentacaoEstoque.SAIDA);
         mov.setOrigem(OrigemMovimentacaoEstoque.VENDA);
-        mov.setQuantidade(new java.math.BigDecimal("12.345"));
-        mov.setSaldoAnterior(new java.math.BigDecimal("100.000"));
-        mov.setSaldoPosterior(new java.math.BigDecimal("87.655"));
+        mov.setQuantidade(new BigDecimal("12.345"));
+        mov.setSaldoAnterior(new BigDecimal("100.000"));
+        mov.setSaldoPosterior(new BigDecimal("87.655"));
 
         var salva = repository.saveAndFlush(mov);
         em.clear();
@@ -139,9 +142,9 @@ class MovimentacaoEstoquePersistenceTest {
         mov.setUsuario(usuario);
         mov.setTipo(TipoMovimentacaoEstoque.AJUSTE);
         mov.setOrigem(OrigemMovimentacaoEstoque.AJUSTE);
-        mov.setQuantidade(new java.math.BigDecimal("5.000"));
-        mov.setSaldoAnterior(new java.math.BigDecimal("100.000"));
-        mov.setSaldoPosterior(new java.math.BigDecimal("105.000"));
+        mov.setQuantidade(new BigDecimal("5.000"));
+        mov.setSaldoAnterior(new BigDecimal("100.000"));
+        mov.setSaldoPosterior(new BigDecimal("105.000"));
 
         var salva = repository.saveAndFlush(mov);
         em.clear();
@@ -162,9 +165,9 @@ class MovimentacaoEstoquePersistenceTest {
         mov.setUsuario(usuario);
         mov.setTipo(TipoMovimentacaoEstoque.ENTRADA);
         mov.setOrigem(OrigemMovimentacaoEstoque.MANUAL);
-        mov.setQuantidade(new java.math.BigDecimal("10.000"));
-        mov.setSaldoAnterior(new java.math.BigDecimal("100.000"));
-        mov.setSaldoPosterior(new java.math.BigDecimal("110.000"));
+        mov.setQuantidade(new BigDecimal("10.000"));
+        mov.setSaldoAnterior(new BigDecimal("100.000"));
+        mov.setSaldoPosterior(new BigDecimal("110.000"));
 
         var antes = java.time.LocalDateTime.now();
         var salva = repository.saveAndFlush(mov);
@@ -188,9 +191,9 @@ class MovimentacaoEstoquePersistenceTest {
         mov1.setUsuario(usuario);
         mov1.setTipo(TipoMovimentacaoEstoque.ENTRADA);
         mov1.setOrigem(OrigemMovimentacaoEstoque.MANUAL);
-        mov1.setQuantidade(new java.math.BigDecimal("10.000"));
-        mov1.setSaldoAnterior(new java.math.BigDecimal("100.000"));
-        mov1.setSaldoPosterior(new java.math.BigDecimal("110.000"));
+        mov1.setQuantidade(new BigDecimal("10.000"));
+        mov1.setSaldoAnterior(new BigDecimal("100.000"));
+        mov1.setSaldoPosterior(new BigDecimal("110.000"));
         repository.saveAndFlush(mov1);
 
         var mov2 = new MovimentacaoEstoqueEntity();
@@ -199,9 +202,9 @@ class MovimentacaoEstoquePersistenceTest {
         mov2.setUsuario(usuario);
         mov2.setTipo(TipoMovimentacaoEstoque.ENTRADA);
         mov2.setOrigem(OrigemMovimentacaoEstoque.MANUAL);
-        mov2.setQuantidade(new java.math.BigDecimal("20.000"));
-        mov2.setSaldoAnterior(new java.math.BigDecimal("50.000"));
-        mov2.setSaldoPosterior(new java.math.BigDecimal("70.000"));
+        mov2.setQuantidade(new BigDecimal("20.000"));
+        mov2.setSaldoAnterior(new BigDecimal("50.000"));
+        mov2.setSaldoPosterior(new BigDecimal("70.000"));
         repository.saveAndFlush(mov2);
 
         em.clear();
@@ -228,10 +231,13 @@ class MovimentacaoEstoquePersistenceTest {
         mov1.setUsuario(usuario);
         mov1.setTipo(TipoMovimentacaoEstoque.ENTRADA);
         mov1.setOrigem(OrigemMovimentacaoEstoque.MANUAL);
-        mov1.setQuantidade(new java.math.BigDecimal("50.000"));
-        mov1.setSaldoAnterior(new java.math.BigDecimal("100.000"));
-        mov1.setSaldoPosterior(new java.math.BigDecimal("150.000"));
+        mov1.setQuantidade(new BigDecimal("50.000"));
+        mov1.setSaldoAnterior(new BigDecimal("100.000"));
+        mov1.setSaldoPosterior(new BigDecimal("150.000"));
         repository.saveAndFlush(mov1);
+
+        // Pequeno delay para garantir timestamps diferentes
+        try { Thread.sleep(10); } catch (InterruptedException ignored) {}
 
         var mov2 = new MovimentacaoEstoqueEntity();
         mov2.setEmpresa(empresa);
@@ -239,16 +245,19 @@ class MovimentacaoEstoquePersistenceTest {
         mov2.setUsuario(usuario);
         mov2.setTipo(TipoMovimentacaoEstoque.SAIDA);
         mov2.setOrigem(OrigemMovimentacaoEstoque.VENDA);
-        mov2.setQuantidade(new java.math.BigDecimal("30.000"));
-        mov2.setSaldoAnterior(new java.math.BigDecimal("150.000"));
-        mov2.setSaldoPosterior(new java.math.BigDecimal("120.000"));
+        mov2.setQuantidade(new BigDecimal("30.000"));
+        mov2.setSaldoAnterior(new BigDecimal("150.000"));
+        mov2.setSaldoPosterior(new BigDecimal("120.000"));
         repository.saveAndFlush(mov2);
 
         em.clear();
 
         var historico = repository.findByEmpresaIdAndProdutoIdOrderByDataHoraDesc(empresa.getId(), produto.getId());
         assertThat(historico).hasSize(2);
+        // O mais recente (SAIDA) deve vir primeiro
+        assertThat(historico.get(0).getTipo()).isEqualTo(TipoMovimentacaoEstoque.SAIDA);
         assertThat(historico.get(0).getSaldoPosterior()).isEqualByComparingTo("120.000");
+        assertThat(historico.get(1).getTipo()).isEqualTo(TipoMovimentacaoEstoque.ENTRADA);
         assertThat(historico.get(1).getSaldoPosterior()).isEqualByComparingTo("150.000");
     }
 }
