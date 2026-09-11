@@ -213,3 +213,29 @@ Fazer alterações pequenas, testáveis e rastreáveis.
 Não avançar para módulos fora do escopo da tarefa atual.
 
 Se uma implementação tecnicamente correta entrar em conflito com os princípios de simplicidade operacional do Novexa, sinalize o conflito antes de executá-la.
+
+
+## Regra para auditorias, prompts antigos e trabalho entre agentes
+
+Antes de implementar qualquer correção baseada em:
+
+- auditoria anterior;
+- prompt antigo;
+- sugestão de outro agente;
+- diagnóstico feito antes de mudanças recentes;
+
+valide no estado atual do repositório se o problema ainda existe.
+
+Não reimplementar funcionalidades já corrigidas.
+
+Não desfazer soluções atuais apenas porque outro prompt descreve um estado anterior do projeto.
+
+Quando assumir uma tarefa iniciada por outro agente:
+
+- verificar branch;
+- executar git status;
+- revisar git diff;
+- identificar o que já foi implementado;
+- continuar do estado atual;
+- preservar alterações existentes;
+- não reiniciar a tarefa do zero sem necessidade.
