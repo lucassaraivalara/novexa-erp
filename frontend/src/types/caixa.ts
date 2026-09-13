@@ -1,12 +1,11 @@
-export interface CaixaResumo {
+export type CaixaResumo = {
     id: number;
     descricao: string;
     ativo: boolean;
-}
+};
 
-export interface CaixaCompleta extends CaixaResumo {
-}
+export type CaixaCompleta = CaixaResumo;
 
-export interface CaixaInput {
+export type CaixaInput = {
     descricao: string;
-}
+};

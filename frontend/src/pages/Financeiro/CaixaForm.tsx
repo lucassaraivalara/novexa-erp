@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, Box, Button, IconButton, Stack, TextField, Typography } from "@mui/material";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
-import { useForm, type SubmitHandler } from "react-hook-form";
+import { useForm, type SubmitHandler, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { listarCaixas, mensagemCaixa, salvarCaixa } from "../../services/caixaService";
@@ -27,7 +27,7 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
         register,
         handleSubmit,
         setValue,
-        watch,
+        control,
         formState: { errors },
     } = useForm<CaixaInput>({
         resolver: yupResolver(schema),
@@ -35,7 +35,7 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
         mode: "onBlur",
     });
 
-    const descricao = watch("descricao");
+    const descricao = useWatch({ control, name: "descricao" });
 
     useEffect(() => {
         if (caixa) {

@@ -1,5 +1,17 @@
 # AGENTS.md — Princípios do Produto Novexa ERP
 
+## Sequência de trabalho obrigatória
+
+1. Leia este AGENTS.md.
+2. Consulte `docs/architecture/SYSTEM_CONTEXT.md` para localizar o contexto da tarefa.
+3. Leia somente os documentos relevantes ao escopo.
+4. Inspecione o código relacionado e confirme o estado atual.
+5. Execute a alteração e as validações necessárias.
+6. Atualize a documentação afetada, respeitando a divisão de responsabilidade entre agentes.
+7. Informe alterações, validações e pendências. Pare ao concluir.
+
+Quando a documentação compartilhada estiver sob responsabilidade da integração, entregue as atualizações necessárias no resumo. A etapa integrada só estará concluída após incorporá-las.
+
 ## Visão do produto
 
 O Novexa ERP é um ERP para pequenas e médias empresas, com foco inicial em comércio, conveniência e operações de frente de caixa.
