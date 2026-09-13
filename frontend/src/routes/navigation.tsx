@@ -1,3 +1,4 @@
+import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
@@ -8,6 +9,7 @@ import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import FormatListBulletedRoundedIcon from "@mui/icons-material/FormatListBulletedRounded";
 import PersonAddAltRoundedIcon from "@mui/icons-material/PersonAddAltRounded";
 import type { ReactNode } from "react";
+import Caixa from "../pages/Financeiro/Caixa";
 import Clientes from "../pages/Clientes/Clientes";
 import Dashboard from "../pages/Dashboard/Dashboard";
 import Empresa from "../pages/Empresa/Empresa";
@@ -59,6 +61,12 @@ export const rotasInternas: RotaInterna[] = [
         icone: <BusinessRoundedIcon />,
         elemento: <Empresa />,
     },
+    {
+        caminho: "financeiro/caixas",
+        titulo: "Caixas",
+        icone: <AccountBalanceWalletRoundedIcon />,
+        elemento: <Caixa />,
+    },
 ];
 
 // A navegação pode agrupar rotas existentes ou reservar itens sem destino.
@@ -68,12 +76,14 @@ export type ItemMenu =
     | { tipo: "grupo"; id: string; titulo: string; icone: ReactNode; filhos: ItemMenu[]; abertoInicialmente?: boolean }
     | { tipo: "indisponivel"; id: string; titulo: string; icone: ReactNode };
 
-export const menuPrincipal: ItemMenu[] = rotasInternas.map((rota): ItemMenu => {
-    if (rota.caminho !== "empresa") {
-        return { tipo: "rota", id: rota.caminho, rota };
-    }
+const rotaEmpresas = rotasInternas.find(r => r.caminho === "empresa")!;
+const rotaCaixas = rotasInternas.find(r => r.caminho === "financeiro/caixas")!;
 
-    return {
+export const menuPrincipal: ItemMenu[] = [
+    ...rotasInternas
+        .filter(r => r.caminho !== "empresa" && r.caminho !== "financeiro/caixas")
+        .map(rota => ({ tipo: "rota" as const, id: rota.caminho, rota })),
+    {
         tipo: "grupo",
         id: "administracao",
         titulo: "Administração",
@@ -86,13 +96,14 @@ export const menuPrincipal: ItemMenu[] = rotasInternas.map((rota): ItemMenu => {
             icone: <FormatListBulletedRoundedIcon />,
             abertoInicialmente: true,
             filhos: [
-                { tipo: "rota", id: "empresas", titulo: "Empresas", rota },
+                { tipo: "rota", id: "empresas", titulo: "Empresas", rota: rotaEmpresas },
+                { tipo: "rota", id: "caixas", titulo: "Caixas", rota: rotaCaixas },
                 { tipo: "indisponivel", id: "usuarios", titulo: "Usuários", icone: <PeopleAltRoundedIcon /> },
                 { tipo: "indisponivel", id: "padroes-novo-cliente", titulo: "Padrões p/ Novo Cliente", icone: <PersonAddAltRoundedIcon /> },
             ],
         }],
-    };
-});
+    },
+];
 
 export function itemMenuAtivo(item: ItemMenu, pathname: string): boolean {
     if (item.tipo === "grupo") return item.filhos.some(filho => itemMenuAtivo(filho, pathname));

@@ -232,10 +232,16 @@ Não desfazer soluções atuais apenas porque outro prompt descreve um estado an
 
 Quando assumir uma tarefa iniciada por outro agente:
 
-- verificar branch;
-- executar git status;
-- revisar git diff;
-- identificar o que já foi implementado;
-- continuar do estado atual;
-- preservar alterações existentes;
-- não reiniciar a tarefa do zero sem necessidade.
+- princípios do produto;
+- Java 21 / Spring Boot 3.5.4;
+- React/TS/Vite/MUI;
+- empresa vem do JWT;
+- Flyway controla schema;
+- Hibernate validate;
+- não alterar migration aplicada;
+- não atualizar dependências sem autorização;
+- preservar código funcional;
+- trabalhar somente no domínio da tarefa;
+- verificar trabalho existente antes de implementar;
+- múltiplos agentes trabalham em paralelo;
+- ler docs/architecture/SYSTEM_CONTEXT.md antes de mudanças arquiteturais.
