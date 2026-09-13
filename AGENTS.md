@@ -75,7 +75,7 @@ Finalizar venda pode automaticamente:
 - baixar estoque;
 - registrar movimento de estoque;
 - registrar recebimento;
-- registrar movimento de caixa;
+- registrar movimento de Caixa quando houver recebimento em dinheiro;
 - gerar conta a receber quando aplicável;
 - alimentar relatórios;
 - alimentar indicadores.
@@ -256,7 +256,7 @@ Quando assumir uma tarefa iniciada por outro agente:
 - trabalhar somente no domínio da tarefa;
 - verificar trabalho existente antes de implementar;
 - múltiplos agentes trabalham em paralelo;
-- ler docs/architecture/SYSTEM_CONTEXT.md antes de mudanças arquiteturais.
+- ler docs/architecture/SYSTEM_CONTEXT.md seguir a sequência de trabalho obrigatória.
 
 ## Arquitetura financeira obrigatória
 
@@ -276,7 +276,7 @@ Estas regras representam a arquitetura alvo; verificar o que já existe antes de
 
 - Começar pelos arquivos diretamente relacionados à tarefa.
 - Ler outros arquivos somente quando necessários para concluir com segurança.
-- Consultar a documentação do domínio envolvido; antes de mudanças arquiteturais, ler também `docs/architecture/SYSTEM_CONTEXT.md`.
+- Consultar a documentação do domínio envolvido; seguir a sequência de trabalho obrigatória, ler também `docs/architecture/SYSTEM_CONTEXT.md`.
 - Tratar auditorias como evidências históricas e revalidar seus achados no código atual.
 - Cada tarefa deve delimitar objetivo, arquivos ou domínio, dependências e critério de conclusão.
 - Usar branch e worktree separados quando houver agentes trabalhando em paralelo.
