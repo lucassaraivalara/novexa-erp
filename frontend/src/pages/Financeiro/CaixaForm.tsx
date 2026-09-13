@@ -26,8 +26,8 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
     const {
         register,
         handleSubmit,
-        setValue,
         control,
+        reset,
         formState: { errors },
     } = useForm<CaixaInput>({
         resolver: yupResolver(schema),
@@ -39,13 +39,11 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
 
     useEffect(() => {
         if (caixa) {
-            setValue("descricao", caixa.descricao);
-            setErro("");
+            reset({ descricao: caixa.descricao });
         } else {
-            setValue("descricao", "");
-            setErro("");
+            reset({ descricao: "" });
         }
-    }, [caixa, setValue]);
+    }, [caixa, reset]);
 
     useEffect(() => {
         listarCaixas()
