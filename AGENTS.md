@@ -245,3 +245,31 @@ Quando assumir uma tarefa iniciada por outro agente:
 - verificar trabalho existente antes de implementar;
 - múltiplos agentes trabalham em paralelo;
 - ler docs/architecture/SYSTEM_CONTEXT.md antes de mudanças arquiteturais.
+
+## Arquitetura financeira obrigatória
+
+Forma de pagamento não é destino financeiro.
+
+- Dinheiro movimenta exclusivamente Caixa físico.
+- PIX e transferência movimentam Conta Bancária.
+- Débito e crédito geram Recebíveis até a liquidação em Conta Bancária.
+- Boleto gera Conta a Receber até a baixa/liquidação.
+- Selecionar uma forma de pagamento não comprova, por si só, o recebimento.
+
+O operador escolhe a forma de pagamento. O backend determina o fluxo conforme configuração válida, sem exigir lançamentos manuais no PDV.
+
+Estas regras representam a arquitetura alvo; verificar o que já existe antes de implementar.
+
+## Execução econômica e coordenação entre agentes
+
+- Começar pelos arquivos diretamente relacionados à tarefa.
+- Ler outros arquivos somente quando necessários para concluir com segurança.
+- Consultar a documentação do domínio envolvido; antes de mudanças arquiteturais, ler também `docs/architecture/SYSTEM_CONTEXT.md`.
+- Tratar auditorias como evidências históricas e revalidar seus achados no código atual.
+- Cada tarefa deve delimitar objetivo, arquivos ou domínio, dependências e critério de conclusão.
+- Usar branch e worktree separados quando houver agentes trabalhando em paralelo.
+- Não alterar simultaneamente arquivos compartilhados sem coordenação.
+- Centralizar a reserva de números e a integração de migrations em um responsável.
+- Rodar primeiro os testes relacionados; ampliar a validação conforme o impacto.
+- Ao concluir, informar apenas o que mudou, o que foi validado e eventuais pendências.
+- Parar ao concluir o escopo. Não iniciar a próxima tarefa automaticamente.
