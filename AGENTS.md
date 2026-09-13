@@ -273,3 +273,38 @@ Estas regras representam a arquitetura alvo; verificar o que já existe antes de
 - Rodar primeiro os testes relacionados; ampliar a validação conforme o impacto.
 - Ao concluir, informar apenas o que mudou, o que foi validado e eventuais pendências.
 - Parar ao concluir o escopo. Não iniciar a próxima tarefa automaticamente.
+
+
+## Atualização da documentação após alterações
+
+A tarefa só está concluída quando a documentação afetada estiver coerente com o resultado entregue.
+
+Antes de finalizar, avalie o impacto da alteração:
+
+| Alteração realizada | Documento a revisar e atualizar quando afetado |
+|---|---|
+| Funcionalidade concluída, correção relevante ou nova limitação identificada | `docs/architecture/CURRENT_STATE.md` |
+| Mudança em módulos, relacionamentos, contratos ou integrações | `docs/architecture/arquitetura.md` |
+| Mudança em regras ou requisitos funcionais | `docs/architecture/requisitos.md` |
+| Mudança em pagamentos, Caixa, bancos, recebíveis ou liquidação | `docs/architecture/financeiro.md` |
+| Etapa concluída, nova dependência ou mudança de sequência | `docs/architecture/roadmap.md` |
+| Decisão aprovada sobre objetivos ou princípios do produto | `docs/architecture/visao-produto.md` |
+| Novo documento, mudança de referência ou regra transversal | `docs/architecture/SYSTEM_CONTEXT.md` |
+| Mudança de instalação, configuração ou execução | `README.md` |
+
+### Regras
+
+- Atualize somente os documentos impactados, com a menor alteração necessária.
+- Não marque como concluído algo apenas planejado, parcialmente implementado ou sem validação suficiente.
+- Diferencie implementação atual, arquitetura alvo e pendências.
+- Registre o que foi validado e eventuais limitações, sem transformar a documentação em transcrição da execução.
+- Não altere decisões oficiais de produto para justificar uma implementação divergente.
+- Preserve auditorias datadas como registros históricos. Registre correções e evolução no estado atual.
+- Evite duplicação: mantenha o detalhe no documento responsável e use referências nos demais.
+- Na entrega, informe quais documentos foram atualizados ou indique que não houve impacto documental.
+
+### Trabalho simultâneo entre agentes
+
+Quando documentos compartilhados tiverem um responsável pela integração, os agentes de implementação devem entregar as atualizações necessárias no resumo, sem editar esses arquivos simultaneamente.
+
+O responsável pela integração deve aplicar as atualizações após validar o resultado consolidado e antes de encerrar a etapa.

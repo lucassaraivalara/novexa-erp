@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.datasource.url=jdbc:h2:mem:venda;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000",
         "spring.datasource.username=sa", "spring.datasource.password=",
         "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.jpa.hibernate.ddl-auto=validate", "spring.flyway.enabled=true",
+        "spring.jpa.hibernate.ddl-auto=create-drop", "spring.flyway.enabled=false",
         "spring.jpa.open-in-view=false", "spring.jpa.show-sql=false",
         "novexa.jwt.secret=01234567890123456789012345678901", "novexa.jwt.expiration-ms=60000"
 })
