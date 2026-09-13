@@ -10,7 +10,7 @@ import java.util.UUID;
 public record VendaRequestDTO(
         @NotNull UUID chaveRequisicao,
         @NotEmpty @Size(max = 200) List<@NotNull @Valid Item> itens,
-        @Positive Long clienteId,
+        Long clienteId,
         @NotNull @DecimalMin("0.00") @Digits(integer = 12, fraction = 2) BigDecimal desconto,
         @NotNull @DecimalMin("0.01") @Digits(integer = 12, fraction = 2) BigDecimal totalEsperado,
         @NotNull FormaPagamento formaPagamento,

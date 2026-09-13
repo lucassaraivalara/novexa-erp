@@ -15,16 +15,16 @@ public class VendaEntity {
     @ManyToOne(optional = false) @JoinColumn(nullable = false) private EmpresaEntity empresa;
     @ManyToOne(optional = false) @JoinColumn(nullable = false) private UsuarioEntity usuario;
     @ManyToOne private ClienteEntity cliente;
-    @Column(nullable = false) private UUID chaveRequisicao;
-    @Column(nullable = false, length = 64) private String resumoRequisicao;
+    @Column(length = 20) private UUID chaveRequisicao;
+    @Column(length = 64) private String resumoRequisicao;
     @Column(nullable = false) private LocalDateTime dataHora;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private StatusVenda status;
-    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal subtotal;
-    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal desconto;
-    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal total;
-    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private FormaPagamento formaPagamento;
-    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal valorRecebido;
-    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal troco;
+    @Column(precision = 19, scale = 2) private BigDecimal subtotal;
+    @Column(precision = 19, scale = 2) private BigDecimal desconto;
+    @Column(precision = 19, scale = 2) private BigDecimal total;
+    @Enumerated(EnumType.STRING) @Column(length = 20) private FormaPagamento formaPagamento;
+    @Column(precision = 19, scale = 2) private BigDecimal valorRecebido;
+    @Column(precision = 19, scale = 2) private BigDecimal troco;
     @Column(length = 500) private String entrega;
     @Column(length = 2000) private String observacoes;
     @OneToMany(mappedBy = "venda")
@@ -42,6 +42,12 @@ public class VendaEntity {
         this.subtotal = subtotal; this.desconto = desconto; this.total = total; this.formaPagamento = forma;
         this.valorRecebido = recebido; this.troco = troco; this.entrega = entrega; this.observacoes = observacoes;
     }
+    public VendaEntity(UsuarioEntity usuario, ClienteEntity cliente) {
+        this.empresa = usuario.getEmpresa(); this.usuario = usuario; this.cliente = cliente;
+        this.dataHora = LocalDateTime.now();
+        this.status = StatusVenda.ABERTA;
+        this.subtotal = BigDecimal.ZERO; this.desconto = BigDecimal.ZERO; this.total = BigDecimal.ZERO;
+    }
     public Long getId() { return id; }
     public EmpresaEntity getEmpresa() { return empresa; }
     public UsuarioEntity getUsuario() { return usuario; }
@@ -50,6 +56,7 @@ public class VendaEntity {
     public String getResumoRequisicao() { return resumoRequisicao; }
     public LocalDateTime getDataHora() { return dataHora; }
     public StatusVenda getStatus() { return status; }
+    public void setStatus(StatusVenda status) { this.status = status; }
     public BigDecimal getSubtotal() { return subtotal; }
     public BigDecimal getDesconto() { return desconto; }
     public BigDecimal getTotal() { return total; }
@@ -60,4 +67,8 @@ public class VendaEntity {
     public List<ItemVendaEntity> getItemVendas() { return itemVendas; }
     public String getEntrega() { return entrega; }
     public String getObservacoes() { return observacoes; }
+    public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }
+    public void setDesconto(BigDecimal desconto) { this.desconto = desconto; }
+    public void setTotal(BigDecimal total) { this.total = total; }
+    public void setCliente(ClienteEntity cliente) { this.cliente = cliente; }
 }

@@ -44,4 +44,6 @@ public class ItemVendaEntity {
     public BigDecimal getQuantidade() { return quantidade; }
     public BigDecimal getPrecoUnitario() { return precoUnitario; }
     public BigDecimal getSubtotal() { return subtotal; }
+    public void setQuantidade(BigDecimal quantidade) { this.quantidade = quantidade; }
+    public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }
 }

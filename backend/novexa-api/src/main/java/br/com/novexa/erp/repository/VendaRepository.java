@@ -4,6 +4,7 @@ import br.com.novexa.erp.entity.*;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,4 +22,9 @@ public interface VendaRepository extends JpaRepository<VendaEntity, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from ProdutoEntity p where p.empresa.id = :empresaId and p.id in :ids order by p.id")
     List<ProdutoEntity> bloquearProdutos(@Param("empresaId") Long empresaId, @Param("ids") List<Long> ids);
+
+    @Transactional
+    @Modifying
+    @Query("update VendaEntity v set v.status = :status where v.id = :id")
+    void updateStatus(@Param("id") Long id, @Param("status") StatusVenda status);
 }

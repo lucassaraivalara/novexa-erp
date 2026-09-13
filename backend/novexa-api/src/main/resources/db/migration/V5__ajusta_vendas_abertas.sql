@@ -1,0 +1,19 @@
+ALTER TABLE vendas DROP CONSTRAINT IF EXISTS vendas_subtotal_check;
+ALTER TABLE vendas DROP CONSTRAINT IF EXISTS chk_vendas_subtotal;
+ALTER TABLE vendas DROP CONSTRAINT IF EXISTS vendas_desconto_check;
+ALTER TABLE vendas DROP CONSTRAINT IF EXISTS chk_vendas_desconto;
+ALTER TABLE vendas DROP CONSTRAINT IF EXISTS vendas_total_check;
+ALTER TABLE vendas DROP CONSTRAINT IF EXISTS chk_vendas_total;
+ALTER TABLE vendas DROP CONSTRAINT IF EXISTS vendas_valor_recebido_check;
+ALTER TABLE vendas DROP CONSTRAINT IF EXISTS chk_vendas_valor_recebido;
+ALTER TABLE vendas DROP CONSTRAINT IF EXISTS vendas_troco_check;
+ALTER TABLE vendas DROP CONSTRAINT IF EXISTS chk_vendas_troco;
+
+ALTER TABLE vendas ALTER COLUMN subtotal DROP NOT NULL;
+ALTER TABLE vendas ALTER COLUMN desconto DROP NOT NULL;
+ALTER TABLE vendas ALTER COLUMN total DROP NOT NULL;
+ALTER TABLE vendas ALTER COLUMN forma_pagamento DROP NOT NULL;
+ALTER TABLE vendas ALTER COLUMN valor_recebido DROP NOT NULL;
+ALTER TABLE vendas ALTER COLUMN troco DROP NOT NULL;
+ALTER TABLE vendas ALTER COLUMN chave_requisicao DROP NOT NULL;
+ALTER TABLE vendas ALTER COLUMN resumo_requisicao DROP NOT NULL;

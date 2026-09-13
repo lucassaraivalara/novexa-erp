@@ -23,12 +23,122 @@ import java.util.stream.Collectors;
 public class VendaService {
     private final VendaRepository vendas;
     private final ClienteRepository clientes;
+    private final ItemVendaRepository itensVenda;
+    private final ProdutoRepository produtos;
     private final MovimentacaoEstoqueRepository movimentos;
     private final LancamentoFinanceiroRepository financeiro;
 
     public VendaService(VendaRepository vendas, ClienteRepository clientes,
-                        MovimentacaoEstoqueRepository movimentos, LancamentoFinanceiroRepository financeiro) {
-        this.vendas = vendas; this.clientes = clientes; this.movimentos = movimentos; this.financeiro = financeiro;
+                        ItemVendaRepository itensVenda, ProdutoRepository produtos,
+                        MovimentacaoEstoqueRepository movimentos,
+                        LancamentoFinanceiroRepository financeiro) {
+        this.vendas = vendas; this.clientes = clientes; this.itensVenda = itensVenda;
+        this.produtos = produtos; this.movimentos = movimentos; this.financeiro = financeiro;
+    }
+
+    public VendaResponseDTO criarVendaAberta(UsuarioAutenticado autenticado) {
+        UsuarioEntity operador = vendas.bloquearOperador(autenticado.usuarioId(), autenticado.empresaId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Operador não disponível para venda."));
+        if (Boolean.FALSE.equals(operador.getAtivo()) || !Boolean.TRUE.equals(operador.getEmpresa().getAtivo())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Operador ou empresa inativa.");
+        }
+        VendaEntity venda = new VendaEntity(operador, null);
+        vendas.save(venda);
+        return VendaResponseDTO.de(venda);
+    }
+
+    public VendaResponseDTO adicionarItem(Long vendaId, Long produtoId, BigDecimal quantidade,
+                                          UsuarioAutenticado autenticado) {
+        VendaEntity venda = buscarVendaAberta(vendaId, autenticado.empresaId());
+        ProdutoEntity produto = produtos.findByIdAndEmpresaId(produtoId, autenticado.empresaId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produto não encontrado para a empresa informada."));
+        if (!Boolean.TRUE.equals(produto.getAtivo())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Produto inativo.");
+        }
+        if (quantidade == null || quantidade.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantidade deve ser maior que zero.");
+        }
+        Optional<ItemVendaEntity> existente = itensVenda.findByVendaId(vendaId).stream()
+                .filter(i -> i.getProduto().getId().equals(produtoId)).findFirst();
+        if (existente.isPresent()) {
+            ItemVendaEntity item = existente.get();
+            item.setQuantidade(item.getQuantidade().add(quantidade));
+            item.setSubtotal(item.getQuantidade().multiply(item.getPrecoUnitario()).setScale(2, RoundingMode.HALF_UP));
+            itensVenda.save(item);
+        } else {
+            ItemVendaEntity item = new ItemVendaEntity(venda, produto, quantidade,
+                    produto.getPrecoVenda(), quantidade.multiply(produto.getPrecoVenda()).setScale(2, RoundingMode.HALF_UP));
+            itensVenda.save(item);
+        }
+        recalcularTotais(venda);
+        return VendaResponseDTO.de(venda);
+    }
+
+    public VendaResponseDTO alterarQuantidade(Long vendaId, Long itemId, BigDecimal quantidade,
+                                               UsuarioAutenticado autenticado) {
+        VendaEntity venda = buscarVendaAberta(vendaId, autenticado.empresaId());
+        ItemVendaEntity item = itensVenda.findById(itemId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item não encontrado."));
+        if (!item.getVenda().getId().equals(vendaId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Item não pertence a esta venda.");
+        }
+        if (quantidade == null || quantidade.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantidade deve ser maior que zero.");
+        }
+        item.setQuantidade(quantidade);
+        item.setSubtotal(quantidade.multiply(item.getPrecoUnitario()).setScale(2, RoundingMode.HALF_UP));
+        itensVenda.save(item);
+        recalcularTotais(venda);
+        return VendaResponseDTO.de(venda);
+    }
+
+    public VendaResponseDTO removerItem(Long vendaId, Long itemId, UsuarioAutenticado autenticado) {
+        VendaEntity venda = buscarVendaAberta(vendaId, autenticado.empresaId());
+        ItemVendaEntity item = itensVenda.findById(itemId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item não encontrado."));
+        if (!item.getVenda().getId().equals(vendaId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Item não pertence a esta venda.");
+        }
+        itensVenda.delete(item);
+        recalcularTotais(venda);
+        return VendaResponseDTO.de(venda);
+    }
+
+    public VendaResponseDTO aplicarDesconto(Long vendaId, BigDecimal desconto, UsuarioAutenticado autenticado) {
+        VendaEntity venda = buscarVendaAberta(vendaId, autenticado.empresaId());
+        BigDecimal subtotal = calcularSubtotal(venda);
+        if (desconto == null || desconto.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Desconto não pode ser negativo.");
+        }
+        if (desconto.compareTo(subtotal) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Desconto não pode ser maior que o subtotal.");
+        }
+        venda.setDesconto(desconto);
+        venda.setTotal(subtotal.subtract(desconto).setScale(2, RoundingMode.HALF_UP));
+        vendas.save(venda);
+        return VendaResponseDTO.de(venda);
+    }
+
+    public VendaResponseDTO vincularCliente(Long vendaId, Long clienteId, UsuarioAutenticado autenticado) {
+        VendaEntity venda = buscarVendaAberta(vendaId, autenticado.empresaId());
+        ClienteEntity cliente = clientes.findByIdAndEmpresaId(clienteId, autenticado.empresaId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente não encontrado para a empresa informada."));
+        venda.setCliente(cliente);
+        vendas.save(venda);
+        return VendaResponseDTO.de(venda);
+    }
+
+    public VendaResponseDTO removerCliente(Long vendaId, UsuarioAutenticado autenticado) {
+        VendaEntity venda = buscarVendaAberta(vendaId, autenticado.empresaId());
+        venda.setCliente(null);
+        vendas.save(venda);
+        return VendaResponseDTO.de(venda);
+    }
+
+    @Transactional(readOnly = true)
+    public VendaResponseDTO buscar(Long id, Long empresaId) {
+        return VendaResponseDTO.de(vendas.findByIdAndEmpresaId(id, empresaId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Venda não encontrada.")));
     }
 
     public VendaResponseDTO finalizar(VendaRequestDTO pedido, UsuarioAutenticado autenticado) {
@@ -53,13 +163,13 @@ public class VendaService {
                 .orElseThrow(() -> conflito("Cliente indisponível para esta empresa."));
         List<Long> ids = pedido.itens().stream().map(VendaRequestDTO.Item::produtoId).toList();
         if (new HashSet<>(ids).size() != ids.size()) throw conflito("Agrupe as quantidades do mesmo produto.");
-        Map<Long, ProdutoEntity> produtos = vendas.bloquearProdutos(autenticado.empresaId(), ids).stream()
+        Map<Long, ProdutoEntity> produtosMap = vendas.bloquearProdutos(autenticado.empresaId(), ids).stream()
                 .collect(Collectors.toMap(ProdutoEntity::getId, Function.identity()));
-        if (produtos.size() != ids.size()) throw conflito("Produto indisponível para esta empresa.");
+        if (produtosMap.size() != ids.size()) throw conflito("Produto indisponível para esta empresa.");
 
         BigDecimal subtotal = BigDecimal.ZERO;
         for (var item : pedido.itens()) {
-            ProdutoEntity produto = produtos.get(item.produtoId());
+            ProdutoEntity produto = produtosMap.get(item.produtoId());
             if (!Boolean.TRUE.equals(produto.getAtivo())) throw conflito("Produto inativo: " + produto.getNome());
             if (produto.getPrecoVenda().compareTo(item.precoUnitarioEsperado()) != 0) {
                 throw conflito("Preço alterado: " + produto.getNome() + ". Remova e adicione o item novamente.");
@@ -82,7 +192,7 @@ public class VendaService {
                 pedido.entrega(), pedido.observacoes()));
 
         for (var item : pedido.itens()) {
-            ProdutoEntity produto = produtos.get(item.produtoId());
+            ProdutoEntity produto = produtosMap.get(item.produtoId());
             Long movimentoId = null;
             if (Boolean.TRUE.equals(produto.getControlaEstoque())) {
                 var movimento = new MovimentacaoEstoqueEntity();
@@ -95,27 +205,54 @@ public class VendaService {
             }
             venda.getItens().add(new VendaItem(produto, item.quantidade(), subtotal(produto, item), movimentoId));
         }
-        // Se qualquer gravação falhar, venda, saldo, histórico e financeiro são revertidos juntos.
         financeiro.save(new LancamentoFinanceiroEntity(venda));
         return VendaResponseDTO.de(venda);
     }
 
-    @Transactional(readOnly = true)
-    public VendaResponseDTO buscar(Long id, Long empresaId) {
-        return VendaResponseDTO.de(vendas.findByIdAndEmpresaId(id, empresaId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Venda não encontrada.")));
+    private void recalcularTotais(VendaEntity venda) {
+        BigDecimal subtotal = calcularSubtotal(venda);
+        BigDecimal desconto = venda.getDesconto() != null ? venda.getDesconto() : BigDecimal.ZERO;
+        BigDecimal total = subtotal.subtract(desconto).setScale(2, RoundingMode.HALF_UP);
+        venda.setSubtotal(subtotal);
+        venda.setTotal(total);
+        vendas.save(venda);
+    }
+
+    private BigDecimal calcularSubtotal(VendaEntity venda) {
+        List<ItemVendaEntity> itens = itensVenda.findByVendaId(venda.getId());
+        BigDecimal sum = BigDecimal.ZERO;
+        for (ItemVendaEntity item : itens) {
+            sum = sum.add(item.getSubtotal());
+        }
+        return sum.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private VendaEntity buscarVendaAberta(Long vendaId, Long empresaId) {
+        VendaEntity venda = vendas.findByIdAndEmpresaId(vendaId, empresaId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Venda não encontrada."));
+        if (venda.getStatus() != StatusVenda.ABERTA) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Apenas vendas ABERTA podem ser alteradas.");
+        }
+        return venda;
     }
 
     private BigDecimal subtotal(ProdutoEntity produto, VendaRequestDTO.Item item) {
         return produto.getPrecoVenda().multiply(item.quantidade()).setScale(2, RoundingMode.HALF_UP);
     }
+
     private ResponseStatusException conflito(String mensagem) {
         return new ResponseStatusException(HttpStatus.CONFLICT, mensagem);
     }
+
     private String resumo(VendaRequestDTO pedido) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(pedido.toString().getBytes(StandardCharsets.UTF_8)));
+            byte[] bytes = MessageDigest.getInstance("SHA-256")
+                    .digest(pedido.toString().getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : bytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
