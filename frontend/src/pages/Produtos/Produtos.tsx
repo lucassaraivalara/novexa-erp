@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -15,6 +15,7 @@ import {
 } from "../../services/produtoService";
 import type { Produto, ProdutoInput } from "../../types/produto";
 import { obterEmpresaAtiva } from "../../utils/auth/sessao";
+import { useRemoteSearch } from "../../hooks/useRemoteSearch";
 import ProdutoForm from "./ProdutoForm";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -24,8 +25,6 @@ type Notificacao = { mensagem: string; tipo: "success" | "error" };
 function Produtos() {
     const empresaId = obterEmpresaAtiva()?.id;
     const [produtos, setProdutos] = useState<Produto[]>([]);
-    const [termo, setTermo] = useState("");
-    const [carregando, setCarregando] = useState(true);
     const [erroCarregamento, setErroCarregamento] = useState("");
     const [formularioAberto, setFormularioAberto] = useState(false);
     const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null);
@@ -36,26 +35,17 @@ function Produtos() {
     const [excluindo, setExcluindo] = useState(false);
     const [notificacao, setNotificacao] = useState<Notificacao | null>(null);
 
-    const carregarProdutos = useCallback(async (busca: string) => {
-        if (!empresaId) { setCarregando(false); return; }
-        setCarregando(true);
-        setErroCarregamento("");
-        try {
-            const dados = busca.trim()
-                ? await pesquisarProdutos(empresaId, busca.trim())
-                : await listarProdutos(empresaId);
-            setProdutos(dados);
-        } catch (erro) {
-            setErroCarregamento(obterMensagemDaApi(erro, "Não foi possível carregar os produtos."));
-        } finally {
-            setCarregando(false);
-        }
+    const carregarProdutos = useCallback((busca: string, signal: AbortSignal) => {
+        if (!empresaId) return Promise.resolve([]);
+        return busca ? pesquisarProdutos(empresaId, busca, signal) : listarProdutos(empresaId, signal);
     }, [empresaId]);
-
-    useEffect(() => {
-        const atraso = window.setTimeout(() => void carregarProdutos(termo), termo ? 350 : 0);
-        return () => window.clearTimeout(atraso);
-    }, [carregarProdutos, termo]);
+    const buscaRemota = useRemoteSearch({
+        enabled: Boolean(empresaId),
+        search: carregarProdutos,
+        onResults: (dados) => { setProdutos(dados); setErroCarregamento(""); },
+        onError: (erro) => setErroCarregamento(obterMensagemDaApi(erro, "Não foi possível carregar os produtos.")),
+        onInvalidTerm: () => { setProdutos([]); setErroCarregamento(""); },
+    });
 
     function abrirCadastro() {
         setProdutoEmEdicao(null);
@@ -98,7 +88,7 @@ function Produtos() {
             }
             setFormularioAberto(false);
             setProdutoEmEdicao(null);
-            await carregarProdutos(termo);
+            await buscaRemota.refresh();
         } catch (erro) {
             setErroFormulario(obterMensagemDaApi(erro, "Não foi possível salvar o produto."));
         } finally {
@@ -113,7 +103,7 @@ function Produtos() {
             await excluirProduto(produtoParaExcluir.id, empresaId);
             setProdutoParaExcluir(null);
             setNotificacao({ mensagem: "Produto inativado com sucesso.", tipo: "success" });
-            await carregarProdutos(termo);
+            await buscaRemota.refresh();
         } catch (erro) {
             setNotificacao({ mensagem: obterMensagemDaApi(erro, "Não foi possível inativar o produto."), tipo: "error" });
         } finally {
@@ -183,7 +173,7 @@ function Produtos() {
             />
 
             {erroCarregamento && (
-                <Alert severity="error" action={<Button color="inherit" size="small" onClick={() => void carregarProdutos(termo)}>Tentar novamente</Button>}>
+                <Alert severity="error" action={<Button color="inherit" size="small" onClick={() => buscaRemota.refresh()}>Tentar novamente</Button>}>
                     {erroCarregamento}
                 </Alert>
             )}
@@ -191,16 +181,18 @@ function Produtos() {
             <AppTable
                 colunas={colunas}
                 linhas={produtos}
-                carregando={carregando}
+                carregando={buscaRemota.loading && !produtos.length}
                 obterChaveLinha={(p) => p.id}
                 busca={{
                     placeholder: "Pesquisar por nome, código interno ou código de barras",
-                    onChange: setTermo,
-                    valor: termo,
+                    onChange: (valor) => { setErroCarregamento(""); buscaRemota.setTerm(valor); },
+                    onKeyDown: (evento) => { if (evento.key === "Enter") { evento.preventDefault(); buscaRemota.executeNow(); } },
+                    valor: buscaRemota.term,
+                    carregando: buscaRemota.loading,
                 }}
                 vazio={{
-                    titulo: termo ? "Nenhum produto encontrado" : "Nenhum produto cadastrado",
-                    descricao: termo ? "Tente pesquisar usando outro termo." : "Use “Novo produto” para iniciar seu catálogo.",
+                    titulo: buscaRemota.term.trim() ? "Nenhum produto encontrado" : "Nenhum produto cadastrado",
+                    descricao: buscaRemota.term.trim() ? "Tente pesquisar usando outro termo." : "Use “Novo produto” para iniciar seu catálogo.",
                 }}
                 acoes={acoes}
                 minWidth={900}

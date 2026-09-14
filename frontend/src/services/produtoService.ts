@@ -2,9 +2,10 @@ import axios from "axios";
 import type { Produto, ProdutoInput } from "../types/produto";
 import api from "./api";
 
-export async function listarProdutos(empresaId: number): Promise<Produto[]> {
+export async function listarProdutos(empresaId: number, signal?: AbortSignal): Promise<Produto[]> {
     const resposta = await api.get<Produto[]>("/produtos", {
         params: { empresaId },
+        signal,
     });
 
     return resposta.data;
@@ -13,9 +14,11 @@ export async function listarProdutos(empresaId: number): Promise<Produto[]> {
 export async function pesquisarProdutos(
     empresaId: number,
     termo: string,
+    signal?: AbortSignal,
 ): Promise<Produto[]> {
     const resposta = await api.get<Produto[]>("/produtos/buscar", {
         params: { empresaId, termo },
+        signal,
     });
 
     return resposta.data;

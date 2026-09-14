@@ -164,3 +164,24 @@ test("ações de tabela usam ícones com tooltip e acessibilidade", async () => 
     assert.doesNotMatch(caixa, /icone: <span>Editar<\/span>/);
     assert.doesNotMatch(caixa, /icone: <span>Inativar<\/span>/);
 });
+
+test("busca remota preserva o padrão oficial e cancela respostas antigas", async () => {
+    const config = await readFile(new URL("../src/config/search.ts", import.meta.url), "utf8");
+    const hook = await readFile(new URL("../src/hooks/useRemoteSearch.ts", import.meta.url), "utf8");
+    const produtos = await readFile(new URL("../src/pages/Produtos/Produtos.tsx", import.meta.url), "utf8");
+    const service = await readFile(new URL("../src/services/produtoService.ts", import.meta.url), "utf8");
+    const tabela = await readFile(new URL("../src/components/ui/AppTable.tsx", import.meta.url), "utf8");
+
+    assert.match(config, /REMOTE_SEARCH_MIN_LENGTH = 2/);
+    assert.match(config, /REMOTE_SEARCH_DEBOUNCE_MS = 350/);
+    assert.match(config, /OPERATIONAL_SEARCH_DEBOUNCE_MS = 300/);
+    assert.match(hook, /new AbortController/);
+    assert.match(hook, /requestId/);
+    assert.match(hook, /normalized\.length < minLength/);
+    assert.match(hook, /executeNow/);
+    assert.match(produtos, /useRemoteSearch/);
+    assert.match(produtos, /onKeyDown:/);
+    assert.match(service, /signal\?: AbortSignal/);
+    assert.match(tabela, /onKeyDown=\{busca\.onKeyDown\}/);
+    assert.match(tabela, /CircularProgress/);
+});

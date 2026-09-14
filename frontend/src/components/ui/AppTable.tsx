@@ -10,6 +10,7 @@ import {
     Toolbar,
     Tooltip,
     Typography,
+    CircularProgress,
     Paper,
     InputAdornment,
     IconButton,
@@ -17,7 +18,7 @@ import {
     Stack,
 } from "@mui/material";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { layoutTokens } from "../layout/layoutTokens";
 import EmptyState from "./EmptyState";
 import LoadingState from "./LoadingState";
@@ -56,6 +57,8 @@ interface AppTableProps<T> {
         placeholder: string;
         onChange: (valor: string) => void;
         valor: string;
+        carregando?: boolean;
+        onKeyDown?: (evento: KeyboardEvent<HTMLInputElement>) => void;
     };
     filtros?: ReactNode;
     paginacao?: {
@@ -150,6 +153,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                 placeholder={busca.placeholder}
                                 value={busca.valor}
                                 onChange={(e) => busca.onChange(e.target.value)}
+                                onKeyDown={busca.onKeyDown}
                                 slotProps={{
                                     input: {
                                         startAdornment: (
@@ -157,6 +161,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                 <SearchRoundedIcon fontSize="small" color="action" />
                                             </InputAdornment>
                                         ),
+                                        endAdornment: busca.carregando ? <CircularProgress size={18} aria-label="Pesquisando" /> : undefined,
                                     },
                                 }}
                                 sx={{
