@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, IconButton, Stack, TextField, Typography } from "@mui/material";
-import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import { Alert, Dialog, DialogContent, DialogTitle, Stack, TextField } from "@mui/material";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import { useForm, type SubmitHandler, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { listarCaixas, mensagemCaixa, salvarCaixa } from "../../services/caixaService";
 import type { CaixaCompleta, CaixaInput } from "../../types/caixa";
+import FormActions from "../../components/ui/FormActions";
 
 const schema = yup.object().shape({
     descricao: yup.string().required("A descrição do caixa é obrigatória.").max(150, "A descrição deve ter no máximo 150 caracteres."),
@@ -48,12 +48,13 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
     useEffect(() => {
         listarCaixas()
             .then((caixas) => setCaixasExistentes(caixas.map((c) => c.descricao.toLowerCase().trim())))
-            .catch(() => {});
+            .catch((e) => setErro(mensagemCaixa(e, "Não foi possível validar as descrições existentes.")));
     }, []);
 
+    const descricaoNormalizada = (descricao ?? "").toLowerCase().trim();
     const duplicado = caixa
-        ? caixasExistentes.some((c) => c === descricao.toLowerCase().trim() && c !== caixa.descricao.toLowerCase().trim())
-        : caixasExistentes.includes(descricao.toLowerCase().trim());
+        ? caixasExistentes.some((c) => c === descricaoNormalizada && c !== caixa.descricao.toLowerCase().trim())
+        : caixasExistentes.includes(descricaoNormalizada);
 
     const aoSalvar: SubmitHandler<CaixaInput> = async (dados) => {
         setSalvando(true);
@@ -69,29 +70,21 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
     };
 
     return (
-        <Box
-            component="form"
-            onSubmit={handleSubmit(aoSalvar)}
-            sx={{ maxWidth: 480, mx: "auto", width: "100%", p: { xs: 2, sm: 3 }, bgcolor: "background.paper", borderRadius: 2, boxShadow: 3 }}
-        >
-            <Stack spacing={2} sx={{ width: "100%" }}>
-                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>
-                        {caixa ? "Editar Caixa" : "Novo Caixa"}
-                    </Typography>
-                    <IconButton onClick={onFechar} aria-label="Fechar" size="small" sx={{ ml: "auto" }}>
-                        <CloseRoundedIcon />
-                    </IconButton>
-                </Stack>
+        <Dialog open fullWidth maxWidth="xs" onClose={salvando ? undefined : onFechar} aria-labelledby="caixa-form-titulo">
+            <form onSubmit={handleSubmit(aoSalvar)}>
+                <DialogTitle id="caixa-form-titulo">{caixa ? "Editar Caixa" : "Novo Caixa"}</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ pt: 1 }}>
 
                 {erro && (
-                    <Alert severity="error" sx={{ mb: 1 }}>
+                    <Alert severity="error">
                         {erro}
                     </Alert>
                 )}
 
                 <TextField
                     fullWidth
+                    required
                     label="Descrição"
                     placeholder="Ex: Caixa Principal, Caixa 01, PDV 02"
                     {...register("descricao")}
@@ -101,20 +94,17 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
                     slotProps={{ htmlInput: { maxLength: 150 } }}
                 />
 
-                <Stack direction="row" spacing={2} sx={{ mt: 1, justifyContent: "flex-end" }}>
-                    <Button variant="outlined" onClick={onFechar} disabled={salvando}>
-                        Cancelar
-                    </Button>
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        disabled={salvando}
-                        startIcon={<SaveRoundedIcon />}
-                    >
-                        {salvando ? "Salvando..." : caixa ? "Atualizar" : "Criar"}
-                    </Button>
-                </Stack>
-            </Stack>
-        </Box>
+                        <FormActions
+                            onCancelar={onFechar}
+                            salvando={salvando}
+                            tipoSalvar="submit"
+                            textoSalvar={caixa ? "Atualizar" : "Criar"}
+                            iconeSalvar={<SaveRoundedIcon />}
+                            sx={{ mt: 0, px: 0 }}
+                        />
+                    </Stack>
+                </DialogContent>
+            </form>
+        </Dialog>
     );
 }

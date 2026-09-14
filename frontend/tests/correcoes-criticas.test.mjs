@@ -185,3 +185,23 @@ test("busca remota preserva o padrão oficial e cancela respostas antigas", asyn
     assert.match(tabela, /onKeyDown=\{busca\.onKeyDown\}/);
     assert.match(tabela, /CircularProgress/);
 });
+
+test("formulários seguem o padrão de submit, feedback e autofocus", async () => {
+    const actions = await readFile(new URL("../src/components/ui/FormActions.tsx", import.meta.url), "utf8");
+    const caixa = await readFile(new URL("../src/pages/Financeiro/CaixaForm.tsx", import.meta.url), "utf8");
+    const produto = await readFile(new URL("../src/pages/Produtos/ProdutoForm.tsx", import.meta.url), "utf8");
+    const cliente = await readFile(new URL("../src/pages/Clientes/ClienteForm.tsx", import.meta.url), "utf8");
+    const empresa = await readFile(new URL("../src/pages/Empresa/EmpresaForm.tsx", import.meta.url), "utf8");
+
+    assert.match(actions, /tipoSalvar\?: "button" \| "submit"/);
+    assert.match(actions, /disabled=\{salvando \|\| desabilitado\}/);
+    assert.match(caixa, /<Dialog open fullWidth maxWidth="xs"/);
+    assert.match(caixa, /<form onSubmit=\{handleSubmit\(aoSalvar\)\}>/);
+    assert.match(caixa, /required/);
+    assert.match(caixa, /autoFocus/);
+    assert.match(caixa, /tipoSalvar="submit"/);
+    assert.match(caixa, /onClose=\{salvando \? undefined : onFechar\}/);
+    assert.match(produto, /autoFocus=\{!carregandoProduto\}/);
+    assert.match(cliente, /required autoFocus label="Nome \/ Razão social"/);
+    assert.match(empresa, /autoFocus=\{item\.nome === gruposEmpresa\[0\]\?\.campos\[0\]\?\.nome\}/);
+});
