@@ -21,6 +21,53 @@ public class VendaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.finalizar(pedido, autenticado));
     }
 
+    @PostMapping("/abertas")
+    public ResponseEntity<VendaResponseDTO> criarAberta(@AuthenticationPrincipal UsuarioAutenticado autenticado) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.criarVendaAberta(autenticado));
+    }
+
+    @PostMapping("/{id}/itens")
+    public VendaResponseDTO adicionarItem(@PathVariable Long id, @Valid @RequestBody OperacaoVendaDTO.Item pedido,
+                                          @AuthenticationPrincipal UsuarioAutenticado autenticado) {
+        return service.adicionarItem(id, pedido.produtoId(), pedido.quantidade(), autenticado);
+    }
+
+    @PatchMapping("/{id}/itens/{itemId}")
+    public VendaResponseDTO alterarQuantidade(@PathVariable Long id, @PathVariable Long itemId,
+            @Valid @RequestBody OperacaoVendaDTO.Quantidade pedido,
+            @AuthenticationPrincipal UsuarioAutenticado autenticado) {
+        return service.alterarQuantidade(id, itemId, pedido.quantidade(), autenticado);
+    }
+
+    @DeleteMapping("/{id}/itens/{itemId}")
+    public VendaResponseDTO removerItem(@PathVariable Long id, @PathVariable Long itemId,
+                                        @AuthenticationPrincipal UsuarioAutenticado autenticado) {
+        return service.removerItem(id, itemId, autenticado);
+    }
+
+    @PatchMapping("/{id}/desconto")
+    public VendaResponseDTO aplicarDesconto(@PathVariable Long id, @Valid @RequestBody OperacaoVendaDTO.Desconto pedido,
+                                           @AuthenticationPrincipal UsuarioAutenticado autenticado) {
+        return service.aplicarDesconto(id, pedido.desconto(), autenticado);
+    }
+
+    @PutMapping("/{id}/cliente")
+    public VendaResponseDTO vincularCliente(@PathVariable Long id, @Valid @RequestBody OperacaoVendaDTO.Cliente pedido,
+                                            @AuthenticationPrincipal UsuarioAutenticado autenticado) {
+        return service.vincularCliente(id, pedido.clienteId(), autenticado);
+    }
+
+    @DeleteMapping("/{id}/cliente")
+    public VendaResponseDTO removerCliente(@PathVariable Long id, @AuthenticationPrincipal UsuarioAutenticado autenticado) {
+        return service.removerCliente(id, autenticado);
+    }
+
+    @PostMapping("/{id}/faturar")
+    public VendaResponseDTO faturar(@PathVariable Long id, @Valid @RequestBody FaturamentoVendaDTO pedido,
+                                    @AuthenticationPrincipal UsuarioAutenticado autenticado) {
+        return service.faturar(id, pedido, autenticado);
+    }
+
     @GetMapping("/{id}")
     public VendaResponseDTO buscar(@PathVariable Long id, @AuthenticationPrincipal UsuarioAutenticado autenticado) {
         return service.buscar(id, autenticado.empresaId());

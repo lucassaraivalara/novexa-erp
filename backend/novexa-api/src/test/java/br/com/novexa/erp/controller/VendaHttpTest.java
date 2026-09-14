@@ -64,7 +64,7 @@ class VendaHttpTest {
     void limpar() {
         reset(financeiro);
         jdbc.update("delete from lancamentos_financeiros");
-        jdbc.update("delete from venda_itens");
+        jdbc.update("delete from itens_venda");
         jdbc.update("delete from vendas");
         movimentos.deleteAll();
         produtos.deleteAll();
@@ -83,6 +83,7 @@ class VendaHttpTest {
         pedido.put("empresaId", outra.getId());
         pedido.put("usuarioId", segundo.getId());
         long id = enviar(pedido);
+        assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
         mvc.perform(post("/vendas").header(HttpHeaders.AUTHORIZATION, authorization)
                         .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pedido)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(id))
@@ -218,6 +219,245 @@ class VendaHttpTest {
         }
         assertThat(vendas.count()).isEqualTo(1);
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("0");
+    }
+
+
+    @Test
+    void cicloAbertoViaHttpNaoGeraEfeitosDefinitivos() throws Exception {
+        long id = abrir();
+        var item = adicionar(id, produto.getId(), 2);
+        long itemId = item.get("itens").get(0).get("id").asLong();
+        var cliente = new ClienteEntity(); cliente.setEmpresa(empresa); cliente.setNome("Cliente");
+        cliente.setTipoPessoa(TipoPessoa.FISICA); clientes.saveAndFlush(cliente);
+        mvc.perform(patch("/vendas/" + id + "/itens/" + itemId).header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"quantidade\":3}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.subtotal").value(30))
+                .andExpect(jsonPath("$.itens[0].quantidade").value(3));
+        mvc.perform(patch("/vendas/" + id + "/desconto").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"desconto\":5}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(25));
+        mvc.perform(put("/vendas/" + id + "/cliente").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("clienteId", cliente.getId()))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.clienteId").value(cliente.getId()));
+        mvc.perform(delete("/vendas/" + id + "/cliente").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.clienteId").isEmpty());
+        mvc.perform(patch("/vendas/" + id + "/desconto").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"desconto\":0}")).andExpect(status().isOk());
+        mvc.perform(delete("/vendas/" + id + "/itens/" + itemId).header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.itens").isEmpty())
+                .andExpect(jsonPath("$.total").value(0)).andExpect(jsonPath("$.status").value("ABERTA"));
+        assertThat(movimentos.count()).isZero();
+        assertThat(financeiro.count()).isZero();
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    void faturarPreservaPrecoENomeAplicadosEReenvioNaoDuplica() throws Exception {
+        long id = abrir();
+        var adicionado = adicionar(id, produto.getId(), 2);
+        long itemId = adicionado.get("itens").get(0).get("id").asLong();
+        produto.setPrecoVenda(new BigDecimal("25"));
+        produto.setNome("Nome atualizado");
+        produtos.saveAndFlush(produto);
+        var pagamento = pagamento();
+        for (int tentativa = 0; tentativa < 2; tentativa++) {
+            mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                    .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pagamento)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("FATURADA"))
+                    .andExpect(jsonPath("$.total").value(20));
+        }
+        mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.itens[0].id").value(itemId))
+                .andExpect(jsonPath("$.itens[0].nomeProduto").value("Produto"))
+                .andExpect(jsonPath("$.itens[0].precoUnitario").value(10))
+                .andExpect(jsonPath("$.itens[0].movimentacaoEstoqueId").isNumber());
+        pagamento.put("valorRecebido", 30);
+        mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pagamento)))
+                .andExpect(status().isConflict());
+        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"adicionar", "quantidade", "remover", "desconto", "cliente", "removerCliente"})
+    void faturadaRecusaTodaEdicao(String operacao) throws Exception {
+        long id = abrir();
+        long itemId = adicionar(id, produto.getId(), 2).get("itens").get(0).get("id").asLong();
+        mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pagamento())))
+                .andExpect(status().isOk());
+        mvc.perform(operacao(id, itemId, operacao).header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isConflict());
+        mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("FATURADA"))
+                .andExpect(jsonPath("$.itens.length()").value(1))
+                .andExpect(jsonPath("$.itens[0].quantidade").value(2))
+                .andExpect(jsonPath("$.desconto").value(0)).andExpect(jsonPath("$.clienteId").isEmpty());
+        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isEqualTo(1);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"adicionar", "quantidade", "remover", "desconto", "cliente", "removerCliente", "faturar", "buscar"})
+    void operacoesAbertasNaoAcessamOutroTenant(String operacao) throws Exception {
+        long id = abrir();
+        long itemId = adicionar(id, produto.getId(), 2).get("itens").get(0).get("id").asLong();
+        var operadorB = usuario(outra, "52998224725");
+        mvc.perform(operacao(id, itemId, operacao).param("empresaId", empresa.getId().toString())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt.gerarToken(operadorB)))
+                .andExpect(status().isNotFound());
+        assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.ABERTA);
+        assertThat(movimentos.count()).isZero();
+        assertThat(financeiro.count()).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"produto", "cliente"})
+    void vendaAbertaRejeitaVinculosDeOutroTenant(String entidade) throws Exception {
+        long id = abrir();
+        var request = post("/vendas/" + id + "/itens");
+        Map<String, Object> dados;
+        if (entidade.equals("produto")) {
+            var outro = produto(outra, "Outro", "10", "10");
+            dados = new HashMap<>(Map.of("produtoId", outro.getId(), "quantidade", 1));
+        } else {
+            var cliente = new ClienteEntity(); cliente.setEmpresa(outra); cliente.setNome("Outro cliente");
+            cliente.setTipoPessoa(TipoPessoa.FISICA); clientes.saveAndFlush(cliente);
+            request = put("/vendas/" + id + "/cliente");
+            dados = new HashMap<>(Map.of("clienteId", cliente.getId()));
+        }
+        dados.put("empresaId", outra.getId());
+        mvc.perform(request.header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(dados))).andExpect(status().isNotFound());
+        assertThat(movimentos.count()).isZero();
+        assertThat(financeiro.count()).isZero();
+    }
+
+    @Test
+    void falhaFinanceiraNoFaturamentoReverteEPermiteNovaTentativa() throws Exception {
+        long id = abrir();
+        adicionar(id, produto.getId(), 2);
+        doThrow(new IllegalStateException("falha simulada")).when(financeiro).save(any());
+        var pagamento = pagamento();
+        assertThatThrownBy(() -> mvc.perform(post("/vendas/" + id + "/faturar")
+                .header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(pagamento)))).hasRootCauseMessage("falha simulada");
+        assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.ABERTA);
+        assertThat(movimentos.count()).isZero();
+        assertThat(financeiro.count()).isZero();
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+        assertThat(jdbc.queryForObject("select count(*) from itens_venda where movimentacao_estoque_id is not null", Long.class)).isZero();
+        reset(financeiro);
+        mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pagamento)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("FATURADA"));
+        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isEqualTo(1);
+    }
+
+    @Test
+    void doisOperadoresFaturandoMesmaVendaGeramUmUnicoEfeito() throws Exception {
+        long id = abrir();
+        adicionar(id, produto.getId(), 2);
+        var primeiroPreparouLancamento = new CountDownLatch(1);
+        var liberarPrimeiro = new CountDownLatch(1);
+        var segundoIniciou = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            LancamentoFinanceiroEntity salvo = financeiro.saveAndFlush(invocation.getArgument(0));
+            primeiroPreparouLancamento.countDown();
+            assertThat(liberarPrimeiro.await(10, TimeUnit.SECONDS)).isTrue();
+            return salvo;
+        }).when(financeiro).save(any(LancamentoFinanceiroEntity.class));
+        try (var workers = Executors.newFixedThreadPool(2)) {
+            var a = workers.submit(() -> faturarStatus(id, authorization));
+            Future<Integer> b;
+            try {
+                assertThat(primeiroPreparouLancamento.await(10, TimeUnit.SECONDS)).isTrue();
+                b = workers.submit(() -> {
+                    segundoIniciou.countDown();
+                    return faturarStatus(id, "Bearer " + jwt.gerarToken(segundo));
+                });
+                assertThat(segundoIniciou.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThatThrownBy(() -> b.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            } finally {
+                liberarPrimeiro.countDown();
+            }
+            assertThat(a.get(15, TimeUnit.SECONDS)).isEqualTo(200);
+            assertThat(b.get(15, TimeUnit.SECONDS)).isEqualTo(409);
+        }
+        assertThat(vendas.count()).isEqualTo(1);
+        assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
+        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"adicionar", "quantidade", "remover", "desconto", "cliente", "removerCliente", "faturar"})
+    void novosEndpointsExigemAutenticacao(String operacao) throws Exception {
+        mvc.perform(operacao(1, 1, operacao)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/vendas/abertas")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void naoFaturaVendaVaziaNemReduzItensAbaixoDoDesconto() throws Exception {
+        long id = abrir();
+        mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pagamento())))
+                .andExpect(status().isConflict());
+        long itemId = adicionar(id, produto.getId(), 2).get("itens").get(0).get("id").asLong();
+        mvc.perform(patch("/vendas/" + id + "/desconto").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"desconto\":15}")).andExpect(status().isOk());
+        mvc.perform(patch("/vendas/" + id + "/itens/" + itemId).header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"quantidade\":1}")).andExpect(status().isConflict());
+        mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.itens[0].quantidade").value(2))
+                .andExpect(jsonPath("$.total").value(5));
+    }
+
+    private long abrir() throws Exception {
+        var result = mvc.perform(post("/vendas/abertas").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("ABERTA"))
+                .andExpect(jsonPath("$.itens").isEmpty()).andReturn();
+        return json.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+    }
+
+    private com.fasterxml.jackson.databind.JsonNode adicionar(long vendaId, long produtoId, int quantidade) throws Exception {
+        var result = mvc.perform(post("/vendas/" + vendaId + "/itens").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(Map.of("produtoId", produtoId, "quantidade", quantidade))))
+                .andExpect(status().isOk()).andReturn();
+        return json.readTree(result.getResponse().getContentAsString());
+    }
+
+    private Map<String, Object> pagamento() {
+        return new HashMap<>(Map.of("chaveRequisicao", UUID.randomUUID(), "totalEsperado", 20,
+                "formaPagamento", "DINHEIRO", "valorRecebido", 20));
+    }
+
+    private int faturarStatus(long id, String token) throws Exception {
+        return mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, token)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pagamento())))
+                .andReturn().getResponse().getStatus();
+    }
+
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder operacao(
+            long id, long itemId, String operacao) throws Exception {
+        String url = "/vendas/" + id;
+        return switch (operacao) {
+            case "adicionar" -> post(url + "/itens").contentType(MediaType.APPLICATION_JSON)
+                    .content(json.writeValueAsBytes(Map.of("produtoId", produto.getId(), "quantidade", 1)));
+            case "quantidade" -> patch(url + "/itens/" + itemId).contentType(MediaType.APPLICATION_JSON).content("{\"quantidade\":3}");
+            case "remover" -> delete(url + "/itens/" + itemId);
+            case "desconto" -> patch(url + "/desconto").contentType(MediaType.APPLICATION_JSON).content("{\"desconto\":1}");
+            case "cliente" -> put(url + "/cliente").contentType(MediaType.APPLICATION_JSON).content("{\"clienteId\":1}");
+            case "removerCliente" -> delete(url + "/cliente");
+            case "faturar" -> post(url + "/faturar").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pagamento()));
+            case "buscar" -> get(url);
+            default -> throw new IllegalArgumentException(operacao);
+        };
     }
 
     private int statusVenda(Map<String, Object> pedido, String token) throws Exception {

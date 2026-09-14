@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.*;
         "spring.jpa.open-in-view=false", "spring.jpa.show-sql=false",
         "spring.flyway.enabled=false"
 })
-@Import(VendaService.class)
+@Import({VendaService.class, MovimentacaoEstoqueService.class})
 @ActiveProfiles("test")
 class VendaServiceTest {
 

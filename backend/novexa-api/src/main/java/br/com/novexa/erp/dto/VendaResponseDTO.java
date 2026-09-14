@@ -7,11 +7,11 @@ import java.util.List;
 
 public record VendaResponseDTO(Long id, LocalDateTime dataHora, BigDecimal subtotal, BigDecimal desconto,
         BigDecimal total, FormaPagamento formaPagamento, BigDecimal valorRecebido, BigDecimal troco,
-        Long clienteId, String entrega, String observacoes, List<VendaItem> itens) {
+        Long clienteId, String entrega, String observacoes, List<ItemVendaDTO> itens, StatusVenda status) {
     public static VendaResponseDTO de(VendaEntity venda) {
         return new VendaResponseDTO(venda.getId(), venda.getDataHora(), venda.getSubtotal(), venda.getDesconto(),
                 venda.getTotal(), venda.getFormaPagamento(), venda.getValorRecebido(), venda.getTroco(),
                 venda.getCliente() == null ? null : venda.getCliente().getId(), venda.getEntrega(),
-                venda.getObservacoes(), List.copyOf(venda.getItens()));
+                venda.getObservacoes(), venda.getItens().stream().map(ItemVendaDTO::de).toList(), venda.getStatus());
     }
 }
