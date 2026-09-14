@@ -16,9 +16,11 @@ export async function realizarLogin({
     } catch (erro) {
         if (axios.isAxiosError(erro)) {
             const mensagem =
-                typeof erro.response?.data === "string"
-                    ? erro.response.data
-                    : "Não foi possível entrar. Verifique se o backend está em execução.";
+                erro.response?.status === 401
+                    ? "CPF ou senha inválidos."
+                    : erro.response
+                        ? "Não foi possível realizar o login."
+                        : "Não foi possível conectar ao servidor.";
 
             throw new Error(mensagem, { cause: erro });
         }
