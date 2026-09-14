@@ -298,7 +298,7 @@ class MovimentacaoEstoqueServiceTest {
         assertThat(mov.getOrigem()).isEqualTo(OrigemMovimentacaoEstoque.VENDA);
     }
 
-    @Test void falhaDuranteOperacaoNaoDeixaAlteracaoParcial() {
+    @Test void saldoInsuficienteNaoAlteraProdutoNemHistorico() {
         var empresa = criarEmpresa();
         var usuario = criarUsuario(empresa);
         var produto = criarProdutoComEstoque(empresa, new BigDecimal("100.000"));
@@ -319,7 +319,7 @@ class MovimentacaoEstoqueServiceTest {
         assertThat(movimentacoes).isEmpty();
     }
 
-    @Test void duasMovimentacoesSimultaneasUsamLock() {
+    @Test void duasMovimentacoesSequenciaisAcumulamSaldo() {
         var empresa = criarEmpresa();
         var usuario = criarUsuario(empresa);
         var produto = criarProdutoComEstoque(empresa, new BigDecimal("100.000"));

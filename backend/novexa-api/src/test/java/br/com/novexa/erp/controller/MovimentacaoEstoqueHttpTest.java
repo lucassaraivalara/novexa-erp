@@ -4,11 +4,14 @@ import br.com.novexa.erp.entity.EmpresaEntity;
 import br.com.novexa.erp.entity.PerfilUsuario;
 import br.com.novexa.erp.entity.ProdutoEntity;
 import br.com.novexa.erp.entity.UsuarioEntity;
+import br.com.novexa.erp.entity.TipoMovimentacaoEstoque;
+import br.com.novexa.erp.entity.OrigemMovimentacaoEstoque;
 import br.com.novexa.erp.repository.EmpresaRepository;
 import br.com.novexa.erp.repository.MovimentacaoEstoqueRepository;
 import br.com.novexa.erp.repository.ProdutoRepository;
 import br.com.novexa.erp.repository.UsuarioRepository;
 import br.com.novexa.erp.service.JwtService;
+import br.com.novexa.erp.service.MovimentacaoEstoqueService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +55,7 @@ class MovimentacaoEstoqueHttpTest {
     @Autowired private MovimentacaoEstoqueRepository movimentos;
     @Autowired private JwtService jwtService;
     @Autowired private EntityManager entityManager;
+    @Autowired private MovimentacaoEstoqueService estoque;
 
     private EmpresaEntity empresa1;
     private EmpresaEntity empresa2;
@@ -193,13 +197,16 @@ class MovimentacaoEstoqueHttpTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    @Test
-    void usuarioEmpresaANaoMovimentaProdutoEmpresaB() throws Exception {
-        mvc.perform(post("/estoque/movimentacoes/entrada")
+    @ParameterizedTest
+    @ValueSource(strings = {"entrada", "saida", "ajuste"})
+    void usuarioEmpresaANaoMovimentaProdutoEmpresaB(String operacao) throws Exception {
+        mvc.perform(post("/estoque/movimentacoes/" + operacao)
+                        .param("empresaId", empresa2.getId().toString())
                         .header(HttpHeaders.AUTHORIZATION, authorization)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsBytes(Map.of(
                                 "produtoId", produto2.getId(),
+                                "empresaId", empresa2.getId(),
                                 "quantidade", 10,
                                 "motivo", "Tentativa indevida"
                         ))))
@@ -214,7 +221,15 @@ class MovimentacaoEstoqueHttpTest {
 
     @Test
     void usuarioEmpresaANaoConsultaHistoricoProdutoEmpresaB() throws Exception {
+        var usuario2 = usuario(empresa2, "12345678901");
+        estoque.movimentar(empresa2.getId(), produto2.getId(), usuario2.getId(),
+                TipoMovimentacaoEstoque.ENTRADA, OrigemMovimentacaoEstoque.MANUAL,
+                BigDecimal.ONE, "Movimento da outra empresa");
+        entityManager.flush();
+        assertThat(movimentos.findByEmpresaIdAndProdutoIdOrderByDataHoraDesc(empresa2.getId(), produto2.getId()))
+                .hasSize(1);
         mvc.perform(get("/estoque/movimentacoes/produto/" + produto2.getId())
+                        .param("empresaId", empresa2.getId().toString())
                         .header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));

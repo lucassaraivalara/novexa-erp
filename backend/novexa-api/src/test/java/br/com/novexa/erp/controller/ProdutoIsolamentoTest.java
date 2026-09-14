@@ -179,6 +179,29 @@ class ProdutoIsolamentoTest {
                 .andExpect(jsonPath("$[0].id").value(produto1.getId()));
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void saldoForjadoNoCadastroOuEdicaoNaoAlteraEstoque(boolean editar) throws Exception {
+        produto1.setEstoqueAtual(new BigDecimal("10"));
+        entityManager.flush();
+        entityManager.clear();
+        Map<String, Object> dados = dados();
+        dados.put("estoqueAtual", 999);
+        dados.put("empresaId", empresa2.getId());
+        var request = editar ? put("/produtos/" + produto1.getId()) : post("/produtos");
+        var resultado = mvc.perform(request.header(HttpHeaders.AUTHORIZATION, authorization)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(dados)))
+                .andExpect(status().is(editar ? 200 : 201))
+                .andExpect(jsonPath("$.estoqueAtual").value(editar ? 10 : 0))
+                .andExpect(jsonPath("$.empresaId").value(empresa1.getId()))
+                .andReturn();
+        Long id = json.readTree(resultado.getResponse().getContentAsString()).get("id").asLong();
+        entityManager.flush();
+        entityManager.clear();
+        assertThat(produtos.findById(id).orElseThrow().getEstoqueAtual())
+                .isEqualByComparingTo(editar ? "10" : "0");
+    }
+
     private Map<String, Object> dados() {
         return new HashMap<>(Map.of("nome", "Produto alterado", "unidadeMedida", "UN", "precoVenda", 25));
     }

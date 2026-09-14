@@ -7,6 +7,7 @@ import br.com.novexa.erp.exception.ProdutoInvalidoException;
 import br.com.novexa.erp.exception.ProdutoNotFoundException;
 import br.com.novexa.erp.repository.ProdutoRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -60,6 +61,7 @@ public class ProdutoService {
         return produtoRepository.buscarPorTermo(empresaId, termo.trim());
     }
 
+    @Transactional
     public ProdutoEntity atualizar(
             Long id,
             ProdutoEntity dadosNovos,
@@ -83,6 +85,7 @@ public class ProdutoService {
         return produtoRepository.save(produtoExistente);
     }
 
+    @Transactional
     public void inativar(Long id, Long empresaId) {
         ProdutoEntity produto = buscarPorId(id, empresaId);
         produto.setAtivo(false);
