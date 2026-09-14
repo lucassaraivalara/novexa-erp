@@ -8,6 +8,7 @@ import {
     TableRow,
     TableSortLabel,
     Toolbar,
+    Tooltip,
     Typography,
     Paper,
     InputAdornment,
@@ -303,22 +304,25 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                 }}
                                             >
                                                 {acoes.map((acao, idx) => (
-                                                    <IconButton
-                                                        key={idx}
-                                                        size="small"
-                                                        color={acao.cor ?? "inherit"}
-                                                        onClick={() => acao.onClick(linha)}
-                                                        disabled={acao.desabilitado?.(linha)}
-                                                        aria-label={acao.tooltip ?? acao.rotulo}
-                                                        sx={{
-                                                            borderRadius: 8,
-                                                            "&:hover": {
-                                                                backgroundColor: "rgba(15, 23, 42, 0.04)",
-                                                            },
-                                                        }}
-                                                    >
-                                                        {acao.icone}
-                                                    </IconButton>
+                                                    <Tooltip key={idx} title={acao.tooltip ?? acao.rotulo}>
+                                                        <span>
+                                                            <IconButton
+                                                                size="small"
+                                                                color={acao.cor ?? "inherit"}
+                                                                onClick={() => acao.onClick(linha)}
+                                                                disabled={acao.desabilitado?.(linha)}
+                                                                aria-label={acao.tooltip ?? acao.rotulo}
+                                                                sx={{
+                                                                    borderRadius: 8,
+                                                                    "&:hover": {
+                                                                        backgroundColor: "rgba(15, 23, 42, 0.04)",
+                                                                    },
+                                                                }}
+                                                            >
+                                                                {acao.icone}
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
                                                 ))}
                                             </Stack>
                                         </TableCell>

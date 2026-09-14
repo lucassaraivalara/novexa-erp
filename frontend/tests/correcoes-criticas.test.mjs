@@ -152,3 +152,15 @@ test("cadastros financeiros organizam Caixa e Dados Bancários sem APIs bancári
     assert.doesNotMatch(dadosBancarios, /axios|api\.|fetch\(/);
     assert.match(caixa, /titulo="Caixas"/);
 });
+
+test("ações de tabela usam ícones com tooltip e acessibilidade", async () => {
+    const tabela = await readFile(new URL("../src/components/ui/AppTable.tsx", import.meta.url), "utf8");
+    const caixa = await readFile(new URL("../src/pages/Financeiro/Caixa.tsx", import.meta.url), "utf8");
+
+    assert.match(tabela, /<Tooltip key=\{idx\} title=\{acao\.tooltip \?\? acao\.rotulo\}>/);
+    assert.match(tabela, /aria-label=\{acao\.tooltip \?\? acao\.rotulo\}/);
+    assert.match(caixa, /<EditOutlinedIcon fontSize="small" \/>/);
+    assert.match(caixa, /<BlockRoundedIcon fontSize="small" \/>/);
+    assert.doesNotMatch(caixa, /icone: <span>Editar<\/span>/);
+    assert.doesNotMatch(caixa, /icone: <span>Inativar<\/span>/);
+});
