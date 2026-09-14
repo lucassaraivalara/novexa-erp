@@ -219,9 +219,11 @@ test("listagem e formulário de Produtos preservam campos reais e organização 
     assert.match(listagem, /alinhar: "right", render: renderPreco/);
     assert.match(listagem, /cabecalho: "Estoque".*alinhar: "right"/s);
     assert.match(listagem, /compacta/);
-    assert.match(listagem, /titulo: buscaRemota\.term\.trim\(\) \? "Nenhum produto encontrado" : "Nenhum produto cadastrado"/);
+    assert.match(listagem, /titulo: buscaRemota\.term\.trim\(\) \|\| situacao !== "todas" \? "Nenhum produto encontrado" : "Nenhum produto cadastrado"/);
     assert.match(listagem, /Novo produto/);
     assert.match(formulario, /<Typography variant="subtitle2">Estoque<\/Typography>/);
+    assert.match(formulario, /<Typography variant="subtitle2">Identificação<\/Typography>/);
+    assert.match(formulario, /<Typography variant="subtitle2">Preços<\/Typography>/);
     assert.match(formulario, /label="Controla estoque"/);
     assert.match(formulario, /label="Estoque mínimo"/);
     assert.match(formulario, /Saldo atual:/);

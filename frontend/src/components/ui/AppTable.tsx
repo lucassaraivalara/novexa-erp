@@ -9,7 +9,6 @@ import {
     TableSortLabel,
     Toolbar,
     Tooltip,
-    Typography,
     CircularProgress,
     Paper,
     InputAdornment,
@@ -323,7 +322,8 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                                 sx={{
                                                                     borderRadius: 8,
                                                                     "&:hover": {
-                                                                        backgroundColor: "rgba(15, 23, 42, 0.04)",
+                                                                        backgroundColor: "action.hover",
+                                                                        color: "primary.main",
                                                                     },
                                                                 }}
                                                             >
@@ -355,11 +355,6 @@ export default function AppTable<T extends Record<string, unknown>>({
                         gap: 1,
                     }}
                 >
-                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: layoutTokens.typography.caption }}>
-                        {paginacao.total === 0
-                            ? "Nenhum registro"
-                            : `${Math.min(paginacao.pagina * paginacao.linhasPorPagina + 1, paginacao.total)}–${Math.min((paginacao.pagina + 1) * paginacao.linhasPorPagina, paginacao.total)} de ${paginacao.total}`}
-                    </Typography>
                     <TablePagination
                         component="div"
                         count={paginacao.total}
@@ -369,7 +364,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                         onPageChange={(_, p) => paginacao.onPageChange(p)}
                         onRowsPerPageChange={(e) => paginacao.onRowsPerPageChange(Number(e.target.value))}
                         labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
-                        labelRowsPerPage="Por página"
+                        labelRowsPerPage="Itens por página"
                         sx={{ "& .MuiSelect-root": { minWidth: 80 } }}
                     />
                 </Toolbar>

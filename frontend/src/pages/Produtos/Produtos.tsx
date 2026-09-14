@@ -4,7 +4,7 @@ import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
     Alert, Button, Chip, CircularProgress, Dialog, DialogActions,
-    DialogContent, DialogTitle, Snackbar,
+    DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, Snackbar,
     Stack, Typography,
 } from "@mui/material";
 import PageHeader from "../../components/ui/PageHeader";
@@ -34,6 +34,7 @@ function Produtos() {
     const [produtoParaExcluir, setProdutoParaExcluir] = useState<Produto | null>(null);
     const [excluindo, setExcluindo] = useState(false);
     const [notificacao, setNotificacao] = useState<Notificacao | null>(null);
+    const [situacao, setSituacao] = useState("todas");
 
     const carregarProdutos = useCallback((busca: string, signal: AbortSignal) => {
         if (!empresaId) return Promise.resolve([]);
@@ -138,8 +139,8 @@ function Produtos() {
         </Stack>
     );
 
-    const renderPreco = (valor: unknown): React.ReactNode => moeda.format(Number(valor));
-    const renderEstoque = (valor: unknown, linha: Produto): React.ReactNode => linha.controlaEstoque ? quantidade.format(Number(valor)) : "Não controla";
+    const renderPreco = (valor: unknown): React.ReactNode => <span style={{ fontVariantNumeric: "tabular-nums" }}>{moeda.format(Number(valor))}</span>;
+    const renderEstoque = (valor: unknown, linha: Produto): React.ReactNode => <span style={{ fontVariantNumeric: "tabular-nums" }}>{linha.controlaEstoque ? quantidade.format(Number(valor)) : "Não controla"}</span>;
     const renderSituacao = (valor: unknown): React.ReactNode => <Chip size="small" label={valor ? "Ativo" : "Inativo"} color={valor ? "success" : "default"} variant={valor ? "filled" : "outlined"} />;
 
     const colunas: Coluna<Produto>[] = [
@@ -167,6 +168,9 @@ function Produtos() {
             tooltip: "Inativar produto",
         },
     ];
+    const produtosFiltrados = produtos.filter((produto) =>
+        situacao === "todas" || produto.ativo === (situacao === "ativas")
+    );
 
     return (
         <Stack spacing={2.5}>
@@ -184,7 +188,7 @@ function Produtos() {
 
             <AppTable
                 colunas={colunas}
-                linhas={produtos}
+                linhas={produtosFiltrados}
                 carregando={buscaRemota.loading && !produtos.length}
                 obterChaveLinha={(p) => p.id}
                 busca={{
@@ -194,10 +198,20 @@ function Produtos() {
                     valor: buscaRemota.term,
                     carregando: buscaRemota.loading,
                 }}
+                filtros={
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel id="produto-situacao-label">Situação</InputLabel>
+                        <Select labelId="produto-situacao-label" label="Situação" value={situacao} onChange={(e) => setSituacao(e.target.value)}>
+                            <MenuItem value="todas">Todas</MenuItem>
+                            <MenuItem value="ativas">Ativas</MenuItem>
+                            <MenuItem value="inativas">Inativas</MenuItem>
+                        </Select>
+                    </FormControl>
+                }
                 vazio={{
-                    titulo: buscaRemota.term.trim() ? "Nenhum produto encontrado" : "Nenhum produto cadastrado",
-                    descricao: buscaRemota.term.trim() ? "Tente pesquisar usando outro termo." : "Use “Novo produto” para iniciar seu catálogo.",
-                    acao: !buscaRemota.term.trim() ? <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={abrirCadastro}>Novo produto</Button> : undefined,
+                    titulo: buscaRemota.term.trim() || situacao !== "todas" ? "Nenhum produto encontrado" : "Nenhum produto cadastrado",
+                    descricao: buscaRemota.term.trim() || situacao !== "todas" ? "Tente ajustar a busca ou o filtro de situação." : "Use “Novo produto” para iniciar seu catálogo.",
+                    acao: !buscaRemota.term.trim() && situacao === "todas" ? <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={abrirCadastro}>Novo produto</Button> : undefined,
                 }}
                 acoes={acoes}
                 compacta

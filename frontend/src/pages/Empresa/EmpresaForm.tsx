@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useBlocker } from "react-router-dom";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import {
     Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle,
-    FormControlLabel, Link, MenuItem, Paper, Stack, Tab, Tabs, TextField, Typography,
+    FormControlLabel, IconButton, Link, MenuItem, Paper, Stack, Tab, Tabs, TextField, Typography,
 } from "@mui/material";
 import { buscarCoordenadas, consultarGeocodificacao, mensagemEmpresa, salvarEmpresa } from "../../services/empresaService";
 import type { CoordenadaEmpresa, EmpresaCompleta, InscricaoSt } from "../../types/empresa";
+import { formatarDocumentoEmpresa } from "../../utils/validators/documentoEmpresa";
 import { abasEmpresa, criarFormulario, gerarInput, gruposEmpresa, lerCampo, ufs, validarFormulario, type Campo, type NomeCampo } from "./empresaFormulario";
 
 type Props = { empresa: EmpresaCompleta | null; abaInicial?: number; onFechar: () => void; onSalvo: (empresa: EmpresaCompleta) => void };
@@ -107,20 +109,25 @@ export default function EmpresaForm({ empresa, abaInicial = 0, onFechar, onSalvo
     }
 
     function campo(item: Campo) {
+        const valor = lerCampo(form, item.nome);
+        const documento = item.nome === "cnpj";
         return <TextField key={item.nome} label={item.label} required={item.required} autoFocus={item.nome === gruposEmpresa[0]?.campos[0]?.nome} fullWidth
-            value={lerCampo(form, item.nome)} select={!!item.opcoes} type={item.tipo === "email" ? "email" : "text"}
+            value={documento ? formatarDocumentoEmpresa(valor, form.cadastro.produtorRural) : valor} select={!!item.opcoes} type={item.tipo === "email" ? "email" : "text"}
             error={!!erros[item.nome]} helperText={erros[item.nome] || item.ajuda}
             slotProps={{ htmlInput: { maxLength: item.max, inputMode: item.tipo === "digitos" ? "numeric" : item.tipo === "decimal" ? "decimal" : undefined } }}
-            onChange={e => alterar(item.nome, item.tipo === "digitos" ? e.target.value.replace(/\D/g, "") : e.target.value)}>
+            onChange={e => alterar(item.nome, documento ? formatarDocumentoEmpresa(e.target.value, form.cadastro.produtorRural) : item.tipo === "digitos" ? e.target.value.replace(/\D/g, "") : e.target.value)}>
             {item.opcoes && [<MenuItem key="vazio" value="">Não informado</MenuItem>, ...item.opcoes.map(([valor, label]) => <MenuItem key={valor} value={valor}>{label}</MenuItem>)]}
         </TextField>;
     }
 
     return <Dialog open fullWidth maxWidth="lg" onClose={fechar} aria-labelledby="empresa-form-titulo">
         <Box component="form" noValidate onSubmit={salvar} sx={{ display: "flex", flexDirection: "column", minHeight: 0, maxHeight: "inherit" }}>
-            <DialogTitle id="empresa-form-titulo" sx={{ pb: 1 }}>
+            <DialogTitle id="empresa-form-titulo" sx={{ pb: 1, position: "relative" }}>
                 {empresa ? `Editar empresa · ${empresa.id}` : "Nova Empresa"}
                 <Typography component="p" color="text.secondary" sx={{ fontSize: ".875rem", mt: .5 }}>Dados cadastrais, endereço e informações fiscais da empresa.</Typography>
+                <IconButton aria-label="Fechar" onClick={fechar} disabled={salvando || lendoLogo} sx={{ position: "absolute", top: 8, right: 12 }}>
+                    <CloseRoundedIcon />
+                </IconButton>
             </DialogTitle>
             <Tabs value={aba} onChange={(_, valor) => setAba(valor)} variant="scrollable" scrollButtons="auto" aria-label="Abas do cadastro de empresa" sx={{ px: 3, borderBottom: 1, borderColor: "divider" }}>
                 {abasEmpresa.map((label, index) => <Tab key={label} id={`empresa-tab-${index}`} aria-controls={`empresa-painel-${index}`} label={label} disabled={salvando} />)}
@@ -134,7 +141,6 @@ export default function EmpresaForm({ empresa, abaInicial = 0, onFechar, onSalvo
                                 <FormControlLabel control={<Checkbox checked={form.cadastro.produtorRural} onChange={e => alterar("cadastro.produtorRural", e.target.checked)} />} label="Produtor rural" />
                                 <FormControlLabel control={<Checkbox checked={form.ativo} onChange={e => alterar("ativo", e.target.checked)} />} label="Empresa ativa" />
                             </Stack>}
-                            {index === 4 && <Typography color="text.secondary" variant="body2">Informações do contador para o Bloco 0. Ao preencher esta aba, informe também a cidade.</Typography>}
                             {gruposEmpresa.filter(g => g.aba === index).map(grupo => <Stack key={grupo.titulo} spacing={2}>
                                 <Typography sx={{ fontWeight: 700 }}>{grupo.titulo}</Typography>
                                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>{grupo.campos.map(campo)}</Box>

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import {
     Alert,
     Box,
@@ -10,6 +11,7 @@ import {
     DialogTitle,
     Divider,
     FormControlLabel,
+    IconButton,
     Stack,
     Switch,
     TextField,
@@ -167,13 +169,16 @@ function ProdutoForm({
     return (
         <Dialog open={aberto} onClose={salvando ? undefined : onFechar} fullWidth maxWidth="md">
             <Box component="form" onSubmit={enviar} noValidate>
-                <DialogTitle sx={{ pb: 1 }}>
+                <DialogTitle sx={{ pb: 1, position: "relative" }}>
                     {editando ? "Editar produto" : "Novo produto"}
                     <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: "0.85rem" }}>
                         {editando
                             ? "Revise os dados e salve as alterações."
                             : "Preencha os dados para cadastrar um produto."}
                     </Typography>
+                    <IconButton aria-label="Fechar" onClick={onFechar} disabled={salvando} sx={{ position: "absolute", top: 8, right: 12 }}>
+                        <CloseRoundedIcon />
+                    </IconButton>
                 </DialogTitle>
 
                 <DialogContent dividers>
@@ -185,7 +190,9 @@ function ProdutoForm({
                         <Stack spacing={2.25}>
                             {erroExterno && <Alert severity="error">{erroExterno}</Alert>}
 
-                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+                            <Stack spacing={1.5}>
+                                <Typography variant="subtitle2">Identificação</Typography>
+                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
                                 <TextField
                                     label="Código interno"
                                     value={formulario.codigoInterno}
@@ -203,6 +210,7 @@ function ProdutoForm({
                                     slotProps={{ htmlInput: { maxLength: 60 } }}
                                 />
                             </Box>
+                            </Stack>
 
                             <TextField
                                 required
@@ -225,7 +233,9 @@ function ProdutoForm({
                                 slotProps={{ htmlInput: { maxLength: 2000 } }}
                             />
 
-                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "120px 1fr 1fr" }, gap: 2 }}>
+                            <Stack spacing={1.5}>
+                                <Typography variant="subtitle2">Preços</Typography>
+                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "120px 1fr 1fr" }, gap: 2 }}>
                                 <TextField
                                     required
                                     label="Unidade de medida"
@@ -252,7 +262,8 @@ function ProdutoForm({
                                     helperText={erros.precoVenda}
                                     slotProps={{ input: { startAdornment: <Typography sx={{ mr: 1 }}>R$</Typography> } }}
                                 />
-                            </Box>
+                                </Box>
+                            </Stack>
 
                             <Divider />
                             <Stack spacing={1.5}>

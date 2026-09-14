@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Chip, MenuItem, Snackbar, Stack, FormControl, Select } from "@mui/material";
+import { Alert, Button, Chip, MenuItem, Snackbar, Stack, FormControl, InputLabel, Select } from "@mui/material";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type Coluna, type AcaoTabela } from "../../components/ui/AppTable";
 import { buscarEmpresa, listarEmpresas, mensagemEmpresa } from "../../services/empresaService";
 import type { EmpresaCompleta, EmpresaResumo } from "../../types/empresa";
 import EmpresaForm from "./EmpresaForm";
 import { regimes } from "./empresaFormulario";
+import { formatarDocumentoEmpresa } from "../../utils/validators/documentoEmpresa";
 
 const normalizar = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
 
@@ -18,6 +22,7 @@ export default function Empresa() {
     const [situacao, setSituacao] = useState("todas");
     const [pagina, setPagina] = useState(0);
     const [porPagina, setPorPagina] = useState(10);
+    const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: "asc" | "desc" }>({ campo: "razaoSocial", direcao: "asc" });
     const [abrindo, setAbrindo] = useState<number | null>(null);
     const [editor, setEditor] = useState<{ empresa: EmpresaCompleta | null; aba: number } | null>(null);
     const [sucesso, setSucesso] = useState(false);
@@ -70,15 +75,15 @@ export default function Empresa() {
     const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(filtradas.length / porPagina) - 1));
 
     const renderFantasia = (valor: unknown): React.ReactNode => String(valor ?? "—");
-    const renderCnpj = (valor: unknown): React.ReactNode => <span style={{ whiteSpace: "nowrap" }}>{String(valor)}</span>;
+    const renderCnpj = (valor: unknown): React.ReactNode => <span style={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{formatarDocumentoEmpresa(String(valor), String(valor).replace(/\D/g, "").length === 11)}</span>;
     const renderRegime = (_: unknown, linha: EmpresaResumo): React.ReactNode =>
         regimes.find(([v]) => v === linha.cadastro?.regimeTributario)?.[1] ?? "Não informado";
     const renderUf = (valor: unknown): React.ReactNode => String(valor ?? "—");
-    const renderAtivo = (valor: unknown): React.ReactNode => <Chip size="small" label={valor ? "Sim" : "Não"} color={valor ? "success" : "default"} variant="outlined" />;
+    const renderAtivo = (valor: unknown): React.ReactNode => <Chip size="small" label={valor ? "Ativa" : "Inativa"} color={valor ? "success" : "default"} variant={valor ? "filled" : "outlined"} />;
 
     const colunas: Coluna<EmpresaResumo>[] = [
-        { campo: "id", cabecalho: "Código", largura: 80 },
-        { campo: "razaoSocial", cabecalho: "Razão Social", largura: 280 },
+        { campo: "id", cabecalho: "Código", largura: 80, ordenavel: true },
+        { campo: "razaoSocial", cabecalho: "Razão Social", largura: 280, ordenavel: true },
         { campo: "nomeFantasia", cabecalho: "Nome Fantasia", largura: 200, render: renderFantasia },
         { campo: "cnpj", cabecalho: "CNPJ / CPF", largura: 160, render: renderCnpj },
         { campo: "cadastro.regimeTributario", cabecalho: "Regime Tributário", largura: 200, render: renderRegime },
@@ -89,17 +94,17 @@ export default function Empresa() {
     const acoes: AcaoTabela<EmpresaResumo>[] = [
         {
             rotulo: "Editar",
-            icone: <span>Editar</span>,
+            icone: <EditOutlinedIcon fontSize="small" />,
             onClick: (e) => editar(e.id),
             desabilitado: () => abrindo !== null,
             tooltip: "Editar empresa",
         },
         {
             rotulo: "Inscrições",
-            icone: <span>Inscrições</span>,
+            icone: <AssignmentOutlinedIcon fontSize="small" />,
             onClick: (e) => editar(e.id, 3),
             desabilitado: () => abrindo !== null,
-            tooltip: "Inscrições",
+            tooltip: "Inscrições estaduais/municipais",
         },
     ];
 
@@ -108,7 +113,7 @@ export default function Empresa() {
             <PageHeader
                 titulo="Empresas"
                 descricao="Gerencie os dados cadastrais e fiscais das empresas."
-                acaoPrincipal={<Button variant="contained" disabled={abrindo !== null} onClick={() => setEditor({ empresa: null, aba: 0 })}>Nova Empresa</Button>}
+                acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} disabled={abrindo !== null} onClick={() => setEditor({ empresa: null, aba: 0 })}>Nova empresa</Button>}
             />
 
             {erro && (
@@ -129,7 +134,8 @@ export default function Empresa() {
                 }}
                 filtros={
                     <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <Select label="Situação" value={situacao} onChange={(e) => { setSituacao(e.target.value); setPagina(0); }}>
+                        <InputLabel id="empresa-situacao-label">Situação</InputLabel>
+                        <Select labelId="empresa-situacao-label" label="Situação" value={situacao} onChange={(e) => { setSituacao(e.target.value); setPagina(0); }}>
                             <MenuItem value="todas">Todas</MenuItem>
                             <MenuItem value="ativas">Ativas</MenuItem>
                             <MenuItem value="inativos">Inativas</MenuItem>
@@ -141,6 +147,7 @@ export default function Empresa() {
                     descricao: erro ? "Listagem indisponível." : "Cadastre uma nova empresa para começar.",
                 }}
                 acoes={acoes}
+                ordenacao={{ campo: ordenacao.campo, direcao: ordenacao.direcao, onSort: (campo) => setOrdenacao((atual) => ({ campo, direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc" })) }}
                 paginacao={{
                     pagina: paginaAtual,
                     linhasPorPagina: porPagina,

@@ -3,7 +3,7 @@ import { documentoEmpresaValido, normalizarDocumentoEmpresa } from "../../utils/
 
 export const ufs = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
 export const regimes = [["SIMPLES_NACIONAL", "Simples Nacional"], ["LUCRO_PRESUMIDO", "Lucro Presumido"], ["LUCRO_REAL", "Lucro Real"]];
-export const abasEmpresa = ["Dados", "Endereço", "Contato", "Fiscal / SPED", "Contador"];
+export const abasEmpresa = ["Dados", "Endereço", "Contato", "Fiscal / SPED"];
 export type EstadoEmpresa = {
     razaoSocial: string; nomeFantasia: string; cnpj: string; inscricaoEstadual: string;
     telefone: string; email: string; endereco: string; ativo: boolean;
@@ -13,12 +13,12 @@ export type NomeCampo = Exclude<keyof EstadoEmpresa, "cadastro" | "inscricoesSt"
 export type Campo = { nome: NomeCampo; label: string; max?: number; required?: boolean; opcoes?: string[][]; tipo?: "email" | "decimal" | "digitos"; ajuda?: string };
 export const gruposEmpresa: { aba: number; titulo: string; campos: Campo[] }[] = [
     { aba: 0, titulo: "Identificação e tributação", campos: [
+        { nome: "cnpj", label: "CNPJ / CPF", required: true, max: 18, ajuda: "CPF permitido para produtor rural. CNPJ numérico ou alfanumérico." },
         { nome: "razaoSocial", label: "Razão Social", required: true, max: 150 },
         { nome: "nomeFantasia", label: "Nome Fantasia", max: 150 },
-        { nome: "cnpj", label: "CNPJ / CPF", required: true, max: 18, ajuda: "CPF permitido para produtor rural. CNPJ numérico ou alfanumérico." },
+        { nome: "cadastro.regimeTributario", label: "Regime Tributário", required: true, opcoes: regimes },
         { nome: "inscricaoEstadual", label: "Inscrição Estadual", max: 30 },
         { nome: "cadastro.inscricaoMunicipal", label: "Inscrição Municipal", max: 30 },
-        { nome: "cadastro.regimeTributario", label: "Regime Tributário", required: true, opcoes: regimes },
     ] },
     { aba: 1, titulo: "Endereço da empresa", campos: [
         { nome: "cadastro.cep", label: "CEP", max: 8, tipo: "digitos" },
@@ -47,27 +47,6 @@ export const gruposEmpresa: { aba: number; titulo: string; campos: Campo[] }[] =
         { nome: "cadastro.regimePisCofins", label: "Regime de apuração PIS/COFINS", opcoes: [["1", "1 — Não cumulativo"], ["2", "2 — Cumulativo"], ["3", "3 — Cumulativo e não cumulativo"]] },
         { nome: "cadastro.criterioPisCofins", label: "Critério de escrituração PIS/COFINS", opcoes: [["1", "1 — Caixa (consolidado)"], ["2", "2 — Competência (consolidado)"], ["9", "9 — Competência (detalhado)"]], ajuda: "IND_REG_CUM: aplicável à incidência exclusivamente cumulativa." },
         { nome: "cadastro.tipoAtividadePisCofins", label: "Tipo de atividade PIS/COFINS", opcoes: [["0", "0 — Industrial ou equiparado"], ["1", "1 — Prestador de serviços"], ["2", "2 — Comércio"], ["3", "3 — Serviços financeiros"], ["4", "4 — Atividade imobiliária"], ["9", "9 — Outros"]] },
-    ] },
-    { aba: 4, titulo: "Contador responsável", campos: [
-        { nome: "cadastro.contadorNome", label: "Nome do Contador", max: 150 },
-        { nome: "cadastro.contadorCpf", label: "CPF do Contador", max: 14 },
-        { nome: "cadastro.contadorCrc", label: "CRC", max: 20 },
-        { nome: "cadastro.contadorUfCrc", label: "UF CRC", opcoes: ufs.map(uf => [uf, uf]) },
-        { nome: "cadastro.contadorCnpjEscritorio", label: "CNPJ do Escritório", max: 18 },
-        { nome: "cadastro.contadorRazaoSocial", label: "Razão Social do Escritório", max: 150 },
-        { nome: "cadastro.contadorTelefone", label: "Telefone do Contador", max: 30 },
-        { nome: "cadastro.contadorFax", label: "Fax", max: 30 },
-        { nome: "cadastro.contadorEmail", label: "E-mail do Contador", max: 150, tipo: "email" },
-    ] },
-    { aba: 4, titulo: "Endereço do contador", campos: [
-        { nome: "cadastro.contadorCep", label: "CEP do Contador", max: 8, tipo: "digitos" },
-        { nome: "cadastro.contadorLogradouro", label: "Logradouro do Contador", max: 150 },
-        { nome: "cadastro.contadorNumero", label: "Número do Contador", max: 20 },
-        { nome: "cadastro.contadorComplemento", label: "Complemento do Contador", max: 100 },
-        { nome: "cadastro.contadorBairro", label: "Bairro do Contador", max: 100 },
-        { nome: "cadastro.contadorCidade", label: "Cidade do Contador", max: 100, ajuda: "Obrigatória ao informar dados do contador." },
-        { nome: "cadastro.contadorUf", label: "UF do Contador", opcoes: ufs.map(uf => [uf, uf]) },
-        { nome: "cadastro.contadorCodigoMunicipio", label: "Código IBGE do município do Contador", tipo: "digitos", max: 7, ajuda: "Identificação do município no SPED." },
     ] },
 ];
 
