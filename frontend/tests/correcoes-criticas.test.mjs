@@ -137,3 +137,18 @@ test("formulário trata saldo como informação e estoque mínimo conforme o con
     assert.doesNotMatch(fonte, /label="Estoque atual"/);
     assert.doesNotMatch(fonte, /alterarCampo\("estoqueAtual"/);
 });
+
+test("cadastros financeiros organizam Caixa e Dados Bancários sem APIs bancárias", async () => {
+    const navegacao = await readFile(new URL("../src/routes/navigation.tsx", import.meta.url), "utf8");
+    const dadosBancarios = await readFile(new URL("../src/pages/Financeiro/DadosBancarios.tsx", import.meta.url), "utf8");
+    const caixa = await readFile(new URL("../src/pages/Financeiro/Caixa.tsx", import.meta.url), "utf8");
+
+    assert.match(navegacao, /financeiro\/caixas/);
+    assert.match(navegacao, /financeiro\/dados-bancarios/);
+    assert.match(dadosBancarios, /Bancos/);
+    assert.match(dadosBancarios, /Agências/);
+    assert.match(dadosBancarios, /Contas Bancárias/);
+    assert.match(dadosBancarios, /integração financeira/);
+    assert.doesNotMatch(dadosBancarios, /axios|api\.|fetch\(/);
+    assert.match(caixa, /titulo="Caixas"/);
+});

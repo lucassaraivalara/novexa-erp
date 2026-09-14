@@ -110,7 +110,7 @@ export default function Caixa() {
     return (
         <Stack spacing={2.5}>
             <PageHeader
-                titulo="Caixas Financeiros"
+                titulo="Caixas"
                 descricao="Gerencie os caixas financeiros da empresa."
                 acaoPrincipal={<Button variant="contained" disabled={abrindo !== null} onClick={() => setEditor({ caixa: null })}>Novo Caixa</Button>}
             />

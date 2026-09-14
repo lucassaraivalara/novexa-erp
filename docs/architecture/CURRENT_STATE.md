@@ -3,9 +3,9 @@ Produto ........ funcional
 Cliente ........ funcional
 Estoque ........ backend funcional
 Venda .......... ABERTA → FATURADA consolidado
-Caixa .......... cadastro apenas
-Dados Bancários  não iniciado
-Financeiro ..... fundação parcial
+Caixa .......... cadastro frontend funcional
+Dados Bancários  shell frontend com abas, sem contrato backend
+Financeiro ..... cadastros frontend estruturados
 Dashboard ...... placeholder
 
 Frontend operacional de Estoque ...... implementado

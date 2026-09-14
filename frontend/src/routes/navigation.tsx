@@ -1,4 +1,5 @@
 import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
+import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
@@ -16,6 +17,7 @@ import Empresa from "../pages/Empresa/Empresa";
 import Estoque from "../pages/Estoque/Estoque";
 import Produtos from "../pages/Produtos/Produtos";
 import Vendas from "../pages/Vendas/Vendas";
+import DadosBancarios from "../pages/Financeiro/DadosBancarios";
 
 export type RotaInterna = {
     caminho: string;
@@ -67,6 +69,12 @@ export const rotasInternas: RotaInterna[] = [
         icone: <AccountBalanceWalletRoundedIcon />,
         elemento: <Caixa />,
     },
+    {
+        caminho: "financeiro/dados-bancarios",
+        titulo: "Dados Bancários",
+        icone: <AccountBalanceRoundedIcon />,
+        elemento: <DadosBancarios />,
+    },
 ];
 
 // A navegação pode agrupar rotas existentes ou reservar itens sem destino.
@@ -78,10 +86,11 @@ export type ItemMenu =
 
 const rotaEmpresas = rotasInternas.find(r => r.caminho === "empresa")!;
 const rotaCaixas = rotasInternas.find(r => r.caminho === "financeiro/caixas")!;
+const rotaDadosBancarios = rotasInternas.find(r => r.caminho === "financeiro/dados-bancarios")!;
 
 export const menuPrincipal: ItemMenu[] = [
     ...rotasInternas
-        .filter(r => r.caminho !== "empresa" && r.caminho !== "financeiro/caixas")
+        .filter(r => r.caminho !== "empresa" && !r.caminho.startsWith("financeiro/"))
         .map(rota => ({ tipo: "rota" as const, id: rota.caminho, rota })),
     {
         tipo: "grupo",
@@ -97,9 +106,26 @@ export const menuPrincipal: ItemMenu[] = [
             abertoInicialmente: true,
             filhos: [
                 { tipo: "rota", id: "empresas", titulo: "Empresas", rota: rotaEmpresas },
-                { tipo: "rota", id: "caixas", titulo: "Caixas", rota: rotaCaixas },
                 { tipo: "indisponivel", id: "usuarios", titulo: "Usuários", icone: <PeopleAltRoundedIcon /> },
                 { tipo: "indisponivel", id: "padroes-novo-cliente", titulo: "Padrões p/ Novo Cliente", icone: <PersonAddAltRoundedIcon /> },
+            ],
+        }],
+    },
+    {
+        tipo: "grupo",
+        id: "financeiro",
+        titulo: "Financeiro",
+        icone: <AccountBalanceWalletRoundedIcon />,
+        abertoInicialmente: true,
+        filhos: [{
+            tipo: "grupo",
+            id: "financeiro-cadastros",
+            titulo: "Cadastros",
+            icone: <FormatListBulletedRoundedIcon />,
+            abertoInicialmente: true,
+            filhos: [
+                { tipo: "rota", id: "caixas", titulo: "Caixas", rota: rotaCaixas },
+                { tipo: "rota", id: "dados-bancarios", titulo: "Dados Bancários", rota: rotaDadosBancarios },
             ],
         }],
     },
