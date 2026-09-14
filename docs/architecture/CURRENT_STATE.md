@@ -16,3 +16,5 @@ Frontend operacional de Estoque ...... implementado
 - AJUSTE é apresentado como novo saldo físico e não altera o saldo local como fonte definitiva.
 - Consulta histórico de movimentações por produto.
 - Testes frontend cobrem as classificações de estoque e os contratos HTTP da tela.
+- Cadastro frontend de Produtos não edita estoqueAtual; o saldo é exibido somente para consulta e alterado pela tela de Estoque.
+- ProdutoInput não envia estoqueAtual em criação ou edição; estoqueMinimo fica desabilitado quando controlaEstoque está desligado.

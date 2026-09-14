@@ -1,5 +1,6 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -11,6 +12,7 @@ const { default: api } = await server.ssrLoadModule("/src/services/api.ts");
 const { default: PageHeader } = await server.ssrLoadModule("/src/components/ui/PageHeader.tsx");
 const { salvarSessao, obterToken } = await server.ssrLoadModule("/src/utils/auth/sessao.ts");
 const { listarClientes, salvarCliente, buscarCliente, mensagemCliente } = await server.ssrLoadModule("/src/services/clienteService.ts");
+const { cadastrarProduto, atualizarProduto } = await server.ssrLoadModule("/src/services/produtoService.ts");
 await server.close();
 
 let redirecionamentos;
@@ -104,4 +106,34 @@ test("listar, criar, buscar e editar clientes enviam o mesmo Bearer e preservam 
     assert.deepEqual(chamadas, ["get /clientes", "post /clientes", "get /clientes/1", "put /clientes/1"]);
     assert.equal(obterToken(), "token-atual");
     assert.deepEqual(redirecionamentos, []);
+});
+
+test("cadastro e edição de produto não enviam estoqueAtual", async () => {
+    const chamadas = [];
+    api.defaults.adapter = async (config) => {
+        chamadas.push(JSON.parse(config.data));
+        return { config, status: config.method === "post" ? 201 : 200, statusText: "OK", headers: {}, data: {} };
+    };
+    const dados = {
+        empresaId: 7, codigoInterno: "P-1", codigoBarras: null, nome: "Produto",
+        descricao: null, unidadeMedida: "UN", precoCusto: 1, precoVenda: 2,
+        estoqueMinimo: 3, controlaEstoque: true, ativo: true, estoqueAtual: 99,
+    };
+
+    await cadastrarProduto(dados);
+    await atualizarProduto(4, dados);
+
+    assert.equal(chamadas.length, 2);
+    assert.equal("estoqueAtual" in chamadas[0], false);
+    assert.equal("estoqueAtual" in chamadas[1], false);
+    assert.equal(chamadas[0].estoqueMinimo, 3);
+});
+
+test("formulário trata saldo como informação e estoque mínimo conforme o controle", async () => {
+    const fonte = await readFile(new URL("../src/pages/Produtos/ProdutoForm.tsx", import.meta.url), "utf8");
+    assert.match(fonte, /label="Estoque mínimo"/);
+    assert.match(fonte, /disabled={!formulario\.controlaEstoque}/);
+    assert.match(fonte, /Saldo atual:/);
+    assert.doesNotMatch(fonte, /label="Estoque atual"/);
+    assert.doesNotMatch(fonte, /alterarCampo\("estoqueAtual"/);
 });

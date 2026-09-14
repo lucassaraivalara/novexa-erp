@@ -35,7 +35,6 @@ type EstadoFormulario = {
     unidadeMedida: string;
     precoCusto: string;
     precoVenda: string;
-    estoqueAtual: string;
     estoqueMinimo: string;
     controlaEstoque: boolean;
     ativo: boolean;
@@ -49,7 +48,6 @@ const estadoInicial: EstadoFormulario = {
     unidadeMedida: "UN",
     precoCusto: "0,00",
     precoVenda: "",
-    estoqueAtual: "0,000",
     estoqueMinimo: "0,000",
     controlaEstoque: true,
     ativo: true,
@@ -66,7 +64,6 @@ function criarEstadoFormulario(produto: Produto | null): EstadoFormulario {
         unidadeMedida: produto.unidadeMedida,
         precoCusto: numeroParaCampo(produto.precoCusto, 2),
         precoVenda: numeroParaCampo(produto.precoVenda, 2),
-        estoqueAtual: numeroParaCampo(produto.estoqueAtual, 3),
         estoqueMinimo: numeroParaCampo(produto.estoqueMinimo, 3),
         controlaEstoque: produto.controlaEstoque,
         ativo: produto.ativo,
@@ -115,7 +112,6 @@ function ProdutoForm({
         const novosErros: Partial<Record<keyof EstadoFormulario, string>> = {};
         const precoCusto = campoParaNumero(formulario.precoCusto, 2);
         const precoVenda = campoParaNumero(formulario.precoVenda, 2);
-        const estoqueAtual = campoParaNumero(formulario.estoqueAtual, 3);
         const estoqueMinimo = campoParaNumero(formulario.estoqueMinimo, 3);
 
         if (!formulario.nome.trim()) novosErros.nome = "Informe o nome do produto.";
@@ -127,8 +123,9 @@ function ProdutoForm({
         if (formulario.descricao.length > 2000) novosErros.descricao = "Use no máximo 2000 caracteres.";
         if (precoCusto === null) novosErros.precoCusto = "Use um valor não negativo com até 2 casas decimais.";
         if (precoVenda === null) novosErros.precoVenda = "Use um valor não negativo com até 2 casas decimais.";
-        if (estoqueAtual === null) novosErros.estoqueAtual = "Use uma quantidade não negativa com até 3 casas decimais.";
-        if (estoqueMinimo === null) novosErros.estoqueMinimo = "Use uma quantidade não negativa com até 3 casas decimais.";
+        if (formulario.controlaEstoque && estoqueMinimo === null) {
+            novosErros.estoqueMinimo = "Use uma quantidade não negativa com até 3 casas decimais.";
+        }
 
         setErros(novosErros);
 
@@ -136,8 +133,7 @@ function ProdutoForm({
             Object.keys(novosErros).length > 0 ||
             precoCusto === null ||
             precoVenda === null ||
-            estoqueAtual === null ||
-            estoqueMinimo === null
+            (formulario.controlaEstoque && estoqueMinimo === null)
         ) {
             return null;
         }
@@ -151,8 +147,7 @@ function ProdutoForm({
             unidadeMedida: formulario.unidadeMedida.trim(),
             precoCusto,
             precoVenda,
-            estoqueAtual,
-            estoqueMinimo,
+            estoqueMinimo: formulario.controlaEstoque ? estoqueMinimo! : 0,
             controlaEstoque: formulario.controlaEstoque,
             ativo: formulario.ativo,
         };
@@ -259,19 +254,16 @@ function ProdutoForm({
 
                             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
                                 <TextField
-                                    label="Estoque atual"
-                                    value={formulario.estoqueAtual}
-                                    onChange={(e) => alterarCampo("estoqueAtual", e.target.value)}
-                                    error={Boolean(erros.estoqueAtual)}
-                                    helperText={erros.estoqueAtual ?? "Até 3 casas decimais"}
-                                />
-                                <TextField
                                     label="Estoque mínimo"
                                     value={formulario.estoqueMinimo}
                                     onChange={(e) => alterarCampo("estoqueMinimo", e.target.value)}
                                     error={Boolean(erros.estoqueMinimo)}
-                                    helperText={erros.estoqueMinimo ?? "Até 3 casas decimais"}
+                                    helperText={erros.estoqueMinimo ?? (formulario.controlaEstoque ? "Até 3 casas decimais" : "Não utilizado sem controle de estoque")}
+                                    disabled={!formulario.controlaEstoque}
                                 />
+                                <Typography color="text.secondary" sx={{ alignSelf: "center", fontSize: "0.85rem" }}>
+                                    Saldo atual: {produto ? numeroParaCampo(produto.estoqueAtual, 3) : "0,000"}. Altere pela tela de Estoque.
+                                </Typography>
                             </Box>
 
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 0, sm: 3 }}>

@@ -4,8 +4,9 @@ import { createServer } from "vite";
 
 const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
 const { situacaoEstoque, novoSaldoEsperado } = await server.ssrLoadModule("/src/pages/Estoque/estoqueRegras.ts");
-const { listarProdutosEstoque, registrarEntrada, registrarSaida, registrarAjuste, listarHistoricoProduto } = await server.ssrLoadModule("/src/services/estoqueService.ts");
+const { listarProdutosEstoque, registrarEntrada, registrarSaida, registrarAjuste, listarHistoricoProduto, obterMensagemEstoque } = await server.ssrLoadModule("/src/services/estoqueService.ts");
 const apiModule = await server.ssrLoadModule("/src/services/api.ts");
+const { AxiosError } = await server.ssrLoadModule("axios");
 await server.close();
 
 beforeEach(() => {
@@ -63,4 +64,40 @@ test("serviço usa endpoints oficiais sem enviar empresa ou usuário", async () 
             assert.equal(chamada.data.includes("usuarioId"), false);
         }
     }
+});
+
+test("nova consulta de produtos retorna o saldo atualizado pela API", async () => {
+    let consulta = 0;
+    apiModule.default.defaults.adapter = async (config) => {
+        consulta += 1;
+        return {
+            config, status: 200, statusText: "OK", headers: {},
+            data: [{ id: 4, nome: "Produto", estoqueAtual: consulta === 1 ? 5 : 10 }],
+        };
+    };
+
+    assert.equal((await listarProdutosEstoque())[0].estoqueAtual, 5);
+    assert.equal((await listarProdutosEstoque())[0].estoqueAtual, 10);
+    assert.equal(consulta, 2);
+});
+
+test("histórico preserva saldo, quantidade, motivo, usuário e data retornados pela API", async () => {
+    const movimento = {
+        id: 8, produtoId: 4, produtoNome: "Produto", tipo: "ENTRADA", origem: "MANUAL",
+        quantidade: 5, saldoAnterior: 5, saldoPosterior: 10, motivo: "Compra",
+        dataHora: "2026-09-14T10:00:00Z", usuarioId: 2, nomeUsuario: "Operador",
+    };
+    apiModule.default.defaults.adapter = async (config) => ({
+        config, status: 200, statusText: "OK", headers: {}, data: [movimento],
+    });
+
+    assert.deepEqual(await listarHistoricoProduto(4), [movimento]);
+});
+
+test("erro de estoque insuficiente preserva a mensagem de negócio", () => {
+    const erro = new AxiosError("Falha", "ERR_BAD_RESPONSE", undefined, undefined, {
+        status: 409, statusText: "Conflict", headers: {}, data: "Estoque insuficiente: Produto.",
+    });
+
+    assert.equal(obterMensagemEstoque(erro, "Falha na movimentação."), "Estoque insuficiente: Produto.");
 });
