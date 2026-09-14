@@ -115,12 +115,13 @@ Evoluir a gestão financeira incrementalmente, preservando a velocidade operacio
 
 ## 7.1 Fase atual — IMPLEMENTADO
 
-Base de referência: commit `aeaec2e`, com Pagamento concluído em branch própria e integração na main ainda pendente de coordenação.
+Base de referência: `integracao/pagamento-frontend-baseline`, reunindo Pagamento (`aeaec2e`), arquitetura (`4efddaa`) e frontend até `6be4a18`. Validações em [CURRENT_STATE.md](CURRENT_STATE.md); incorporação na `main` ainda pendente.
 
 * Venda consolidada: ABERTA → FATURADA, com itens históricos e proteção contra duplicidade;
 * Estoque consolidado: saldo/histórico, movimentações e integração com faturamento;
 * Caixa cadastral, exclusivamente dinheiro físico;
 * Fundação de Pagamento: registro no faturamento e consulta, com modelo 1:N e contrato atual de um pagamento por venda.
+* Frontend Financeiro > Cadastros: Caixa funcional e Dados Bancários apenas como shell de navegação, sem implementar os cadastros bancários da próxima fase.
 
 O lançamento financeiro temporário continua por compatibilidade. Não representa a implantação dos destinos financeiros oficiais. Limitações e validações existentes permanecem em CURRENT_STATE.md.
 

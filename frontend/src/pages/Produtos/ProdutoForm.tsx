@@ -206,6 +206,7 @@ function ProdutoForm({
                             <TextField
                                 required
                                 label="Nome"
+                                autoFocus={!carregandoProduto}
                                 value={formulario.nome}
                                 onChange={(e) => alterarCampo("nome", e.target.value)}
                                 error={Boolean(erros.nome)}

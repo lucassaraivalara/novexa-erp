@@ -8,7 +8,9 @@ import {
     TableRow,
     TableSortLabel,
     Toolbar,
+    Tooltip,
     Typography,
+    CircularProgress,
     Paper,
     InputAdornment,
     IconButton,
@@ -16,7 +18,7 @@ import {
     Stack,
 } from "@mui/material";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { layoutTokens } from "../layout/layoutTokens";
 import EmptyState from "./EmptyState";
 import LoadingState from "./LoadingState";
@@ -55,6 +57,8 @@ interface AppTableProps<T> {
         placeholder: string;
         onChange: (valor: string) => void;
         valor: string;
+        carregando?: boolean;
+        onKeyDown?: (evento: KeyboardEvent<HTMLInputElement>) => void;
     };
     filtros?: ReactNode;
     paginacao?: {
@@ -149,6 +153,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                 placeholder={busca.placeholder}
                                 value={busca.valor}
                                 onChange={(e) => busca.onChange(e.target.value)}
+                                onKeyDown={busca.onKeyDown}
                                 slotProps={{
                                     input: {
                                         startAdornment: (
@@ -156,6 +161,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                 <SearchRoundedIcon fontSize="small" color="action" />
                                             </InputAdornment>
                                         ),
+                                        endAdornment: busca.carregando ? <CircularProgress size={18} aria-label="Pesquisando" /> : undefined,
                                     },
                                 }}
                                 sx={{
@@ -303,22 +309,25 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                 }}
                                             >
                                                 {acoes.map((acao, idx) => (
-                                                    <IconButton
-                                                        key={idx}
-                                                        size="small"
-                                                        color={acao.cor ?? "inherit"}
-                                                        onClick={() => acao.onClick(linha)}
-                                                        disabled={acao.desabilitado?.(linha)}
-                                                        aria-label={acao.tooltip ?? acao.rotulo}
-                                                        sx={{
-                                                            borderRadius: 8,
-                                                            "&:hover": {
-                                                                backgroundColor: "rgba(15, 23, 42, 0.04)",
-                                                            },
-                                                        }}
-                                                    >
-                                                        {acao.icone}
-                                                    </IconButton>
+                                                    <Tooltip key={idx} title={acao.tooltip ?? acao.rotulo}>
+                                                        <span>
+                                                            <IconButton
+                                                                size="small"
+                                                                color={acao.cor ?? "inherit"}
+                                                                onClick={() => acao.onClick(linha)}
+                                                                disabled={acao.desabilitado?.(linha)}
+                                                                aria-label={acao.tooltip ?? acao.rotulo}
+                                                                sx={{
+                                                                    borderRadius: 8,
+                                                                    "&:hover": {
+                                                                        backgroundColor: "rgba(15, 23, 42, 0.04)",
+                                                                    },
+                                                                }}
+                                                            >
+                                                                {acao.icone}
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
                                                 ))}
                                             </Stack>
                                         </TableCell>

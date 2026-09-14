@@ -137,3 +137,71 @@ test("formulário trata saldo como informação e estoque mínimo conforme o con
     assert.doesNotMatch(fonte, /label="Estoque atual"/);
     assert.doesNotMatch(fonte, /alterarCampo\("estoqueAtual"/);
 });
+
+test("cadastros financeiros organizam Caixa e Dados Bancários sem APIs bancárias", async () => {
+    const navegacao = await readFile(new URL("../src/routes/navigation.tsx", import.meta.url), "utf8");
+    const dadosBancarios = await readFile(new URL("../src/pages/Financeiro/DadosBancarios.tsx", import.meta.url), "utf8");
+    const caixa = await readFile(new URL("../src/pages/Financeiro/Caixa.tsx", import.meta.url), "utf8");
+
+    assert.match(navegacao, /financeiro\/caixas/);
+    assert.match(navegacao, /financeiro\/dados-bancarios/);
+    assert.match(dadosBancarios, /Bancos/);
+    assert.match(dadosBancarios, /Agências/);
+    assert.match(dadosBancarios, /Contas Bancárias/);
+    assert.match(dadosBancarios, /integração financeira/);
+    assert.doesNotMatch(dadosBancarios, /axios|api\.|fetch\(/);
+    assert.match(caixa, /titulo="Caixas"/);
+});
+
+test("ações de tabela usam ícones com tooltip e acessibilidade", async () => {
+    const tabela = await readFile(new URL("../src/components/ui/AppTable.tsx", import.meta.url), "utf8");
+    const caixa = await readFile(new URL("../src/pages/Financeiro/Caixa.tsx", import.meta.url), "utf8");
+
+    assert.match(tabela, /<Tooltip key=\{idx\} title=\{acao\.tooltip \?\? acao\.rotulo\}>/);
+    assert.match(tabela, /aria-label=\{acao\.tooltip \?\? acao\.rotulo\}/);
+    assert.match(caixa, /<EditOutlinedIcon fontSize="small" \/>/);
+    assert.match(caixa, /<BlockRoundedIcon fontSize="small" \/>/);
+    assert.doesNotMatch(caixa, /icone: <span>Editar<\/span>/);
+    assert.doesNotMatch(caixa, /icone: <span>Inativar<\/span>/);
+});
+
+test("busca remota preserva o padrão oficial e cancela respostas antigas", async () => {
+    const config = await readFile(new URL("../src/config/search.ts", import.meta.url), "utf8");
+    const hook = await readFile(new URL("../src/hooks/useRemoteSearch.ts", import.meta.url), "utf8");
+    const produtos = await readFile(new URL("../src/pages/Produtos/Produtos.tsx", import.meta.url), "utf8");
+    const service = await readFile(new URL("../src/services/produtoService.ts", import.meta.url), "utf8");
+    const tabela = await readFile(new URL("../src/components/ui/AppTable.tsx", import.meta.url), "utf8");
+
+    assert.match(config, /REMOTE_SEARCH_MIN_LENGTH = 2/);
+    assert.match(config, /REMOTE_SEARCH_DEBOUNCE_MS = 350/);
+    assert.match(config, /OPERATIONAL_SEARCH_DEBOUNCE_MS = 300/);
+    assert.match(hook, /new AbortController/);
+    assert.match(hook, /requestId/);
+    assert.match(hook, /normalized\.length < minLength/);
+    assert.match(hook, /executeNow/);
+    assert.match(produtos, /useRemoteSearch/);
+    assert.match(produtos, /onKeyDown:/);
+    assert.match(service, /signal\?: AbortSignal/);
+    assert.match(tabela, /onKeyDown=\{busca\.onKeyDown\}/);
+    assert.match(tabela, /CircularProgress/);
+});
+
+test("formulários seguem o padrão de submit, feedback e autofocus", async () => {
+    const actions = await readFile(new URL("../src/components/ui/FormActions.tsx", import.meta.url), "utf8");
+    const caixa = await readFile(new URL("../src/pages/Financeiro/CaixaForm.tsx", import.meta.url), "utf8");
+    const produto = await readFile(new URL("../src/pages/Produtos/ProdutoForm.tsx", import.meta.url), "utf8");
+    const cliente = await readFile(new URL("../src/pages/Clientes/ClienteForm.tsx", import.meta.url), "utf8");
+    const empresa = await readFile(new URL("../src/pages/Empresa/EmpresaForm.tsx", import.meta.url), "utf8");
+
+    assert.match(actions, /tipoSalvar\?: "button" \| "submit"/);
+    assert.match(actions, /disabled=\{salvando \|\| desabilitado\}/);
+    assert.match(caixa, /<Dialog open fullWidth maxWidth="xs"/);
+    assert.match(caixa, /<form onSubmit=\{handleSubmit\(aoSalvar\)\}>/);
+    assert.match(caixa, /required/);
+    assert.match(caixa, /autoFocus/);
+    assert.match(caixa, /tipoSalvar="submit"/);
+    assert.match(caixa, /onClose=\{salvando \? undefined : onFechar\}/);
+    assert.match(produto, /autoFocus=\{!carregandoProduto\}/);
+    assert.match(cliente, /required autoFocus label="Nome \/ Razão social"/);
+    assert.match(empresa, /autoFocus=\{item\.nome === gruposEmpresa\[0\]\?\.campos\[0\]\?\.nome\}/);
+});

@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import BlockRoundedIcon from "@mui/icons-material/BlockRounded";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { Alert, Button, Chip, MenuItem, Snackbar, Stack, FormControl, Select } from "@mui/material";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type Coluna, type AcaoTabela } from "../../components/ui/AppTable";
@@ -92,14 +95,14 @@ export default function Caixa() {
     const acoes: AcaoTabela<CaixaResumo>[] = [
         {
             rotulo: "Editar",
-            icone: <span>Editar</span>,
+            icone: <EditOutlinedIcon fontSize="small" />,
             onClick: (c) => editar(c.id),
             desabilitado: () => abrindo !== null,
             tooltip: "Editar caixa",
         },
         {
             rotulo: "Inativar",
-            icone: <span>Inativar</span>,
+            icone: <BlockRoundedIcon fontSize="small" />,
             onClick: (c) => inativar(c.id),
             desabilitado: (c) => abrindo !== null || !c.ativo,
             cor: "error",
@@ -110,9 +113,9 @@ export default function Caixa() {
     return (
         <Stack spacing={2.5}>
             <PageHeader
-                titulo="Caixas Financeiros"
+                titulo="Caixas"
                 descricao="Gerencie os caixas financeiros da empresa."
-                acaoPrincipal={<Button variant="contained" disabled={abrindo !== null} onClick={() => setEditor({ caixa: null })}>Novo Caixa</Button>}
+                acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} disabled={abrindo !== null} onClick={() => setEditor({ caixa: null })}>Novo Caixa</Button>}
             />
 
             {erro && (

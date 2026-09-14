@@ -107,7 +107,7 @@ export default function EmpresaForm({ empresa, abaInicial = 0, onFechar, onSalvo
     }
 
     function campo(item: Campo) {
-        return <TextField key={item.nome} label={item.label} required={item.required} fullWidth
+        return <TextField key={item.nome} label={item.label} required={item.required} autoFocus={item.nome === gruposEmpresa[0]?.campos[0]?.nome} fullWidth
             value={lerCampo(form, item.nome)} select={!!item.opcoes} type={item.tipo === "email" ? "email" : "text"}
             error={!!erros[item.nome]} helperText={erros[item.nome] || item.ajuda}
             slotProps={{ htmlInput: { maxLength: item.max, inputMode: item.tipo === "digitos" ? "numeric" : item.tipo === "decimal" ? "decimal" : undefined } }}

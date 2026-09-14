@@ -13,12 +13,12 @@ test.describe("smoke da base estável", () => {
 
         await page.goto("/login");
         await page.getByLabel("CPF").fill(cpf);
-        await page.getByLabel("Senha").fill(senha);
+        await page.getByLabel("Senha", { exact: true }).fill(senha);
         await page.getByRole("button", { name: /Entrar/i }).click();
         await expect(page).toHaveURL(/\/dashboard$/);
 
         await page.goto("/produtos");
-        await expect(page.getByRole("heading", { name: "Produtos" })).toBeVisible();
+        await expect(page.getByRole("main").getByRole("heading", { name: "Produtos" })).toBeVisible();
         await page.getByRole("button", { name: "Novo produto" }).click();
         await page.getByLabel("Nome").fill(produto);
         await page.getByLabel("Unidade de medida").fill("UN");
@@ -37,27 +37,27 @@ test.describe("smoke da base estável", () => {
         await expect(page.getByText("Produto atualizado com sucesso.")).toBeVisible();
 
         await page.goto("/estoque");
-        await expect(page.getByRole("heading", { name: "Estoque" })).toBeVisible();
+        await expect(page.getByRole("main").getByRole("heading", { name: "Estoque" })).toBeVisible();
         await expect(page.getByRole("row").filter({ hasText: produto })).toBeVisible();
         let linhaEstoque = page.getByRole("row").filter({ hasText: produto });
 
         await linhaEstoque.getByRole("button", { name: "Registrar entrada" }).click();
         await page.getByLabel("Quantidade").fill("10");
         await page.getByRole("button", { name: "Confirmar" }).click();
-        await expect(page.getByRole("row").filter({ hasText: produto }).getByText("10")).toBeVisible();
+        await expect(page.getByRole("row").filter({ hasText: produto }).getByRole("cell", { name: "10", exact: true })).toBeVisible();
 
         linhaEstoque = page.getByRole("row").filter({ hasText: produto });
         await linhaEstoque.getByRole("button", { name: "Registrar saída" }).click();
         await page.getByLabel("Quantidade").fill("3");
         await page.getByRole("button", { name: "Confirmar" }).click();
-        await expect(page.getByRole("row").filter({ hasText: produto }).getByText("7")).toBeVisible();
+        await expect(page.getByRole("row").filter({ hasText: produto }).getByRole("cell", { name: "7", exact: true })).toBeVisible();
 
         linhaEstoque = page.getByRole("row").filter({ hasText: produto });
         await linhaEstoque.getByRole("button", { name: "Ajustar novo saldo físico" }).click();
-        await page.getByLabel("Novo saldo físico").fill("5");
+        await page.getByRole("textbox", { name: "Novo saldo físico", exact: true }).fill("5");
         await expect(page.getByText(/Novo saldo esperado: 5/)).toBeVisible();
         await page.getByRole("button", { name: "Confirmar" }).click();
-        await expect(page.getByRole("row").filter({ hasText: produto }).getByText("5")).toBeVisible();
+        await expect(page.getByRole("row").filter({ hasText: produto }).getByRole("cell", { name: "5", exact: true })).toBeVisible();
 
         await page.getByRole("row").filter({ hasText: produto }).getByRole("button", { name: "Consultar histórico" }).click();
         const historico = page.getByRole("dialog", { name: /Histórico de movimentações/ });
@@ -69,14 +69,14 @@ test.describe("smoke da base estável", () => {
         await page.goto("/produtos");
         await page.getByPlaceholder("Pesquisar por nome, código interno ou código de barras").fill(produto);
         const produtoAtualizado = page.getByRole("row").filter({ hasText: produto });
-        await expect(produtoAtualizado).toContainText("5");
+        await expect(produtoAtualizado.getByRole("cell", { name: "5", exact: true })).toBeVisible();
         await produtoAtualizado.getByRole("button", { name: "Editar produto" }).click();
         await expect(page.getByText(/Saldo atual: 5,000/)).toBeVisible();
         await expect(page.getByLabel("Estoque atual")).toHaveCount(0);
         await page.getByRole("button", { name: "Cancelar" }).click();
 
         await page.goto("/financeiro/caixas");
-        await expect(page.getByRole("heading", { name: "Caixas Financeiros" })).toBeVisible();
+        await expect(page.getByRole("main").getByRole("heading", { name: "Caixas", exact: true })).toBeVisible();
         await page.getByRole("button", { name: "Novo Caixa" }).click();
         await page.getByLabel("Descrição").fill(caixa);
         await page.getByRole("button", { name: "Criar" }).click();
