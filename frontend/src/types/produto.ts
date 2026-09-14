@@ -24,7 +24,6 @@ export type ProdutoInput = {
     unidadeMedida: string;
     precoCusto: number;
     precoVenda: number;
-    estoqueAtual: number;
     estoqueMinimo: number;
     controlaEstoque: boolean;
     ativo: boolean;
