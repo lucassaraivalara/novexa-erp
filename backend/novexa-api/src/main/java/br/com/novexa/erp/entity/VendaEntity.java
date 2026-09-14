@@ -1,6 +1,18 @@
 package br.com.novexa.erp.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -28,9 +40,8 @@ public class VendaEntity {
     @Column(length = 500) private String entrega;
     @Column(length = 2000) private String observacoes;
     @OneToMany(mappedBy = "venda")
+    @OrderBy("ordem ASC, id ASC")
     private List<ItemVendaEntity> itemVendas = new ArrayList<>();
-    @ElementCollection @CollectionTable(name = "venda_itens", joinColumns = @JoinColumn(name = "venda_id"))
-    @OrderColumn(name = "ordem") private List<VendaItem> itens = new ArrayList<>();
 
     protected VendaEntity() { }
     public VendaEntity(UsuarioEntity usuario, ClienteEntity cliente, UUID chave, String resumo,
@@ -63,10 +74,18 @@ public class VendaEntity {
     public FormaPagamento getFormaPagamento() { return formaPagamento; }
     public BigDecimal getValorRecebido() { return valorRecebido; }
     public BigDecimal getTroco() { return troco; }
-    public List<VendaItem> getItens() { return itens; }
+    public List<ItemVendaEntity> getItens() { return itemVendas; }
     public List<ItemVendaEntity> getItemVendas() { return itemVendas; }
     public String getEntrega() { return entrega; }
     public String getObservacoes() { return observacoes; }
+    public void registrarFaturamento(UUID chave, String resumo, FormaPagamento forma, BigDecimal recebido) {
+        this.chaveRequisicao = chave;
+        this.resumoRequisicao = resumo;
+        this.formaPagamento = forma;
+        this.valorRecebido = recebido;
+        this.troco = recebido.subtract(total);
+        this.status = StatusVenda.FATURADA;
+    }
     public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }
     public void setDesconto(BigDecimal desconto) { this.desconto = desconto; }
     public void setTotal(BigDecimal total) { this.total = total; }

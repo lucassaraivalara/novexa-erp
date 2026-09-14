@@ -13,6 +13,11 @@ public interface VendaRepository extends JpaRepository<VendaEntity, Long> {
     Optional<VendaEntity> findByEmpresaIdAndUsuarioIdAndChaveRequisicao(Long empresaId, Long usuarioId, UUID chave);
     Optional<VendaEntity> findByIdAndEmpresaId(Long id, Long empresaId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select v from VendaEntity v where v.id = :id and v.empresa.id = :empresaId")
+    Optional<VendaEntity> findByIdAndEmpresaIdWithLock(@Param("id") Long id, @Param("empresaId") Long empresaId);
+
+
     // Serializa finalizações do mesmo operador, inclusive tentativas simultâneas da mesma requisição.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from UsuarioEntity u where u.id = :usuarioId and u.empresa.id = :empresaId")
