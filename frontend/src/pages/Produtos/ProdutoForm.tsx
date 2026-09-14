@@ -8,6 +8,7 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    Divider,
     FormControlLabel,
     Stack,
     Switch,
@@ -190,7 +191,7 @@ function ProdutoForm({
                                     value={formulario.codigoInterno}
                                     onChange={(e) => alterarCampo("codigoInterno", e.target.value)}
                                     error={Boolean(erros.codigoInterno)}
-                                    helperText={erros.codigoInterno ?? "Opcional"}
+                                    helperText={erros.codigoInterno}
                                     slotProps={{ htmlInput: { maxLength: 60 } }}
                                 />
                                 <TextField
@@ -198,7 +199,7 @@ function ProdutoForm({
                                     value={formulario.codigoBarras}
                                     onChange={(e) => alterarCampo("codigoBarras", e.target.value)}
                                     error={Boolean(erros.codigoBarras)}
-                                    helperText={erros.codigoBarras ?? "Opcional"}
+                                    helperText={erros.codigoBarras}
                                     slotProps={{ htmlInput: { maxLength: 60 } }}
                                 />
                             </Box>
@@ -224,7 +225,7 @@ function ProdutoForm({
                                 slotProps={{ htmlInput: { maxLength: 2000 } }}
                             />
 
-                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 2 }}>
+                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "120px 1fr 1fr" }, gap: 2 }}>
                                 <TextField
                                     required
                                     label="Unidade de medida"
@@ -253,30 +254,32 @@ function ProdutoForm({
                                 />
                             </Box>
 
-                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-                                <TextField
-                                    label="Estoque mínimo"
-                                    value={formulario.estoqueMinimo}
-                                    onChange={(e) => alterarCampo("estoqueMinimo", e.target.value)}
-                                    error={Boolean(erros.estoqueMinimo)}
-                                    helperText={erros.estoqueMinimo ?? (formulario.controlaEstoque ? "Até 3 casas decimais" : "Não utilizado sem controle de estoque")}
-                                    disabled={!formulario.controlaEstoque}
-                                />
-                                <Typography color="text.secondary" sx={{ alignSelf: "center", fontSize: "0.85rem" }}>
-                                    Saldo atual: {produto ? numeroParaCampo(produto.estoqueAtual, 3) : "0,000"}. Altere pela tela de Estoque.
+                            <Divider />
+                            <Stack spacing={1.5}>
+                                <Typography variant="subtitle2">Estoque</Typography>
+                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "180px 1fr" }, gap: 2, alignItems: "center" }}>
+                                    <FormControlLabel
+                                        control={<Switch checked={formulario.controlaEstoque} onChange={(e) => alterarCampo("controlaEstoque", e.target.checked)} />}
+                                        label="Controla estoque"
+                                    />
+                                    <TextField
+                                        label="Estoque mínimo"
+                                        value={formulario.estoqueMinimo}
+                                        onChange={(e) => alterarCampo("estoqueMinimo", e.target.value)}
+                                        error={Boolean(erros.estoqueMinimo)}
+                                        helperText={erros.estoqueMinimo ?? (formulario.controlaEstoque ? "Até 3 casas decimais" : "Não utilizado sem controle de estoque")}
+                                        disabled={!formulario.controlaEstoque}
+                                    />
+                                </Box>
+                                <Typography color="text.secondary" sx={{ fontSize: "0.85rem" }}>
+                                    Saldo atual: {produto ? numeroParaCampo(produto.estoqueAtual, 3) : "0,000"}. Alterações de saldo são feitas pela tela de Estoque.
                                 </Typography>
-                            </Box>
-
-                            <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 0, sm: 3 }}>
-                                <FormControlLabel
-                                    control={<Switch checked={formulario.controlaEstoque} onChange={(e) => alterarCampo("controlaEstoque", e.target.checked)} />}
-                                    label="Controla estoque"
-                                />
-                                <FormControlLabel
-                                    control={<Switch checked={formulario.ativo} onChange={(e) => alterarCampo("ativo", e.target.checked)} />}
-                                    label="Produto ativo"
-                                />
                             </Stack>
+
+                            <FormControlLabel
+                                control={<Switch checked={formulario.ativo} onChange={(e) => alterarCampo("ativo", e.target.checked)} />}
+                                label="Produto ativo"
+                            />
                         </Stack>
                     )}
                 </DialogContent>

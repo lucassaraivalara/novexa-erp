@@ -46,6 +46,7 @@ export const layoutTokens = {
         headerBg: "#F8FAFC",
         rowHeight: 48,
         cellPadding: "10px 16px",
+        cellPaddingCompact: "6px 12px",
         borderColor: "#E2E8F0",
     },
     form: {

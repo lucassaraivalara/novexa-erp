@@ -121,16 +121,20 @@ function Produtos() {
     }
 
     const renderCodigo = (_: unknown, linha: Produto): React.ReactNode => (
-        <Stack sx={{ gap: 0.25 }}>
-            <Typography sx={{ fontSize: "0.85rem", fontWeight: 650 }}>{linha.codigoInterno ?? "—"}</Typography>
-            {linha.codigoBarras && <Typography color="text.secondary" sx={{ fontSize: "0.72rem" }}>{linha.codigoBarras}</Typography>}
+        <Stack sx={{ gap: 0.125, minWidth: 0 }}>
+            <Typography sx={{ fontSize: "0.85rem", fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis" }}>
+                {linha.codigoInterno ?? "—"}
+            </Typography>
+            {linha.codigoBarras && <Typography color="text.secondary" sx={{ fontSize: "0.72rem", overflow: "hidden", textOverflow: "ellipsis" }}>
+                Barras: {linha.codigoBarras}
+            </Typography>}
         </Stack>
     );
 
     const renderNome = (_: unknown, linha: Produto): React.ReactNode => (
-        <Stack sx={{ gap: 0.25 }}>
+        <Stack sx={{ gap: 0.125, minWidth: 0 }}>
             <Typography sx={{ fontSize: "0.875rem", fontWeight: 650 }}>{linha.nome}</Typography>
-            {linha.descricao && <Typography color="text.secondary" noWrap sx={{ maxWidth: 280, fontSize: "0.75rem" }}>{linha.descricao}</Typography>}
+            {linha.descricao && <Typography color="text.secondary" noWrap sx={{ fontSize: "0.75rem" }}>{linha.descricao}</Typography>}
         </Stack>
     );
 
@@ -139,11 +143,11 @@ function Produtos() {
     const renderSituacao = (valor: unknown): React.ReactNode => <Chip size="small" label={valor ? "Ativo" : "Inativo"} color={valor ? "success" : "default"} variant={valor ? "filled" : "outlined"} />;
 
     const colunas: Coluna<Produto>[] = [
-        { campo: "codigoInterno", cabecalho: "Código", largura: 140, render: renderCodigo },
-        { campo: "nome", cabecalho: "Produto", largura: 320, render: renderNome },
-        { campo: "unidadeMedida", cabecalho: "Unidade", largura: 100 },
-        { campo: "precoVenda", cabecalho: "Preço de venda", largura: 160, alinhar: "right", render: renderPreco },
-        { campo: "estoqueAtual", cabecalho: "Estoque", largura: 140, alinhar: "right", render: renderEstoque },
+        { campo: "codigoInterno", cabecalho: "Código interno", largura: 150, render: renderCodigo },
+        { campo: "nome", cabecalho: "Produto", largura: 360, render: renderNome },
+        { campo: "unidadeMedida", cabecalho: "Unidade", largura: 85 },
+        { campo: "precoVenda", cabecalho: "Preço de venda", largura: 135, alinhar: "right", render: renderPreco },
+        { campo: "estoqueAtual", cabecalho: "Estoque", largura: 110, alinhar: "right", render: renderEstoque },
         { campo: "ativo", cabecalho: "Situação", largura: 100, render: renderSituacao },
     ];
 
@@ -193,9 +197,11 @@ function Produtos() {
                 vazio={{
                     titulo: buscaRemota.term.trim() ? "Nenhum produto encontrado" : "Nenhum produto cadastrado",
                     descricao: buscaRemota.term.trim() ? "Tente pesquisar usando outro termo." : "Use “Novo produto” para iniciar seu catálogo.",
+                    acao: !buscaRemota.term.trim() ? <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={abrirCadastro}>Novo produto</Button> : undefined,
                 }}
                 acoes={acoes}
-                minWidth={900}
+                compacta
+                minWidth={940}
             />
 
             <ProdutoForm

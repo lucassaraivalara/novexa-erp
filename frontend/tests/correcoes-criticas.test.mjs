@@ -205,3 +205,25 @@ test("formulários seguem o padrão de submit, feedback e autofocus", async () =
     assert.match(cliente, /required autoFocus label="Nome \/ Razão social"/);
     assert.match(empresa, /autoFocus=\{item\.nome === gruposEmpresa\[0\]\?\.campos\[0\]\?\.nome\}/);
 });
+
+test("listagem e formulário de Produtos preservam campos reais e organização visual", async () => {
+    const listagem = await readFile(new URL("../src/pages/Produtos/Produtos.tsx", import.meta.url), "utf8");
+    const formulario = await readFile(new URL("../src/pages/Produtos/ProdutoForm.tsx", import.meta.url), "utf8");
+    const tabela = await readFile(new URL("../src/components/ui/AppTable.tsx", import.meta.url), "utf8");
+    const tipo = await readFile(new URL("../src/types/produto.ts", import.meta.url), "utf8");
+
+    assert.match(tipo, /codigoInterno: string \| null/);
+    assert.match(tipo, /codigoBarras: string \| null/);
+    assert.match(listagem, /cabecalho: "Código interno"/);
+    assert.match(listagem, /cabecalho: "Produto"/);
+    assert.match(listagem, /alinhar: "right", render: renderPreco/);
+    assert.match(listagem, /cabecalho: "Estoque".*alinhar: "right"/s);
+    assert.match(listagem, /compacta/);
+    assert.match(listagem, /titulo: buscaRemota\.term\.trim\(\) \? "Nenhum produto encontrado" : "Nenhum produto cadastrado"/);
+    assert.match(listagem, /Novo produto/);
+    assert.match(formulario, /<Typography variant="subtitle2">Estoque<\/Typography>/);
+    assert.match(formulario, /label="Controla estoque"/);
+    assert.match(formulario, /label="Estoque mínimo"/);
+    assert.match(formulario, /Saldo atual:/);
+    assert.match(tabela, /cellPaddingCompact/);
+});

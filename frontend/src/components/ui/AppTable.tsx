@@ -79,6 +79,7 @@ interface AppTableProps<T> {
     obterChaveLinha: (linha: T) => string | number;
     sx?: SxProps;
     minWidth?: number | string;
+    compacta?: boolean;
 }
 
 export default function AppTable<T extends Record<string, unknown>>({
@@ -96,6 +97,7 @@ export default function AppTable<T extends Record<string, unknown>>({
     obterChaveLinha,
     sx,
     minWidth = 1000,
+    compacta = false,
 }: AppTableProps<T>) {
     const [ordemLocal, setOrdemLocal] = useState<{ campo: string; direcao: "asc" | "desc" } | null>(null);
 
@@ -287,6 +289,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                 align={coluna.alinhar ?? "left"}
                                                 sx={{
                                                     padding: layoutTokens.table.cellPadding,
+                                                    ...(compacta ? { padding: layoutTokens.table.cellPaddingCompact } : {}),
                                                     fontSize: layoutTokens.typography.body,
                                                     lineHeight: 1.4,
                                                     borderBottom: `1px solid ${layoutTokens.table.borderColor}`,
