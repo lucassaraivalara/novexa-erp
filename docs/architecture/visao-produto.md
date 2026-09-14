@@ -100,4 +100,5 @@ O desenvolvimento seguirá alguns princípios:
 - Arquitetura modular;
 - Boas práticas de desenvolvimento;
 - Segurança;
-- Facilidade de manutenção.
+- Facilidade de manutenção;
+- Complexidade de gestão nos bastidores, com simplicidade e velocidade na operação.

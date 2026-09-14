@@ -72,13 +72,21 @@ O sistema deverá permitir:
 
 ## 2.6 Módulo Financeiro
 
-O sistema deverá permitir:
+As capacidades abaixo são planejadas, não uma declaração de implementação. Reutilizar a fundação de Pagamento e o Caixa cadastral existentes; o estado real e o baseline estão em [CURRENT_STATE.md](CURRENT_STATE.md).
 
-* Cadastro de contas a pagar;
-* Cadastro de contas a receber;
-* Controle de pagamentos;
-* Controle de recebimentos;
-* Relatórios financeiros.
+| Estágio | Capacidade requerida |
+|---|---|
+| PRÓXIMO | Configurar formas de pagamento por empresa, associadas a um tipo comportamental, preservando os códigos/contratos existentes durante a evolução |
+| PRÓXIMO | Cadastrar condições de pagamento para prazo e parcelamento, sem confundi-las com forma de pagamento |
+| PRÓXIMO | Cadastrar Banco, Agência e Conta Bancária com seus relacionamentos e escopo autorizado |
+| FUTURO | Produzir os efeitos de Pagamento nos destinos oficiais, com Movimentações de Caixa/Bancárias e confirmação/baixa quando aplicável |
+| FUTURO | Gerir Recebíveis, Contas a Receber e Contas a Pagar, incluindo liquidação, pagamentos e recebimentos |
+| FUTURO | Operar pagamento misto sobre a relação Venda 1:N Pagamento, com validação explícita da composição e dos valores |
+| FUTURO | Evoluir cobrança, conciliação e relatórios financeiros avançados após as fundações e integrações |
+
+Caixa deve tratar exclusivamente dinheiro físico. Selecionar uma forma, cadastrar uma condição ou registrar um Pagamento não comprova recebimento nem gera, por si só, movimentação financeira. Preservar histórico, idempotência e empresa obtida da autenticação.
+
+Conceitos, exemplos e limites de escopo estão em [financeiro.md](financeiro.md); a sequência de entrega, em [roadmap.md](roadmap.md). Os recursos avançados ali classificados como FUTURO não são requisitos de entrega da próxima fundação.
 
 ---
 

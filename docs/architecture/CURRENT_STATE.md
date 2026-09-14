@@ -3,6 +3,7 @@ Produto ........ funcional
 Cliente ........ funcional
 Estoque ........ backend funcional
 Venda .......... ABERTA → FATURADA consolidado
+Pagamento ...... fundação backend (base aeaec2e)
 Caixa .......... cadastro apenas
 Dados Bancários  não iniciado
 Financeiro ..... fundação parcial
@@ -45,10 +46,11 @@ Regras de negócio permanecem em [estoque.md](estoque.md), sem alteração arqui
 
 ## Pagamento: fundação backend (2026-09-14)
 
-- Implementação na branch `feat/pagamento-backend`, base `d4fff37`; integração na main ainda depende da etapa de integração.
+- Fundação entregue no commit `aeaec2e`, na branch `feat/pagamento-backend`, a partir de `d4fff37`; integração na main ainda depende da etapa de integração.
 - `PagamentoEntity`, repository e service registram um pagamento no faturamento, com empresa/venda/operador, forma, valor, status REGISTRADO, data/hora, chave de requisição e sequência. Venda ABERTA não gera pagamento. O modelo permite 1:N; pagamento misto ainda não foi implementado.
 - Mantidos os contratos atuais do PDV e os campos de fechamento em Venda. A nova consulta autenticada `GET /vendas/{vendaId}/pagamentos` usa empresa do JWT e retorna 404 para venda de outro tenant. Não há endpoints de criação, alteração ou exclusão de Pagamento.
 - REGISTRADO não significa liquidação ou confirmação externa. Valor recebido/troco são registrados no Pagamento apenas em dinheiro. O lançamento financeiro temporário continua funcionando com suas situações anteriores, independentemente desse novo status.
+- `FormaPagamento` é atualmente um enum fixo (DINHEIRO, PIX, CARTAO_DEBITO, CARTAO_CREDITO). Não existem no backend cadastros próprios de TipoFormaPagamento, Forma de Pagamento configurável, Condição de Pagamento, Banco, Agência ou Conta Bancária nesta base.
 - Idempotência e locks do faturamento preservados; unicidade de venda/sequência evita duplicação do pagamento atual. Falha no pagamento ou no financeiro reverte pagamento, saldo, histórico e status da Venda.
 - V7 cria `pagamentos` e preenche vendas FATURADA existentes, sem repetir efeitos. FKs compostas protegem os vínculos de tenant. O operador e o horário legados usam os dados históricos disponíveis, com limitações descritas em [financeiro.md](financeiro.md).
 - Validação direcionada: 129 testes aprovados, zero falhas, erros ou ignorados; inclui 20 casos de migration e cinco novos cenários HTTP, além das verificações de Pagamento nos testes existentes de Venda.

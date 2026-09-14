@@ -6,6 +6,8 @@ Este documento apresenta o planejamento de evolução do Novexa ERP.
 
 O roadmap organiza as principais fases de desenvolvimento do produto, permitindo uma construção estruturada e incremental.
 
+A numeração geral agrupa o escopo do produto; não exige concluir todos os recursos listados antes de iniciar a próxima fundação financeira. O estado implementado é registrado em [CURRENT_STATE.md](CURRENT_STATE.md). A sequência financeira atualizada está na Fase 7, com distinção entre IMPLEMENTADO, PRÓXIMO e FUTURO.
+
 ---
 
 # Fase 1 - Fundação do Projeto
@@ -16,7 +18,7 @@ Criar a base técnica e organizacional do sistema.
 
 Status:
 
-Em andamento.
+Consultar [CURRENT_STATE.md](CURRENT_STATE.md) para o estado implementado e as limitações verificadas.
 
 Entregas:
 
@@ -109,14 +111,46 @@ Entregas:
 
 Objetivo:
 
-Controlar a gestão financeira da empresa.
+Evoluir a gestão financeira incrementalmente, preservando a velocidade operacional e as separações definidas em [financeiro.md](financeiro.md).
 
-Entregas:
+## 7.1 Fase atual — IMPLEMENTADO
 
-* Contas a pagar;
-* Contas a receber;
-* Fluxo de caixa;
-* Relatórios financeiros.
+Base de referência: commit `aeaec2e`, com Pagamento concluído em branch própria e integração na main ainda pendente de coordenação.
+
+* Venda consolidada: ABERTA → FATURADA, com itens históricos e proteção contra duplicidade;
+* Estoque consolidado: saldo/histórico, movimentações e integração com faturamento;
+* Caixa cadastral, exclusivamente dinheiro físico;
+* Fundação de Pagamento: registro no faturamento e consulta, com modelo 1:N e contrato atual de um pagamento por venda.
+
+O lançamento financeiro temporário continua por compatibilidade. Não representa a implantação dos destinos financeiros oficiais. Limitações e validações existentes permanecem em CURRENT_STATE.md.
+
+## 7.2 Próxima fundação — PRÓXIMO
+
+1. Tipo/Forma de Pagamento: distinguir comportamento de cadastro configurável da empresa, preservando os contratos e o histórico atuais.
+2. Condição de Pagamento: cadastro de prazos/parcelamento, separado da forma e sem regras de crédito ou cobrança avançada.
+3. Banco: cadastro da instituição.
+4. Agência: cadastro vinculado ao Banco.
+5. Conta Bancária: cadastro apoiado em Banco/Agência e no escopo autorizado da empresa.
+
+Reutilizar o cadastro de Caixa existente. Entregar cada fundação em tarefa pequena; cadastrar não deve gerar movimentações. Contratos backend devem estar CONTRACT READY antes do frontend dependente. A integração dos commits concluídos no baseline precede o início das tarefas dependentes.
+
+## 7.3 Depois — FUTURO
+
+* Integração DINHEIRO → Caixa físico, com Movimentação de Caixa;
+* Integração PIX/TRANSFERÊNCIA → Conta Bancária, com Movimentação Bancária;
+* Recebíveis de DÉBITO/CRÉDITO e posterior liquidação bancária;
+* Contas a Receber, incluindo o fluxo de BOLETO e sua baixa;
+* Contas a Pagar e seus efeitos financeiros.
+
+As integrações dependem das configurações cadastrais e dos domínios correspondentes. Substituir os efeitos temporários gradualmente, preservando rastreabilidade, atomicidade e idempotência, sem duplicar lançamentos.
+
+## 7.4 Mais tarde — FUTURO
+
+* Cobrança, carteira, boleto avançado e CNAB;
+* Conciliação bancária;
+* Fluxo financeiro gerencial e relatórios financeiros avançados.
+
+Política de crédito, bloqueios automáticos, cobrança avançada, portal B2B e força de vendas permanecem fora da próxima fundação, conforme os limites de financeiro.md. Não implementar infraestrutura futura apenas para antecipar esses recursos.
 
 ---
 
