@@ -272,6 +272,12 @@ O operador escolhe a forma de pagamento. O backend determina o fluxo conforme co
 
 Estas regras representam a arquitetura alvo; verificar o que já existe antes de implementar.
 
+## Trabalho com múltiplos agentes
+
+Antes de executar tarefas de desenvolvimento, consulte [agent-workflow.md](docs/architecture/agent-workflow.md), fonte oficial de coordenação dos agentes do Novexa ERP.
+
+O documento define papéis, ownership, Git/worktrees, CONTRACT READY, migrations, commits, validações, continuidade e integração.
+
 ## Execução econômica e coordenação entre agentes
 
 - Começar pelos arquivos diretamente relacionados à tarefa.
