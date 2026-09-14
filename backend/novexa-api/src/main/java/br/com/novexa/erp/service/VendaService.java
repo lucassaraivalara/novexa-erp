@@ -28,15 +28,17 @@ public class VendaService {
     private final ItemVendaRepository itensVenda;
     private final ProdutoRepository produtos;
     private final MovimentacaoEstoqueService estoque;
+    private final PagamentoService pagamentos;
     @PersistenceContext private EntityManager entityManager;
     private final LancamentoFinanceiroRepository financeiro;
 
     public VendaService(VendaRepository vendas, ClienteRepository clientes,
                         ItemVendaRepository itensVenda, ProdutoRepository produtos,
                         MovimentacaoEstoqueService estoque,
-                        LancamentoFinanceiroRepository financeiro) {
+                        LancamentoFinanceiroRepository financeiro, PagamentoService pagamentos) {
         this.vendas = vendas; this.clientes = clientes; this.itensVenda = itensVenda;
         this.produtos = produtos; this.estoque = estoque; this.financeiro = financeiro;
+        this.pagamentos = pagamentos;
     }
 
     public VendaResponseDTO criarVendaAberta(UsuarioAutenticado autenticado) {
@@ -186,7 +188,7 @@ public class VendaService {
             venda.getItens().add(novo);
         }
         return faturar(venda, new FaturamentoVendaDTO(pedido.chaveRequisicao(), pedido.totalEsperado(),
-                pedido.formaPagamento(), pedido.valorRecebido()), autenticado, resumo, produtosMap);
+                pedido.formaPagamento(), pedido.valorRecebido()), autenticado, operador, resumo, produtosMap);
     }
 
     public VendaResponseDTO faturar(Long vendaId, FaturamentoVendaDTO pedido, UsuarioAutenticado autenticado) {
@@ -211,7 +213,7 @@ public class VendaService {
         }
         List<Long> ids = venda.getItens().stream().map(i -> i.getProduto().getId()).distinct().toList();
         if (ids.isEmpty()) throw conflito("A venda deve possuir itens para faturamento.");
-        return faturar(venda, pedido, autenticado, resumo, bloquearProdutos(autenticado.empresaId(), ids));
+        return faturar(venda, pedido, autenticado, operador, resumo, bloquearProdutos(autenticado.empresaId(), ids));
     }
 
     private Map<Long, ProdutoEntity> bloquearProdutos(Long empresaId, List<Long> ids) {
@@ -224,7 +226,7 @@ public class VendaService {
     }
 
     private VendaResponseDTO faturar(VendaEntity venda, FaturamentoVendaDTO pedido,
-                                     UsuarioAutenticado autenticado, String resumo,
+                                     UsuarioAutenticado autenticado, UsuarioEntity operador, String resumo,
                                      Map<Long, ProdutoEntity> produtosMap) {
         if (venda.getStatus() != StatusVenda.ABERTA) throw conflito("Apenas vendas ABERTA podem ser faturadas.");
         if (venda.getItens().isEmpty()) throw conflito("A venda deve possuir itens para faturamento.");
@@ -264,6 +266,7 @@ public class VendaService {
             }
         }
         venda.registrarFaturamento(pedido.chaveRequisicao(), resumo, pedido.formaPagamento(), recebido);
+        pagamentos.registrarFaturamento(venda, operador);
         financeiro.save(new LancamentoFinanceiroEntity(venda));
         return VendaResponseDTO.de(venda);
     }

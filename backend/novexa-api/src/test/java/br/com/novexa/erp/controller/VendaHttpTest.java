@@ -44,6 +44,7 @@ class VendaHttpTest {
     @Autowired VendaRepository vendas;
     @Autowired MovimentacaoEstoqueRepository movimentos;
     @MockitoSpyBean LancamentoFinanceiroRepository financeiro;
+    @MockitoSpyBean PagamentoRepository pagamentos;
     @Autowired JwtService jwt;
     EmpresaEntity empresa, outra;
     UsuarioEntity operador, segundo;
@@ -62,7 +63,8 @@ class VendaHttpTest {
 
     @AfterEach
     void limpar() {
-        reset(financeiro);
+        reset(financeiro, pagamentos);
+        jdbc.update("delete from pagamentos");
         jdbc.update("delete from lancamentos_financeiros");
         jdbc.update("delete from itens_venda");
         jdbc.update("delete from vendas");
@@ -99,8 +101,21 @@ class VendaHttpTest {
         assertThat(movimento.getSaldoPosterior()).isEqualByComparingTo("8");
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
         assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(pagamentos.count()).isEqualTo(1);
         assertThat(financeiro.findAll().getFirst().getValor()).isEqualByComparingTo("19");
         assertThat(financeiro.findAll().getFirst().getSituacao()).isEqualTo(LancamentoFinanceiroEntity.Situacao.RECEBIDO);
+        var pagamento = pagamentos.findAll().getFirst();
+        assertThat(pagamento.getVenda().getId()).isEqualTo(id);
+        assertThat(pagamento.getEmpresa().getId()).isEqualTo(empresa.getId());
+        assertThat(pagamento.getUsuario().getId()).isEqualTo(operador.getId());
+        assertThat(pagamento.getChaveRequisicao()).isEqualTo(pedido.get("chaveRequisicao"));
+        assertThat(pagamento.getSequencia()).isEqualTo(1);
+        assertThat(pagamento.getFormaPagamento()).isEqualTo(FormaPagamento.DINHEIRO);
+        assertThat(pagamento.getValor()).isEqualByComparingTo("19");
+        assertThat(pagamento.getValorRecebido()).isEqualByComparingTo("25");
+        assertThat(pagamento.getTroco()).isEqualByComparingTo("6");
+        assertThat(pagamento.getStatus()).isEqualTo(StatusPagamento.REGISTRADO);
+        assertThat(pagamento.getDataHora()).isNotNull();
         mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.itens[0].movimentacaoEstoqueId").value(movimento.getId()));
     }
@@ -112,6 +127,13 @@ class VendaHttpTest {
         enviar(pedido);
         assertThat(financeiro.findAll().getFirst().getSituacao()).isEqualTo(
                 forma.equals("PIX") ? LancamentoFinanceiroEntity.Situacao.RECEBIDO : LancamentoFinanceiroEntity.Situacao.A_RECEBER);
+        assertThat(pagamentos.findAll()).singleElement().satisfies(pagamento -> {
+            assertThat(pagamento.getFormaPagamento()).isEqualTo(FormaPagamento.valueOf(forma));
+            assertThat(pagamento.getValor()).isEqualByComparingTo("20");
+            assertThat(pagamento.getStatus()).isEqualTo(StatusPagamento.REGISTRADO);
+            assertThat(pagamento.getValorRecebido()).isNull();
+            assertThat(pagamento.getTroco()).isNull();
+        });
     }
 
     @ParameterizedTest
@@ -137,6 +159,7 @@ class VendaHttpTest {
                 .content(json.writeValueAsBytes(pedido))).andExpect(status().isConflict());
         assertThat(vendas.count()).isZero();
         assertThat(financeiro.count()).isZero();
+        assertThat(pagamentos.count()).isZero();
         assertThat(movimentos.count()).isZero();
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual())
                 .isEqualByComparingTo(caso.equals("estoque") ? "1" : "10");
@@ -144,10 +167,14 @@ class VendaHttpTest {
 
     @Test
     void falhaFinanceiraReverteVendaMovimentoESaldo() {
-        doThrow(new IllegalStateException("falha simulada")).when(financeiro).save(any());
+        doAnswer(invocation -> {
+            assertThat(pagamentos.count()).isEqualTo(1);
+            throw new IllegalStateException("falha simulada");
+        }).when(financeiro).save(any());
         assertThatThrownBy(() -> enviar(pedido())).hasRootCauseMessage("falha simulada");
         assertThat(vendas.count()).isZero();
         assertThat(financeiro.count()).isZero();
+        assertThat(pagamentos.count()).isZero();
         assertThat(movimentos.count()).isZero();
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
     }
@@ -204,6 +231,7 @@ class VendaHttpTest {
         assertThat(vendas.count()).isEqualTo(1);
         assertThat(movimentos.count()).isEqualTo(1);
         assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(pagamentos.count()).isEqualTo(1);
     }
 
     @Test
@@ -248,6 +276,7 @@ class VendaHttpTest {
                 .andExpect(jsonPath("$.total").value(0)).andExpect(jsonPath("$.status").value("ABERTA"));
         assertThat(movimentos.count()).isZero();
         assertThat(financeiro.count()).isZero();
+        assertThat(pagamentos.count()).isZero();
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
     }
 
@@ -276,6 +305,7 @@ class VendaHttpTest {
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pagamento)))
                 .andExpect(status().isConflict());
         assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(pagamentos.count()).isEqualTo(1);
         assertThat(movimentos.count()).isEqualTo(1);
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
     }
@@ -297,6 +327,7 @@ class VendaHttpTest {
                 .andExpect(jsonPath("$.desconto").value(0)).andExpect(jsonPath("$.clienteId").isEmpty());
         assertThat(movimentos.count()).isEqualTo(1);
         assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(pagamentos.count()).isEqualTo(1);
     }
 
     @ParameterizedTest
@@ -311,6 +342,7 @@ class VendaHttpTest {
         assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.ABERTA);
         assertThat(movimentos.count()).isZero();
         assertThat(financeiro.count()).isZero();
+        assertThat(pagamentos.count()).isZero();
     }
 
     @ParameterizedTest
@@ -333,13 +365,17 @@ class VendaHttpTest {
                 .content(json.writeValueAsBytes(dados))).andExpect(status().isNotFound());
         assertThat(movimentos.count()).isZero();
         assertThat(financeiro.count()).isZero();
+        assertThat(pagamentos.count()).isZero();
     }
 
     @Test
     void falhaFinanceiraNoFaturamentoReverteEPermiteNovaTentativa() throws Exception {
         long id = abrir();
         adicionar(id, produto.getId(), 2);
-        doThrow(new IllegalStateException("falha simulada")).when(financeiro).save(any());
+        doAnswer(invocation -> {
+            assertThat(pagamentos.count()).isEqualTo(1);
+            throw new IllegalStateException("falha simulada");
+        }).when(financeiro).save(any());
         var pagamento = pagamento();
         assertThatThrownBy(() -> mvc.perform(post("/vendas/" + id + "/faturar")
                 .header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
@@ -347,6 +383,7 @@ class VendaHttpTest {
         assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.ABERTA);
         assertThat(movimentos.count()).isZero();
         assertThat(financeiro.count()).isZero();
+        assertThat(pagamentos.count()).isZero();
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
         assertThat(jdbc.queryForObject("select count(*) from itens_venda where movimentacao_estoque_id is not null", Long.class)).isZero();
         reset(financeiro);
@@ -355,6 +392,7 @@ class VendaHttpTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("FATURADA"));
         assertThat(movimentos.count()).isEqualTo(1);
         assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(pagamentos.count()).isEqualTo(1);
     }
 
     @Test
@@ -391,6 +429,7 @@ class VendaHttpTest {
         assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
         assertThat(movimentos.count()).isEqualTo(1);
         assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(pagamentos.count()).isEqualTo(1);
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
     }
 
@@ -415,6 +454,91 @@ class VendaHttpTest {
         mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.itens[0].quantidade").value(2))
                 .andExpect(jsonPath("$.total").value(5));
+    }
+
+    @Test
+    void consultaPagamentosRespeitaTenantEAutenticacao() throws Exception {
+        long id = enviar(pedido());
+        mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].vendaId").value(id))
+                .andExpect(jsonPath("$[0].empresaId").value(empresa.getId()))
+                .andExpect(jsonPath("$[0].usuarioId").value(operador.getId()))
+                .andExpect(jsonPath("$[0].sequencia").value(1))
+                .andExpect(jsonPath("$[0].formaPagamento").value("DINHEIRO"))
+                .andExpect(jsonPath("$[0].valor").value(20))
+                .andExpect(jsonPath("$[0].status").value("REGISTRADO"))
+                .andExpect(jsonPath("$[0].dataHora").isNotEmpty());
+        mvc.perform(get("/vendas/" + id + "/pagamentos")).andExpect(status().isUnauthorized());
+        var operadorB = usuario(outra, "52998224725");
+        mvc.perform(get("/vendas/" + id + "/pagamentos").param("empresaId", empresa.getId().toString())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt.gerarToken(operadorB)))
+                .andExpect(status().isNotFound());
+        assertThat(pagamentos.findByEmpresaIdAndVendaIdOrderBySequenciaAsc(outra.getId(), id)).isEmpty();
+        assertThat(pagamentos.count()).isEqualTo(1);
+    }
+
+    @Test
+    void vendaAbertaRetornaListaVaziaDePagamentos() throws Exception {
+        long id = abrir();
+        adicionar(id, produto.getId(), 2);
+        mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+        assertThat(pagamentos.count()).isZero();
+    }
+
+    @Test
+    void pagamentoIdentificaOperadorQueFaturouMesmoQuandoOutroAbriuVenda() throws Exception {
+        long id = abrir();
+        adicionar(id, produto.getId(), 2);
+        mvc.perform(post("/vendas/" + id + "/faturar")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt.gerarToken(segundo))
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pagamento())))
+                .andExpect(status().isOk());
+        assertThat(pagamentos.findAll()).singleElement().satisfies(pagamento -> {
+            assertThat(pagamento.getVenda().getId()).isEqualTo(id);
+            assertThat(pagamento.getUsuario().getId()).isEqualTo(segundo.getId());
+            assertThat(pagamento.getEmpresa().getId()).isEqualTo(empresa.getId());
+        });
+        assertThat(vendas.findById(id).orElseThrow().getUsuario().getId()).isEqualTo(operador.getId());
+    }
+
+    @Test
+    void falhaAoGravarPagamentoReverteEstoqueEVenda() throws Exception {
+        long id = abrir();
+        adicionar(id, produto.getId(), 2);
+        doAnswer(invocation -> {
+            pagamentos.saveAndFlush(invocation.getArgument(0));
+            assertThat(pagamentos.count()).isEqualTo(1);
+            throw new IllegalStateException("falha ao gravar pagamento");
+        }).when(pagamentos).save(any(PagamentoEntity.class));
+        assertThatThrownBy(() -> mvc.perform(post("/vendas/" + id + "/faturar")
+                .header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(pagamento())))).hasRootCauseMessage("falha ao gravar pagamento");
+        assertThat(pagamentos.count()).isZero();
+        assertThat(financeiro.count()).isZero();
+        assertThat(movimentos.count()).isZero();
+        assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.ABERTA);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    void falhaNoSegundoProdutoRevertePrimeiraBaixaSemCriarPagamento() throws Exception {
+        long id = abrir();
+        adicionar(id, produto.getId(), 2);
+        var insuficiente = produto(empresa, "Saldo insuficiente", "10", "1");
+        adicionar(id, insuficiente.getId(), 2);
+        var fechamento = pagamento();
+        fechamento.put("totalEsperado", 40);
+        fechamento.put("valorRecebido", 40);
+        mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(fechamento)))
+                .andExpect(status().isConflict());
+        assertThat(pagamentos.count()).isZero();
+        assertThat(financeiro.count()).isZero();
+        assertThat(movimentos.count()).isZero();
+        assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.ABERTA);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
     }
 
     private long abrir() throws Exception {

@@ -70,7 +70,11 @@ class VendaMigrationTest {
         assertThat(numero("SELECT subtotal FROM itens_venda WHERE venda_id=2")).isEqualTo(14);
         assertThat(numero("SELECT estoque_atual FROM produtos WHERE id=1")).isEqualTo(9);
         assertThat(numero("SELECT count(*) FROM lancamentos_financeiros")).isEqualTo(1);
-        if (url.startsWith("jdbc:postgresql:")) validarHibernatePostgres();
+        if (url.startsWith("jdbc:postgresql:")) {
+            migrar("V7__cria_pagamentos.sql");
+            connection.commit();
+            validarHibernatePostgres();
+        }
     }
 
     @Test
