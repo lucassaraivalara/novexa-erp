@@ -164,7 +164,17 @@ test("formas de pagamento possuem rota, menu, service e listagem somente leitura
     assert.match(pagina, /cabecalho: "Descrição"/);
     assert.match(pagina, /cabecalho: "Tipo"/);
     assert.match(pagina, /label=\{valor \? "Ativa" : "Inativa"\}/);
-    assert.doesNotMatch(pagina, /onClick=.*editar|inativar|excluir/i);
+    assert.match(pagina, /Nova Forma de Pagamento/);
+    assert.match(pagina, /FormaPagamentoForm/);
+});
+
+test("cadastro de formas de pagamento usa POST/PUT e preserva o tipo na edição", async () => {
+    const service = await readFile(new URL("../src/services/formaPagamentoService.ts", import.meta.url), "utf8");
+    const formulario = await readFile(new URL("../src/pages/Financeiro/FormaPagamentoForm.tsx", import.meta.url), "utf8");
+    assert.match(service, /method: id \? "PUT" : "POST"/);
+    assert.match(service, /\/financeiro\/formas-pagamento\/\$\{id\}/);
+    assert.match(formulario, /disabled=\{!!forma\}/);
+    assert.match(formulario, /tipoSalvar="submit"/);
 });
 
 test("ações de tabela usam ícones com tooltip e acessibilidade", async () => {
