@@ -268,6 +268,7 @@ class PagamentoMigrationTest {
     }
 
     private void validarHibernatePostgres() {
+        flywayAte("9").migrate();
         var factory = new LocalContainerEntityManagerFactoryBean();
         factory.setDataSource(new DriverManagerDataSource(url, usuario, ""));
         factory.setPackagesToScan("br.com.novexa.erp.entity");

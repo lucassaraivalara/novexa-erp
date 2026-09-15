@@ -10,6 +10,10 @@ import java.util.Optional;
 
 public interface CaixaRepository extends JpaRepository<CaixaEntity, Long> {
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from CaixaEntity c where c.id = :id and c.empresa.id = :empresaId")
+    Optional<CaixaEntity> buscarComLock(@Param("id") Long id, @Param("empresaId") Long empresaId);
+
     List<CaixaEntity> findAllByEmpresaIdOrderByDescricaoAsc(Long empresaId);
 
     Optional<CaixaEntity> findByIdAndEmpresaId(Long id, Long empresaId);

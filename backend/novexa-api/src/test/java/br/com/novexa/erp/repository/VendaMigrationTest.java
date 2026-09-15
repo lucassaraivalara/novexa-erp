@@ -73,6 +73,7 @@ class VendaMigrationTest {
         if (url.startsWith("jdbc:postgresql:")) {
             migrar("V7__cria_pagamentos.sql");
             migrar("V8__cria_formas_pagamento.sql");
+            migrar("V9__cria_sessoes_caixa.sql");
             connection.commit();
             validarHibernatePostgres();
         }

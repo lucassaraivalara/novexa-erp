@@ -84,9 +84,20 @@ A forma é validada sob lock compartilhado até o commit do faturamento. Atualiz
 
 `LancamentoFinanceiroEntity` continua temporariamente 1:1 com Venda. Sua convenção atual (DINHEIRO/PIX = RECEBIDO; cartões = A_RECEBER) é preservada, mas não determina o status de Pagamento nem comprova liquidação. Substituir essa fundação pelos destinos oficiais exige tarefa própria.
 
-Caixa continua sendo cadastro de dinheiro físico, sem vínculo direto com Pagamento nesta etapa. Banco, Agência, Conta Bancária, Movimentação de Caixa/Bancária, Recebíveis e Contas a Receber/Pagar não são dependências da nova entidade.
+Caixa possui cadastro e sessões operacionais de abertura/fechamento, sem vínculo direto com Pagamento nesta etapa. Banco, Agência, Conta Bancária, Movimentação de Caixa/Bancária, Recebíveis e Contas a Receber/Pagar não são dependências da nova entidade.
 
-### Persistência e histórico
+## Sessões operacionais de Caixa — IMPLEMENTADO no backend
+
+- Reutiliza CaixaEntity: um Caixa possui várias SessaoCaixaEntity históricas, no máximo uma ABERTO. FECHADO é definitivo; reabrir cria outra sessão.
+- Abertura informa saldoInicial; fechamento informa saldoFinal. Ambos são valores declarados de dinheiro físico, não negativos e com até duas casas decimais. Não há saldo calculado, conciliação ou movimentação de venda nesta etapa.
+- Empresa e operadores vêm da autenticação, horários do backend. São registrados usuários e datas da abertura e do fechamento; qualquer operador ativo da mesma empresa pode fechar, sem permissões por perfil nesta etapa.
+- Caixa inativo não abre nova sessão. A consulta e o fechamento de sessão existente continuam permitidos mesmo após inativação cadastral.
+- POST `/financeiro/caixas/{caixaId}/sessoes` abre (201, corpo `{saldoInicial}`); GET `/financeiro/caixas/{caixaId}/sessoes/aberta` consulta; POST `/financeiro/caixas/{caixaId}/sessoes/{sessaoId}/fechar` fecha (200, corpo `{saldoFinal}`). Respostas incluem ID da sessão, Caixa, status, saldos, operadores e horários.
+- Sem sessão aberta ou recurso de outra empresa: 404. Segunda abertura ou fechamento de sessão já fechada: 409. O ID da sessão evita que um fechamento antigo atinja uma nova abertura; não há replay idempotente de abertura nesta etapa.
+- Transação e PESSIMISTIC_WRITE no Caixa serializam abertura/fechamento por Caixa. V9 adiciona índice único parcial para sessões abertas e chaves compostas de Caixa/operadores/empresa. Não modifica migrations anteriores nem cria sessões fictícias para cadastros existentes.
+- Frontend operacional, movimentações, sangria, suprimento, saldo esperado, integração com Venda/Pagamento e relatórios permanecem futuros.
+
+## Persistência e histórico de Pagamento
 
 A V7 cria `pagamentos`, protege os vínculos de empresa/venda/operador por chaves estrangeiras e migra as vendas FATURADA existentes sem repetir estoque ou financeiro. Dados necessários ausentes ou incompatíveis com as constraints interrompem a migration, em vez de gerar informação inventada.
 

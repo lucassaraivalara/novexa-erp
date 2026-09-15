@@ -4,15 +4,32 @@ Cliente ........ funcional
 Estoque ........ backend funcional
 Venda .......... ABERTA → FATURADA consolidado
 Pagamento ...... fundação backend (base aeaec2e)
-Formas de Pagamento .... catálogo global backend (branch feat/formas-pagamento)
-Caixa .......... cadastro backend e frontend funcional
+Formas de Pagamento .... catálogo global backend (baseline integracao/formas-pagamento-ux)
+Caixa .......... cadastro backend/frontend; abertura e fechamento no backend
 Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; cadastros frontend estruturados
 Dashboard ...... placeholder
 
+## Caixa: abertura e fechamento (2026-09-14)
+
+- Branch `feat/caixa-abertura-fechamento`, base integrada `df45215`; ainda não integrada à main. Reutiliza CaixaEntity e adiciona SessaoCaixaEntity, preservando múltiplas sessões históricas com status ABERTO/FECHADO.
+- Abertura registra saldoInicial, operador e data/hora; fechamento registra saldoFinal declarado, operador e data/hora. Empresa e usuário vêm da autenticação. Valores não negativos com até duas casas decimais; sem saldo calculado ou efeito automático de Venda/Pagamento.
+- API autenticada: POST `/financeiro/caixas/{caixaId}/sessoes`, GET `/financeiro/caixas/{caixaId}/sessoes/aberta` e POST `/financeiro/caixas/{caixaId}/sessoes/{sessaoId}/fechar`. Regras e respostas em [financeiro.md](financeiro.md).
+- Lock por Caixa e transação impedem duas aberturas simultâneas ou sobrescrita por fechamentos concorrentes. V9 adiciona histórico, unicidade parcial da sessão aberta e chaves compostas que impedem vínculos entre empresas. Nenhuma migration anterior foi alterada.
+- Testes adicionados cobrem HTTP/JWT, multiempresa, usuário autenticado, valores, inatividade, reabertura, concorrência em transações independentes e rollback após flush. PostgreSQL 18.6 descartável: 29 testes de migrations aprovados, incluindo V1–V9, constraints, histórico e Hibernate validate; banco de desenvolvimento preservado.
+- Frontend operacional, sangria, suprimento, movimentação de venda, conciliação e demais destinos financeiros não fazem parte desta entrega.
+- Validação final: `.\mvnw.cmd clean test` com 426 testes, zero falhas, erros ou ignorados e BUILD SUCCESS; 16 casos adicionados. `git diff --check` aprovado.
+
+## Baseline integrada: Formas de Pagamento + UX (2026-09-14)
+
+- Branch `integracao/formas-pagamento-ux`, a partir da main `5a7a067`: integra `706e9b0` e a cadeia UX `a57d632` → `991eff9`, preservando os históricos, sem conflitos e sem alterações funcionais adicionais. Ainda não integrada à main.
+- Backend de Formas de Pagamento e UX de Produtos/Empresas preservados integralmente. A implementação frontend do cadastro de Formas de Pagamento em andamento no worktree de outro agente não faz parte desta baseline.
+- Validação integrada: `.\mvnw.cmd clean test` com 410 testes, zero falhas, erros ou ignorados e BUILD SUCCESS; frontend com 34 testes aprovados, build e lint aprovados. `git diff --check` aprovado. Smoke E2E ignorado por ausência de credenciais; não comprova validação funcional desta integração.
+- Migrations e dependências inalteradas em relação aos commits integrados. A validação PostgreSQL/Flyway do backend permanece registrada na entrega de `706e9b0` abaixo; não foi repetida nesta integração. Avisos sem falha: chunk frontend acima de 500 kB e porta WebSocket do Vite já ocupada durante os testes.
+
 ## Formas de Pagamento: fundação global (2026-09-14)
 
-- Branch `feat/formas-pagamento`, base integrada `5a7a067`, ainda não incorporada à main. Catálogo global com id, descrição, tipo e ativo; sem empresaId. Tipos técnicos: DINHEIRO, PIX, DEBITO, CREDITO, BOLETO e TRANSFERENCIA.
+- Entregue na branch `feat/formas-pagamento`, commit `706e9b0`, base `5a7a067`; incorporada à baseline de integração acima, ainda não à main. Catálogo global com id, descrição, tipo e ativo; sem empresaId. Tipos técnicos: DINHEIRO, PIX, DEBITO, CREDITO, BOLETO e TRANSFERENCIA.
 - API autenticada: listar/criar em `/financeiro/formas-pagamento` e buscar/atualizar em `/{id}`. PUT também ativa/inativa; sem exclusão física. Descrição única normalizada e tipo imutável para preservar o comportamento histórico.
 - Pagamento referencia FormaPagamento. V8 cria catálogo, seis registros iniciais e FK obrigatória nos pagamentos existentes; preserva o código legado como snapshot e não repete estoque/financeiro. Migrations aplicadas anteriores foram preservadas.
 - Venda/PDV aceita o contrato antigo ou formaPagamentoId, nunca os dois juntos. Formas inativas são rejeitadas antes dos efeitos; retry de fechamento anterior continua válido após inativação. A V8 e os IDs estáveis permitem transição sem escolher formas pelo nome. Contratos e limitações em [financeiro.md](financeiro.md).
@@ -23,7 +40,7 @@ Dashboard ...... placeholder
 
 ## Baseline integrada: Pagamento + fundação frontend (2026-09-14)
 
-- Branch `integracao/pagamento-frontend-baseline`, a partir da `main` em `d4fff37`: reúne `aeaec2e` e `4efddaa` com a cadeia frontend `4d3826e` → `c8734e9` → `3d5be87` → `6be4a18`. A integração na `main` ainda não foi realizada.
+- Branch `integracao/pagamento-frontend-baseline`, a partir da `main` em `d4fff37`: reúne `aeaec2e` e `4efddaa` com a cadeia frontend `4d3826e` → `c8734e9` → `3d5be87` → `6be4a18`. Integrada na main em `5a7a067`, base da integração mais recente acima.
 - Financeiro > Cadastros reúne Caixas e Dados Bancários. Caixa possui cadastro funcional; Dados Bancários contém somente abas de Banco, Agência e Conta Bancária, sem API ou persistência desses cadastros.
 - Preservados os padrões frontend de ações por ícones com Tooltip/aria-label, busca remota de Produtos com debounce de 350 ms, cancelamento e proteção contra respostas antigas, e formulários com `FormActions`, autofocus e feedback de salvamento. O debounce operacional de 300 ms está definido para consultas remotas; o PDV atual mantém busca local imediata. Regras em [frontend.md](frontend.md).
 - Validação integrada: `.\mvnw.cmd clean test` com 379 testes, zero falhas, erros ou ignorados e BUILD SUCCESS. Frontend: 32 testes aprovados, build e lint aprovados. PostgreSQL 18.6 descartável: 22 testes de migrations aprovados, com Flyway V1–V7, backfill e Hibernate `validate`.

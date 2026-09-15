@@ -77,6 +77,7 @@ As capacidades abaixo distinguem a fundação implementada das etapas planejadas
 | Estágio | Capacidade requerida |
 |---|---|
 | IMPLEMENTADO no backend | Administrar formas de pagamento globais, sem empresaId, com descrição, tipo técnico e ativo; preservar códigos/contratos antigos e histórico durante a transição para ID |
+| IMPLEMENTADO no backend | Abrir, consultar sessão aberta e fechar Caixa da empresa autenticada; registrar saldos declarados, operadores e horários; impedir sessões abertas simultâneas no mesmo Caixa e preservar histórico |
 | PRÓXIMO | Cadastrar condições de pagamento para prazo e parcelamento, sem confundi-las com forma de pagamento |
 | PRÓXIMO | Cadastrar Banco, Agência e Conta Bancária com seus relacionamentos e escopo autorizado |
 | FUTURO | Produzir os efeitos de Pagamento nos destinos oficiais, com Movimentações de Caixa/Bancárias e confirmação/baixa quando aplicável |
