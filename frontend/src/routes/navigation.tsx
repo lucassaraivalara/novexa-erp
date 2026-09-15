@@ -18,6 +18,7 @@ import Estoque from "../pages/Estoque/Estoque";
 import Produtos from "../pages/Produtos/Produtos";
 import Vendas from "../pages/Vendas/Vendas";
 import DadosBancarios from "../pages/Financeiro/DadosBancarios";
+import FormasPagamento from "../pages/Financeiro/FormasPagamento";
 
 export type RotaInterna = {
     caminho: string;
@@ -75,6 +76,12 @@ export const rotasInternas: RotaInterna[] = [
         icone: <AccountBalanceRoundedIcon />,
         elemento: <DadosBancarios />,
     },
+    {
+        caminho: "financeiro/formas-pagamento",
+        titulo: "Formas de Pagamento",
+        icone: <AccountBalanceWalletRoundedIcon />,
+        elemento: <FormasPagamento />,
+    },
 ];
 
 // A navegação pode agrupar rotas existentes ou reservar itens sem destino.
@@ -87,6 +94,7 @@ export type ItemMenu =
 const rotaEmpresas = rotasInternas.find(r => r.caminho === "empresa")!;
 const rotaCaixas = rotasInternas.find(r => r.caminho === "financeiro/caixas")!;
 const rotaDadosBancarios = rotasInternas.find(r => r.caminho === "financeiro/dados-bancarios")!;
+const rotaFormasPagamento = rotasInternas.find(r => r.caminho === "financeiro/formas-pagamento")!;
 
 export const menuPrincipal: ItemMenu[] = [
     ...rotasInternas
@@ -126,6 +134,7 @@ export const menuPrincipal: ItemMenu[] = [
             filhos: [
                 { tipo: "rota", id: "caixas", titulo: "Caixas", rota: rotaCaixas },
                 { tipo: "rota", id: "dados-bancarios", titulo: "Dados Bancários", rota: rotaDadosBancarios },
+                { tipo: "rota", id: "formas-pagamento", titulo: "Formas de Pagamento", rota: rotaFormasPagamento },
             ],
         }],
     },

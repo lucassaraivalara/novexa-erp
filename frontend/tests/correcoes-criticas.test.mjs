@@ -153,6 +153,20 @@ test("cadastros financeiros organizam Caixa e Dados Bancários sem APIs bancári
     assert.match(caixa, /titulo="Caixas"/);
 });
 
+test("formas de pagamento possuem rota, menu, service e listagem somente leitura", async () => {
+    const navegacao = await readFile(new URL("../src/routes/navigation.tsx", import.meta.url), "utf8");
+    const pagina = await readFile(new URL("../src/pages/Financeiro/FormasPagamento.tsx", import.meta.url), "utf8");
+    const service = await readFile(new URL("../src/services/formaPagamentoService.ts", import.meta.url), "utf8");
+
+    assert.match(navegacao, /financeiro\/formas-pagamento/);
+    assert.match(navegacao, /Formas de Pagamento/);
+    assert.match(service, /api\.get<FormaPagamentoResumo\[]>\("\/financeiro\/formas-pagamento"/);
+    assert.match(pagina, /cabecalho: "Descrição"/);
+    assert.match(pagina, /cabecalho: "Tipo"/);
+    assert.match(pagina, /label=\{valor \? "Ativa" : "Inativa"\}/);
+    assert.doesNotMatch(pagina, /onClick=.*editar|inativar|excluir/i);
+});
+
 test("ações de tabela usam ícones com tooltip e acessibilidade", async () => {
     const tabela = await readFile(new URL("../src/components/ui/AppTable.tsx", import.meta.url), "utf8");
     const caixa = await readFile(new URL("../src/pages/Financeiro/Caixa.tsx", import.meta.url), "utf8");
