@@ -21,22 +21,42 @@ public class PagamentoService {
     private final PagamentoRepository pagamentos;
     private final VendaRepository vendas;
     private final FormaPagamentoService formas;
+    private final CaixaOperacionalService caixa;
+    private final br.com.novexa.erp.repository.LancamentoFinanceiroRepository financeiro;
 
-    public PagamentoService(PagamentoRepository pagamentos, VendaRepository vendas, FormaPagamentoService formas) {
+    public PagamentoService(PagamentoRepository pagamentos, VendaRepository vendas, FormaPagamentoService formas, CaixaOperacionalService caixa,
+            br.com.novexa.erp.repository.LancamentoFinanceiroRepository financeiro) {
         this.pagamentos = pagamentos;
         this.vendas = vendas;
-        this.formas = formas;
+        this.formas = formas; this.caixa = caixa; this.financeiro = financeiro;
     }
 
     // Uso interno do faturamento, sob o lock da Venda e na mesma transação dos demais efeitos.
     @Transactional(propagation = Propagation.MANDATORY)
-    void registrarFaturamento(VendaEntity venda, UsuarioEntity operador, FormaPagamentoEntity forma) {
-        pagamentos.save(new PagamentoEntity(venda, operador, forma));
+    PagamentoEntity registrarFaturamento(VendaEntity venda, UsuarioEntity operador, FormaPagamentoEntity forma) {
+        return pagamentos.save(new PagamentoEntity(venda, operador, forma));
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
     FormaPagamentoEntity resolverForma(FormaPagamento legado, Long id) {
         return formas.resolverParaFaturamento(legado, id);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void cancelarFaturamento(VendaEntity venda, UsuarioEntity operador) {
+        var registros = pagamentos.findByEmpresaIdAndVendaIdOrderBySequenciaAsc(venda.getEmpresa().getId(), venda.getId());
+        var lancamento = financeiro.findByVendaIdAndEmpresaId(venda.getId(), venda.getEmpresa().getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Lançamento financeiro original não encontrado."));
+        if (registros.isEmpty() || registros.stream().anyMatch(p -> p.getStatus() != br.com.novexa.erp.entity.StatusPagamento.REGISTRADO)
+                || registros.stream().map(PagamentoEntity::getValor).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add)
+                        .compareTo(venda.getTotal()) != 0
+                || lancamento.getSituacao() == br.com.novexa.erp.entity.LancamentoFinanceiroEntity.Situacao.CANCELADO)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Registros financeiros incompatíveis com o cancelamento.");
+        caixa.reverterVenda(venda, registros, operador);
+        registros.forEach(PagamentoEntity::cancelar);
+        pagamentos.saveAll(registros);
+        lancamento.cancelar();
+        financeiro.saveAndFlush(lancamento);
     }
 
     public List<PagamentoResponseDTO> listarPorVenda(Long vendaId, Long empresaId) {

@@ -84,18 +84,29 @@ A forma é validada sob lock compartilhado até o commit do faturamento. Atualiz
 
 `LancamentoFinanceiroEntity` continua temporariamente 1:1 com Venda. Sua convenção atual (DINHEIRO/PIX = RECEBIDO; cartões = A_RECEBER) é preservada, mas não determina o status de Pagamento nem comprova liquidação. Substituir essa fundação pelos destinos oficiais exige tarefa própria.
 
-Caixa possui cadastro e sessões operacionais de abertura/fechamento, sem vínculo direto com Pagamento nesta etapa. Banco, Agência, Conta Bancária, Movimentação de Caixa/Bancária, Recebíveis e Contas a Receber/Pagar não são dependências da nova entidade.
+Caixa possui cadastro e sessões operacionais. A venda faturada vincula-se à sessão e o Pagamento em DINHEIRO gera uma MovimentacaoCaixa. PIX e cartões compõem apenas totais operacionais da sessão; não são dinheiro físico nem comprovação de liquidação. Banco, Agência, Conta Bancária, Movimentação Bancária, Recebíveis e Contas a Receber/Pagar permanecem futuros.
 
 ## Sessões operacionais de Caixa — IMPLEMENTADO no backend
 
 - Reutiliza CaixaEntity: um Caixa possui várias SessaoCaixaEntity históricas, no máximo uma ABERTO. FECHADO é definitivo; reabrir cria outra sessão.
-- Abertura informa saldoInicial; fechamento informa saldoFinal. Ambos são valores declarados de dinheiro físico, não negativos e com até duas casas decimais. Não há saldo calculado, conciliação ou movimentação de venda nesta etapa.
+- Abertura informa saldoInicial; fechamento informa saldoFinal. Ambos são valores declarados de dinheiro físico, não negativos e com até duas casas decimais. O fechamento retorna o resumo calculado descrito abaixo; não há conciliação bancária.
 - Empresa e operadores vêm da autenticação, horários do backend. São registrados usuários e datas da abertura e do fechamento; qualquer operador ativo da mesma empresa pode fechar, sem permissões por perfil nesta etapa.
 - Caixa inativo não abre nova sessão. A consulta e o fechamento de sessão existente continuam permitidos mesmo após inativação cadastral.
 - POST `/financeiro/caixas/{caixaId}/sessoes` abre (201, corpo `{saldoInicial}`); GET `/financeiro/caixas/{caixaId}/sessoes/aberta` consulta; POST `/financeiro/caixas/{caixaId}/sessoes/{sessaoId}/fechar` fecha (200, corpo `{saldoFinal}`). Respostas incluem ID da sessão, Caixa, status, saldos, operadores e horários.
-- Sem sessão aberta ou recurso de outra empresa: 404. Segunda abertura ou fechamento de sessão já fechada: 409. O ID da sessão evita que um fechamento antigo atinja uma nova abertura; não há replay idempotente de abertura nesta etapa.
-- Transação e PESSIMISTIC_WRITE no Caixa serializam abertura/fechamento por Caixa. V9 adiciona índice único parcial para sessões abertas e chaves compostas de Caixa/operadores/empresa. Não modifica migrations anteriores nem cria sessões fictícias para cadastros existentes.
-- Frontend operacional, movimentações, sangria, suprimento, saldo esperado, integração com Venda/Pagamento e relatórios permanecem futuros.
+- Sem sessão aberta ou recurso de outra empresa: 404. Segunda abertura: 409. Repetir fechamento com o mesmo saldo retorna o resultado anterior; outro saldo retorna 409. O ID da sessão evita que um fechamento antigo atinja uma nova abertura; não há replay idempotente de abertura nesta etapa.
+- Transação e PESSIMISTIC_WRITE no Caixa serializam abertura/fechamento por Caixa. Venda, resumo, movimentações e fechamento também adquirem o lock da SessaoCaixa até o commit, impedindo efeitos após o fechamento. V9 adiciona índice único parcial para sessões abertas e chaves compostas de Caixa/operadores/empresa. Não modifica migrations anteriores nem cria sessões fictícias para cadastros existentes.
+- Frontend operacional e relatórios avançados permanecem futuros.
+
+### Caixa operacional integrado à Venda — backend MVP
+
+- Toda nova venda FATURADA possui sessão ABERTO da empresa autenticada, inclusive PIX/débito/crédito. `POST /vendas` e `POST /vendas/{id}/faturar` aceitam `sessaoCaixaId` opcional: a única sessão aberta é inferida; várias exigem seleção explícita e nenhuma retorna 409. IDs externos ao tenant retornam 404. Não há vínculo fixo Caixa–Usuário.
+- Venda ABERTA não produz efeitos. Faturamento associa sessão, baixa estoque, registra Pagamento e lançamento temporário na mesma transação. Apenas DINHEIRO cria movimento VENDA, vinculado ao Pagamento (e à Venda), pelo valor líquido aplicado: recebido menos troco. Retry do fechamento não repete nenhum desses efeitos, inclusive após fechar a sessão.
+- `GET /financeiro/caixas/sessoes/abertas`: lista somente sessões ABERTO da empresa, de todos os operadores. Campos: sessaoId, caixaId, descricaoCaixa, saldoInicial, dataHoraAbertura, operadorAbertura {id, nome}.
+- `GET /financeiro/caixas/sessoes/{sessaoId}/resumo`: saldoInicial, totalVendas, totaisPorFormaPagamento [{formaPagamentoId, descricao, tipo, total}], suprimentos, sangrias, saldoEsperadoDinheiro, saldoFinalInformado e diferenca, além dos IDs/status. Totais usam os pagamentos registrados; tipos não monetários não entram no saldo físico. Ausência de venda de uma forma não cria linha com valor zero.
+- `GET/POST /financeiro/caixas/sessoes/{sessaoId}/movimentacoes`: histórico de dinheiro e registro manual. POST recebe {chaveRequisicao: UUID, tipo: SUPRIMENTO|SANGRIA, valor, observacao?}, retorna 200 com movimento, operador/data automáticos. Chave única por sessão, payload/operador diferentes com mesma chave retornam 409. Retry idêntico retorna o movimento original, mesmo após fechamento. Não aceita VENDA manual nem retirada superior ao dinheiro disponível.
+- Saldo esperado = saldo inicial + movimentos VENDA em dinheiro + SUPRIMENTO − SANGRIA. Diferença = saldo final informado − saldo esperado. Fechamento mantém os campos anteriores e acrescenta `resumo`; os totais permanecem consultáveis após fechar. Valores são derivados do histórico imutável de pagamentos/movimentos, sem manter um segundo saldo mutável.
+- V10 adiciona o vínculo Venda–Sessão e movimentacoes_caixa com chaves de empresa e unicidade por pagamento/requisição. Vendas antigas não recebem sessão fictícia nem geram movimentos retroativos.
+- Continua um pagamento por venda no contrato atual. Misto, cancelamento/reversão, confirmação de PIX/cartões e destinos bancários não fazem parte deste bloco. A implementação parcial anterior de venda em dinheiro em outro worktree foi superada por este bloco: não integrar sua V10 concorrente.
 
 ## Persistência e histórico de Pagamento
 
@@ -122,7 +133,7 @@ As configurações ficam na área gerencial. A operação comum continua rápida
 
 ## Limites da evolução — FUTURO
 
-- Depois das fundações: integração dos destinos, MovimentacaoCaixa, MovimentacaoBancaria, Recebíveis, Contas a Receber e Contas a Pagar. Cada fluxo exige tarefa própria; pagamento misto operacional também depende de regras explícitas, embora o modelo 1:N já o permita.
+- Depois das fundações: demais destinos, MovimentacaoBancaria, Recebíveis, Contas a Receber e Contas a Pagar. MovimentacaoCaixa mínima de dinheiro já está implementada no bloco operacional. Cada fluxo exige tarefa própria; pagamento misto operacional também depende de regras explícitas, embora o modelo 1:N já o permita.
 - Mais tarde: Carteira de Cobrança, CNAB, boleto avançado, conciliação bancária, política de crédito, bloqueios automáticos, cobrança avançada e relatórios financeiros avançados.
 - Extensões comerciais futuras: portal B2B e força de vendas; não são dependências da próxima fundação financeira.
 

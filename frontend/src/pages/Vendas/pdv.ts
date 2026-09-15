@@ -6,10 +6,11 @@ export type ItemPDV = { produto: Produto; quantidade: string };
 export type RascunhoPDV = {
     itens: ItemPDV[]; desconto: string; cliente: Cliente | null; entrega: string; observacoes: string;
     formaPagamento: FormaPagamento; recebido: string; pendente: VendaInput | null;
+    sessaoCaixaId: number | null;
 };
 export function novoRascunho(): RascunhoPDV {
     return { itens: [], desconto: "0", cliente: null, entrega: "", observacoes: "",
-        formaPagamento: "DINHEIRO", recebido: "", pendente: null };
+        formaPagamento: "DINHEIRO", recebido: "", pendente: null, sessaoCaixaId: null };
 }
 export function decimal(valor: string, casas: number): number | null {
     const texto = valor.trim().replace(",", ".");
@@ -44,7 +45,8 @@ export function criarPedido(r: RascunhoPDV, chave: string): VendaInput {
             precoUnitarioEsperado: i.produto.precoVenda })),
         clienteId: r.cliente?.id ?? null, desconto: t.desconto! / 100, totalEsperado: t.total / 100,
         formaPagamento: r.formaPagamento, valorRecebido: t.recebido / 100,
-        entrega: r.entrega.trim(), observacoes: r.observacoes.trim() };
+        entrega: r.entrega.trim(), observacoes: r.observacoes.trim(),
+        sessaoCaixaId: r.sessaoCaixaId };
 }
 const normalizar = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 export function buscarProdutosPDV(produtos: Produto[], termo: string): Produto[] {

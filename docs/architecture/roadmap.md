@@ -119,7 +119,7 @@ Base de referência: `integracao/pagamento-frontend-baseline`, reunindo Pagament
 
 * Venda consolidada: ABERTA → FATURADA, com itens históricos e proteção contra duplicidade;
 * Estoque consolidado: saldo/histórico, movimentações e integração com faturamento;
-* Caixa cadastral e sessões backend de abertura/fechamento com saldos declarados, exclusivamente dinheiro físico; frontend operacional e movimentações permanecem futuros;
+* Caixa cadastral e sessões backend integradas à Venda, com totais por forma, movimentos físicos VENDA/SUPRIMENTO/SANGRIA e fechamento com esperado/diferença; frontend operacional ainda pendente;
 * Fundação de Pagamento: registro no faturamento e consulta, com modelo 1:N e contrato atual de um pagamento por venda.
 * Fundação backend de Formas de Pagamento global: catálogo com seis tipos e integração por ID ao Pagamento, entregue em `feat/formas-pagamento` sobre `5a7a067`; integração na main e frontend próprios ainda pendentes.
 * Frontend Financeiro > Cadastros: Caixa funcional e Dados Bancários apenas como shell de navegação, sem implementar os cadastros bancários da próxima fase.
@@ -138,7 +138,7 @@ Reutilizar o cadastro de Caixa existente. Entregar cada fundação em tarefa peq
 
 ## 7.3 Depois — FUTURO
 
-* Integração DINHEIRO → Caixa físico, com Movimentação de Caixa;
+* Integrar o frontend ao Caixa operacional backend já implementado (sessão, resumo, SUPRIMENTO/SANGRIA e fechamento);
 * Integração PIX/TRANSFERÊNCIA → Conta Bancária, com Movimentação Bancária;
 * Recebíveis de DÉBITO/CRÉDITO e posterior liquidação bancária;
 * Contas a Receber, incluindo o fluxo de BOLETO e sua baixa;

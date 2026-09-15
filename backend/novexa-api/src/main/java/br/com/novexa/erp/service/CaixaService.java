@@ -58,6 +58,7 @@ public class CaixaService {
         validarDescricaoDuplicada(dadosNovos, empresaId, id);
 
         caixaExistente.setDescricao(dadosNovos.getDescricao());
+        caixaExistente.setAtivo(dadosNovos.getAtivo());
         return caixaRepository.save(caixaExistente);
     }
 

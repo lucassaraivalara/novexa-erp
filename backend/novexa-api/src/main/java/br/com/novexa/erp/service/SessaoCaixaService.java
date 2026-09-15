@@ -16,11 +16,13 @@ public class SessaoCaixaService {
     private final CaixaRepository caixas;
     private final SessaoCaixaRepository sessoes;
     private final UsuarioRepository usuarios;
+    private final CaixaOperacionalService operacional;
 
-    public SessaoCaixaService(CaixaRepository caixas, SessaoCaixaRepository sessoes, UsuarioRepository usuarios) {
+    public SessaoCaixaService(CaixaRepository caixas, SessaoCaixaRepository sessoes, UsuarioRepository usuarios, CaixaOperacionalService operacional) {
         this.caixas = caixas;
         this.sessoes = sessoes;
         this.usuarios = usuarios;
+        this.operacional = operacional;
     }
 
     @Transactional
@@ -46,12 +48,15 @@ public class SessaoCaixaService {
         validarSaldo(saldoFinal);
         bloquearCaixa(caixaId, autenticado.empresaId());
         UsuarioEntity usuario = operador(autenticado);
-        SessaoCaixaEntity sessao = sessoes.findByIdAndCaixaIdAndEmpresaId(sessaoId, caixaId, autenticado.empresaId())
-                .orElseThrow(this::naoEncontrado);
-        if (sessao.getStatus() != StatusSessaoCaixa.ABERTO)
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Sessão de Caixa já fechada.");
+        SessaoCaixaEntity sessao = operacional.bloquear(sessaoId, autenticado.empresaId());
+        if (!sessao.getCaixa().getId().equals(caixaId)) throw naoEncontrado();
+        if (sessao.getStatus() != StatusSessaoCaixa.ABERTO) {
+            if (sessao.getSaldoFinal().compareTo(saldoFinal) == 0)
+                return SessaoCaixaResponseDTO.from(sessao, operacional.calcular(sessao));
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Sessão de Caixa já fechada com outro saldo.");
+        }
         sessao.fechar(usuario, saldoFinal);
-        return SessaoCaixaResponseDTO.from(sessoes.saveAndFlush(sessao));
+        return SessaoCaixaResponseDTO.from(sessoes.saveAndFlush(sessao), operacional.calcular(sessao));
     }
 
     // A linha do cadastro existe antes da primeira sessão: serializa abertura/fechamento por Caixa.

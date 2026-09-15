@@ -6,6 +6,8 @@ export type VendaInput = {
     itens: { produtoId: number; quantidade: number; precoUnitarioEsperado: number }[];
     clienteId: number | null; desconto: number; totalEsperado: number; formaPagamento: FormaPagamento;
     valorRecebido: number; entrega: string; observacoes: string;
+    formaPagamentoId?: number;
+    sessaoCaixaId?: number;
 };
 export type Venda = { id: number; total: number; troco: number; dataHora: string };
 export async function finalizarVenda(pedido: VendaInput): Promise<Venda> {

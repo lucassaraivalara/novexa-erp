@@ -11,6 +11,7 @@ public class CaixaMapper {
     public CaixaEntity toEntity(CaixaRequestDTO request) {
         CaixaEntity caixa = new CaixaEntity();
         caixa.setDescricao(request.getDescricao());
+        caixa.setAtivo(request.getAtivo());
         return caixa;
     }
 

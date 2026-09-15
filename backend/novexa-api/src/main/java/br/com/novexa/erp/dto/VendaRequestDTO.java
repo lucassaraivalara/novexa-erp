@@ -17,8 +17,15 @@ public record VendaRequestDTO(
         @NotNull @DecimalMin("0.00") @Digits(integer = 12, fraction = 2) BigDecimal valorRecebido,
         @Size(max = 500) String entrega,
         @Size(max = 2000) String observacoes,
-        @Positive Long formaPagamentoId
+        @Positive Long formaPagamentoId,
+        @Positive Long sessaoCaixaId
 ) {
+    public VendaRequestDTO(UUID chaveRequisicao, List<Item> itens, Long clienteId, BigDecimal desconto,
+            BigDecimal totalEsperado, FormaPagamento formaPagamento, BigDecimal valorRecebido,
+            String entrega, String observacoes, Long formaPagamentoId) {
+        this(chaveRequisicao, itens, clienteId, desconto, totalEsperado, formaPagamento, valorRecebido,
+                entrega, observacoes, formaPagamentoId, null);
+    }
     public VendaRequestDTO(UUID chaveRequisicao, List<Item> itens, Long clienteId, BigDecimal desconto,
             BigDecimal totalEsperado, FormaPagamento formaPagamento, BigDecimal valorRecebido,
             String entrega, String observacoes) {
@@ -35,7 +42,7 @@ public record VendaRequestDTO(
                 + ", clienteId=" + clienteId + ", desconto=" + desconto + ", totalEsperado=" + totalEsperado
                 + ", formaPagamento=" + formaPagamento + ", valorRecebido=" + valorRecebido
                 + ", entrega=" + entrega + ", observacoes=" + observacoes
-                + (formaPagamentoId == null ? "" : ", formaPagamentoId=" + formaPagamentoId) + "]";
+                + (formaPagamentoId == null ? "" : ", formaPagamentoId=" + formaPagamentoId) + (sessaoCaixaId == null ? "" : ", sessaoCaixaId=" + sessaoCaixaId) + "]";
     }
 
     public record Item(

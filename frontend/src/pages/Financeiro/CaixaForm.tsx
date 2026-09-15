@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Alert, Dialog, DialogContent, DialogTitle, Stack, TextField } from "@mui/material";
+import { Alert, Dialog, DialogContent, DialogTitle, Stack, TextField, FormControlLabel, Switch } from "@mui/material";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
-import { useForm, type SubmitHandler, useWatch } from "react-hook-form";
+import { useForm, type SubmitHandler, useWatch, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { listarCaixas, mensagemCaixa, salvarCaixa } from "../../services/caixaService";
@@ -10,7 +10,9 @@ import FormActions from "../../components/ui/FormActions";
 
 const schema = yup.object().shape({
     descricao: yup.string().required("A descrição do caixa é obrigatória.").max(150, "A descrição deve ter no máximo 150 caracteres."),
+    ativo: yup.boolean().required(),
 });
+
 
 interface CaixaFormProps {
     caixa: CaixaCompleta | null;
@@ -31,7 +33,7 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
         formState: { errors },
     } = useForm<CaixaInput>({
         resolver: yupResolver(schema),
-        defaultValues: { descricao: "" },
+        defaultValues: { descricao: "", ativo: true },
         mode: "onBlur",
     });
 
@@ -39,9 +41,9 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
 
     useEffect(() => {
         if (caixa) {
-            reset({ descricao: caixa.descricao });
+            reset({ descricao: caixa.descricao, ativo: caixa.ativo });
         } else {
-            reset({ descricao: "" });
+            reset({ descricao: "", ativo: true });
         }
     }, [caixa, reset]);
 
@@ -93,6 +95,16 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
                     autoFocus
                     slotProps={{ htmlInput: { maxLength: 150 } }}
                 />
+
+                <Controller
+                name="ativo"
+                control={control}
+                render={({ field }) => (
+                    <FormControlLabel
+                        control={<Switch {...field} checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
+                        label="Caixa ativo"
+                    />
+                )}/>
 
                         <FormActions
                             onCancelar={onFechar}

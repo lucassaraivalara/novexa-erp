@@ -44,6 +44,8 @@ class VendaHttpTest {
     @Autowired ProdutoRepository produtos;
     @Autowired ClienteRepository clientes;
     @Autowired VendaRepository vendas;
+    @Autowired CaixaRepository caixas;
+    @Autowired SessaoCaixaRepository sessoes;
     @Autowired MovimentacaoEstoqueRepository movimentos;
     @MockitoSpyBean LancamentoFinanceiroRepository financeiro;
     @MockitoSpyBean PagamentoRepository pagamentos;
@@ -61,11 +63,14 @@ class VendaHttpTest {
         segundo = usuario(empresa, "11144477735");
         produto = produto(empresa, "Produto", "10.00", "10.000");
         authorization = "Bearer " + jwt.gerarToken(operador);
+        var caixa = new CaixaEntity(); caixa.setEmpresa(empresa); caixa.setDescricao("Caixa");
+        sessoes.saveAndFlush(new SessaoCaixaEntity(caixas.saveAndFlush(caixa), operador, BigDecimal.ZERO));
     }
 
     @AfterEach
     void limpar() {
         reset(financeiro, pagamentos);
+        jdbc.update("delete from movimentacoes_caixa");
         jdbc.update("delete from pagamentos");
         jdbc.update("delete from formas_pagamento");
         jdbc.update("delete from lancamentos_financeiros");
@@ -74,6 +79,8 @@ class VendaHttpTest {
         movimentos.deleteAll();
         produtos.deleteAll();
         clientes.deleteAll();
+        sessoes.deleteAllInBatch();
+        caixas.deleteAllInBatch();
         usuarios.deleteAll();
         empresas.deleteAll();
     }

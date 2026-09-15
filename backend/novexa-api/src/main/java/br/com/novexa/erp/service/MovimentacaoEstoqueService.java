@@ -50,6 +50,28 @@ public class MovimentacaoEstoqueService {
         validarProdutoControlaEstoque(produto);
         validarEmpresaUsuario(produto, usuario, empresa);
 
+        return aplicarMovimentacao(empresa, produto, usuario, tipo, origem, quantidade, motivo);
+    }
+
+    // Exclusivo do núcleo de cancelamento, sob lock da Venda e na transação do chamador.
+    // Reverte uma baixa histórica mesmo se o cadastro deixou de controlar estoque.
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    MovimentacaoEstoqueEntity reverterSaidaVenda(MovimentacaoEstoqueEntity original,
+            Long usuarioId, String motivo) {
+        if (original.getTipo() != TipoMovimentacaoEstoque.SAIDA
+                || original.getOrigem() != OrigemMovimentacaoEstoque.VENDA)
+            throw new IllegalArgumentException("Somente uma saída de venda pode ser revertida.");
+        Long empresaId = original.getEmpresa().getId();
+        ProdutoEntity produto = buscarProdutoComLock(original.getProduto().getId(), empresaId);
+        UsuarioEntity usuario = buscarUsuario(usuarioId, empresaId);
+        validarEmpresaUsuario(produto, usuario, original.getEmpresa());
+        return aplicarMovimentacao(original.getEmpresa(), produto, usuario, TipoMovimentacaoEstoque.ENTRADA,
+                OrigemMovimentacaoEstoque.CANCELAMENTO, original.getQuantidade(), motivo);
+    }
+
+    private MovimentacaoEstoqueEntity aplicarMovimentacao(EmpresaEntity empresa, ProdutoEntity produto,
+            UsuarioEntity usuario, TipoMovimentacaoEstoque tipo, OrigemMovimentacaoEstoque origem,
+            BigDecimal quantidade, String motivo) {
         BigDecimal saldoAnterior = produto.getEstoqueAtual();
         BigDecimal saldoPosterior = calcularSaldoPosterior(tipo, saldoAnterior, quantidade);
 

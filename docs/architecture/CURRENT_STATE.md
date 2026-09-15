@@ -5,10 +5,19 @@ Estoque ........ backend funcional
 Venda .......... ABERTA → FATURADA consolidado
 Pagamento ...... fundação backend (base aeaec2e)
 Formas de Pagamento .... catálogo global backend (baseline integracao/formas-pagamento-ux)
-Caixa .......... cadastro backend/frontend; abertura e fechamento no backend
+Caixa .......... cadastro; backend operacional integrado à Venda, suprimento/sangria e fechamento com resumo
 Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; cadastros frontend estruturados
 Dashboard ...... placeholder
+
+## Caixa operacional MVP (2026-09-15)
+
+- Implementado no diretório/branch atual, ainda pendente de commit e integração. Reaproveita SessaoCaixa; novas vendas faturadas de qualquer forma exigem sessão aberta da empresa. Uma sessão é inferida; múltiplas exigem sessaoCaixaId.
+- Totais operacionais por forma separados do dinheiro físico. Apenas DINHEIRO gera entrada VENDA; SUPRIMENTO e SANGRIA manuais possuem chave de idempotência. Resumo de fechamento inclui saldo inicial, vendas/formas, suprimentos, sangrias, esperado em dinheiro, declarado e diferença.
+- Consulta de sessões abertas, resumo e movimentos autenticados disponíveis. Fechamento conserva campos anteriores e adiciona resumo; replay com mesmo saldo é seguro. Contratos em [financeiro.md](financeiro.md).
+- Lock por sessão e transação preservam faturamento, fechamento, idempotência, estoque e lançamento temporário. V10 preserva histórico anterior sem atribuir sessões fictícias.
+- Validação: 98 testes direcionados distintos aprovados (65 Venda HTTP, 12 Sessão HTTP, 2 compatibilidade, 17 Caixa operacional, 1 criação de Venda e 1 migration PostgreSQL), zero falhas/erros/ignorados, BUILD SUCCESS. Flyway V1–V10 e Hibernate validate aprovados no PostgreSQL descartável. Suíte completa não executada por escopo. Diff da tarefa limpo; diff global contém whitespace preexistente em CaixaRequestDTO.
+- Frontend operacional e demais destinos financeiros não implementados neste bloco. Alterações locais de outros trabalhos preservadas.
 
 ## Caixa: abertura e fechamento (2026-09-14)
 

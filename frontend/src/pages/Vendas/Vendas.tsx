@@ -37,7 +37,6 @@ export default function Vendas() {
     const emEnvio = useRef(false);
     const buscaRef = useRef<HTMLInputElement>(null);
     const recebidoRef = useRef<HTMLInputElement>(null);
-    const pagamentoRef = useRef<HTMLSelectElement>(null);
     const opcionalRef = useRef<HTMLInputElement>(null);
     const quantidadesRef = useRef<Record<number, HTMLInputElement | null>>({});
     const resultados = buscarProdutosPDV(produtos, busca);
@@ -128,9 +127,9 @@ export default function Vendas() {
         if (bloqueado) return;
         const id = selecionado ?? rascunho.itens.at(-1)?.produto.id;
         if (e.ctrlKey && e.key === "Delete" && id) { e.preventDefault(); remover(id); }
-        if (e.key === "F3") { e.preventDefault(); pagamentoRef.current?.focus(); }
-        if (e.key === "F6" && id) { e.preventDefault(); quantidadesRef.current[id]?.focus(); quantidadesRef.current[id]?.select(); }
-        const paineis: Record<string, Opcional> = { F4: "desconto", F8: "cliente", F9: "observacoes", F10: "entrega" };
+        if (e.key === "F3") { e.preventDefault(); setOpcional("desconto"); requestAnimationFrame(() => opcionalRef.current?.focus()); return; }
+        if (e.key === "F6") { e.preventDefault(); setOpcional("cliente"); return; }
+        const paineis: Record<string, Opcional> = { F9: "observacoes", F10: "entrega" };
         if (e.key in paineis) { e.preventDefault(); setOpcional(paineis[e.key]); requestAnimationFrame(() => opcionalRef.current?.focus()); }
     }
 
@@ -188,7 +187,7 @@ export default function Vendas() {
                     </Table>
                     {!rascunho.itens.length && <Box sx={{ p: 5, textAlign: "center", color: "text.secondary" }}><Typography>Leia o primeiro produto para começar</Typography><Typography variant="body2">Busque pelo nome e pressione Enter para adicionar.</Typography></Box>}
                 </Box>
-                <Typography variant="caption" color="text.secondary">Enter adicionar · ↑ ↓ selecionar · F6 quantidade · Ctrl+Delete remover item · Esc voltar à busca</Typography>
+                <Typography variant="caption" color="text.secondary">Enter adicionar · ↑ ↓ selecionar · F2 pagar · F3 desconto · F6 cliente · Ctrl+Delete remover item · Esc fechar opção</Typography>
             </Stack>
             <Stack spacing={1.5} sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", p: 2, overflowY: "auto" }}>
                 <Typography variant="overline">Resumo da venda · {rascunho.itens.length} itens</Typography>
@@ -197,7 +196,8 @@ export default function Vendas() {
                 {rascunho.cliente && <Typography variant="body2">Cliente: {rascunho.cliente.nome}</Typography>}
                 <Box><Typography variant="body2">Total a pagar</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 38, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
                 <Divider />
-                <TextField select label="Pagamento · F3" value={rascunho.formaPagamento} disabled={bloqueado} inputRef={pagamentoRef}
+                <Typography variant="overline" sx={{ letterSpacing: "0.08em" }}>Pagamento</Typography>
+                <TextField select label="Forma de pagamento" value={rascunho.formaPagamento} disabled={bloqueado}
                     slotProps={{ select: { native: true } }} onChange={e => alterar({ formaPagamento: e.target.value as FormaPagamento })}>
                     <option value="DINHEIRO">Dinheiro</option><option value="PIX">PIX</option><option value="CARTAO_DEBITO">Cartão de débito</option><option value="CARTAO_CREDITO">Cartão de crédito</option>
                 </TextField>
@@ -206,12 +206,12 @@ export default function Vendas() {
                         slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()} onChange={e => alterar({ recebido: e.target.value })} />
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}><Typography>Troco</Typography><Typography sx={{ fontSize: 24, fontWeight: 700 }}>{moeda(t.troco)}</Typography></Stack>
                 </> : <Typography variant="caption" color="text.secondary">Finalize após confirmar o PIX ou a aprovação na maquininha. Registro de {moeda(Math.max(0, t.total))}.</Typography>}
-                <Button size="large" variant="contained" disableElevation disabled={salvando || (!rascunho.itens.length && !rascunho.pendente)} onClick={() => void finalizar()} sx={{ minHeight: 48 }}>
-                    {salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado · F2" : "Finalizar venda · F2"}
+                <Button size="large" variant="contained" disableElevation disabled={salvando || (!rascunho.itens.length && !rascunho.pendente)} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
+                    {salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado · F2" : "Pagar · F2"}
                 </Button>
                 <Divider />
                 <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.5 }}>
-                    {([["desconto", "F4 Desconto"], ["cliente", "F8 Cliente"], ["entrega", "F10 Entrega"], ["observacoes", "F9 Observações"]] as const).map(([campo, label]) =>
+                    {([["desconto", "F3 Desconto"], ["cliente", "F6 Cliente"], ["entrega", "F10 Entrega"], ["observacoes", "F9 Observações"]] as const).map(([campo, label]) =>
                         <Button key={campo} size="small" disabled={bloqueado} color={opcional === campo ? "primary" : "inherit"} onClick={() => setOpcional(opcional === campo ? null : campo)}>{label}</Button>)}
                 </Box>
                 {opcional === "cliente" && <Autocomplete options={clientes} value={rascunho.cliente} disabled={bloqueado} autoHighlight

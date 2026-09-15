@@ -56,6 +56,8 @@ public class PagamentoEntity {
         }
     }
 
+    public void cancelar() { this.status = StatusPagamento.CANCELADO; }
+
     public Long getId() { return id; }
     public EmpresaEntity getEmpresa() { return empresa; }
     public VendaEntity getVenda() { return venda; }

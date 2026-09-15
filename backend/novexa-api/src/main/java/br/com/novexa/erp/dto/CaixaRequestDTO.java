@@ -8,6 +8,7 @@ public class CaixaRequestDTO {
     @NotBlank(message = "A descrição do caixa é obrigatória.")
     @Size(max = 150, message = "A descrição do caixa deve ter no máximo 150 caracteres.")
     private String descricao;
+    private Boolean ativo;
 
     public CaixaRequestDTO() {
     }
@@ -19,4 +20,14 @@ public class CaixaRequestDTO {
     public void setDescricao(String descricao) {
         this.descricao = descricao;
     }
+
+    public Boolean getAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(Boolean ativo) {
+        this.ativo = ativo;
+    }
+
+    
 }

@@ -29,16 +29,18 @@ public class VendaService {
     private final ProdutoRepository produtos;
     private final MovimentacaoEstoqueService estoque;
     private final PagamentoService pagamentos;
+    private final CaixaOperacionalService caixaOperacional;
     @PersistenceContext private EntityManager entityManager;
     private final LancamentoFinanceiroRepository financeiro;
 
     public VendaService(VendaRepository vendas, ClienteRepository clientes,
                         ItemVendaRepository itensVenda, ProdutoRepository produtos,
                         MovimentacaoEstoqueService estoque,
-                        LancamentoFinanceiroRepository financeiro, PagamentoService pagamentos) {
+                        LancamentoFinanceiroRepository financeiro, PagamentoService pagamentos, CaixaOperacionalService caixaOperacional) {
         this.vendas = vendas; this.clientes = clientes; this.itensVenda = itensVenda;
         this.produtos = produtos; this.estoque = estoque; this.financeiro = financeiro;
         this.pagamentos = pagamentos;
+        this.caixaOperacional = caixaOperacional;
     }
 
     public VendaResponseDTO criarVendaAberta(UsuarioAutenticado autenticado) {
@@ -188,7 +190,7 @@ public class VendaService {
             venda.getItens().add(novo);
         }
         return faturar(venda, new FaturamentoVendaDTO(pedido.chaveRequisicao(), pedido.totalEsperado(),
-                pedido.formaPagamento(), pedido.valorRecebido(), pedido.formaPagamentoId()), autenticado, operador, resumo, produtosMap);
+                pedido.formaPagamento(), pedido.valorRecebido(), pedido.formaPagamentoId(), pedido.sessaoCaixaId()), autenticado, operador, resumo, produtosMap);
     }
 
     public VendaResponseDTO faturar(Long vendaId, FaturamentoVendaDTO pedido, UsuarioAutenticado autenticado) {
@@ -259,6 +261,7 @@ public class VendaService {
         if (codigoFechamento != FormaPagamento.DINHEIRO && recebido.compareTo(total) != 0) {
             throw conflito("PIX e cartão devem corresponder ao total da venda, sem troco.");
         }
+        venda.vincularSessaoCaixa(caixaOperacional.resolverSessao(pedido.sessaoCaixaId(), autenticado.empresaId()));
         for (var item : venda.getItens()) {
             if (Boolean.TRUE.equals(produtosMap.get(item.getProduto().getId()).getControlaEstoque())) {
                 var movimento = estoque.movimentar(autenticado.empresaId(), item.getProduto().getId(),
@@ -268,7 +271,8 @@ public class VendaService {
             }
         }
         venda.registrarFaturamento(pedido.chaveRequisicao(), resumo, codigoFechamento, recebido);
-        pagamentos.registrarFaturamento(venda, operador, forma);
+        var pagamento = pagamentos.registrarFaturamento(venda, operador, forma);
+        caixaOperacional.registrarVenda(pagamento);
         financeiro.save(new LancamentoFinanceiroEntity(venda));
         return VendaResponseDTO.de(venda);
     }

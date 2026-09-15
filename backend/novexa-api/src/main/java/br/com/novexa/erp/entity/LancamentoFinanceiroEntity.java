@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "lancamentos_financeiros")
 public class LancamentoFinanceiroEntity {
-    public enum Situacao { RECEBIDO, A_RECEBER }
+    public enum Situacao { RECEBIDO, A_RECEBER, CANCELADO }
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(optional = false) @JoinColumn(nullable = false) private EmpresaEntity empresa;
     @OneToOne(optional = false) @JoinColumn(nullable = false, unique = true) private VendaEntity venda;
@@ -27,6 +27,8 @@ public class LancamentoFinanceiroEntity {
             case CARTAO_DEBITO, CARTAO_CREDITO -> Situacao.A_RECEBER;
         };
     }
+    public void cancelar() { this.situacao = Situacao.CANCELADO; }
+
     public Long getId() { return id; }
     public BigDecimal getValor() { return valor; }
     public Situacao getSituacao() { return situacao; }

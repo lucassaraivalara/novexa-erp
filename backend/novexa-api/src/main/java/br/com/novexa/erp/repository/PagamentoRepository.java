@@ -5,5 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface PagamentoRepository extends JpaRepository<PagamentoEntity, Long> {
+    List<PagamentoEntity> findByEmpresaIdAndVendaSessaoCaixaIdOrderByIdAsc(Long empresaId, Long sessaoId);
     List<PagamentoEntity> findByEmpresaIdAndVendaIdOrderBySequenciaAsc(Long empresaId, Long vendaId);
 }

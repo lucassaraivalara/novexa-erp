@@ -27,6 +27,14 @@ public class VendaEntity {
     @ManyToOne(optional = false) @JoinColumn(nullable = false) private EmpresaEntity empresa;
     @ManyToOne(optional = false) @JoinColumn(nullable = false) private UsuarioEntity usuario;
     @ManyToOne private ClienteEntity cliente;
+    @ManyToOne @JoinColumn(name = "sessao_caixa_id") private SessaoCaixaEntity sessaoCaixa;
+    public SessaoCaixaEntity getSessaoCaixa() { return sessaoCaixa; }
+    public void vincularSessaoCaixa(SessaoCaixaEntity sessao) {
+        if (status != StatusVenda.ABERTA || !empresa.getId().equals(sessao.getEmpresa().getId())
+                || sessao.getStatus() != StatusSessaoCaixa.ABERTO)
+            throw new IllegalStateException("Sessão incompatível com a venda.");
+        this.sessaoCaixa = sessao;
+    }
     @Column(length = 20) private UUID chaveRequisicao;
     @Column(length = 64) private String resumoRequisicao;
     @Column(nullable = false) private LocalDateTime dataHora;

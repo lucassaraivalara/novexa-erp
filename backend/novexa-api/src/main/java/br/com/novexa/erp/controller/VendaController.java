@@ -13,7 +13,15 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/vendas")
 public class VendaController {
     private final VendaService service;
-    public VendaController(VendaService service) { this.service = service; }
+    private final br.com.novexa.erp.service.CancelamentoVendaService cancelamento;
+    public VendaController(VendaService service, br.com.novexa.erp.service.CancelamentoVendaService cancelamento) {
+        this.service = service; this.cancelamento = cancelamento;
+    }
+
+    @PostMapping("/{id}/cancelar")
+    public VendaResponseDTO cancelar(@PathVariable Long id, @AuthenticationPrincipal UsuarioAutenticado autenticado) {
+        return cancelamento.cancelarVendaFaturada(id, autenticado);
+    }
 
     @PostMapping
     public ResponseEntity<VendaResponseDTO> finalizar(@Valid @RequestBody VendaRequestDTO pedido,

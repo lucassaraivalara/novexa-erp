@@ -77,10 +77,10 @@ As capacidades abaixo distinguem a fundação implementada das etapas planejadas
 | Estágio | Capacidade requerida |
 |---|---|
 | IMPLEMENTADO no backend | Administrar formas de pagamento globais, sem empresaId, com descrição, tipo técnico e ativo; preservar códigos/contratos antigos e histórico durante a transição para ID |
-| IMPLEMENTADO no backend | Abrir, consultar sessão aberta e fechar Caixa da empresa autenticada; registrar saldos declarados, operadores e horários; impedir sessões abertas simultâneas no mesmo Caixa e preservar histórico |
+| IMPLEMENTADO no backend | Abrir, consultar sessão aberta e fechar Caixa da empresa autenticada; registrar operadores e horários; impedir sessões abertas simultâneas no mesmo Caixa; vincular novas vendas faturadas à sessão, totalizar formas sem inflar dinheiro, registrar suprimento/sangria idempotentes e calcular esperado/diferença no fechamento |
 | PRÓXIMO | Cadastrar condições de pagamento para prazo e parcelamento, sem confundi-las com forma de pagamento |
 | PRÓXIMO | Cadastrar Banco, Agência e Conta Bancária com seus relacionamentos e escopo autorizado |
-| FUTURO | Produzir os efeitos de Pagamento nos destinos oficiais, com Movimentações de Caixa/Bancárias e confirmação/baixa quando aplicável |
+| FUTURO | Produzir os demais efeitos de Pagamento nos destinos bancários, confirmação/baixa e reversões; a entrada de DINHEIRO no Caixa já existe no MVP |
 | FUTURO | Gerir Recebíveis, Contas a Receber e Contas a Pagar, incluindo liquidação, pagamentos e recebimentos |
 | FUTURO | Operar pagamento misto sobre a relação Venda 1:N Pagamento, com validação explícita da composição e dos valores |
 | FUTURO | Evoluir cobrança, conciliação e relatórios financeiros avançados após as fundações e integrações |
