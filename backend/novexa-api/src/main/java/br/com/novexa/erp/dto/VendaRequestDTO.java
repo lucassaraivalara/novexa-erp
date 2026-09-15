@@ -13,11 +13,31 @@ public record VendaRequestDTO(
         Long clienteId,
         @NotNull @DecimalMin("0.00") @Digits(integer = 12, fraction = 2) BigDecimal desconto,
         @NotNull @DecimalMin("0.01") @Digits(integer = 12, fraction = 2) BigDecimal totalEsperado,
-        @NotNull FormaPagamento formaPagamento,
+        FormaPagamento formaPagamento,
         @NotNull @DecimalMin("0.00") @Digits(integer = 12, fraction = 2) BigDecimal valorRecebido,
         @Size(max = 500) String entrega,
-        @Size(max = 2000) String observacoes
+        @Size(max = 2000) String observacoes,
+        @Positive Long formaPagamentoId
 ) {
+    public VendaRequestDTO(UUID chaveRequisicao, List<Item> itens, Long clienteId, BigDecimal desconto,
+            BigDecimal totalEsperado, FormaPagamento formaPagamento, BigDecimal valorRecebido,
+            String entrega, String observacoes) {
+        this(chaveRequisicao, itens, clienteId, desconto, totalEsperado, formaPagamento, valorRecebido,
+                entrega, observacoes, null);
+    }
+
+    @AssertTrue(message = "Informe somente formaPagamentoId ou formaPagamento.")
+    public boolean isFormaInformadaCorretamente() { return (formaPagamento == null) != (formaPagamentoId == null); }
+
+    // Preserva o resumo usado por retries de vendas anteriores à introdução do ID.
+    @Override public String toString() {
+        return "VendaRequestDTO[chaveRequisicao=" + chaveRequisicao + ", itens=" + itens
+                + ", clienteId=" + clienteId + ", desconto=" + desconto + ", totalEsperado=" + totalEsperado
+                + ", formaPagamento=" + formaPagamento + ", valorRecebido=" + valorRecebido
+                + ", entrega=" + entrega + ", observacoes=" + observacoes
+                + (formaPagamentoId == null ? "" : ", formaPagamentoId=" + formaPagamentoId) + "]";
+    }
+
     public record Item(
             @NotNull @Positive Long produtoId,
             @NotNull @DecimalMin("0.001") @Digits(integer = 9, fraction = 3) BigDecimal quantidade,

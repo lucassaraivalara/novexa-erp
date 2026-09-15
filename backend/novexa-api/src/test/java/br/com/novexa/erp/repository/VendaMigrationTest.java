@@ -72,6 +72,7 @@ class VendaMigrationTest {
         assertThat(numero("SELECT count(*) FROM lancamentos_financeiros")).isEqualTo(1);
         if (url.startsWith("jdbc:postgresql:")) {
             migrar("V7__cria_pagamentos.sql");
+            migrar("V8__cria_formas_pagamento.sql");
             connection.commit();
             validarHibernatePostgres();
         }

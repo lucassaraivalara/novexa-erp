@@ -72,11 +72,11 @@ O sistema deverá permitir:
 
 ## 2.6 Módulo Financeiro
 
-As capacidades abaixo são planejadas, não uma declaração de implementação. Reutilizar a fundação de Pagamento e o Caixa cadastral existentes; o estado real e o baseline estão em [CURRENT_STATE.md](CURRENT_STATE.md).
+As capacidades abaixo distinguem a fundação implementada das etapas planejadas. Reutilizar Pagamento e Caixa cadastral; o estado real e o baseline estão em [CURRENT_STATE.md](CURRENT_STATE.md).
 
 | Estágio | Capacidade requerida |
 |---|---|
-| PRÓXIMO | Configurar formas de pagamento por empresa, associadas a um tipo comportamental, preservando os códigos/contratos existentes durante a evolução |
+| IMPLEMENTADO no backend | Administrar formas de pagamento globais, sem empresaId, com descrição, tipo técnico e ativo; preservar códigos/contratos antigos e histórico durante a transição para ID |
 | PRÓXIMO | Cadastrar condições de pagamento para prazo e parcelamento, sem confundi-las com forma de pagamento |
 | PRÓXIMO | Cadastrar Banco, Agência e Conta Bancária com seus relacionamentos e escopo autorizado |
 | FUTURO | Produzir os efeitos de Pagamento nos destinos oficiais, com Movimentações de Caixa/Bancárias e confirmação/baixa quando aplicável |

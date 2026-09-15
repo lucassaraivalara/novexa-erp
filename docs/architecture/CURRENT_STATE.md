@@ -4,10 +4,22 @@ Cliente ........ funcional
 Estoque ........ backend funcional
 Venda .......... ABERTA → FATURADA consolidado
 Pagamento ...... fundação backend (base aeaec2e)
+Formas de Pagamento .... catálogo global backend (branch feat/formas-pagamento)
 Caixa .......... cadastro backend e frontend funcional
 Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; cadastros frontend estruturados
 Dashboard ...... placeholder
+
+## Formas de Pagamento: fundação global (2026-09-14)
+
+- Branch `feat/formas-pagamento`, base integrada `5a7a067`, ainda não incorporada à main. Catálogo global com id, descrição, tipo e ativo; sem empresaId. Tipos técnicos: DINHEIRO, PIX, DEBITO, CREDITO, BOLETO e TRANSFERENCIA.
+- API autenticada: listar/criar em `/financeiro/formas-pagamento` e buscar/atualizar em `/{id}`. PUT também ativa/inativa; sem exclusão física. Descrição única normalizada e tipo imutável para preservar o comportamento histórico.
+- Pagamento referencia FormaPagamento. V8 cria catálogo, seis registros iniciais e FK obrigatória nos pagamentos existentes; preserva o código legado como snapshot e não repete estoque/financeiro. Migrations aplicadas anteriores foram preservadas.
+- Venda/PDV aceita o contrato antigo ou formaPagamentoId, nunca os dois juntos. Formas inativas são rejeitadas antes dos efeitos; retry de fechamento anterior continua válido após inativação. A V8 e os IDs estáveis permitem transição sem escolher formas pelo nome. Contratos e limitações em [financeiro.md](financeiro.md).
+- Implementado o catálogo dos seis tipos; faturamento continua limitado a dinheiro, PIX, débito e crédito. Boleto/transferência no fechamento, frontend do cadastro, CondiçãoPagamento e demais destinos financeiros permanecem futuros.
+- Validação: 31 casos adicionados; `.\mvnw.cmd clean test` executou 410 testes, zero falhas, erros ou ignorados e BUILD SUCCESS. Inclui CRUD global, formas inativas, histórico, compatibilidade do hash legado, faturamento por ID e inativação concorrente. `git diff --check` aprovado.
+- PostgreSQL 18.6 descartável: 25 testes aprovados, incluindo Flyway V1–V8, seed/backfill, constraints, rollback de migration e Hibernate `validate`. A primeira tentativa falhou por memória compartilhada do processo PostgreSQL no Windows; a repetição passou após reiniciar somente o cluster descartável. Nenhum banco existente foi alterado.
+- CONTRACT READY para o cadastro global e seleção por ID dos quatro tipos já suportados no faturamento. Isso não declara boleto/transferência no fechamento, CondiçãoPagamento ou destinos financeiros implementados.
 
 ## Baseline integrada: Pagamento + fundação frontend (2026-09-14)
 
@@ -61,7 +73,7 @@ Regras de negócio permanecem em [estoque.md](estoque.md), sem alteração arqui
 - `PagamentoEntity`, repository e service registram um pagamento no faturamento, com empresa/venda/operador, forma, valor, status REGISTRADO, data/hora, chave de requisição e sequência. Venda ABERTA não gera pagamento. O modelo permite 1:N; pagamento misto ainda não foi implementado.
 - Mantidos os contratos atuais do PDV e os campos de fechamento em Venda. A nova consulta autenticada `GET /vendas/{vendaId}/pagamentos` usa empresa do JWT e retorna 404 para venda de outro tenant. Não há endpoints de criação, alteração ou exclusão de Pagamento.
 - REGISTRADO não significa liquidação ou confirmação externa. Valor recebido/troco são registrados no Pagamento apenas em dinheiro. O lançamento financeiro temporário continua funcionando com suas situações anteriores, independentemente desse novo status.
-- `FormaPagamento` é atualmente um enum fixo (DINHEIRO, PIX, CARTAO_DEBITO, CARTAO_CREDITO). Não existem no backend cadastros próprios de TipoFormaPagamento, Forma de Pagamento configurável, Condição de Pagamento, Banco, Agência ou Conta Bancária nesta base.
+- Na entrega `aeaec2e`, `FormaPagamento` era apenas um enum fixo (DINHEIRO, PIX, CARTAO_DEBITO, CARTAO_CREDITO); o catálogo global foi acrescentado na fundação descrita acima. Condição de Pagamento, Banco, Agência e Conta Bancária continuam sem implementação backend.
 - Idempotência e locks do faturamento preservados; unicidade de venda/sequência evita duplicação do pagamento atual. Falha no pagamento ou no financeiro reverte pagamento, saldo, histórico e status da Venda.
 - V7 cria `pagamentos` e preenche vendas FATURADA existentes, sem repetir efeitos. FKs compostas protegem os vínculos de tenant. O operador e o horário legados usam os dados históricos disponíveis, com limitações descritas em [financeiro.md](financeiro.md).
 - Validação direcionada: 129 testes aprovados, zero falhas, erros ou ignorados; inclui 20 casos de migration e cinco novos cenários HTTP, além das verificações de Pagamento nos testes existentes de Venda.

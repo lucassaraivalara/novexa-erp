@@ -121,13 +121,14 @@ Base de referência: `integracao/pagamento-frontend-baseline`, reunindo Pagament
 * Estoque consolidado: saldo/histórico, movimentações e integração com faturamento;
 * Caixa cadastral, exclusivamente dinheiro físico;
 * Fundação de Pagamento: registro no faturamento e consulta, com modelo 1:N e contrato atual de um pagamento por venda.
+* Fundação backend de Formas de Pagamento global: catálogo com seis tipos e integração por ID ao Pagamento, entregue em `feat/formas-pagamento` sobre `5a7a067`; integração na main e frontend próprios ainda pendentes.
 * Frontend Financeiro > Cadastros: Caixa funcional e Dados Bancários apenas como shell de navegação, sem implementar os cadastros bancários da próxima fase.
 
 O lançamento financeiro temporário continua por compatibilidade. Não representa a implantação dos destinos financeiros oficiais. Limitações e validações existentes permanecem em CURRENT_STATE.md.
 
 ## 7.2 Próxima fundação — PRÓXIMO
 
-1. Tipo/Forma de Pagamento: distinguir comportamento de cadastro configurável da empresa, preservando os contratos e o histórico atuais.
+1. Frontend de Formas de Pagamento: consumir o catálogo global após integração do backend; migrar a seleção do PDV para ID em tarefa coordenada, respeitando os tipos suportados pelo faturamento.
 2. Condição de Pagamento: cadastro de prazos/parcelamento, separado da forma e sem regras de crédito ou cobrança avançada.
 3. Banco: cadastro da instituição.
 4. Agência: cadastro vinculado ao Banco.

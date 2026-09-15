@@ -98,6 +98,7 @@ class PagamentoMigrationTest {
         if (postgres()) {
             flywayAte("7").validate();
             assertThat(flywayAte("7").migrate().migrationsExecuted).isZero();
+            flywayAte("8").migrate();
             validarHibernatePostgres();
         }
     }
@@ -175,6 +176,75 @@ class PagamentoMigrationTest {
         } else {
             // H2 faz commit de DDL; nao e evidencia de atomicidade da migration PostgreSQL.
             assertThat(numero("SELECT count(*) FROM pagamentos")).isZero();
+        }
+    }
+
+    @Test
+    void v8VinculaHistoricoAoCatalogoGlobalSemRepetirEfeitos() throws Exception {
+        migrarPagamento();
+        migrarFormas();
+        assertThat(numero("SELECT count(*) FROM formas_pagamento")).isEqualTo(6);
+        assertThat(numero("SELECT count(*) FROM pagamentos p JOIN formas_pagamento f ON f.id=p.forma_pagamento_id "
+                + "WHERE p.forma_pagamento_id=p.venda_id AND p.valor=20 AND p.status='REGISTRADO'")).isEqualTo(4);
+        assertThat(numero("SELECT count(*) FROM pagamentos WHERE forma_pagamento='DINHEIRO' AND troco=5")).isEqualTo(1);
+        assertThat(numero("SELECT count(*) FROM lancamentos_financeiros")).isEqualTo(1);
+        assertThat(numero("SELECT estoque_atual FROM produtos WHERE id=1")).isEqualTo(10);
+        assertThat(numero("SELECT count(*) FROM information_schema.columns WHERE table_schema='" + schema
+                + "' AND table_name='formas_pagamento' AND column_name='empresa_id'")).isZero();
+        executar("INSERT INTO formas_pagamento (descricao,tipo,ativo) VALUES ('PIX adicional','PIX',true)");
+        assertThat(numero("SELECT id FROM formas_pagamento WHERE descricao='PIX adicional'")).isGreaterThan(6);
+        executar("UPDATE formas_pagamento SET descricao='Dinheiro renomeado',ativo=false WHERE id=1");
+        assertThat(numero("SELECT count(*) FROM pagamentos WHERE forma_pagamento_id=1 AND forma_pagamento='DINHEIRO' AND valor=20")).isEqualTo(1);
+        if (postgres()) {
+            flywayAte("8").validate();
+            assertThat(flywayAte("8").migrate().migrationsExecuted).isZero();
+            validarHibernatePostgres();
+            assertThatThrownBy(() -> executar("INSERT INTO formas_pagamento (descricao,tipo,ativo) VALUES (' pix ','PIX',true)"))
+                    .isInstanceOf(SQLException.class);
+        }
+    }
+
+    @Test
+    void v8RejeitaFormaInexistenteNulaEExclusaoDeFormaReferenciada() throws Exception {
+        migrarPagamento(); migrarFormas();
+        assertThatThrownBy(() -> executar("UPDATE pagamentos SET forma_pagamento_id=999 WHERE id=1"))
+                .isInstanceOf(SQLException.class);
+        assertThatThrownBy(() -> executar("UPDATE pagamentos SET forma_pagamento_id=NULL WHERE id=1"))
+                .isInstanceOf(SQLException.class);
+        assertThatThrownBy(() -> executar("DELETE FROM formas_pagamento WHERE id=1"))
+                .isInstanceOf(SQLException.class);
+        assertThatThrownBy(() -> executar("INSERT INTO formas_pagamento (descricao,tipo) VALUES ('  ','PIX')"))
+                .isInstanceOf(SQLException.class);
+        assertThatThrownBy(() -> executar("INSERT INTO formas_pagamento (descricao,tipo) VALUES ('Teste','INVALIDO')"))
+                .isInstanceOf(SQLException.class);
+    }
+
+    @Test
+    void v8InterrompeComLegadoDesconhecidoSemInventarVinculo() throws Exception {
+        migrarPagamento();
+        executar("ALTER TABLE pagamentos DROP CONSTRAINT chk_pagamento_forma");
+        executar("UPDATE pagamentos SET forma_pagamento='LEGADO' WHERE forma_pagamento='PIX'");
+        assertThatThrownBy(this::migrarFormas).hasStackTraceContaining("forma_pagamento_id");
+        assertThat(numero("SELECT count(*) FROM pagamentos WHERE forma_pagamento='LEGADO'")).isEqualTo(1);
+        if (postgres()) {
+            assertThat(numero("SELECT count(*) FROM information_schema.tables WHERE table_schema='" + schema
+                    + "' AND table_name='formas_pagamento'")).isZero();
+        }
+    }
+
+    private void migrarFormas() throws Exception {
+        if (postgres()) {
+            flywayAte("8").migrate();
+        } else {
+            // H2 não suporta índice por expressão nem a sequência criada por BIGSERIAL.
+            // O SQL original completo, o índice e a atomicidade são verificados em PostgreSQL.
+            String sql = new ClassPathResource("db/migration/V8__cria_formas_pagamento.sql")
+                    .getContentAsString(java.nio.charset.StandardCharsets.UTF_8)
+                    .replace("CREATE UNIQUE INDEX uk_forma_descricao_normalizada ON formas_pagamento (lower(trim(descricao)));", "")
+                    .replace("ALTER SEQUENCE formas_pagamento_id_seq RESTART WITH 7;",
+                            "ALTER TABLE formas_pagamento ALTER COLUMN id RESTART WITH 7;");
+            ScriptUtils.executeSqlScript(connection, new org.springframework.core.io.ByteArrayResource(
+                    sql.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         }
     }
 

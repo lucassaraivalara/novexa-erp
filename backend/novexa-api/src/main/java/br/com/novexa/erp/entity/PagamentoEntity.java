@@ -16,7 +16,11 @@ public class PagamentoEntity {
     @ManyToOne(optional = false) @JoinColumn(nullable = false) private UsuarioEntity usuario;
     @Column(nullable = false) private int sequencia;
     @Column(nullable = false) private UUID chaveRequisicao;
-    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private FormaPagamento formaPagamento;
+    // Snapshot do código de fechamento para preservar a resposta histórica do PDV.
+    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20, updatable = false) private FormaPagamento formaPagamento;
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "forma_pagamento_id", nullable = false, updatable = false)
+    private FormaPagamentoEntity forma;
     @Column(nullable = false, precision = 19, scale = 2) private BigDecimal valor;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private StatusPagamento status;
     @Column(nullable = false) private LocalDateTime dataHora;
@@ -25,7 +29,7 @@ public class PagamentoEntity {
 
     protected PagamentoEntity() { }
 
-    public PagamentoEntity(VendaEntity venda, UsuarioEntity operador) {
+    public PagamentoEntity(VendaEntity venda, UsuarioEntity operador, FormaPagamentoEntity forma) {
         if (venda.getStatus() != StatusVenda.FATURADA) {
             throw new IllegalArgumentException("Pagamento exige venda faturada.");
         }
@@ -39,6 +43,10 @@ public class PagamentoEntity {
         this.sequencia = 1;
         this.chaveRequisicao = Objects.requireNonNull(venda.getChaveRequisicao());
         this.formaPagamento = Objects.requireNonNull(venda.getFormaPagamento());
+        if (!forma.isAtivo() || forma.getTipo().contratoVenda() != formaPagamento) {
+            throw new IllegalArgumentException("Forma de pagamento indisponível ou incompatível com o fechamento.");
+        }
+        this.forma = forma;
         this.valor = venda.getTotal();
         this.status = StatusPagamento.REGISTRADO;
         this.dataHora = LocalDateTime.now();
@@ -55,6 +63,7 @@ public class PagamentoEntity {
     public int getSequencia() { return sequencia; }
     public UUID getChaveRequisicao() { return chaveRequisicao; }
     public FormaPagamento getFormaPagamento() { return formaPagamento; }
+    public FormaPagamentoEntity getForma() { return forma; }
     public BigDecimal getValor() { return valor; }
     public StatusPagamento getStatus() { return status; }
     public LocalDateTime getDataHora() { return dataHora; }

@@ -14,6 +14,7 @@ import org.springframework.http.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.jdbc.Sql;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -33,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "novexa.jwt.secret=01234567890123456789012345678901", "novexa.jwt.expiration-ms=60000"
 })
 @AutoConfigureMockMvc
+@Sql("/formas-pagamento-fixture.sql")
 class VendaHttpTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
@@ -65,6 +67,7 @@ class VendaHttpTest {
     void limpar() {
         reset(financeiro, pagamentos);
         jdbc.update("delete from pagamentos");
+        jdbc.update("delete from formas_pagamento");
         jdbc.update("delete from lancamentos_financeiros");
         jdbc.update("delete from itens_venda");
         jdbc.update("delete from vendas");
@@ -539,6 +542,132 @@ class VendaHttpTest {
         assertThat(movimentos.count()).isZero();
         assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.ABERTA);
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {1, 2, 3, 4})
+    void fechamentoPorIdPreservaTiposSuportadosEContratoDoPdv(long formaId) throws Exception {
+        var pedido = pedido();
+        pedido.remove("formaPagamento");
+        pedido.put("formaPagamentoId", formaId);
+        long id = enviar(pedido);
+        var pagamento = pagamentos.findAll().getFirst();
+        assertThat(pagamento.getForma().getId()).isEqualTo(formaId);
+        assertThat(pagamento.getFormaPagamento().idPadrao()).isEqualTo(formaId);
+        mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].formaPagamentoId").value(formaId))
+                .andExpect(jsonPath("$[0].formaPagamento").value(pagamento.getFormaPagamento().name()));
+        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(movimentos.count()).isEqualTo(1);
+    }
+
+    @Test
+    void formaCriadaPodeSerUsadaEHistoricoRetrySobrevivemAInativacao() throws Exception {
+        var result = mvc.perform(post("/financeiro/formas-pagamento").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"descricao\":\"PIX Alternativo\",\"tipo\":\"PIX\"}"))
+                .andExpect(status().isCreated()).andReturn();
+        long formaId = json.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+        var pedido = pedido(); pedido.remove("formaPagamento"); pedido.put("formaPagamentoId", formaId);
+        long id = enviar(pedido);
+        mvc.perform(put("/financeiro/formas-pagamento/" + formaId).header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"descricao\":\"PIX renomeado\",\"tipo\":\"PIX\",\"ativo\":false}"))
+                .andExpect(status().isOk());
+        assertThat(enviar(pedido)).isEqualTo(id);
+        mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].formaPagamentoId").value(formaId))
+                .andExpect(jsonPath("$[0].tipoFormaPagamento").value("PIX"))
+                .andExpect(jsonPath("$[0].formaPagamento").value("PIX"))
+                .andExpect(jsonPath("$[0].valor").value(20));
+        pedido.put("chaveRequisicao", UUID.randomUUID());
+        assertThat(statusVenda(pedido, authorization)).isEqualTo(409);
+        assertThat(pagamentos.count()).isEqualTo(1);
+        assertThat(vendas.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(movimentos.count()).isEqualTo(1);
+    }
+
+    @Test
+    void inativacaoTambemBloqueiaCodigoLegadoEVendaAbertaSemEfeitos() throws Exception {
+        mvc.perform(put("/financeiro/formas-pagamento/1").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"descricao\":\"Dinheiro\",\"tipo\":\"DINHEIRO\",\"ativo\":false}"))
+                .andExpect(status().isOk());
+        assertThat(statusVenda(pedido(), authorization)).isEqualTo(409);
+        long id = abrir(); adicionar(id, produto.getId(), 2);
+        assertThat(faturarStatus(id, authorization)).isEqualTo(409);
+        assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.ABERTA);
+        assertThat(pagamentos.count()).isZero();
+        assertThat(financeiro.count()).isZero();
+        assertThat(movimentos.count()).isZero();
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    void vendaAbertaFaturaComFormaIdEPreservaRetry() throws Exception {
+        long id = abrir(); adicionar(id, produto.getId(), 2);
+        var pedido = pagamento(); pedido.remove("formaPagamento"); pedido.put("formaPagamentoId", 2);
+        for (int tentativa = 0; tentativa < 2; tentativa++) {
+            mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                    .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pedido)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("FATURADA"));
+        }
+        assertThat(pagamentos.count()).isEqualTo(1);
+        assertThat(pagamentos.findAll().getFirst().getForma().getId()).isEqualTo(2);
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {5, 6, 999})
+    void formaNaoSuportadaOuInexistenteNaoGeraEfeitos(long formaId) throws Exception {
+        var pedido = pedido(); pedido.remove("formaPagamento"); pedido.put("formaPagamentoId", formaId);
+        assertThat(statusVenda(pedido, authorization)).isEqualTo(formaId == 999 ? 404 : 409);
+        assertThat(pagamentos.count()).isZero();
+        assertThat(vendas.count()).isZero();
+        assertThat(financeiro.count()).isZero();
+        assertThat(movimentos.count()).isZero();
+    }
+
+    @Test
+    void contratoRejeitaFormaAmbiguaAusenteOuIdInvalido() throws Exception {
+        var pedido = pedido(); pedido.put("formaPagamentoId", 1);
+        assertThat(statusVenda(pedido, authorization)).isEqualTo(400);
+        pedido.remove("formaPagamentoId"); pedido.remove("formaPagamento");
+        assertThat(statusVenda(pedido, authorization)).isEqualTo(400);
+        pedido.put("formaPagamentoId", -1);
+        assertThat(statusVenda(pedido, authorization)).isEqualTo(400);
+    }
+
+    @Test
+    void inativacaoAguardaPagamentoEmCursoENaoAlteraHistorico() throws Exception {
+        var pagamentoGravado = new CountDownLatch(1);
+        var liberar = new CountDownLatch(1);
+        var inativacaoIniciou = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            var salvo = financeiro.saveAndFlush(invocation.getArgument(0));
+            pagamentoGravado.countDown();
+            assertThat(liberar.await(10, TimeUnit.SECONDS)).isTrue();
+            return salvo;
+        }).when(financeiro).save(any(LancamentoFinanceiroEntity.class));
+        try (var workers = Executors.newFixedThreadPool(2)) {
+            var venda = workers.submit(() -> enviar(pedido()));
+            Future<Integer> inativacao;
+            try {
+                assertThat(pagamentoGravado.await(10, TimeUnit.SECONDS)).isTrue();
+                inativacao = workers.submit(() -> {
+                    inativacaoIniciou.countDown();
+                    return mvc.perform(put("/financeiro/formas-pagamento/1").header(HttpHeaders.AUTHORIZATION, authorization)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"descricao\":\"Dinheiro\",\"tipo\":\"DINHEIRO\",\"ativo\":false}"))
+                            .andReturn().getResponse().getStatus();
+                });
+                assertThat(inativacaoIniciou.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThatThrownBy(() -> inativacao.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            } finally { liberar.countDown(); }
+            assertThat(venda.get(15, TimeUnit.SECONDS)).isPositive();
+            assertThat(inativacao.get(15, TimeUnit.SECONDS)).isEqualTo(200);
+        }
+        assertThat(pagamentos.count()).isEqualTo(1);
+        assertThat(pagamentos.findAll().getFirst().getForma().isAtivo()).isFalse();
     }
 
     private long abrir() throws Exception {

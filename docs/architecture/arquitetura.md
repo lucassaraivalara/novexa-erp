@@ -18,6 +18,6 @@ A V6 migra o modelo legado e mantém a tabela original somente como arquivo hist
 
 `Venda → Pagamento` existe na base `aeaec2e`; `Pagamento → destino financeiro` permanece FUTURO. O lançamento temporário não substitui os destinos oficiais.
 
-A próxima fundação separa tipo comportamental, forma configurável da empresa e condição de prazo/parcelamento, apoiada no Caixa cadastral existente e nos futuros cadastros `Banco → Agência → Conta Bancária`. Configuração cadastral, registro de pagamento e movimentação financeira têm responsabilidades distintas.
+A fundação de Formas de Pagamento separa o catálogo global compartilhado (`FormaPagamentoEntity`, sem Empresa) do tipo técnico (`TipoFormaPagamento`). Pagamento referencia a forma, mantendo seu próprio tenant. Condição de prazo/parcelamento e os cadastros `Banco → Agência → Conta Bancária` permanecem futuros; Caixa continua cadastral. Configuração cadastral, registro de pagamento e movimentação financeira têm responsabilidades distintas.
 
 Preservar histórico, contratos e isolamento da empresa, sem exigir antecipadamente dependências de Caixa/Banco no Pagamento ou novas etapas no PDV. Os conceitos e estágios ficam em [financeiro.md](financeiro.md); a ordem incremental, em [roadmap.md](roadmap.md).
