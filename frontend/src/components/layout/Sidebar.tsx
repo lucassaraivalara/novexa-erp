@@ -32,6 +32,8 @@ function Sidebar() {
                     boxSizing: "border-box",
                     border: 0,
                     borderRight: "1px solid rgba(148, 163, 184, 0.12)",
+                    borderRadius: 0,
+                    boxShadow: "none",
                     color: "#E2E8F0",
                     backgroundColor: "#0B1220",
                 },
@@ -43,8 +45,9 @@ function Sidebar() {
                     spacing={1.25}
                     sx={{
                         alignItems: "center",
+                        justifyContent: { xs: "center", sm: "flex-start" },
                         minHeight: 60,
-                        px: { xs: 1, sm: 1.5 },
+                        px: { xs: 0.75, sm: 1.5 },
                         py: 1.25,
                     }}
                 >
@@ -134,11 +137,22 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
     const titulo = item.tipo === "rota" ? item.titulo ?? item.rota.titulo : item.titulo;
     const icone = item.tipo === "rota" ? item.rota.icone : item.icone;
     const conteudo = <>
-        <ListItemIcon sx={{ minWidth: { xs: 0, sm: nivel ? 24 : 29 }, color: "inherit", "& svg": { fontSize: layoutTokens.sidebar.tamanhoIconeMenu } }}>
+        <ListItemIcon sx={{ minWidth: { xs: 0, sm: nivel ? 24 : 29 }, justifyContent: "center", color: "inherit", "& svg": { fontSize: layoutTokens.sidebar.tamanhoIconeMenu } }}>
             {icone}
         </ListItemIcon>
-        <ListItemText primary={titulo} slotProps={{ primary: { sx: { fontSize: nivel ? "0.75rem" : "0.8rem", fontWeight: grupo ? 650 : nivel ? 500 : 600, lineHeight: 1.35 } } }} sx={{ display: { xs: "none", sm: "block" } }} />
-        {grupo && (aberto ? <ExpandMoreRoundedIcon sx={{ fontSize: 15, flexShrink: 0 }} /> : <ChevronRightRoundedIcon sx={{ fontSize: 15, flexShrink: 0 }} />)}
+        <ListItemText
+            primary={titulo}
+            slotProps={{
+                primary: {
+                    noWrap: true,
+                    sx: { fontSize: nivel ? "0.75rem" : "0.8rem", fontWeight: grupo ? 650 : nivel ? 500 : 600, lineHeight: 1.35 },
+                },
+            }}
+            sx={{ display: { xs: "none", sm: "block" }, minWidth: 0 }}
+        />
+        {grupo && (aberto
+            ? <ExpandMoreRoundedIcon sx={{ display: { xs: "none", sm: "block" }, fontSize: 15, flexShrink: 0 }} />
+            : <ChevronRightRoundedIcon sx={{ display: { xs: "none", sm: "block" }, fontSize: 15, flexShrink: 0 }} />)}
     </>;
     const estilo = {
         position: "relative",
@@ -182,7 +196,7 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
         },
     };
 
-    return <Box component="li" sx={{ listStyle: "none" }}>
+    return <Box component="li" sx={{ mt: nivel === 0 && grupo ? 0.5 : 0, listStyle: "none" }}>
         <Tooltip title={indisponivel ? `${titulo} — ainda não disponível` : titulo} placement="right">
             {item.tipo === "rota" ? (
                 <ListItemButton component={Link} to={obterCaminhoDaRota(item.rota)} selected={ativo} aria-current={ativo ? "page" : undefined} aria-label={titulo} sx={estilo}>
