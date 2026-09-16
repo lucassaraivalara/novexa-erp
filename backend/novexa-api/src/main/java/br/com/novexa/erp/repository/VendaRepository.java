@@ -5,17 +5,54 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface VendaRepository extends JpaRepository<VendaEntity, Long> {
+    interface ResumoVendasHoje {
+        BigDecimal getFaturamento();
+        long getQuantidade();
+    }
+
     Optional<VendaEntity> findByEmpresaIdAndUsuarioIdAndChaveRequisicao(Long empresaId, Long usuarioId, UUID chave);
     Optional<VendaEntity> findByIdAndEmpresaId(Long id, Long empresaId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select v from VendaEntity v where v.id = :id and v.empresa.id = :empresaId")
     Optional<VendaEntity> findByIdAndEmpresaIdWithLock(@Param("id") Long id, @Param("empresaId") Long empresaId);
+
+    @Query("""
+            select v from VendaEntity v
+            left join fetch v.cliente
+            left join fetch v.sessaoCaixa
+            where v.empresa.id = :empresaId
+              and (:status is null or v.status = :status)
+              and (:inicio is null or v.dataHora >= :inicio)
+              and (:fimExclusivo is null or v.dataHora < :fimExclusivo)
+              and (:clienteId is null or v.cliente.id = :clienteId)
+            order by v.dataHora desc, v.id desc
+            """)
+    List<VendaEntity> listarResumo(@Param("empresaId") Long empresaId,
+                                   @Param("status") StatusVenda status,
+                                   @Param("inicio") LocalDateTime inicio,
+                                   @Param("fimExclusivo") LocalDateTime fimExclusivo,
+                                   @Param("clienteId") Long clienteId);
+
+    @Query("""
+            select coalesce(sum(v.total), 0) as faturamento, count(v) as quantidade
+            from VendaEntity v
+            where v.empresa.id = :empresaId
+              and v.status = :status
+              and v.dataHora >= :inicio
+              and v.dataHora < :fimExclusivo
+            """)
+    ResumoVendasHoje resumirPorPeriodo(@Param("empresaId") Long empresaId,
+                                       @Param("status") StatusVenda status,
+                                       @Param("inicio") LocalDateTime inicio,
+                                       @Param("fimExclusivo") LocalDateTime fimExclusivo);
 
 
     // Serializa finalizações do mesmo operador, inclusive tentativas simultâneas da mesma requisição.

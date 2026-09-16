@@ -1,22 +1,15 @@
 import { useState, type FormEvent } from "react";
-import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import {
     Alert,
     Box,
-    Button,
     CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
     Divider,
-    FormControlLabel,
-    IconButton,
     Stack,
     Switch,
     TextField,
     Typography,
 } from "@mui/material";
+import CadastroDialog from "../../components/ui/CadastroDialog";
 import type { Produto, ProdutoInput } from "../../types/produto";
 
 type ProdutoFormProps = {
@@ -167,21 +160,16 @@ function ProdutoForm({
     const editando = produto !== null;
 
     return (
-        <Dialog open={aberto} onClose={salvando ? undefined : onFechar} fullWidth maxWidth="md">
-            <Box component="form" onSubmit={enviar} noValidate>
-                <DialogTitle sx={{ pb: 1, position: "relative" }}>
-                    {editando ? "Editar produto" : "Novo produto"}
-                    <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: "0.85rem" }}>
-                        {editando
-                            ? "Revise os dados e salve as alterações."
-                            : "Preencha os dados para cadastrar um produto."}
-                    </Typography>
-                    <IconButton aria-label="Fechar" onClick={onFechar} disabled={salvando} sx={{ position: "absolute", top: 8, right: 12 }}>
-                        <CloseRoundedIcon />
-                    </IconButton>
-                </DialogTitle>
-
-                <DialogContent dividers>
+        <CadastroDialog
+            aberto={aberto}
+            variante="full"
+            titulo={editando ? "Editar produto" : "Novo produto"}
+            descricao={editando ? "Revise os dados e salve as alterações." : "Preencha os dados para cadastrar um produto."}
+            salvando={salvando}
+            desabilitarSalvar={carregandoProduto}
+            textoSalvar={editando ? "Salvar alterações" : "Cadastrar produto"}
+            onFechar={onFechar}
+            onSubmit={enviar}>
                     {carregandoProduto ? (
                         <Box sx={{ display: "grid", minHeight: 280, placeItems: "center" }}>
                             <CircularProgress size={32} />
@@ -192,87 +180,90 @@ function ProdutoForm({
 
                             <Stack spacing={1.5}>
                                 <Typography variant="subtitle2">Identificação</Typography>
-                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+                                <Divider />
+                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+                                    <TextField
+                                        label="Código interno"
+                                        value={formulario.codigoInterno}
+                                        onChange={(e) => alterarCampo("codigoInterno", e.target.value)}
+                                        error={Boolean(erros.codigoInterno)}
+                                        helperText={erros.codigoInterno}
+                                        slotProps={{ htmlInput: { maxLength: 60 } }}
+                                    />
+                                    <TextField
+                                        label="Código de barras"
+                                        value={formulario.codigoBarras}
+                                        onChange={(e) => alterarCampo("codigoBarras", e.target.value)}
+                                        error={Boolean(erros.codigoBarras)}
+                                        helperText={erros.codigoBarras}
+                                        slotProps={{ htmlInput: { maxLength: 60 } }}
+                                    />
+                                </Box>
                                 <TextField
-                                    label="Código interno"
-                                    value={formulario.codigoInterno}
-                                    onChange={(e) => alterarCampo("codigoInterno", e.target.value)}
-                                    error={Boolean(erros.codigoInterno)}
-                                    helperText={erros.codigoInterno}
-                                    slotProps={{ htmlInput: { maxLength: 60 } }}
+                                    required
+                                    label="Nome"
+                                    autoFocus={!carregandoProduto}
+                                    value={formulario.nome}
+                                    onChange={(e) => alterarCampo("nome", e.target.value)}
+                                    error={Boolean(erros.nome)}
+                                    helperText={erros.nome}
+                                    slotProps={{ htmlInput: { maxLength: 150 } }}
                                 />
                                 <TextField
-                                    label="Código de barras"
-                                    value={formulario.codigoBarras}
-                                    onChange={(e) => alterarCampo("codigoBarras", e.target.value)}
-                                    error={Boolean(erros.codigoBarras)}
-                                    helperText={erros.codigoBarras}
-                                    slotProps={{ htmlInput: { maxLength: 60 } }}
+                                    label="Descrição"
+                                    value={formulario.descricao}
+                                    onChange={(e) => alterarCampo("descricao", e.target.value)}
+                                    error={Boolean(erros.descricao)}
+                                    helperText={erros.descricao ?? `${formulario.descricao.length}/2000`}
+                                    multiline
+                                    minRows={2}
+                                    slotProps={{ htmlInput: { maxLength: 2000 } }}
                                 />
-                            </Box>
                             </Stack>
-
-                            <TextField
-                                required
-                                label="Nome"
-                                autoFocus={!carregandoProduto}
-                                value={formulario.nome}
-                                onChange={(e) => alterarCampo("nome", e.target.value)}
-                                error={Boolean(erros.nome)}
-                                helperText={erros.nome}
-                                slotProps={{ htmlInput: { maxLength: 150 } }}
-                            />
-                            <TextField
-                                label="Descrição"
-                                value={formulario.descricao}
-                                onChange={(e) => alterarCampo("descricao", e.target.value)}
-                                error={Boolean(erros.descricao)}
-                                helperText={erros.descricao ?? `${formulario.descricao.length}/2000`}
-                                multiline
-                                minRows={2}
-                                slotProps={{ htmlInput: { maxLength: 2000 } }}
-                            />
 
                             <Stack spacing={1.5}>
                                 <Typography variant="subtitle2">Preços</Typography>
-                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "120px 1fr 1fr" }, gap: 2 }}>
-                                <TextField
-                                    required
-                                    label="Unidade de medida"
-                                    value={formulario.unidadeMedida}
-                                    onChange={(e) => alterarCampo("unidadeMedida", e.target.value.toUpperCase())}
-                                    error={Boolean(erros.unidadeMedida)}
-                                    helperText={erros.unidadeMedida ?? "Ex.: UN, KG, LT"}
-                                    slotProps={{ htmlInput: { maxLength: 10 } }}
-                                />
-                                <TextField
-                                    label="Preço de custo"
-                                    value={formulario.precoCusto}
-                                    onChange={(e) => alterarCampo("precoCusto", e.target.value)}
-                                    error={Boolean(erros.precoCusto)}
-                                    helperText={erros.precoCusto}
-                                    slotProps={{ input: { startAdornment: <Typography sx={{ mr: 1 }}>R$</Typography> } }}
-                                />
-                                <TextField
-                                    required
-                                    label="Preço de venda"
-                                    value={formulario.precoVenda}
-                                    onChange={(e) => alterarCampo("precoVenda", e.target.value)}
-                                    error={Boolean(erros.precoVenda)}
-                                    helperText={erros.precoVenda}
-                                    slotProps={{ input: { startAdornment: <Typography sx={{ mr: 1 }}>R$</Typography> } }}
-                                />
+                                <Divider />
+                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "180px 1fr 1fr" }, gap: 1.5 }}>
+                                    <TextField
+                                        required
+                                        label="Unidade de medida"
+                                        value={formulario.unidadeMedida}
+                                        onChange={(e) => alterarCampo("unidadeMedida", e.target.value.toUpperCase())}
+                                        error={Boolean(erros.unidadeMedida)}
+                                        helperText={erros.unidadeMedida ?? "Ex.: UN, KG, LT"}
+                                        slotProps={{ htmlInput: { maxLength: 10 } }}
+                                    />
+                                    <TextField
+                                        label="Preço de custo"
+                                        value={formulario.precoCusto}
+                                        onChange={(e) => alterarCampo("precoCusto", e.target.value)}
+                                        error={Boolean(erros.precoCusto)}
+                                        helperText={erros.precoCusto}
+                                        slotProps={{ input: { startAdornment: <Typography sx={{ mr: 1 }}>R$</Typography> } }}
+                                    />
+                                    <TextField
+                                        required
+                                        label="Preço de venda"
+                                        value={formulario.precoVenda}
+                                        onChange={(e) => alterarCampo("precoVenda", e.target.value)}
+                                        error={Boolean(erros.precoVenda)}
+                                        helperText={erros.precoVenda}
+                                        slotProps={{ input: { startAdornment: <Typography sx={{ mr: 1 }}>R$</Typography> } }}
+                                    />
                                 </Box>
                             </Stack>
 
-                            <Divider />
                             <Stack spacing={1.5}>
                                 <Typography variant="subtitle2">Estoque</Typography>
-                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "180px 1fr" }, gap: 2, alignItems: "center" }}>
-                                    <FormControlLabel
-                                        control={<Switch checked={formulario.controlaEstoque} onChange={(e) => alterarCampo("controlaEstoque", e.target.checked)} />}
-                                        label="Controla estoque"
-                                    />
+                                <Divider />
+                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "minmax(240px, .85fr) 1fr" }, gap: 1.5, alignItems: "start" }}>
+                                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, minHeight: 44, px: 1.5, border: 1, borderColor: "divider", borderRadius: 2 }}>
+                                        <Box><Typography variant="body2" sx={{ fontWeight: 650 }}>Controla estoque</Typography>
+                                            <Typography variant="caption" color="text.secondary">Habilita saldo e estoque mínimo.</Typography></Box>
+                                        <Switch checked={formulario.controlaEstoque} onChange={(e) => alterarCampo("controlaEstoque", e.target.checked)}
+                                            slotProps={{ input: { "aria-label": "Controla estoque" } }} />
+                                    </Box>
                                     <TextField
                                         label="Estoque mínimo"
                                         value={formulario.estoqueMinimo}
@@ -282,27 +273,25 @@ function ProdutoForm({
                                         disabled={!formulario.controlaEstoque}
                                     />
                                 </Box>
-                                <Typography color="text.secondary" sx={{ fontSize: "0.85rem" }}>
-                                    Saldo atual: {produto ? numeroParaCampo(produto.estoqueAtual, 3) : "0,000"}. Alterações de saldo são feitas pela tela de Estoque.
-                                </Typography>
+                                <Box sx={{ px: 1.5, py: 1.25, bgcolor: "action.hover", borderRadius: 2 }}>
+                                    <Typography variant="body2"><strong>Saldo atual:</strong> {produto ? numeroParaCampo(produto.estoqueAtual, 3) : "0,000"}</Typography>
+                                    <Typography variant="caption" color="text.secondary">Alterações de saldo são feitas exclusivamente pela tela de Estoque.</Typography>
+                                </Box>
                             </Stack>
 
-                            <FormControlLabel
-                                control={<Switch checked={formulario.ativo} onChange={(e) => alterarCampo("ativo", e.target.checked)} />}
-                                label="Produto ativo"
-                            />
+                            <Stack spacing={1.5}>
+                                <Typography variant="subtitle2">Status</Typography>
+                                <Divider />
+                                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, minHeight: 44, px: 1.5, border: 1, borderColor: "divider", borderRadius: 2 }}>
+                                    <Box><Typography variant="body2" sx={{ fontWeight: 650 }}>Produto ativo</Typography>
+                                        <Typography variant="caption" color="text.secondary">Produtos inativos deixam de aparecer nas operações.</Typography></Box>
+                                    <Switch checked={formulario.ativo} onChange={(e) => alterarCampo("ativo", e.target.checked)}
+                                        slotProps={{ input: { "aria-label": "Produto ativo" } }} />
+                                </Box>
+                            </Stack>
                         </Stack>
                     )}
-                </DialogContent>
-
-                <DialogActions sx={{ px: 3, py: 2 }}>
-                    <Button onClick={onFechar} disabled={salvando}>Cancelar</Button>
-                    <Button type="submit" variant="contained" disabled={salvando || carregandoProduto}>
-                        {salvando ? <CircularProgress size={22} color="inherit" /> : editando ? "Salvar alterações" : "Cadastrar produto"}
-                    </Button>
-                </DialogActions>
-            </Box>
-        </Dialog>
+        </CadastroDialog>
     );
 }
 

@@ -1,9 +1,9 @@
 export const layoutTokens = {
     sidebar: {
-        largura: { xs: 64, sm: 232 },
-        alturaItemMenu: 42,
-        tamanhoIconeMenu: 20,
-        paddingX: { xs: 0.75, sm: 1.5 },
+        largura: { xs: 60, sm: 216 },
+        alturaItemMenu: 38,
+        tamanhoIconeMenu: 18,
+        paddingX: { xs: 0.75, sm: 1.25 },
     },
     header: {
         altura: { xs: 56, md: 60 },

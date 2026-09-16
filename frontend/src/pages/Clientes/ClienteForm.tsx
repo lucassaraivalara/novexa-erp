@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import type { Cliente, ClienteInput, ContatoCliente, EnderecoCliente } from "../../types/cliente";
 import { mensagemCliente, salvarCliente } from "../../services/clienteService";
+import CadastroDialog from "../../components/ui/CadastroDialog";
 
 type Props = { cliente: Cliente | null; empresaId: number; onFechar: () => void; onSalvo: (cliente: Cliente) => void };
 type Aba = "gerais" | "enderecos" | "contatos" | "comercial" | "observacoes";
@@ -41,6 +42,7 @@ export default function ClienteForm({ cliente, empresaId, onFechar, onSalvo }: P
     function excluirContato(index: number) { marcar("contatos", form.contatos.filter((_, i) => i !== index)); setContatoAberto(null); }
     async function enviar(evento: FormEvent) {
         evento.preventDefault();
+        if (salvando) return;
         if (!form.nome.trim()) { setErro("Informe o nome ou razão social do cliente."); setAba("gerais"); return; }
         if (form.cpfCnpj && !/^([\d.\-/\s]{11,18})$/.test(form.cpfCnpj)) { setErro("Informe um CPF ou CNPJ válido."); setAba("gerais"); return; }
         setSalvando(true); setErro("");
@@ -49,22 +51,27 @@ export default function ClienteForm({ cliente, empresaId, onFechar, onSalvo }: P
         finally { setSalvando(false); }
     }
     const abas: { value: Aba; label: string }[] = [{ value: "gerais", label: "Dados Gerais" }, { value: "enderecos", label: "Endereços" }, { value: "contatos", label: "Contatos" }, { value: "comercial", label: "Comercial e Financeiro" }, { value: "observacoes", label: "Observações" }];
-    return <Dialog open fullWidth maxWidth="lg" onClose={fechar}>
-        <Box component="form" onSubmit={enviar}>
-            <DialogTitle sx={{ pb: 1 }}><Typography variant="h5" sx={{ fontWeight: 700 }}>{titulo}</Typography><Typography color="text.secondary" sx={{ mt: .5 }}>{cliente ? `Código ${cliente.id} · revise e salve as alterações` : "Cadastre os dados principais e complete o que for necessário"}</Typography></DialogTitle>
-            <Tabs value={aba} onChange={(_, value) => setAba(value)} variant="scrollable" scrollButtons="auto" sx={{ px: 3, borderBottom: 1, borderColor: "divider" }}>{abas.map(item => <Tab key={item.value} value={item.value} label={item.label} />)}</Tabs>
-            <DialogContent dividers sx={{ minHeight: 430 }}>
+    return <>
+        <CadastroDialog
+            aberto
+            variante="full"
+            titulo={titulo}
+            descricao={cliente ? `Código ${cliente.id} · revise e salve as alterações` : "Cadastre os dados principais e complete o que for necessário"}
+            salvando={salvando}
+            textoSalvar="Salvar cliente"
+            onFechar={fechar}
+            onSubmit={enviar}
+            navegacao={<Tabs value={aba} onChange={(_, value) => setAba(value)} variant="scrollable" scrollButtons="auto"
+                sx={{ px: { xs: 1, sm: 3 } }}>{abas.map(item => <Tab key={item.value} value={item.value} label={item.label} />)}</Tabs>}>
                 {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}
                 {aba === "gerais" && <Stack spacing={2}><Section title="Identificação"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr 1fr" }, gap: 2 }}><TextField required autoFocus label="Nome / Razão social" value={form.nome} onChange={e => marcar("nome", e.target.value)} /><TextField label="Nome fantasia" value={form.nomeFantasia} onChange={e => marcar("nomeFantasia", e.target.value)} /><TextField select label="Tipo de pessoa" value={form.tipoPessoa} onChange={e => marcar("tipoPessoa", e.target.value as ClienteInput["tipoPessoa"])}><MenuItem value="JURIDICA">Pessoa jurídica</MenuItem><MenuItem value="FISICA">Pessoa física</MenuItem></TextField><TextField label={form.tipoPessoa === "JURIDICA" ? "CNPJ" : "CPF"} value={form.cpfCnpj} onChange={e => marcar("cpfCnpj", e.target.value)} /><TextField label="Inscrição estadual" value={form.inscricaoEstadual} onChange={e => marcar("inscricaoEstadual", e.target.value)} /><FormControlLabel control={<Checkbox checked={form.ativo} onChange={e => marcar("ativo", e.target.checked)} />} label="Cliente ativo" /></Box></Section><Section title="Contato principal"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}><TextField label="Telefone" value={form.telefone} onChange={e => marcar("telefone", e.target.value)} /><TextField label="E-mail" type="email" value={form.email} onChange={e => marcar("email", e.target.value)} /></Box></Section></Stack>}
                 {aba === "enderecos" && <Stack spacing={2}><Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}><Box><Typography variant="h6">Endereços</Typography><Typography color="text.secondary" variant="body2">{cidades || "Adicione endereço de cobrança ou entrega."}</Typography></Box><Button variant="outlined" onClick={() => { setForm(f => ({ ...f, enderecos: [...f.enderecos, novoEndereco()] })); setAlterado(true); setEnderecoAberto(form.enderecos.length); }}>Adicionar endereço</Button></Stack>{form.enderecos.length === 0 && <Empty text="Nenhum endereço cadastrado." />}{form.enderecos.map((e, i) => <Paper key={i} variant="outlined" sx={{ p: 2 }}><Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}><Box><Typography sx={{ fontWeight: 600 }}>{e.logradouro || "Endereço sem identificação"}{e.numero ? `, ${e.numero}` : ""}</Typography><Typography variant="body2" color="text.secondary">{[e.bairro, e.cidade && `${e.cidade}/${e.uf}`, e.cep].filter(Boolean).join(" · ") || "Preencha os dados do endereço"}</Typography><Stack direction="row" spacing={1} sx={{ mt: 1 }}>{e.principal && <Typography variant="caption" color="primary">Principal</Typography>}{e.entrega && <Typography variant="caption" color="primary">Entrega</Typography>}</Stack></Box><Stack direction="row" spacing={1}><Button size="small" onClick={() => setEnderecoAberto(i)}>Editar</Button><Button size="small" color="error" onClick={() => excluirEndereco(i)}>Remover</Button></Stack></Stack></Paper>)}{enderecoAberto !== null && <EnderecoDialog endereco={form.enderecos[enderecoAberto]} onClose={() => setEnderecoAberto(null)} onSave={e => { editarEndereco(enderecoAberto, e); setEnderecoAberto(null); }} />}</Stack>}
                 {aba === "contatos" && <Stack spacing={2}><Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}><Box><Typography variant="h6">Contatos</Typography><Typography color="text.secondary" variant="body2">Pessoas que facilitam o atendimento comercial.</Typography></Box><Button variant="outlined" onClick={() => { setForm(f => ({ ...f, contatos: [...f.contatos, novoContato()] })); setAlterado(true); setContatoAberto(form.contatos.length); }}>Adicionar contato</Button></Stack>{form.contatos.length === 0 && <Empty text="Nenhum contato adicional cadastrado." />}{form.contatos.map((c, i) => <Paper key={i} variant="outlined" sx={{ p: 2 }}><Stack direction="row" sx={{ justifyContent: "space-between" }}><Box><Typography sx={{ fontWeight: 600 }}>{c.nome || "Contato sem nome"}</Typography><Typography variant="body2" color="text.secondary">{[c.cargo, c.telefone, c.email].filter(Boolean).join(" · ")}</Typography></Box><Stack direction="row" spacing={1}><Button size="small" onClick={() => setContatoAberto(i)}>Editar</Button><Button size="small" color="error" onClick={() => excluirContato(i)}>Remover</Button></Stack></Stack></Paper>)}{contatoAberto !== null && <ContatoDialog contato={form.contatos[contatoAberto]} onClose={() => setContatoAberto(null)} onSave={c => { editarContato(contatoAberto, c); setContatoAberto(null); }} />}</Stack>}
                 {aba === "comercial" && <Stack spacing={2}><Section title="Condições básicas"><Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}><TextField label="Vendedor responsável" value={form.vendedor} onChange={e => marcar("vendedor", e.target.value)} helperText="Campo livre nesta primeira versão" /><TextField label="Condição de pagamento" value={form.condicaoPagamento} onChange={e => marcar("condicaoPagamento", e.target.value)} placeholder="Ex.: à vista, 28 dias" /><TextField label="Limite de crédito" type="number" slotProps={{ htmlInput: { min: 0, step: .01 } }} value={form.limiteCredito ?? ""} onChange={e => marcar("limiteCredito", e.target.value === "" ? null : Number(e.target.value))} /></Box></Section></Stack>}
                 {aba === "observacoes" && <Stack spacing={2}><Section title="Notas internas"><TextField multiline minRows={5} label="Observações internas" value={form.observacoesInternas} onChange={e => marcar("observacoesInternas", e.target.value)} /></Section><Section title="Entrega"><TextField multiline minRows={5} label="Instruções de entrega" value={form.instrucoesEntrega} onChange={e => marcar("instrucoesEntrega", e.target.value)} helperText="Horários, acesso, cuidados e preferências do cliente." /></Section></Stack>}
-            </DialogContent>
-            <DialogActions sx={{ px: 3, py: 2 }}><Button onClick={fechar} disabled={salvando}>Cancelar</Button><Button type="submit" variant="contained" disabled={salvando}>{salvando ? "Salvando…" : "Salvar cliente"}</Button></DialogActions>
-        </Box>
+        </CadastroDialog>
         <Dialog open={confirmarSaida} onClose={() => setConfirmarSaida(false)}><DialogTitle>Descartar alterações?</DialogTitle><DialogContent>Você alterou dados deste cliente. Se sair agora, essas alterações serão perdidas.</DialogContent><DialogActions><Button onClick={() => setConfirmarSaida(false)}>Continuar editando</Button><Button color="error" onClick={onFechar}>Descartar</Button></DialogActions></Dialog>
-    </Dialog>;
+    </>;
 }
 function Section({ title, children }: { title: string; children: ReactNode }) { return <Stack spacing={1}><Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{title}</Typography><Divider />{children}</Stack>; }
 function Empty({ text }: { text: string }) { return <Paper variant="outlined" sx={{ p: 4, textAlign: "center" }}><Typography color="text.secondary">{text}</Typography></Paper>; }

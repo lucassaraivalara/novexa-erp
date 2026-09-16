@@ -1,6 +1,7 @@
 import type { Produto } from "../../types/produto";
 import type { Cliente } from "../../types/cliente";
 import type { FormaPagamento, VendaInput } from "../../services/vendaService";
+import type { SessaoCaixaAberta } from "../../types/caixa";
 
 export type ItemPDV = { produto: Produto; quantidade: string };
 export type RascunhoPDV = {
@@ -8,9 +9,20 @@ export type RascunhoPDV = {
     formaPagamento: FormaPagamento; recebido: string; pendente: VendaInput | null;
     sessaoCaixaId: number | null;
 };
-export function novoRascunho(): RascunhoPDV {
+export function novoRascunho(sessaoCaixaId: number | null = null): RascunhoPDV {
     return { itens: [], desconto: "0", cliente: null, entrega: "", observacoes: "",
-        formaPagamento: "DINHEIRO", recebido: "", pendente: null, sessaoCaixaId: null };
+        formaPagamento: "DINHEIRO", recebido: "", pendente: null, sessaoCaixaId };
+}
+
+export type DecisaoSessaoCaixa =
+    | { fluxo: "ABRIR" }
+    | { fluxo: "USAR_UNICA"; sessao: SessaoCaixaAberta }
+    | { fluxo: "SELECIONAR"; sessoes: SessaoCaixaAberta[] };
+
+export function decidirSessaoCaixa(sessoes: SessaoCaixaAberta[]): DecisaoSessaoCaixa {
+    if (sessoes.length === 0) return { fluxo: "ABRIR" };
+    if (sessoes.length === 1) return { fluxo: "USAR_UNICA", sessao: sessoes[0] };
+    return { fluxo: "SELECIONAR", sessoes };
 }
 export function decimal(valor: string, casas: number): number | null {
     const texto = valor.trim().replace(",", ".");
@@ -46,14 +58,19 @@ export function criarPedido(r: RascunhoPDV, chave: string): VendaInput {
         clienteId: r.cliente?.id ?? null, desconto: t.desconto! / 100, totalEsperado: t.total / 100,
         formaPagamento: r.formaPagamento, valorRecebido: t.recebido / 100,
         entrega: r.entrega.trim(), observacoes: r.observacoes.trim(),
-        sessaoCaixaId: r.sessaoCaixaId };
+        sessaoCaixaId: r.sessaoCaixaId ?? undefined };
 }
 const normalizar = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-export function buscarProdutosPDV(produtos: Produto[], termo: string): Produto[] {
+export function buscarProdutosPDV(produtos: Produto[], termo: string, listarSemTermo = false): Produto[] {
     const busca = normalizar(termo.trim());
-    if (!busca) return [];
     const ativos = produtos.filter(p => p.ativo);
+    if (!busca) return listarSemTermo ? ativos.slice(0, 8) : [];
     const exatos = ativos.filter(p => p.codigoBarras === termo.trim() || normalizar(p.codigoInterno ?? "") === busca);
     return [...exatos, ...ativos.filter(p => !exatos.includes(p) && normalizar(p.nome).includes(busca))].slice(0, 8);
+}
+export function moverIndiceProduto(indice: number, total: number, direcao: "PROXIMO" | "ANTERIOR"): number {
+    if (total <= 0) return 0;
+    const deslocamento = direcao === "PROXIMO" ? 1 : -1;
+    return Math.max(0, Math.min(total - 1, indice + deslocamento));
 }
 export const moeda = (centavos: number) => (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });

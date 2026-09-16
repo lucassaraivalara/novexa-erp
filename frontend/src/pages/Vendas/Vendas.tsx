@@ -1,19 +1,40 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Alert, Autocomplete, Box, Button, Divider, Stack, Table, TableBody, TableCell,
-    TableHead, TableRow, TextField, Typography } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import { Alert, Autocomplete, Box, Button, Divider, IconButton, InputAdornment, Stack, Table, TableBody, TableCell,
+    TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import { listarProdutos, obterMensagemDaApi } from "../../services/produtoService";
 import { listarClientes } from "../../services/clienteService";
-import { finalizarVenda, type FormaPagamento, type Venda } from "../../services/vendaService";
+import { finalizarVenda, type FormaPagamento } from "../../services/vendaService";
 import { obterSessao } from "../../utils/auth/sessao";
 import type { Produto } from "../../types/produto";
 import type { Cliente } from "../../types/cliente";
-import { buscarProdutosPDV, criarPedido, moeda, novoRascunho, subtotalItem, totais, type RascunhoPDV } from "./pdv";
+import { buscarProdutosPDV, criarPedido, moeda, moverIndiceProduto, novoRascunho, subtotalItem, totais, type RascunhoPDV } from "./pdv";
+import SessaoCaixaPDVDialog from "./SessaoCaixaPDVDialog";
+import VendaFinalizacaoDialog, { type EstadoFinalizacao } from "./VendaFinalizacaoDialog";
 
 type Opcional = "desconto" | "cliente" | "entrega" | "observacoes" | null;
+type Finalizacao = {
+    estado: EstadoFinalizacao;
+    quantidadeItens: number;
+    total: number;
+    formaPagamento: string;
+    troco: number;
+    mensagemErro?: string;
+    podeTentarNovamente?: boolean;
+};
+
+const rotulosPagamento: Record<FormaPagamento, string> = {
+    DINHEIRO: "Dinheiro",
+    PIX: "PIX",
+    CARTAO_DEBITO: "Cartão de débito",
+    CARTAO_CREDITO: "Cartão de crédito",
+};
 
 export default function Vendas() {
+    const navigate = useNavigate();
     const sessao = obterSessao();
     const empresaId = sessao?.empresa.id;
     const chaveRascunho = "novexa-pdv:" + empresaId + ":" + sessao?.id;
@@ -26,6 +47,7 @@ export default function Vendas() {
     const [produtos, setProdutos] = useState<Produto[]>([]);
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [busca, setBusca] = useState("");
+    const [listaAberta, setListaAberta] = useState(false);
     const [indice, setIndice] = useState(0);
     const [selecionado, setSelecionado] = useState<number | null>(null);
     const [opcional, setOpcional] = useState<Opcional>(null);
@@ -33,15 +55,30 @@ export default function Vendas() {
     const [erroCatalogo, setErroCatalogo] = useState("");
     const [carregando, setCarregando] = useState(true);
     const [salvando, setSalvando] = useState(false);
-    const [ultimaVenda, setUltimaVenda] = useState<Venda | null>(null);
+    const [sessaoCaixaResolvida, setSessaoCaixaResolvida] = useState(false);
+    const [finalizacao, setFinalizacao] = useState<Finalizacao | null>(null);
     const emEnvio = useRef(false);
+    const finalizacaoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const buscaRef = useRef<HTMLInputElement>(null);
     const recebidoRef = useRef<HTMLInputElement>(null);
     const opcionalRef = useRef<HTMLInputElement>(null);
     const quantidadesRef = useRef<Record<number, HTMLInputElement | null>>({});
-    const resultados = buscarProdutosPDV(produtos, busca);
+    const resultados = buscarProdutosPDV(produtos, busca, listaAberta && !busca.trim());
     const t = totais(rascunho);
-    const bloqueado = salvando || !!rascunho.pendente;
+    const bloqueado = !sessaoCaixaResolvida || salvando || !!rascunho.pendente;
+
+    const definirSessaoCaixa = useCallback((sessaoCaixaId: number) => {
+        setRascunho(atual => ({ ...atual, sessaoCaixaId }));
+        setSessaoCaixaResolvida(true);
+    }, []);
+
+    useEffect(() => {
+        if (sessaoCaixaResolvida && !salvando && !finalizacao) focarBusca();
+    }, [sessaoCaixaResolvida, salvando, finalizacao]);
+
+    useEffect(() => () => {
+        if (finalizacaoTimerRef.current) clearTimeout(finalizacaoTimerRef.current);
+    }, []);
 
     useEffect(() => {
         try { sessionStorage.setItem(chaveRascunho, JSON.stringify(rascunho)); } catch { /* Mantém o rascunho em memória. */ }
@@ -78,21 +115,32 @@ export default function Vendas() {
                 ? { produto, quantidade: String((Number(i.quantidade.replace(",", ".")) || 0) + 1) } : i) };
             return { ...r, itens: [...r.itens, { produto, quantidade: "1" }] };
         });
-        setBusca(""); setIndice(0); setSelecionado(produto.id); setErro(""); focarBusca();
+        setBusca(""); setListaAberta(false); setIndice(0); setSelecionado(produto.id); setErro("");
+        requestAnimationFrame(() => quantidadesRef.current[produto.id]?.focus());
     }
     function remover(id: number) {
         alterar({ itens: rascunho.itens.filter(i => i.produto.id !== id) });
         setSelecionado(null); focarBusca();
     }
-    async function recarregarCatalogo() {
+    async function recarregarCatalogo(focarAoConcluir = true) {
         if (!empresaId) return;
         setCarregando(true);
         try { setProdutos(await listarProdutos(empresaId)); setErroCatalogo(""); }
         catch (e) { setErroCatalogo(obterMensagemDaApi(e, "Não foi possível carregar os produtos.")); }
-        finally { setCarregando(false); focarBusca(); }
+        finally { setCarregando(false); if (focarAoConcluir) focarBusca(); }
+    }
+    function fecharFinalizacao() {
+        if (finalizacao?.estado === "processing") return;
+        if (finalizacaoTimerRef.current) clearTimeout(finalizacaoTimerRef.current);
+        finalizacaoTimerRef.current = null;
+        setFinalizacao(null);
     }
     async function finalizar() {
         if (emEnvio.current) return;
+        if (!sessaoCaixaResolvida || rascunho.sessaoCaixaId === null) {
+            setErro("Aguarde a definição do Caixa antes de finalizar a venda.");
+            return;
+        }
         let pedido = rascunho.pendente;
         try { pedido ??= criarPedido(rascunho, crypto.randomUUID()); }
         catch (e) {
@@ -104,26 +152,55 @@ export default function Vendas() {
         const pendente = { ...rascunho, pendente: pedido };
         try { sessionStorage.setItem(chaveRascunho, JSON.stringify(pendente)); }
         catch { setErro("Não foi possível guardar a finalização neste navegador. Libere espaço e tente novamente."); return; }
+        if (finalizacaoTimerRef.current) clearTimeout(finalizacaoTimerRef.current);
+        setFinalizacao({
+            estado: "processing",
+            quantidadeItens: rascunho.itens.length,
+            total: t.total,
+            formaPagamento: rotulosPagamento[rascunho.formaPagamento],
+            troco: t.troco,
+        });
         emEnvio.current = true; setSalvando(true); setRascunho(pendente); setErro("");
         try {
-            const venda = await finalizarVenda(pedido);
-            setUltimaVenda(venda); setRascunho(novoRascunho()); setOpcional(null); setBusca("");
-            try { sessionStorage.setItem(chaveRascunho, JSON.stringify(novoRascunho())); } catch { /* Venda já confirmada pelo servidor. */ }
-            void recarregarCatalogo();
+            await finalizarVenda(pedido);
+            const proximoRascunho = novoRascunho(rascunho.sessaoCaixaId);
+            setFinalizacao(atual => atual ? { ...atual, estado: "success" } : atual);
+            setRascunho(proximoRascunho); setOpcional(null); setBusca("");
+            try { sessionStorage.setItem(chaveRascunho, JSON.stringify(proximoRascunho)); } catch { /* Venda já confirmada pelo servidor. */ }
+            void recarregarCatalogo(false);
+            finalizacaoTimerRef.current = setTimeout(() => {
+                setFinalizacao(null);
+                finalizacaoTimerRef.current = null;
+            }, 1200);
         } catch (e) {
             const status = axios.isAxiosError(e) ? e.response?.status : undefined;
+            let mensagemFalha: string;
+            let podeTentarNovamente = false;
             if (status && status >= 400 && status < 500 && ![408, 429].includes(status)) {
                 setRascunho(r => ({ ...r, pendente: null }));
-                setErro(obterMensagemDaApi(e, "Venda não concluída. Revise os dados e tente novamente."));
-                if (status === 409) void recarregarCatalogo();
+                mensagemFalha = obterMensagemDaApi(e, "Venda não concluída. Revise os dados e tente novamente.");
+                setErro(mensagemFalha);
+                if (status === 409) void recarregarCatalogo(false);
             } else {
-                setErro("Não foi possível confirmar a venda. Pressione F2 para tentar novamente com segurança, sem duplicá-la.");
+                mensagemFalha = "Não foi possível confirmar a venda. Tente novamente com segurança, sem duplicá-la.";
+                podeTentarNovamente = true;
+                setErro(mensagemFalha);
             }
-        } finally { emEnvio.current = false; setSalvando(false); focarBusca(); }
+            setFinalizacao(atual => atual ? {
+                ...atual,
+                estado: "error",
+                mensagemErro: mensagemFalha,
+                podeTentarNovamente,
+            } : atual);
+        } finally { emEnvio.current = false; setSalvando(false); }
     }
     function atalhos(e: KeyboardEvent) {
-        if (e.key === "F2") { e.preventDefault(); void finalizar(); return; }
-        if (e.key === "Escape") { e.preventDefault(); setOpcional(null); setBusca(""); focarBusca(); return; }
+        if (e.key === "Escape") {
+            if (listaAberta) { e.preventDefault(); setListaAberta(false); focarBusca(); return; }
+            if (opcional) { e.preventDefault(); setOpcional(null); focarBusca(); return; }
+            e.preventDefault(); navigate("/vendas"); return;
+        }
+        if (e.key === "F2" && sessaoCaixaResolvida && !salvando) { e.preventDefault(); void finalizar(); return; }
         if (bloqueado) return;
         const id = selecionado ?? rascunho.itens.at(-1)?.produto.id;
         if (e.ctrlKey && e.key === "Delete" && id) { e.preventDefault(); remover(id); }
@@ -134,6 +211,17 @@ export default function Vendas() {
     }
 
     return <Box onKeyDown={atalhos} sx={{ height: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default", p: 2, gap: 1.5 }}>
+        <SessaoCaixaPDVDialog resolvida={sessaoCaixaResolvida} onResolvida={definirSessaoCaixa} />
+        {finalizacao && <VendaFinalizacaoDialog
+            open
+            estado={finalizacao.estado}
+            quantidadeItens={finalizacao.quantidadeItens}
+            total={finalizacao.total}
+            formaPagamento={finalizacao.formaPagamento}
+            troco={finalizacao.troco}
+            mensagemErro={finalizacao.mensagemErro}
+            onVoltar={fecharFinalizacao}
+            onTentarNovamente={finalizacao.podeTentarNovamente ? () => void finalizar() : undefined} />}
         <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
             <Stack direction="row" spacing={2} sx={{ alignItems: "baseline" }}><Typography component="h1" variant="h6">Frente de caixa</Typography>
                 <Typography variant="body2" color="text.secondary">{sessao?.empresa.nomeFantasia || sessao?.empresa.razaoSocial} · {sessao?.nomeUsuario}</Typography></Stack>
@@ -141,18 +229,25 @@ export default function Vendas() {
         </Stack>
         {erro && <Alert severity="error" role="alert">{erro}</Alert>}
         {rascunho.pendente && !salvando && !erro && <Alert severity="info">Finalização pendente de confirmação. F2 retoma sem duplicar a venda.</Alert>}
-        {ultimaVenda && <Alert severity="success" aria-live="polite">Venda #{ultimaVenda.id} concluída · {moeda(Math.round(ultimaVenda.total * 100))} · Troco {moeda(Math.round(ultimaVenda.troco * 100))}. Pronto para a próxima venda.</Alert>}
         <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 350px", gap: 2, flex: 1, minHeight: 0, minWidth: 760 }}>
             <Stack spacing={1.5} sx={{ minHeight: 0, minWidth: 0 }}>
                 <Box sx={{ position: "relative" }}>
-                    <TextField fullWidth autoFocus inputRef={buscaRef} disabled={salvando} value={busca}
+                    <TextField fullWidth autoFocus inputRef={buscaRef} disabled={!sessaoCaixaResolvida || salvando} value={busca}
                         label="Buscar produto ou ler código de barras" placeholder={carregando ? "Carregando catálogo…" : "Nome, código interno ou código de barras"}
-                        onChange={e => { setBusca(e.target.value); setIndice(0); }}
-                        slotProps={{ htmlInput: { role: "combobox", "aria-expanded": resultados.length > 0, "aria-controls": "pdv-resultados",
+                        onChange={e => { setBusca(e.target.value); setListaAberta(true); setIndice(0); }}
+                        slotProps={{ input: {
+                            startAdornment: <InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>,
+                            endAdornment: <InputAdornment position="end"><Tooltip title="Listar produtos ativos"><IconButton
+                                edge="end" size="small" aria-label="Abrir lista de produtos" aria-expanded={listaAberta}
+                                onMouseDown={e => e.preventDefault()} onClick={() => { setListaAberta(aberta => !aberta); setIndice(0); focarBusca(); }}>
+                                <ArrowDropDownIcon /></IconButton></Tooltip></InputAdornment>,
+                        }, htmlInput: { role: "combobox", "aria-expanded": listaAberta && resultados.length > 0, "aria-controls": "pdv-resultados",
                             "aria-activedescendant": resultados.length ? "pdv-opcao-" + Math.min(indice, resultados.length - 1) : undefined, autoComplete: "off" } }}
                         onKeyDown={e => {
                             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                                e.preventDefault(); setIndice(i => Math.max(0, Math.min(resultados.length - 1, i + (e.key === "ArrowDown" ? 1 : -1))));
+                                e.preventDefault();
+                                setListaAberta(true);
+                                setIndice(i => moverIndiceProduto(i, resultados.length, e.key === "ArrowDown" ? "PROXIMO" : "ANTERIOR"));
                             }
                             if (e.key === "Enter") {
                                 e.preventDefault();
@@ -161,7 +256,7 @@ export default function Vendas() {
                                 else if (busca.trim()) setErro(carregando ? "Aguarde o carregamento do catálogo." : "Produto não encontrado ou inativo.");
                             }
                         }} />
-                    {!!resultados.length && !bloqueado && <Box id="pdv-resultados" role="listbox" sx={{ position: "absolute", zIndex: 10, top: "100%", width: "100%", bgcolor: "background.paper", border: 1, borderColor: "divider" }}>
+                    {listaAberta && !!resultados.length && !bloqueado && <Box id="pdv-resultados" role="listbox" sx={{ position: "absolute", zIndex: 10, top: "100%", width: "100%", bgcolor: "background.paper", border: 1, borderColor: "divider" }}>
                         {resultados.map((p, i) => <Box key={p.id} id={"pdv-opcao-" + i} role="option" aria-selected={i === indice}
                             onMouseDown={e => e.preventDefault()} onClick={() => adicionar(p)} sx={{ p: 1, cursor: "pointer", bgcolor: i === indice ? "action.selected" : undefined, display: "flex", justifyContent: "space-between" }}>
                             <span>{p.nome} <Typography component="span" variant="caption" color="text.secondary">{p.codigoBarras || p.codigoInterno} · {p.unidadeMedida}</Typography></span>
@@ -206,7 +301,7 @@ export default function Vendas() {
                         slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()} onChange={e => alterar({ recebido: e.target.value })} />
                     <Stack direction="row" sx={{ justifyContent: "space-between" }}><Typography>Troco</Typography><Typography sx={{ fontSize: 24, fontWeight: 700 }}>{moeda(t.troco)}</Typography></Stack>
                 </> : <Typography variant="caption" color="text.secondary">Finalize após confirmar o PIX ou a aprovação na maquininha. Registro de {moeda(Math.max(0, t.total))}.</Typography>}
-                <Button size="large" variant="contained" disableElevation disabled={salvando || (!rascunho.itens.length && !rascunho.pendente)} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
+                <Button size="large" variant="contained" disableElevation disabled={!sessaoCaixaResolvida || salvando || (!rascunho.itens.length && !rascunho.pendente)} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
                     {salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado · F2" : "Pagar · F2"}
                 </Button>
                 <Divider />

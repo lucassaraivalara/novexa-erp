@@ -17,6 +17,16 @@ public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
 
     Optional<ProdutoEntity> findByIdAndEmpresaId(Long id, Long empresaId);
 
+    @Query("""
+            select count(produto)
+            from ProdutoEntity produto
+            where produto.empresa.id = :empresaId
+              and produto.ativo = true
+              and produto.controlaEstoque = true
+              and produto.estoqueAtual <= produto.estoqueMinimo
+            """)
+    long contarEstoqueBaixo(@Param("empresaId") Long empresaId);
+
     boolean existsByEmpresaIdAndCodigoInterno(Long empresaId, String codigoInterno);
 
     boolean existsByEmpresaIdAndCodigoInternoAndIdNot(

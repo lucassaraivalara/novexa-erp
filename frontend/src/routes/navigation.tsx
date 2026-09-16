@@ -16,7 +16,7 @@ import Dashboard from "../pages/Dashboard/Dashboard";
 import Empresa from "../pages/Empresa/Empresa";
 import Estoque from "../pages/Estoque/Estoque";
 import Produtos from "../pages/Produtos/Produtos";
-import Vendas from "../pages/Vendas/Vendas";
+import CentralVendas from "../pages/Vendas/CentralVendas";
 import DadosBancarios from "../pages/Financeiro/DadosBancarios";
 import FormasPagamento from "../pages/Financeiro/FormasPagamento";
 
@@ -56,7 +56,7 @@ export const rotasInternas: RotaInterna[] = [
         caminho: "vendas",
         titulo: "Vendas",
         icone: <PointOfSaleRoundedIcon />,
-        elemento: <Vendas />,
+        elemento: <CentralVendas />,
     },
     {
         caminho: "empresa",

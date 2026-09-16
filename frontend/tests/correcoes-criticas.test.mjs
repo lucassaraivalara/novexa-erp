@@ -212,6 +212,7 @@ test("busca remota preserva o padrão oficial e cancela respostas antigas", asyn
 
 test("formulários seguem o padrão de submit, feedback e autofocus", async () => {
     const actions = await readFile(new URL("../src/components/ui/FormActions.tsx", import.meta.url), "utf8");
+    const cadastroDialog = await readFile(new URL("../src/components/ui/CadastroDialog.tsx", import.meta.url), "utf8");
     const caixa = await readFile(new URL("../src/pages/Financeiro/CaixaForm.tsx", import.meta.url), "utf8");
     const produto = await readFile(new URL("../src/pages/Produtos/ProdutoForm.tsx", import.meta.url), "utf8");
     const cliente = await readFile(new URL("../src/pages/Clientes/ClienteForm.tsx", import.meta.url), "utf8");
@@ -228,6 +229,13 @@ test("formulários seguem o padrão de submit, feedback e autofocus", async () =
     assert.match(produto, /autoFocus=\{!carregandoProduto\}/);
     assert.match(cliente, /required autoFocus label="Nome \/ Razão social"/);
     assert.match(empresa, /autoFocus=\{item\.nome === gruposEmpresa\[0\]\?\.campos\[0\]\?\.nome\}/);
+    assert.match(cadastroDialog, /variante: "compact" \| "full"/);
+    assert.match(cadastroDialog, /fullScreen=\{telaPequena\}/);
+    assert.match(cadastroDialog, /maxHeight: \{ xs: "100%", sm: "84vh" \}/);
+    assert.match(cadastroDialog, /overflowY: "auto"/);
+    assert.match(cadastroDialog, /disabled=\{salvando \|\| desabilitarSalvar\}/);
+    assert.match(produto, /<CadastroDialog[\s\S]*variante="full"/);
+    assert.match(cliente, /<CadastroDialog[\s\S]*variante="full"/);
 });
 
 test("listagem e formulário de Produtos preservam campos reais e organização visual", async () => {
@@ -248,7 +256,7 @@ test("listagem e formulário de Produtos preservam campos reais e organização 
     assert.match(formulario, /<Typography variant="subtitle2">Estoque<\/Typography>/);
     assert.match(formulario, /<Typography variant="subtitle2">Identificação<\/Typography>/);
     assert.match(formulario, /<Typography variant="subtitle2">Preços<\/Typography>/);
-    assert.match(formulario, /label="Controla estoque"/);
+    assert.match(formulario, />Controla estoque<\/Typography>/);
     assert.match(formulario, /label="Estoque mínimo"/);
     assert.match(formulario, /Saldo atual:/);
     assert.match(tabela, /cellPaddingCompact/);

@@ -1,10 +1,14 @@
 package br.com.novexa.erp.controller;
 
 import br.com.novexa.erp.dto.*;
+import br.com.novexa.erp.entity.StatusVenda;
 import br.com.novexa.erp.security.UsuarioAutenticado;
 import br.com.novexa.erp.service.VendaService;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
+import java.util.List;
 import org.springframework.http.*;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -27,6 +31,16 @@ public class VendaController {
     public ResponseEntity<VendaResponseDTO> finalizar(@Valid @RequestBody VendaRequestDTO pedido,
             @AuthenticationPrincipal UsuarioAutenticado autenticado) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.finalizar(pedido, autenticado));
+    }
+
+    @GetMapping
+    public List<VendaResumoDTO> listar(
+            @RequestParam(required = false) StatusVenda status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicial,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFinal,
+            @RequestParam(required = false) Long clienteId,
+            @AuthenticationPrincipal UsuarioAutenticado autenticado) {
+        return service.listar(autenticado.empresaId(), status, dataInicial, dataFinal, clienteId);
     }
 
     @PostMapping("/abertas")

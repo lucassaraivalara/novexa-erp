@@ -31,8 +31,9 @@ function Sidebar() {
                     width: layoutTokens.sidebar.largura,
                     boxSizing: "border-box",
                     border: 0,
-                    color: "secondary.contrastText",
-                    backgroundColor: "secondary.main",
+                    borderRight: "1px solid rgba(148, 163, 184, 0.12)",
+                    color: "#E2E8F0",
+                    backgroundColor: "#0B1220",
                 },
             }}
         >
@@ -42,57 +43,77 @@ function Sidebar() {
                     spacing={1.25}
                     sx={{
                         alignItems: "center",
-                        px: { xs: 1.25, sm: 2 },
-                        py: 2,
+                        minHeight: 60,
+                        px: { xs: 1, sm: 1.5 },
+                        py: 1.25,
                     }}
                 >
                     <Box
                         sx={{
                             display: "grid",
                             flexShrink: 0,
-                            width: 36,
-                            height: 36,
+                            width: 32,
+                            height: 32,
                             placeItems: "center",
-                            borderRadius: 2.5,
-                            color: "primary.contrastText",
-                            backgroundColor: "primary.main",
+                            border: "1px solid rgba(94, 234, 212, 0.2)",
+                            borderRadius: 2,
+                            color: "#5EEAD4",
+                            backgroundColor: "rgba(20, 184, 166, 0.14)",
                         }}
                     >
-                        <StorefrontRoundedIcon sx={{ fontSize: 20 }} />
+                        <StorefrontRoundedIcon sx={{ fontSize: 18 }} />
                     </Box>
 
                     <Box sx={{ display: { xs: "none", sm: "block" } }}>
                         <Typography
                             variant="subtitle1"
-                            sx={{ fontSize: "0.875rem", fontWeight: 800, lineHeight: 1.1 }}
+                            sx={{ fontSize: "0.82rem", fontWeight: 800, lineHeight: 1.1, letterSpacing: "0.08em" }}
                         >
                             NOVEXA
                         </Typography>
-                        <Typography variant="caption" sx={{ fontSize: "0.65rem", opacity: 0.72 }}>
+                        <Typography variant="caption" sx={{ fontSize: "0.62rem", color: "rgba(203, 213, 225, 0.62)" }}>
                             ERP para pequenos negócios
                         </Typography>
                     </Box>
                 </Stack>
 
-                <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.12)" }} />
+                <Divider sx={{ borderColor: "rgba(148, 163, 184, 0.12)" }} />
 
-                <Box component="nav" aria-label="Menu principal" sx={{ minHeight: 0, overflowY: "auto", flex: 1 }}>
-                    <List sx={{ px: 0.75, py: 1.5 }}>
+                <Box
+                    component="nav"
+                    aria-label="Menu principal"
+                    sx={{
+                        minHeight: 0,
+                        overflowY: "auto",
+                        flex: 1,
+                        scrollbarWidth: "thin",
+                        scrollbarColor: "rgba(148, 163, 184, 0.28) transparent",
+                        "&::-webkit-scrollbar": { width: 4 },
+                        "&::-webkit-scrollbar-thumb": {
+                            borderRadius: 4,
+                            backgroundColor: "rgba(148, 163, 184, 0.28)",
+                        },
+                    }}
+                >
+                    <List sx={{ px: 0.75, py: 1 }}>
                         {menuPrincipal.map(item => <EntradaMenu key={item.id} item={item} />)}
                     </List>
                 </Box>
 
-                <Box sx={{ mt: "auto", px: 2, py: 2 }}>
-                    <Typography
-                        variant="caption"
-                        sx={{
-                            display: { xs: "none", sm: "block" },
-                            fontSize: "0.7rem",
-                            opacity: 0.62,
-                        }}
-                    >
-                        Base preparada para o PDV.
-                    </Typography>
+                <Box sx={{ mt: "auto", px: { xs: 1, sm: 1.5 }, py: 1.25, borderTop: "1px solid rgba(148, 163, 184, 0.12)" }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: { xs: "center", sm: "flex-start" } }}>
+                        <Box sx={{ width: 6, height: 6, flexShrink: 0, borderRadius: "50%", backgroundColor: "#2DD4BF" }} />
+                        <Typography
+                            variant="caption"
+                            sx={{
+                                display: { xs: "none", sm: "block" },
+                                fontSize: "0.66rem",
+                                color: "rgba(203, 213, 225, 0.58)",
+                            }}
+                        >
+                            Base preparada para o PDV.
+                        </Typography>
+                    </Stack>
                 </Box>
             </Stack>
         </Drawer>
@@ -113,25 +134,52 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
     const titulo = item.tipo === "rota" ? item.titulo ?? item.rota.titulo : item.titulo;
     const icone = item.tipo === "rota" ? item.rota.icone : item.icone;
     const conteudo = <>
-        <ListItemIcon sx={{ minWidth: { xs: 0, sm: nivel ? 26 : 32 }, color: "inherit", "& svg": { fontSize: layoutTokens.sidebar.tamanhoIconeMenu } }}>
+        <ListItemIcon sx={{ minWidth: { xs: 0, sm: nivel ? 24 : 29 }, color: "inherit", "& svg": { fontSize: layoutTokens.sidebar.tamanhoIconeMenu } }}>
             {icone}
         </ListItemIcon>
-        <ListItemText primary={titulo} slotProps={{ primary: { sx: { fontSize: nivel ? "0.78rem" : "0.84rem", fontWeight: grupo || !nivel ? 600 : 400, lineHeight: 1.4 } } }} sx={{ display: { xs: "none", sm: "block" } }} />
-        {grupo && (aberto ? <ExpandMoreRoundedIcon sx={{ fontSize: 16, flexShrink: 0 }} /> : <ChevronRightRoundedIcon sx={{ fontSize: 16, flexShrink: 0 }} />)}
+        <ListItemText primary={titulo} slotProps={{ primary: { sx: { fontSize: nivel ? "0.75rem" : "0.8rem", fontWeight: grupo ? 650 : nivel ? 500 : 600, lineHeight: 1.35 } } }} sx={{ display: { xs: "none", sm: "block" } }} />
+        {grupo && (aberto ? <ExpandMoreRoundedIcon sx={{ fontSize: 15, flexShrink: 0 }} /> : <ChevronRightRoundedIcon sx={{ fontSize: 15, flexShrink: 0 }} />)}
     </>;
     const estilo = {
+        position: "relative",
         minHeight: layoutTokens.sidebar.alturaItemMenu,
         width: "100%",
-        mb: 0.25,
-        borderRadius: 1.5,
-        color: "inherit",
+        mb: 0.125,
+        borderRadius: 1.25,
+        color: indisponivel
+            ? "rgba(203, 213, 225, 0.38)"
+            : ativo
+                ? "#F8FAFC"
+                : nivel
+                    ? "rgba(203, 213, 225, 0.72)"
+                    : "rgba(226, 232, 240, 0.88)",
         justifyContent: { xs: "center", sm: "flex-start" },
-        pl: { xs: grupo ? 0.5 : 1.25, sm: 1.5 + nivel * 1.25 },
-        pr: { xs: grupo ? 0.5 : 1.25, sm: 1 },
+        pl: { xs: grupo ? 0.5 : 1, sm: 1.25 + nivel * 0.75 },
+        pr: { xs: grupo ? 0.5 : 1, sm: 0.75 },
         textAlign: "left",
-        "&.Mui-selected": { backgroundColor: "rgba(255, 255, 255, 0.14)" },
-        "&.Mui-selected:hover, &:hover": { backgroundColor: "rgba(255, 255, 255, 0.2)" },
-        "&[aria-disabled=true]": { opacity: 0.5, cursor: "default", backgroundColor: "transparent" },
+        transition: "background-color 120ms ease, color 120ms ease",
+        "&.Mui-selected": {
+            color: "#F8FAFC",
+            backgroundColor: "rgba(45, 212, 191, 0.12)",
+            "&::before": {
+                position: "absolute",
+                top: 8,
+                bottom: 8,
+                left: 0,
+                width: 2,
+                borderRadius: 2,
+                backgroundColor: "#2DD4BF",
+                content: "\"\"",
+            },
+        },
+        "&.Mui-selected:hover": { backgroundColor: "rgba(45, 212, 191, 0.16)" },
+        "&:hover": { color: "#F8FAFC", backgroundColor: "rgba(148, 163, 184, 0.08)" },
+        "&[aria-disabled=true]": {
+            color: "rgba(203, 213, 225, 0.38)",
+            cursor: "default",
+            backgroundColor: "transparent",
+            "&:hover": { color: "rgba(203, 213, 225, 0.38)", backgroundColor: "transparent" },
+        },
     };
 
     return <Box component="li" sx={{ listStyle: "none" }}>
@@ -141,14 +189,14 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
                     {conteudo}
                 </ListItemButton>
             ) : (
-                <ListItemButton component="button" type="button" selected={ativo} aria-label={indisponivel ? `${titulo} — ainda não disponível` : titulo}
+                <ListItemButton component="button" type="button" selected={ativo && !grupo} aria-label={indisponivel ? `${titulo} — ainda não disponível` : titulo}
                     aria-disabled={indisponivel || undefined} aria-expanded={grupo ? aberto : undefined} aria-controls={grupo ? `menu-${item.id}` : undefined}
                     onClick={grupo ? () => setExpansao({ localizacao: location.key, aberto: !aberto }) : undefined} sx={estilo}>
                     {conteudo}
                 </ListItemButton>
             )}
         </Tooltip>
-        {grupo && <Collapse in={aberto}>
+        {grupo && <Collapse in={aberto} timeout={140}>
             <List id={`menu-${item.id}`} aria-label={titulo} disablePadding>
                 {item.filhos.map(filho => <EntradaMenu key={filho.id} item={filho} nivel={nivel + 1} />)}
             </List>

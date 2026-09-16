@@ -16,6 +16,8 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -145,6 +147,18 @@ public class VendaService {
     public VendaResponseDTO buscar(Long id, Long empresaId) {
         return VendaResponseDTO.de(vendas.findByIdAndEmpresaId(id, empresaId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Venda não encontrada.")));
+    }
+
+    @Transactional(readOnly = true)
+    public List<VendaResumoDTO> listar(Long empresaId, StatusVenda status, LocalDate dataInicial,
+                                       LocalDate dataFinal, Long clienteId) {
+        if (dataInicial != null && dataFinal != null && dataInicial.isAfter(dataFinal)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dataInicial não pode ser posterior a dataFinal.");
+        }
+        LocalDateTime inicio = dataInicial == null ? null : dataInicial.atStartOfDay();
+        LocalDateTime fimExclusivo = dataFinal == null ? null : dataFinal.plusDays(1).atStartOfDay();
+        return vendas.listarResumo(empresaId, status, inicio, fimExclusivo, clienteId)
+                .stream().map(VendaResumoDTO::de).toList();
     }
 
     public VendaResponseDTO finalizar(VendaRequestDTO pedido, UsuarioAutenticado autenticado) {

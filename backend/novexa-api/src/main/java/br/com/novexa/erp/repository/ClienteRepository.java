@@ -11,4 +11,6 @@ public interface ClienteRepository extends JpaRepository<ClienteEntity, Long> {
     List<ClienteEntity> findAllByEmpresaIdOrderByNomeAsc(Long empresaId);
 
     Optional<ClienteEntity> findByIdAndEmpresaId(Long id, Long empresaId);
+
+    long countByEmpresaIdAndAtivoTrue(Long empresaId);
 }
