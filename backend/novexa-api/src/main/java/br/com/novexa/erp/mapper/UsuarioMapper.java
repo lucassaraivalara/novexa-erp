@@ -1,5 +1,6 @@
 package br.com.novexa.erp.mapper;
 
+import br.com.novexa.erp.dto.EmpresaResponseDTO;
 import br.com.novexa.erp.dto.LoginResponseDTO;
 import br.com.novexa.erp.dto.UsuarioRequestDTO;
 import br.com.novexa.erp.dto.UsuarioResponseDTO;
@@ -70,7 +71,12 @@ public class UsuarioMapper {
         response.setCpf(usuario.getCpf());
         response.setEmail(usuario.getEmail());
         response.setPerfil(usuario.getPerfil());
-        response.setEmpresa(empresaMapper.paraResponseDTO(usuario.getEmpresa()));
+        // O login expõe a logomarca (paraResponseDTO não a traz, para não pesar listagens).
+        EmpresaResponseDTO empresa = empresaMapper.paraResponseDTO(usuario.getEmpresa());
+        if (empresa != null) {
+            empresa.setLogomarca(usuario.getEmpresa().getLogomarca());
+        }
+        response.setEmpresa(empresa);
 
         return response;
     }

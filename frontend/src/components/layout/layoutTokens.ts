@@ -6,11 +6,11 @@ export const layoutTokens = {
         paddingX: { xs: 0.75, sm: 1.25 },
     },
     header: {
-        altura: { xs: 56, md: 60 },
-        paddingX: { xs: 2, md: 3 },
+        altura: 56,
+        paddingX: { xs: 1.5, sm: 2, md: 2.5 },
     },
     conteudo: {
-        padding: { xs: 2, sm: 2.5, md: 3 },
+        padding: { xs: 1.5, sm: 2, md: 2.5 },
         maxWidth: 1440,
     },
     radius: {

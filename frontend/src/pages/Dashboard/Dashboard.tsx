@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import AddShoppingCartRoundedIcon from "@mui/icons-material/AddShoppingCartRounded";
+import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
+import PeopleAltRoundedIcon from "@mui/icons-material/PeopleAltRounded";
+import WarehouseRoundedIcon from "@mui/icons-material/WarehouseRounded";
+import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
 import {
     Alert,
     Box,
@@ -25,6 +30,7 @@ const corStatus = (status: VendaResumo["status"]) =>
     status === "FATURADA" ? "success" : status === "CANCELADA" ? "default" : "warning";
 
 export default function Dashboard() {
+    const navigate = useNavigate();
     const [resumo, setResumo] = useState<DashboardResumo | null>(null);
     const [ultimasVendas, setUltimasVendas] = useState<VendaResumo[]>([]);
     const [carregando, setCarregando] = useState(true);
@@ -62,6 +68,14 @@ export default function Dashboard() {
     return <Stack spacing={2.5}>
         <PageHeader titulo="Dashboard" descricao="Resumo operacional de hoje." />
 
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+            <Button size="small" variant="outlined" component={Link} to="/pdv" startIcon={<AddShoppingCartRoundedIcon fontSize="small" />}>Nova venda</Button>
+            <Button size="small" variant="outlined" component={Link} to="/produtos" startIcon={<Inventory2RoundedIcon fontSize="small" />}>Produtos</Button>
+            <Button size="small" variant="outlined" component={Link} to="/clientes" startIcon={<PeopleAltRoundedIcon fontSize="small" />}>Clientes</Button>
+            <Button size="small" variant="outlined" component={Link} to="/estoque" startIcon={<WarehouseRoundedIcon fontSize="small" />}>Estoque</Button>
+            <Button size="small" variant="outlined" component={Link} to="/vendas" startIcon={<PointOfSaleRoundedIcon fontSize="small" />}>Central de Vendas</Button>
+        </Stack>
+
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregar()}>Tentar novamente</Button>}>{erro}</Alert>}
 
         {carregando && !resumo ? <Paper variant="outlined"><LoadingState mensagem="Carregando resumo operacional…" /></Paper> : resumo && <>
@@ -70,7 +84,7 @@ export default function Dashboard() {
                 <StatCard titulo="Faturamento hoje" valor={moedaVenda(resumo.faturamentoHoje)} descricao="Vendas faturadas" cor="success" />
                 <StatCard titulo="Vendas hoje" valor={resumo.quantidadeVendasHoje} descricao="Vendas faturadas" cor="primary" />
                 <StatCard titulo="Ticket médio hoje" valor={moedaVenda(resumo.ticketMedioHoje)} descricao="Média por venda" cor="info" />
-                <StatCard titulo="Estoque baixo" valor={resumo.quantidadeProdutosEstoqueBaixo} descricao="Produtos no mínimo ou abaixo" cor="warning" />
+                <StatCard titulo="Estoque baixo" valor={resumo.quantidadeProdutosEstoqueBaixo} descricao="Produtos no mínimo ou abaixo" cor="warning" aoClicar={() => navigate("/estoque")} />
                 <StatCard titulo="Clientes ativos" valor={resumo.quantidadeClientesAtivos} descricao="Cadastros disponíveis" cor="primary" />
             </Box>
 
@@ -83,18 +97,19 @@ export default function Dashboard() {
                 </Stack>
                 {resumo.sessoesCaixaAbertas.length === 0 ? <Stack direction="row"
                     sx={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-                    <Typography color="text.secondary">Nenhum caixa aberto</Typography>
+                    <Typography color="text.secondary">Nenhum caixa aberto no momento.</Typography>
                     <Stack direction="row" spacing={1}>
                         <Button size="small" component={Link} to="/financeiro/caixas">Ir para Caixas</Button>
                         <Button size="small" component={Link} to="/pdv">Abrir PDV</Button>
                     </Stack>
                 </Stack> : <Table size="small" aria-label="Sessões de caixa abertas">
                     <TableHead><TableRow><TableCell>Caixa</TableCell><TableCell align="right">Saldo inicial</TableCell>
-                        <TableCell align="right">Saldo esperado em dinheiro</TableCell></TableRow></TableHead>
+                        <TableCell align="right">Saldo esperado em dinheiro</TableCell><TableCell align="right" /></TableRow></TableHead>
                     <TableBody>{resumo.sessoesCaixaAbertas.map(sessao => <TableRow key={sessao.sessaoId}>
                         <TableCell>{sessao.descricaoCaixa}</TableCell>
                         <TableCell align="right">{moedaVenda(sessao.saldoInicial)}</TableCell>
                         <TableCell align="right"><strong>{moedaVenda(sessao.saldoEsperadoDinheiro)}</strong></TableCell>
+                        <TableCell align="right"><Button size="small" component={Link} to="/financeiro/caixas">Ver Caixa</Button></TableCell>
                     </TableRow>)}</TableBody>
                 </Table>}
             </Paper>

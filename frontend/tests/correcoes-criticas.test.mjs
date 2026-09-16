@@ -138,9 +138,12 @@ test("formulário trata saldo como informação e estoque mínimo conforme o con
     assert.doesNotMatch(fonte, /alterarCampo\("estoqueAtual"/);
 });
 
-test("cadastros financeiros organizam Caixa e Dados Bancários sem APIs bancárias", async () => {
+test("Dados Bancários organiza Bancos, Agências e Contas em abas sem pedir empresa ao usuário", async () => {
     const navegacao = await readFile(new URL("../src/routes/navigation.tsx", import.meta.url), "utf8");
     const dadosBancarios = await readFile(new URL("../src/pages/Financeiro/DadosBancarios.tsx", import.meta.url), "utf8");
+    const bancoForm = await readFile(new URL("../src/pages/Financeiro/BancoForm.tsx", import.meta.url), "utf8");
+    const agenciaForm = await readFile(new URL("../src/pages/Financeiro/AgenciaForm.tsx", import.meta.url), "utf8");
+    const contaForm = await readFile(new URL("../src/pages/Financeiro/ContaBancariaForm.tsx", import.meta.url), "utf8");
     const caixa = await readFile(new URL("../src/pages/Financeiro/Caixa.tsx", import.meta.url), "utf8");
 
     assert.match(navegacao, /financeiro\/caixas/);
@@ -148,10 +151,17 @@ test("cadastros financeiros organizam Caixa e Dados Bancários sem APIs bancári
     assert.match(dadosBancarios, /Bancos/);
     assert.match(dadosBancarios, /Agências/);
     assert.match(dadosBancarios, /Contas Bancárias/);
-    assert.match(dadosBancarios, /integração financeira/);
-    assert.doesNotMatch(dadosBancarios, /axios|api\.|fetch\(/);
+    assert.match(dadosBancarios, /<BancoTab/);
+    assert.match(dadosBancarios, /<AgenciaTab/);
+    assert.match(dadosBancarios, /<ContaBancariaTab/);
+    assert.doesNotMatch(bancoForm, /empresaId/);
+    assert.doesNotMatch(agenciaForm, /empresaId/);
+    assert.doesNotMatch(contaForm, /empresaId/);
+    assert.match(agenciaForm, /dados\.filter\(\(b\) => b\.ativo \|\| b\.id === agencia\?\.bancoId\)/);
+    assert.match(contaForm, /dados\.filter\(\(a\) => a\.ativo \|\| a\.id === conta\?\.agenciaId\)/);
     assert.match(caixa, /titulo="Caixas"/);
 });
+
 
 test("formas de pagamento possuem rota, menu, service e listagem somente leitura", async () => {
     const navegacao = await readFile(new URL("../src/routes/navigation.tsx", import.meta.url), "utf8");
@@ -166,6 +176,16 @@ test("formas de pagamento possuem rota, menu, service e listagem somente leitura
     assert.match(pagina, /label=\{valor \? "Ativa" : "Inativa"\}/);
     assert.match(pagina, /Nova Forma de Pagamento/);
     assert.match(pagina, /FormaPagamentoForm/);
+});
+
+test("AppHeader renderiza a logomarca da empresa autenticada com fallback para o nome", async () => {
+    const fonte = await readFile(new URL("../src/components/layout/AppHeader.tsx", import.meta.url), "utf8");
+
+    assert.match(fonte, /sessao\?\.empresa\?\.logomarca/);
+    assert.match(fonte, /nomeFantasia\?\.trim\(\) \|\| sessao\?\.empresa\?\.razaoSocial\?\.trim\(\) \|\| "Empresa"/);
+    assert.match(fonte, /mostrarLogomarca \? \(/);
+    assert.match(fonte, /component="img"/);
+    assert.match(fonte, /onError=\{\(\) => setLogomarcaComErro\(true\)\}/);
 });
 
 test("cadastro de formas de pagamento usa POST/PUT e preserva o tipo na edição", async () => {

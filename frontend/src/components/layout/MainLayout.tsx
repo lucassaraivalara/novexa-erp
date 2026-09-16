@@ -21,6 +21,7 @@ function MainLayout() {
                     flexGrow: 1,
                     flexDirection: "column",
                     minWidth: 0,
+                    minHeight: "100vh",
                 }}
             >
                 <AppHeader />
@@ -29,6 +30,9 @@ function MainLayout() {
                     component="main"
                     sx={{
                         flexGrow: 1,
+                        width: "100%",
+                        minWidth: 0,
+                        boxSizing: "border-box",
                         p: layoutTokens.conteudo.padding,
                     }}
                 >

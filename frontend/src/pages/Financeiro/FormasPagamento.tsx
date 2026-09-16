@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import { Alert, Button, Chip, Snackbar, Stack } from "@mui/material";
+import { Alert, Button, Chip, Snackbar } from "@mui/material";
+import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import { listarFormasPagamento, mensagemFormaPagamento } from "../../services/formaPagamentoService";
@@ -63,7 +64,7 @@ export default function FormasPagamento() {
     }
 
     return (
-        <Stack spacing={2.5}>
+        <PageContainer>
             <PageHeader
                 titulo="Formas de Pagamento"
                 descricao="Consulte as formas de pagamento disponíveis no sistema."
@@ -94,6 +95,6 @@ export default function FormasPagamento() {
             <Snackbar open={sucesso} autoHideDuration={5000} onClose={() => setSucesso(false)}>
                 <Alert severity="success" onClose={() => setSucesso(false)}>Forma de pagamento salva com sucesso.</Alert>
             </Snackbar>
-        </Stack>
+        </PageContainer>
     );
 }

@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
-    Alert, Button, Chip, MenuItem, Snackbar, Stack,
-    FormControl, Select,
+    Alert, Button, Chip, MenuItem, Snackbar,
+    FormControl, Select, Stack,
 } from "@mui/material";
+import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type Coluna, type AcaoTabela } from "../../components/ui/AppTable";
+import PageFilters from "../../components/ui/PageFilters";
 import { buscarCliente, listarClientes, mensagemCliente } from "../../services/clienteService";
 import type { Cliente } from "../../types/cliente";
 import { obterEmpresaAtiva } from "../../utils/auth/sessao";
@@ -62,10 +64,10 @@ export default function Clientes() {
 
     if (!empresaId) {
         return (
-            <Stack spacing={2.5}>
+            <PageContainer>
                 <PageHeader titulo="Clientes" descricao="Gerencie os clientes do seu negócio." />
                 <Alert severity="warning">Selecione uma empresa para consultar os clientes.</Alert>
-            </Stack>
+            </PageContainer>
         );
     }
 
@@ -107,9 +109,10 @@ export default function Clientes() {
     ];
 
     const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(filtrados.length / 10) - 1));
+    const linhasPagina = filtrados.slice(paginaAtual * 10, paginaAtual * 10 + 10);
 
     return (
-        <Stack spacing={2.5}>
+        <PageContainer>
             <PageHeader
                 titulo="Clientes"
                 descricao="Cadastros, contatos e condições comerciais em um só lugar."
@@ -122,17 +125,14 @@ export default function Clientes() {
                 </Alert>
             )}
 
-            <AppTable
-                colunas={colunas}
-                linhas={filtrados}
-                carregando={carregando}
-                obterChaveLinha={(c) => c.id}
-                busca={{
-                    placeholder: "Nome, razão social, CPF/CNPJ ou código",
-                    onChange: (v) => { setBusca(v); setPagina(0); },
-                    valor: busca,
-                }}
-                filtros={
+            <Stack spacing={1}>
+                <PageFilters
+                    busca={{
+                        placeholder: "Nome, razão social, CPF/CNPJ ou código",
+                        onChange: (v) => { setBusca(v); setPagina(0); },
+                        valor: busca,
+                    }}
+                >
                     <FormControl size="small" sx={{ minWidth: 180 }}>
                         <Select label="Situação" value={situacao} onChange={(e) => { setSituacao(e.target.value); setPagina(0); }}>
                             <MenuItem value="todos">Todas</MenuItem>
@@ -140,22 +140,29 @@ export default function Clientes() {
                             <MenuItem value="inativos">Inativos</MenuItem>
                         </Select>
                     </FormControl>
-                }
-                vazio={{
-                    titulo: busca || situacao !== "todos" ? "Nenhum cliente encontrado para os filtros selecionados." : "Nenhum cliente cadastrado",
-                    descricao: busca || situacao !== "todos" ? "Tente ajustar os filtros." : "Comece em Novo Cliente.",
-                }}
-                acoes={acoes}
-                paginacao={{
-                    pagina: paginaAtual,
-                    linhasPorPagina: 10,
-                    total: filtrados.length,
-                    onPageChange: setPagina,
-                    onRowsPerPageChange: () => {},
-                    opcoesLinhasPorPagina: [10],
-                }}
-                minWidth={1000}
-            />
+                </PageFilters>
+
+                <AppTable
+                    colunas={colunas}
+                    linhas={linhasPagina}
+                    carregando={carregando}
+                    obterChaveLinha={(c) => c.id}
+                    vazio={{
+                        titulo: busca || situacao !== "todos" ? "Nenhum cliente encontrado para os filtros selecionados." : "Nenhum cliente cadastrado",
+                        descricao: busca || situacao !== "todos" ? "Tente ajustar os filtros." : "Comece em Novo Cliente.",
+                    }}
+                    acoes={acoes}
+                    paginacao={{
+                        pagina: paginaAtual,
+                        linhasPorPagina: 10,
+                        total: filtrados.length,
+                        onPageChange: setPagina,
+                        onRowsPerPageChange: () => {},
+                        opcoesLinhasPorPagina: [10],
+                    }}
+                    minWidth={1000}
+                />
+            </Stack>
 
             {edicao !== undefined && (
                 <ClienteForm
@@ -172,6 +179,6 @@ export default function Clientes() {
             )}
 
             <Snackbar open={!!mensagem} autoHideDuration={5000} onClose={() => setMensagem("")} message={mensagem} />
-        </Stack>
+        </PageContainer>
     );
 }

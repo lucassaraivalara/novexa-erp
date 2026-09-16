@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import SearchIcon from "@mui/icons-material/Search";
@@ -204,13 +204,19 @@ export default function Vendas() {
         if (bloqueado) return;
         const id = selecionado ?? rascunho.itens.at(-1)?.produto.id;
         if (e.ctrlKey && e.key === "Delete" && id) { e.preventDefault(); remover(id); }
-        if (e.key === "F3") { e.preventDefault(); setOpcional("desconto"); requestAnimationFrame(() => opcionalRef.current?.focus()); return; }
-        if (e.key === "F6") { e.preventDefault(); setOpcional("cliente"); return; }
-        const paineis: Record<string, Opcional> = { F9: "observacoes", F10: "entrega" };
+        if (e.key === "F4") { e.preventDefault(); setOpcional("desconto"); requestAnimationFrame(() => opcionalRef.current?.focus()); return; }
+        if (e.key === "F8") { e.preventDefault(); setOpcional("cliente"); return; }
+        const paineis: Record<string, Opcional> = { F9: "observacoes", F7: "entrega" };
         if (e.key in paineis) { e.preventDefault(); setOpcional(paineis[e.key]); requestAnimationFrame(() => opcionalRef.current?.focus()); }
     }
 
-    return <Box onKeyDown={atalhos} sx={{ height: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default", p: 2, gap: 1.5 }}>
+    // Listener no window (não apenas no Box) para os atalhos funcionarem mesmo quando o foco cai para document.body após fechar dialogs/autocomplete.
+    useEffect(() => {
+        window.addEventListener("keydown", atalhos);
+        return () => window.removeEventListener("keydown", atalhos);
+    });
+
+    return <Box sx={{ height: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default", p: 2, gap: 1.5 }}>
         <SessaoCaixaPDVDialog resolvida={sessaoCaixaResolvida} onResolvida={definirSessaoCaixa} />
         {finalizacao && <VendaFinalizacaoDialog
             open
@@ -282,7 +288,7 @@ export default function Vendas() {
                     </Table>
                     {!rascunho.itens.length && <Box sx={{ p: 5, textAlign: "center", color: "text.secondary" }}><Typography>Leia o primeiro produto para começar</Typography><Typography variant="body2">Busque pelo nome e pressione Enter para adicionar.</Typography></Box>}
                 </Box>
-                <Typography variant="caption" color="text.secondary">Enter adicionar · ↑ ↓ selecionar · F2 pagar · F3 desconto · F6 cliente · Ctrl+Delete remover item · Esc fechar opção</Typography>
+                <Typography variant="caption" color="text.secondary">Enter adicionar · ↑ ↓ selecionar · F2 pagar · F4 desconto · F8 cliente · Ctrl+Delete remover item · Esc fechar opção</Typography>
             </Stack>
             <Stack spacing={1.5} sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", p: 2, overflowY: "auto" }}>
                 <Typography variant="overline">Resumo da venda · {rascunho.itens.length} itens</Typography>
@@ -306,7 +312,7 @@ export default function Vendas() {
                 </Button>
                 <Divider />
                 <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.5 }}>
-                    {([["desconto", "F3 Desconto"], ["cliente", "F6 Cliente"], ["entrega", "F10 Entrega"], ["observacoes", "F9 Observações"]] as const).map(([campo, label]) =>
+                    {([["desconto", "F4 Desconto"], ["cliente", "F8 Cliente"], ["entrega", "F7 Entrega"], ["observacoes", "F9 Observações"]] as const).map(([campo, label]) =>
                         <Button key={campo} size="small" disabled={bloqueado} color={opcional === campo ? "primary" : "inherit"} onClick={() => setOpcional(opcional === campo ? null : campo)}>{label}</Button>)}
                 </Box>
                 {opcional === "cliente" && <Autocomplete options={clientes} value={rascunho.cliente} disabled={bloqueado} autoHighlight

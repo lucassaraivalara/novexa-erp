@@ -26,7 +26,7 @@ test("setas navegam pela lista sem ultrapassar seus limites", () => {
     assert.equal(moverIndiceProduto(2, 3, "ANTERIOR"), 1);
     assert.equal(moverIndiceProduto(0, 3, "ANTERIOR"), 0);
 });
-test("PDV conecta seleção, sequência de foco, Escape, F2 e F3", () => {
+test("PDV conecta seleção, sequência de foco, Escape, F2 e atalhos sem conflito com o navegador", () => {
     assert.match(fontePDV, /if \(produto && !carregando\) adicionar\(produto\)/);
     assert.match(fontePDV, /quantidadesRef\.current\[produto\.id\]\?\.focus\(\)/);
     assert.match(fontePDV, /if \(e\.key === "Enter"\) \{ e\.preventDefault\(\); focarBusca\(\); \}/);
@@ -34,7 +34,15 @@ test("PDV conecta seleção, sequência de foco, Escape, F2 e F3", () => {
     assert.match(fontePDV, /if \(opcional\).*setOpcional\(null\)/s);
     assert.match(fontePDV, /navigate\("\/vendas"\)/);
     assert.match(fontePDV, /e\.key === "F2".*void finalizar\(\)/s);
-    assert.match(fontePDV, /e\.key === "F3".*setOpcional\("desconto"\)/s);
+    assert.match(fontePDV, /e\.key === "F4".*setOpcional\("desconto"\)/s);
+    assert.match(fontePDV, /e\.key === "F8".*setOpcional\("cliente"\)/s);
+    assert.match(fontePDV, /F9: "observacoes", F7: "entrega"/);
+    assert.doesNotMatch(fontePDV, /e\.key === "F3"/);
+    assert.doesNotMatch(fontePDV, /e\.key === "F6"/);
+    assert.doesNotMatch(fontePDV, /F10: "entrega"/);
+    // Listener no window garante que os atalhos funcionem mesmo se o foco cair fora da árvore do Box (bug do F9).
+    assert.match(fontePDV, /window\.addEventListener\("keydown", atalhos\)/);
+    assert.match(fontePDV, /window\.removeEventListener\("keydown", atalhos\)/);
 });
 test("finalização apresenta processamento, sucesso, erro e bloqueia envio duplicado", () => {
     assert.match(fonteFinalizacao, /"Finalizando venda"/);

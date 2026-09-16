@@ -5,11 +5,22 @@ interface StatCardProps {
     valor: string | number;
     descricao?: string;
     cor?: string;
+    aoClicar?: () => void;
 }
 
-function StatCard({ titulo, valor, descricao, cor = "primary" }: StatCardProps) {
+function StatCard({ titulo, valor, descricao, cor = "primary", aoClicar }: StatCardProps) {
     return (
-        <Paper variant="outlined" sx={{ p: 3, height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <Paper
+            variant="outlined"
+            onClick={aoClicar}
+            role={aoClicar ? "button" : undefined}
+            tabIndex={aoClicar ? 0 : undefined}
+            onKeyDown={aoClicar ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); aoClicar(); } } : undefined}
+            sx={{
+                p: 3, height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between",
+                ...(aoClicar ? { cursor: "pointer", "&:hover": { borderColor: "primary.main" } } : {}),
+            }}
+        >
             <Stack sx={{ gap: 0.5 }}>
                 <Typography color="text.secondary" sx={{ fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                     {titulo}

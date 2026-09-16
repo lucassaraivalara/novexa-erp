@@ -7,6 +7,7 @@ import {
     Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
     Divider, Stack, TextField, Typography,
 } from "@mui/material";
+import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import type { Produto } from "../../types/produto";
@@ -112,9 +113,10 @@ export default function Estoque() {
     const operacao = dialogo?.operacao;
     const tituloOperacao = operacao === "AJUSTE" ? "Ajustar estoque" : operacao === "ENTRADA" ? "Registrar entrada" : "Registrar saída";
     const valor = Number(quantidade.replace(",", "."));
-    const saldoEsperado = dialogo && Number.isFinite(valor) ? novoSaldoEsperado(operacao!, dialogo.produto.estoqueAtual, valor) : null;
+    const saldoEsperado = dialogo && quantidade.trim() !== "" && Number.isFinite(valor) && valor >= 0
+        ? novoSaldoEsperado(operacao!, dialogo.produto.estoqueAtual, valor) : null;
 
-    return <Stack spacing={2.5}>
+    return <PageContainer>
         <PageHeader titulo="Estoque" descricao="Consulte saldos e registre movimentações operacionais." />
         {erro && <Alert severity="error" onClose={() => setErro("")}>{erro}</Alert>}
         <AppTable colunas={colunas} linhas={produtosFiltrados} carregando={carregando} obterChaveLinha={(produto) => produto.id}
@@ -130,7 +132,7 @@ export default function Estoque() {
                 <TextField autoFocus required label={operacao === "AJUSTE" ? "Novo saldo físico" : "Quantidade"} value={quantidade}
                     onChange={(e) => setQuantidade(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void confirmarMovimentacao(); } }} slotProps={{ htmlInput: { inputMode: "decimal", min: 0 } }} />
                 <TextField label="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} multiline minRows={2} />
-                {saldoEsperado !== null && <Typography variant="body2" color="text.secondary">Novo saldo esperado: <strong>{quantidadeFormatada.format(saldoEsperado)}</strong></Typography>}
+                <Typography variant="body2" color="text.secondary">Novo saldo esperado: <strong>{saldoEsperado !== null ? quantidadeFormatada.format(saldoEsperado) : "—"}</strong></Typography>
             </Stack>}</DialogContent>
             <DialogActions><Button onClick={() => setDialogo(null)} disabled={salvando}>Cancelar</Button><Button variant="contained" onClick={() => void confirmarMovimentacao()} disabled={salvando}>{salvando ? "Registrando..." : "Confirmar"}</Button></DialogActions>
         </Dialog>
@@ -146,5 +148,5 @@ export default function Estoque() {
             </Stack>}</DialogContent>
             <DialogActions><Button onClick={() => setHistoricoProduto(null)}>Fechar</Button></DialogActions>
         </Dialog>
-    </Stack>;
+    </PageContainer>;
 }

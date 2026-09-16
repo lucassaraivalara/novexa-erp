@@ -22,6 +22,7 @@ import {
     TextField,
     Typography,
 } from "@mui/material";
+import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import { listarClientes } from "../../services/clienteService";
@@ -168,7 +169,7 @@ export default function CentralVendas() {
     const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(vendas.length / porPagina) - 1));
     const linhas = vendas.slice(paginaAtual * porPagina, paginaAtual * porPagina + porPagina);
 
-    return <Stack spacing={2.5}>
+    return <PageContainer>
         <PageHeader titulo="Central de Vendas" descricao="Consulte vendas, confira detalhes e execute cancelamentos."
             acaoPrincipal={<Button component={Link} to="/pdv" variant="contained"
                 startIcon={<AddShoppingCartRoundedIcon />}>Nova Venda</Button>} />
@@ -241,5 +242,5 @@ export default function CentralVendas() {
         <Snackbar open={sucesso} autoHideDuration={4000} onClose={() => setSucesso(false)}>
             <Alert severity="success" onClose={() => setSucesso(false)}>Venda cancelada com sucesso.</Alert>
         </Snackbar>
-    </Stack>;
+    </PageContainer>;
 }

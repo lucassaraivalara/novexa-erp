@@ -7,8 +7,10 @@ import {
     DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, Snackbar,
     Stack, Typography,
 } from "@mui/material";
+import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type Coluna, type AcaoTabela } from "../../components/ui/AppTable";
+import PageFilters from "../../components/ui/PageFilters";
 import {
     atualizarProduto, buscarProdutoPorId, cadastrarProduto, excluirProduto,
     listarProdutos, obterMensagemDaApi, pesquisarProdutos,
@@ -114,10 +116,10 @@ function Produtos() {
 
     if (!empresaId) {
         return (
-            <Stack spacing={2.5}>
+            <PageContainer>
                 <PageHeader titulo="Produtos" descricao="Gerencie os produtos do seu negócio." />
                 <Alert severity="warning">Não foi encontrada uma empresa ativa nesta sessão. Entre novamente no sistema.</Alert>
-            </Stack>
+            </PageContainer>
         );
     }
 
@@ -173,7 +175,7 @@ function Produtos() {
     );
 
     return (
-        <Stack spacing={2.5}>
+        <PageContainer>
             <PageHeader
                 titulo="Produtos"
                 descricao="Cadastre, consulte e mantenha o catálogo da empresa."
@@ -186,19 +188,16 @@ function Produtos() {
                 </Alert>
             )}
 
-            <AppTable
-                colunas={colunas}
-                linhas={produtosFiltrados}
-                carregando={buscaRemota.loading && !produtos.length}
-                obterChaveLinha={(p) => p.id}
-                busca={{
-                    placeholder: "Pesquisar por nome, código interno ou código de barras",
-                    onChange: (valor) => { setErroCarregamento(""); buscaRemota.setTerm(valor); },
-                    onKeyDown: (evento) => { if (evento.key === "Enter") { evento.preventDefault(); buscaRemota.executeNow(); } },
-                    valor: buscaRemota.term,
-                    carregando: buscaRemota.loading,
-                }}
-                filtros={
+            <Stack spacing={1}>
+                <PageFilters
+                    busca={{
+                        placeholder: "Pesquisar por nome, código interno ou código de barras",
+                        onChange: (valor) => { setErroCarregamento(""); buscaRemota.setTerm(valor); },
+                        onKeyDown: (evento) => { if (evento.key === "Enter") { evento.preventDefault(); buscaRemota.executeNow(); } },
+                        valor: buscaRemota.term,
+                        carregando: buscaRemota.loading,
+                    }}
+                >
                     <FormControl size="small" sx={{ minWidth: 160 }}>
                         <InputLabel id="produto-situacao-label">Situação</InputLabel>
                         <Select labelId="produto-situacao-label" label="Situação" value={situacao} onChange={(e) => setSituacao(e.target.value)}>
@@ -207,16 +206,23 @@ function Produtos() {
                             <MenuItem value="inativas">Inativas</MenuItem>
                         </Select>
                     </FormControl>
-                }
-                vazio={{
-                    titulo: buscaRemota.term.trim() || situacao !== "todas" ? "Nenhum produto encontrado" : "Nenhum produto cadastrado",
-                    descricao: buscaRemota.term.trim() || situacao !== "todas" ? "Tente ajustar a busca ou o filtro de situação." : "Use “Novo produto” para iniciar seu catálogo.",
-                    acao: !buscaRemota.term.trim() && situacao === "todas" ? <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={abrirCadastro}>Novo produto</Button> : undefined,
-                }}
-                acoes={acoes}
-                compacta
-                minWidth={940}
-            />
+                </PageFilters>
+
+                <AppTable
+                    colunas={colunas}
+                    linhas={produtosFiltrados}
+                    carregando={buscaRemota.loading && !produtos.length}
+                    obterChaveLinha={(p) => p.id}
+                    vazio={{
+                        titulo: buscaRemota.term.trim() || situacao !== "todas" ? "Nenhum produto encontrado" : "Nenhum produto cadastrado",
+                        descricao: buscaRemota.term.trim() || situacao !== "todas" ? "Tente ajustar a busca ou o filtro de situação." : "Use “Novo produto” para iniciar seu catálogo.",
+                        acao: !buscaRemota.term.trim() && situacao === "todas" ? <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={abrirCadastro}>Novo produto</Button> : undefined,
+                    }}
+                    acoes={acoes}
+                    compacta
+                    minWidth={940}
+                />
+            </Stack>
 
             <ProdutoForm
                 aberto={formularioAberto}
@@ -244,7 +250,7 @@ function Produtos() {
             <Snackbar open={notificacao !== null} autoHideDuration={4500} onClose={() => setNotificacao(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
                 <Alert severity={notificacao?.tipo ?? "success"} variant="filled" onClose={() => setNotificacao(null)}>{notificacao?.mensagem}</Alert>
             </Snackbar>
-        </Stack>
+        </PageContainer>
     );
 }
 

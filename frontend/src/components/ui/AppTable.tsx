@@ -52,6 +52,7 @@ interface AppTableProps<T> {
         acao?: ReactNode;
     };
     acoes?: AcaoTabela<T>[];
+    /** @deprecated Renderize a busca na Page com PageFilters. Mantido durante a migração das telas existentes. */
     busca?: {
         placeholder: string;
         onChange: (valor: string) => void;
@@ -59,6 +60,7 @@ interface AppTableProps<T> {
         carregando?: boolean;
         onKeyDown?: (evento: KeyboardEvent<HTMLInputElement>) => void;
     };
+    /** @deprecated Renderize filtros de domínio na Page com PageFilters. Mantido durante a migração das telas existentes. */
     filtros?: ReactNode;
     paginacao?: {
         pagina: number;
@@ -129,6 +131,7 @@ export default function AppTable<T extends Record<string, unknown>>({
 
     return (
         <Paper variant="outlined" sx={{ overflow: "hidden", ...sx }}>
+            {/* Compatibilidade temporária para páginas ainda não migradas para PageFilters. */}
             {(busca || filtros) && (
                 <Toolbar
                     sx={{

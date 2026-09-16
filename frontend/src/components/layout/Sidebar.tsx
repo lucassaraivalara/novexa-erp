@@ -1,5 +1,4 @@
 import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
-import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import { useState } from "react";
 import {
@@ -34,8 +33,8 @@ function Sidebar() {
                     borderRight: "1px solid rgba(148, 163, 184, 0.12)",
                     borderRadius: 0,
                     boxShadow: "none",
-                    color: "#E2E8F0",
-                    backgroundColor: "#0B1220",
+                    color: "#DDE1E6",
+                    backgroundColor: "#15191E",
                 },
             }}
         >
@@ -46,6 +45,7 @@ function Sidebar() {
                     sx={{
                         alignItems: "center",
                         justifyContent: { xs: "center", sm: "flex-start" },
+                        flexShrink: 0,
                         minHeight: 60,
                         px: { xs: 0.75, sm: 1.5 },
                         py: 1.25,
@@ -59,7 +59,7 @@ function Sidebar() {
                             height: 32,
                             placeItems: "center",
                             border: "1px solid rgba(94, 234, 212, 0.2)",
-                            borderRadius: 2,
+                            borderRadius: "8px",
                             color: "#5EEAD4",
                             backgroundColor: "rgba(20, 184, 166, 0.14)",
                         }}
@@ -70,7 +70,7 @@ function Sidebar() {
                     <Box sx={{ display: { xs: "none", sm: "block" } }}>
                         <Typography
                             variant="subtitle1"
-                            sx={{ fontSize: "0.82rem", fontWeight: 800, lineHeight: 1.1, letterSpacing: "0.08em" }}
+                            sx={{ fontSize: "0.82rem", fontWeight: 800, lineHeight: 1.1, letterSpacing: 0 }}
                         >
                             NOVEXA
                         </Typography>
@@ -87,6 +87,7 @@ function Sidebar() {
                     aria-label="Menu principal"
                     sx={{
                         minHeight: 0,
+                        overflowX: "hidden",
                         overflowY: "auto",
                         flex: 1,
                         scrollbarWidth: "thin",
@@ -103,21 +104,6 @@ function Sidebar() {
                     </List>
                 </Box>
 
-                <Box sx={{ mt: "auto", px: { xs: 1, sm: 1.5 }, py: 1.25, borderTop: "1px solid rgba(148, 163, 184, 0.12)" }}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: { xs: "center", sm: "flex-start" } }}>
-                        <Box sx={{ width: 6, height: 6, flexShrink: 0, borderRadius: "50%", backgroundColor: "#2DD4BF" }} />
-                        <Typography
-                            variant="caption"
-                            sx={{
-                                display: { xs: "none", sm: "block" },
-                                fontSize: "0.66rem",
-                                color: "rgba(203, 213, 225, 0.58)",
-                            }}
-                        >
-                            Base preparada para o PDV.
-                        </Typography>
-                    </Stack>
-                </Box>
             </Stack>
         </Drawer>
     );
@@ -137,7 +123,7 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
     const titulo = item.tipo === "rota" ? item.titulo ?? item.rota.titulo : item.titulo;
     const icone = item.tipo === "rota" ? item.rota.icone : item.icone;
     const conteudo = <>
-        <ListItemIcon sx={{ minWidth: { xs: 0, sm: nivel ? 24 : 29 }, justifyContent: "center", color: "inherit", "& svg": { fontSize: layoutTokens.sidebar.tamanhoIconeMenu } }}>
+        <ListItemIcon sx={{ minWidth: 0, flexShrink: 0, color: "inherit", "& svg": { fontSize: layoutTokens.sidebar.tamanhoIconeMenu } }}>
             {icone}
         </ListItemIcon>
         <ListItemText
@@ -145,58 +131,77 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
             slotProps={{
                 primary: {
                     noWrap: true,
-                    sx: { fontSize: nivel ? "0.75rem" : "0.8rem", fontWeight: grupo ? 650 : nivel ? 500 : 600, lineHeight: 1.35 },
+                    sx: { fontSize: nivel ? "0.75rem" : "0.8125rem", fontWeight: nivel ? 500 : 600, lineHeight: 1.35, letterSpacing: 0 },
                 },
             }}
-            sx={{ display: { xs: "none", sm: "block" }, minWidth: 0 }}
+            sx={{ display: { xs: "none", sm: "block" }, minWidth: 0, my: 0 }}
         />
-        {grupo && (aberto
-            ? <ExpandMoreRoundedIcon sx={{ display: { xs: "none", sm: "block" }, fontSize: 15, flexShrink: 0 }} />
-            : <ChevronRightRoundedIcon sx={{ display: { xs: "none", sm: "block" }, fontSize: 15, flexShrink: 0 }} />)}
+        {grupo && <ChevronRightRoundedIcon sx={{
+            position: { xs: "absolute", sm: "static" },
+            right: 2,
+            fontSize: { xs: 12, sm: 15 },
+            flexShrink: 0,
+            opacity: 0.65,
+            transform: aberto ? "rotate(90deg)" : "rotate(0deg)",
+            transition: "transform 120ms ease",
+            "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+        }} />}
     </>;
     const estilo = {
         position: "relative",
-        minHeight: layoutTokens.sidebar.alturaItemMenu,
+        minHeight: { xs: 42, sm: nivel ? 36 : layoutTokens.sidebar.alturaItemMenu },
         width: "100%",
         mb: 0.125,
-        borderRadius: 1.25,
+        borderRadius: "6px",
         color: indisponivel
-            ? "rgba(203, 213, 225, 0.38)"
+            ? "rgba(221, 225, 230, 0.38)"
             : ativo
-                ? "#F8FAFC"
-                : nivel
-                    ? "rgba(203, 213, 225, 0.72)"
-                    : "rgba(226, 232, 240, 0.88)",
+                ? "#99E0D5"
+                : grupo
+                    ? "#B5BDC7"
+                    : nivel
+                        ? "#ADB6C2"
+                        : "#DDE1E6",
         justifyContent: { xs: "center", sm: "flex-start" },
-        pl: { xs: grupo ? 0.5 : 1, sm: 1.25 + nivel * 0.75 },
-        pr: { xs: grupo ? 0.5 : 1, sm: 0.75 },
+        columnGap: { xs: 0, sm: 1 },
+        pl: { xs: 0, sm: nivel ? 2 : 1.25 },
+        pr: { xs: 0, sm: 1 },
+        py: 0.5,
         textAlign: "left",
         transition: "background-color 120ms ease, color 120ms ease",
         "&.Mui-selected": {
-            color: "#F8FAFC",
-            backgroundColor: "rgba(45, 212, 191, 0.12)",
+            color: "#99E0D5",
+            backgroundColor: "rgba(94, 234, 212, 0.08)",
             "&::before": {
                 position: "absolute",
                 top: 8,
                 bottom: 8,
                 left: 0,
                 width: 2,
-                borderRadius: 2,
-                backgroundColor: "#2DD4BF",
+                borderRadius: "2px",
+                backgroundColor: "#5FD0BC",
                 content: "\"\"",
             },
         },
-        "&.Mui-selected:hover": { backgroundColor: "rgba(45, 212, 191, 0.16)" },
-        "&:hover": { color: "#F8FAFC", backgroundColor: "rgba(148, 163, 184, 0.08)" },
+        "&.Mui-selected:hover": { color: "#99E0D5", backgroundColor: "rgba(94, 234, 212, 0.12)" },
+        "&:hover": { color: "#F8FAFC", backgroundColor: "rgba(255, 255, 255, 0.045)" },
+        "&.Mui-focusVisible": { outline: "1px solid #99E0D5", outlineOffset: -1 },
         "&[aria-disabled=true]": {
-            color: "rgba(203, 213, 225, 0.38)",
+            color: "rgba(221, 225, 230, 0.38)",
             cursor: "default",
             backgroundColor: "transparent",
-            "&:hover": { color: "rgba(203, 213, 225, 0.38)", backgroundColor: "transparent" },
+            "&:hover": { color: "rgba(221, 225, 230, 0.38)", backgroundColor: "transparent" },
         },
     };
 
-    return <Box component="li" sx={{ mt: nivel === 0 && grupo ? 0.5 : 0, listStyle: "none" }}>
+    return <Box component="li" sx={{
+        listStyle: "none",
+        ...(grupo && nivel === 0 ? {
+            mt: 1,
+            pt: 1,
+            borderTop: "1px solid rgba(221, 225, 230, 0.08)",
+        } : {}),
+    }}>
         <Tooltip title={indisponivel ? `${titulo} — ainda não disponível` : titulo} placement="right">
             {item.tipo === "rota" ? (
                 <ListItemButton component={Link} to={obterCaminhoDaRota(item.rota)} selected={ativo} aria-current={ativo ? "page" : undefined} aria-label={titulo} sx={estilo}>
@@ -211,7 +216,7 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
             )}
         </Tooltip>
         {grupo && <Collapse in={aberto} timeout={140}>
-            <List id={`menu-${item.id}`} aria-label={titulo} disablePadding>
+            <List id={`menu-${item.id}`} aria-label={titulo} disablePadding sx={{ pt: 0.25 }}>
                 {item.filhos.map(filho => <EntradaMenu key={filho.id} item={filho} nivel={nivel + 1} />)}
             </List>
         </Collapse>}

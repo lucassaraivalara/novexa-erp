@@ -13,6 +13,7 @@ export type EmpresaAtiva = {
     telefone: string;
     endereco: string;
     ativo: boolean;
+    logomarca?: string | null;
 };
 
 export type LoginResponse = {

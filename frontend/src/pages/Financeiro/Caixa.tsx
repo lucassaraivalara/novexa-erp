@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import BlockRoundedIcon from "@mui/icons-material/BlockRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import { Alert, Button, Chip, MenuItem, Snackbar, Stack, FormControl, Select } from "@mui/material";
+import { Alert, Button, Chip, MenuItem, Snackbar, FormControl, Select } from "@mui/material";
+import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type Coluna, type AcaoTabela } from "../../components/ui/AppTable";
 import { listarCaixas, buscarCaixa, inativarCaixa, mensagemCaixa } from "../../services/caixaService";
@@ -57,12 +58,12 @@ export default function Caixa() {
         }
     }
 
-    async function inativar(id: number) {
-        if (!window.confirm("Tem certeza que deseja inativar este caixa?")) return;
+    async function inativar(caixa: CaixaResumo) {
+        if (!window.confirm(`Tem certeza que deseja inativar o caixa "${caixa.descricao}"?`)) return;
         setErro("");
         try {
-            await inativarCaixa(id);
-            setCaixas((atuais) => atuais.map((c) => (c.id === id ? { ...c, ativo: false } : c)));
+            await inativarCaixa(caixa.id);
+            setCaixas((atuais) => atuais.map((c) => (c.id === caixa.id ? { ...c, ativo: false } : c)));
             setSucesso(true);
         } catch (e) {
             setErro(mensagemCaixa(e, "Não foi possível inativar o caixa."));
@@ -103,7 +104,7 @@ export default function Caixa() {
         {
             rotulo: "Inativar",
             icone: <BlockRoundedIcon fontSize="small" />,
-            onClick: (c) => inativar(c.id),
+            onClick: (c) => void inativar(c),
             desabilitado: (c) => abrindo !== null || !c.ativo,
             cor: "error",
             tooltip: "Inativar caixa",
@@ -111,7 +112,7 @@ export default function Caixa() {
     ];
 
     return (
-        <Stack spacing={2.5}>
+        <PageContainer>
             <PageHeader
                 titulo="Caixas"
                 descricao="Gerencie os caixas financeiros da empresa."
@@ -164,6 +165,6 @@ export default function Caixa() {
             <Snackbar open={sucesso} autoHideDuration={5000} onClose={() => setSucesso(false)}>
                 <Alert severity="success" onClose={() => setSucesso(false)}>Caixa salvo com sucesso.</Alert>
             </Snackbar>
-        </Stack>
+        </PageContainer>
     );
 }
