@@ -432,7 +432,7 @@ function Login() {
                                         },
                                     }}
                                 >
-                                    {carregando ? "Entrando..." : "Entrar"}
+                                    {carregando ? "Entrando..." : "Acessar"}
                                 </Button>
                             </Stack>
                         </Box>
