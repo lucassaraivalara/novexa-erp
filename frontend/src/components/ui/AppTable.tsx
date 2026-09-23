@@ -7,6 +7,7 @@ import {
     TablePagination,
     TableRow,
     TableSortLabel,
+    Typography,
     ButtonBase,
     Toolbar,
     Tooltip,
@@ -75,6 +76,11 @@ interface AppTableProps<T> {
         onRowsPerPageChange: (linhas: number) => void;
         opcoesLinhasPorPagina?: number[];
     };
+    contagem?: {
+        total: number;
+        inicio?: number;
+        fim?: number;
+    };
     ordenacao?: {
         campo: string;
         direcao: "asc" | "desc";
@@ -84,12 +90,15 @@ interface AppTableProps<T> {
         campo: string | null;
         onSelecionar: (campo: string) => void;
     };
+    ordenacaoComIcone?: boolean;
     linhaCliqueavel?: boolean;
     onLinhaClick?: (linha: T) => void;
     obterChaveLinha: (linha: T) => string | number;
     sx?: SxProps;
     minWidth?: number | string;
     compacta?: boolean;
+    /** Altura reservada para o corpo rolável em desktop. */
+    alturaCorpo?: number | string;
 }
 
 export default function AppTable<T extends Record<string, unknown>>({
@@ -101,18 +110,22 @@ export default function AppTable<T extends Record<string, unknown>>({
     busca,
     filtros,
     paginacao,
+    contagem,
     ordenacao,
     buscaPorColuna,
+    ordenacaoComIcone = false,
     linhaCliqueavel = false,
     onLinhaClick,
     obterChaveLinha,
     sx,
     minWidth = 1000,
     compacta = false,
+    alturaCorpo,
 }: AppTableProps<T>) {
     const [ordemLocal, setOrdemLocal] = useState<{ campo: string; direcao: "asc" | "desc" } | null>(null);
 
     const ordenacaoAtiva = ordenacao ?? ordemLocal;
+    const controlesCabecalhoSeparados = Boolean(buscaPorColuna || ordenacaoComIcone);
 
     const linhasOrdenadas = useMemo(() => {
         if (!ordenacaoAtiva) return linhas;
@@ -127,6 +140,21 @@ export default function AppTable<T extends Record<string, unknown>>({
             return direcao === "asc" ? cmp : -cmp;
         });
     }, [linhas, ordenacaoAtiva]);
+
+    const contagemExibida = useMemo(() => {
+        const total = paginacao?.total ?? contagem?.total;
+        if (total === undefined) return null;
+        if (total === 0) return { inicio: 0, fim: 0, total };
+        if (paginacao) {
+            const inicio = paginacao.pagina * paginacao.linhasPorPagina + 1;
+            return { inicio, fim: Math.min(inicio + paginacao.linhasPorPagina - 1, total), total };
+        }
+        return {
+            inicio: contagem?.inicio ?? (linhasOrdenadas.length ? 1 : 0),
+            fim: contagem?.fim ?? Math.min(linhasOrdenadas.length, total),
+            total,
+        };
+    }, [contagem, linhasOrdenadas.length, paginacao]);
 
     function handleOrdenar(campo: string) {
         if (ordenacao) {
@@ -193,8 +221,18 @@ export default function AppTable<T extends Record<string, unknown>>({
                 </Toolbar>
             )}
 
-            <TableContainer sx={{ maxHeight: 600 }}>
+            <TableContainer
+                sx={{
+                    height: alturaCorpo ? { xs: "auto", md: alturaCorpo } : undefined,
+                    maxHeight: alturaCorpo ? { xs: 480, md: alturaCorpo } : { xs: 480, md: 600 },
+                    overflowX: "auto",
+                    overflowY: "auto",
+                    overscrollBehavior: "contain",
+                }}
+            >
                 <Table
+                    stickyHeader
+                    aria-label="Tabela de resultados"
                     size="medium"
                     sx={{
                         minWidth,
@@ -208,7 +246,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                     key={String(coluna.campo)}
                                     align={coluna.alinhar ?? "left"}
                                     style={{ width: coluna.largura }}
-                                    sortDirection={buscaPorColuna && ordenacaoAtiva?.campo === String(coluna.campo) ? ordenacaoAtiva.direcao : false}
+                                    sortDirection={controlesCabecalhoSeparados && ordenacaoAtiva?.campo === String(coluna.campo) ? ordenacaoAtiva.direcao : false}
                                     sx={{
                                         fontWeight: 700,
                                         color: "text.primary",
@@ -222,9 +260,9 @@ export default function AppTable<T extends Record<string, unknown>>({
                                         textOverflow: "ellipsis",
                                     }}
                                 >
-                                    {buscaPorColuna ? (
+                                    {controlesCabecalhoSeparados ? (
                                         <Stack direction="row" sx={{ alignItems: "center", justifyContent: coluna.alinhar === "right" ? "flex-end" : "flex-start", gap: 0.5, minWidth: 0 }}>
-                                            {coluna.pesquisavel ? (
+                                            {buscaPorColuna && coluna.pesquisavel ? (
                                                 <ButtonBase
                                                     type="button"
                                                     onClick={() => buscaPorColuna.onSelecionar(String(coluna.campo))}
@@ -385,6 +423,11 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                                         backgroundColor: "action.hover",
                                                                         color: "primary.main",
                                                                     },
+                                                                    "&.Mui-focusVisible": {
+                                                                        outline: "2px solid",
+                                                                        outlineColor: "primary.main",
+                                                                        outlineOffset: 2,
+                                                                    },
                                                                 }}
                                                             >
                                                                 {acao.icone}
@@ -402,8 +445,10 @@ export default function AppTable<T extends Record<string, unknown>>({
                 </Table>
             </TableContainer>
 
-            {paginacao && (
+            {contagemExibida && (
                 <Toolbar
+                    component="footer"
+                    aria-label="Contagem e paginação da tabela"
                     sx={{
                         px: { xs: 1, md: 2 },
                         py: 1,
@@ -413,9 +458,13 @@ export default function AppTable<T extends Record<string, unknown>>({
                         justifyContent: "space-between",
                         flexWrap: "wrap",
                         gap: 1,
+                        flexShrink: 0,
                     }}
                 >
-                    <TablePagination
+                    <Typography variant="body2" color="text.secondary" aria-live="polite" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {`${contagemExibida.inicio}–${contagemExibida.fim} de ${contagemExibida.total}`}
+                    </Typography>
+                    {paginacao && <TablePagination
                         component="div"
                         count={paginacao.total}
                         page={paginacao.pagina}
@@ -423,10 +472,14 @@ export default function AppTable<T extends Record<string, unknown>>({
                         rowsPerPageOptions={paginacao.opcoesLinhasPorPagina ?? [10, 25, 50]}
                         onPageChange={(_, p) => paginacao.onPageChange(p)}
                         onRowsPerPageChange={(e) => paginacao.onRowsPerPageChange(Number(e.target.value))}
-                        labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
+                        labelDisplayedRows={() => ""}
                         labelRowsPerPage="Itens por página"
-                        sx={{ "& .MuiSelect-root": { minWidth: 80 } }}
-                    />
+                        getItemAriaLabel={(tipo) => tipo === "next" ? "Próxima página" : "Página anterior"}
+                        sx={{
+                            "& .MuiSelect-root": { minWidth: 80 },
+                            "& .MuiIconButton-root:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 },
+                        }}
+                    />}
                 </Toolbar>
             )}
         </Paper>

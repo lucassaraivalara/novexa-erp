@@ -223,6 +223,7 @@ export default function Clientes() {
                         onRowsPerPageChange: () => {},
                         opcoesLinhasPorPagina: [10],
                     }}
+                    alturaCorpo={480}
                     minWidth={1000}
                 />
             </Stack>

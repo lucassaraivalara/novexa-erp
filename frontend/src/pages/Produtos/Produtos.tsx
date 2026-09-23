@@ -262,6 +262,7 @@ function Produtos() {
                     colunas={colunas}
                     buscaPorColuna={{ campo: campoBusca, onSelecionar: selecionarCampoBusca }}
                     linhas={produtosFiltrados}
+                    contagem={{ total: produtosFiltrados.length }}
                     carregando={buscaRemota.loading && !produtos.length}
                     obterChaveLinha={(p) => p.id}
                     vazio={{
@@ -272,6 +273,7 @@ function Produtos() {
                     acoes={acoes}
                     compacta
                     sx={{ "& .MuiTableCell-root": { py: 0.75 } }}
+                    alturaCorpo={480}
                     minWidth={1214}
                 />
             </Stack>

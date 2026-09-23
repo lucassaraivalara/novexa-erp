@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import AddShoppingCartRoundedIcon from "@mui/icons-material/AddShoppingCartRounded";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
@@ -51,6 +51,8 @@ import {
 const corStatus = (status: VendaResumo["status"]) =>
     status === "FATURADA" ? "success" : status === "CANCELADA" ? "default" : "warning";
 
+type CampoOrdenacaoVenda = "id" | "dataHora" | "nomeCliente" | "total" | "status" | "sessaoCaixaId";
+
 export default function CentralVendas() {
     const empresaId = obterSessao()?.empresa.id;
     const [vendas, setVendas] = useState<VendaResumo[]>([]);
@@ -58,6 +60,10 @@ export default function CentralVendas() {
     const [filtros, setFiltros] = useState<FiltrosCentralVendas>(filtrosIniciais);
     const [pagina, setPagina] = useState(0);
     const [porPagina, setPorPagina] = useState(25);
+    const [ordenacao, setOrdenacao] = useState<{ campo: CampoOrdenacaoVenda; direcao: "asc" | "desc" }>({
+        campo: "dataHora",
+        direcao: "desc",
+    });
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
     const [selecionada, setSelecionada] = useState<VendaResumo | null>(null);
@@ -146,15 +152,15 @@ export default function CentralVendas() {
     }
 
     const colunas: Coluna<VendaResumo>[] = [
-        { campo: "id", cabecalho: "Venda", largura: 90, render: valor => `#${valor}` },
-        { campo: "dataHora", cabecalho: "Data / hora", largura: 155, render: valor => dataHoraVenda(String(valor)) },
-        { campo: "nomeCliente", cabecalho: "Cliente", largura: 240, render: valor => String(valor || "Consumidor final") },
-        { campo: "total", cabecalho: "Total", largura: 130, alinhar: "right", render: valor => moedaVenda(Number(valor)) },
-        { campo: "status", cabecalho: "Status", largura: 120, render: valor => {
+        { campo: "id", cabecalho: "Venda", largura: 90, ordenavel: true, render: valor => `#${valor}` },
+        { campo: "dataHora", cabecalho: "Data / hora", largura: 155, ordenavel: true, render: valor => dataHoraVenda(String(valor)) },
+        { campo: "nomeCliente", cabecalho: "Cliente", largura: 240, ordenavel: true, render: valor => String(valor || "Consumidor final") },
+        { campo: "total", cabecalho: "Total", largura: 130, alinhar: "right", ordenavel: true, render: valor => moedaVenda(Number(valor)) },
+        { campo: "status", cabecalho: "Status", largura: 120, ordenavel: true, render: valor => {
             const status = valor as VendaResumo["status"];
             return <Chip size="small" variant="outlined" color={corStatus(status)} label={rotulosStatus[status]} />;
         } },
-        { campo: "sessaoCaixaId", cabecalho: "Caixa / sessão", largura: 140,
+        { campo: "sessaoCaixaId", cabecalho: "Caixa / sessão", largura: 140, ordenavel: true,
             render: valor => valor ? `Sessão #${valor}` : "—" },
     ];
 
@@ -176,8 +182,19 @@ export default function CentralVendas() {
         },
     ];
 
-    const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(vendas.length / porPagina) - 1));
-    const linhas = vendas.slice(paginaAtual * porPagina, paginaAtual * porPagina + porPagina);
+    const vendasOrdenadas = useMemo(() => [...vendas].sort((a, b) => {
+        const valorA = ordenacao.campo === "nomeCliente" ? a.nomeCliente ?? "Consumidor final" : a[ordenacao.campo];
+        const valorB = ordenacao.campo === "nomeCliente" ? b.nomeCliente ?? "Consumidor final" : b[ordenacao.campo];
+        if (valorA === valorB) return 0;
+        if (valorA === null || valorA === undefined) return 1;
+        if (valorB === null || valorB === undefined) return -1;
+        const comparacao = typeof valorA === "string"
+            ? valorA.localeCompare(String(valorB), "pt-BR", { numeric: true })
+            : Number(valorA) - Number(valorB);
+        return ordenacao.direcao === "asc" ? comparacao : -comparacao;
+    }), [ordenacao, vendas]);
+    const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(vendasOrdenadas.length / porPagina) - 1));
+    const linhas = vendasOrdenadas.slice(paginaAtual * porPagina, paginaAtual * porPagina + porPagina);
 
     return <PageContainer>
         <PageHeader titulo="Central de Vendas" descricao="Consulte vendas, confira detalhes e execute cancelamentos."
@@ -186,8 +203,16 @@ export default function CentralVendas() {
 
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregarVendas()}>Tentar novamente</Button>}>{erro}</Alert>}
 
-        <AppTable colunas={colunas} linhas={linhas} carregando={carregando} compacta
+        <AppTable colunas={colunas} linhas={linhas} carregando={carregando} compacta ordenacaoComIcone
             obterChaveLinha={venda => venda.id} minWidth={940} acoes={acoes}
+            ordenacao={{
+                campo: ordenacao.campo,
+                direcao: ordenacao.direcao,
+                onSort: campo => setOrdenacao(atual => ({
+                    campo: campo as CampoOrdenacaoVenda,
+                    direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc",
+                })),
+            }}
             filtros={<Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap" }}>
                 <TextField select size="small" label="Status" value={filtros.status} sx={{ minWidth: 150 }}
                     onChange={evento => alterarFiltro("status", evento.target.value as FiltrosCentralVendas["status"])}>
@@ -209,10 +234,11 @@ export default function CentralVendas() {
                 </TextField>
             </Stack>}
             vazio={{ titulo: "Nenhuma venda encontrada", descricao: "Ajuste os filtros ou inicie uma nova venda." }}
-            paginacao={{ pagina: paginaAtual, linhasPorPagina: porPagina, total: vendas.length,
+            paginacao={{ pagina: paginaAtual, linhasPorPagina: porPagina, total: vendasOrdenadas.length,
                 onPageChange: setPagina,
                 onRowsPerPageChange: linhasPorPagina => { setPorPagina(linhasPorPagina); setPagina(0); },
-                opcoesLinhasPorPagina: [10, 25, 50] }} />
+                opcoesLinhasPorPagina: [10, 25, 50] }}
+            alturaCorpo={480} />
 
         <Dialog open={vendaParaCancelar !== null} fullWidth maxWidth="xs"
             onClose={cancelando !== null ? undefined : () => setVendaParaCancelar(null)}
