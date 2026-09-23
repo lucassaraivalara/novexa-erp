@@ -106,7 +106,16 @@ Caixa possui cadastro e sessões operacionais. A venda faturada vincula-se à se
 - `GET/POST /financeiro/caixas/sessoes/{sessaoId}/movimentacoes`: histórico de dinheiro e registro manual. POST recebe {chaveRequisicao: UUID, tipo: SUPRIMENTO|SANGRIA, valor, observacao?}, retorna 200 com movimento, operador/data automáticos. Chave única por sessão, payload/operador diferentes com mesma chave retornam 409. Retry idêntico retorna o movimento original, mesmo após fechamento. Não aceita VENDA manual nem retirada superior ao dinheiro disponível.
 - Saldo esperado = saldo inicial + movimentos VENDA em dinheiro + SUPRIMENTO − SANGRIA. Diferença = saldo final informado − saldo esperado. Fechamento mantém os campos anteriores e acrescenta `resumo`; os totais permanecem consultáveis após fechar. Valores são derivados do histórico imutável de pagamentos/movimentos, sem manter um segundo saldo mutável.
 - V10 adiciona o vínculo Venda–Sessão e movimentacoes_caixa com chaves de empresa e unicidade por pagamento/requisição. Vendas antigas não recebem sessão fictícia nem geram movimentos retroativos.
-- Continua um pagamento por venda no contrato atual. Misto, cancelamento/reversão, confirmação de PIX/cartões e destinos bancários não fazem parte deste bloco. A implementação parcial anterior de venda em dinheiro em outro worktree foi superada por este bloco: não integrar sua V10 concorrente.
+- Continua um pagamento por venda no contrato atual. Misto, confirmação de PIX/cartões e destinos bancários não fazem parte deste bloco. A implementação parcial anterior de venda em dinheiro em outro worktree foi superada por este bloco: não integrar sua V10 concorrente.
+
+### Cancelamento integral de Venda
+
+- `POST /vendas/{id}/cancelar` aceita somente Venda FATURADA da empresa autenticada. O retry de uma Venda já CANCELADA devolve o estado preservado sem repetir efeitos.
+- A mesma transação marca a Venda como CANCELADA, cria movimentos compensatórios ENTRADA/CANCELAMENTO para as baixas originais de estoque, cancela Pagamento e lançamento financeiro e, em DINHEIRO, registra `ESTORNO_VENDA` na sessão de Caixa.
+- Venda, itens, valores, movimentos originais, Pagamento e lançamento não são excluídos nem reescritos; os registros de cancelamento preservam a trilha histórica.
+- O cancelamento de uma venda em dinheiro vinculada ao Caixa exige que a sessão ainda esteja ABERTA. Sessão fechada ou histórico original ausente/incompatível retorna conflito e desfaz toda a tentativa.
+- A V15 alinha as constraints de Pagamento, lançamento financeiro e movimentos de Caixa aos estados de cancelamento, permitindo preservar a entrada original e registrar um único `ESTORNO_VENDA` por pagamento.
+- PIX e cartões têm apenas os registros atuais de Pagamento/lançamento marcados como cancelados. Não existem ainda movimentação bancária, recebível ou liquidação externa para reverter.
 
 ## Persistência e histórico de Pagamento
 

@@ -19,6 +19,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 import java.util.List;
 
@@ -98,6 +101,23 @@ public class ProdutoController {
         );
 
         return ResponseEntity.ok(produtoMapper.toResponse(produtoAtualizado));
+    }
+
+    @PostMapping(value = "/{id}/imagem", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ProdutoResponseDTO> salvarImagem(
+            @PathVariable Long id,
+            @RequestPart("arquivo") MultipartFile arquivo,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        ProdutoEntity produto = produtoService.salvarImagem(id, arquivo, usuario);
+        return ResponseEntity.ok(produtoMapper.toResponse(produto));
+    }
+
+    @DeleteMapping("/{id}/imagem")
+    public ResponseEntity<ProdutoResponseDTO> removerImagem(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        ProdutoEntity produto = produtoService.removerImagem(id, usuario);
+        return ResponseEntity.ok(produtoMapper.toResponse(produto));
     }
 
     @DeleteMapping("/{id}")

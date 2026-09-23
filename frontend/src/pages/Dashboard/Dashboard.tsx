@@ -65,10 +65,10 @@ export default function Dashboard() {
         return () => controller.abort();
     }, [carregar]);
 
-    return <Stack spacing={2.5}>
+    return <Stack spacing={2}>
         <PageHeader titulo="Dashboard" descricao="Resumo operacional de hoje." />
 
-        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+        <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
             <Button size="small" variant="outlined" component={Link} to="/pdv" startIcon={<AddShoppingCartRoundedIcon fontSize="small" />}>Nova venda</Button>
             <Button size="small" variant="outlined" component={Link} to="/produtos" startIcon={<Inventory2RoundedIcon fontSize="small" />}>Produtos</Button>
             <Button size="small" variant="outlined" component={Link} to="/clientes" startIcon={<PeopleAltRoundedIcon fontSize="small" />}>Clientes</Button>
@@ -88,7 +88,7 @@ export default function Dashboard() {
                 <StatCard titulo="Clientes ativos" valor={resumo.quantidadeClientesAtivos} descricao="Cadastros disponíveis" cor="primary" />
             </Box>
 
-            <Paper variant="outlined" sx={{ p: 2 }}>
+            <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 } }}>
                 <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>Caixa operacional</Typography>
                     {resumo.sessoesCaixaAbertas.length > 1
@@ -99,7 +99,7 @@ export default function Dashboard() {
                     sx={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
                     <Typography color="text.secondary">Nenhum caixa aberto no momento.</Typography>
                     <Stack direction="row" spacing={1}>
-                        <Button size="small" component={Link} to="/financeiro/caixas">Ir para Caixas</Button>
+                        <Button size="small" component={Link} to="/financeiro/caixas">Ver caixas</Button>
                         <Button size="small" component={Link} to="/pdv">Abrir PDV</Button>
                     </Stack>
                 </Stack> : <Table size="small" aria-label="Sessões de caixa abertas">
@@ -109,13 +109,13 @@ export default function Dashboard() {
                         <TableCell>{sessao.descricaoCaixa}</TableCell>
                         <TableCell align="right">{moedaVenda(sessao.saldoInicial)}</TableCell>
                         <TableCell align="right"><strong>{moedaVenda(sessao.saldoEsperadoDinheiro)}</strong></TableCell>
-                        <TableCell align="right"><Button size="small" component={Link} to="/financeiro/caixas">Ver Caixa</Button></TableCell>
+                        <TableCell align="right"><Button size="small" component={Link} to="/financeiro/caixas">Ver caixa</Button></TableCell>
                     </TableRow>)}</TableBody>
                 </Table>}
             </Paper>
 
             <Paper variant="outlined" sx={{ overflow: "hidden" }}>
-                <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", px: 2, py: 1.5 }}>
+                <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", px: { xs: 1.5, md: 2 }, py: 1.25 }}>
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>Últimas vendas</Typography>
                     <Button size="small" component={Link} to="/vendas">Ver todas</Button>
                 </Stack>

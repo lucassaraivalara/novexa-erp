@@ -20,6 +20,10 @@ public class CaixaOperacionalController {
     public List<SessaoCaixaAbertaDTO> abertas(@AuthenticationPrincipal UsuarioAutenticado usuario) {
         return service.abertas(usuario.empresaId());
     }
+    @GetMapping("/fechadas")
+    public List<SessaoCaixaHistoricoDTO> fechadas(@AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return service.fechadas(usuario.empresaId());
+    }
     @GetMapping("/{sessaoId}/resumo")
     public ResumoSessaoCaixaDTO resumo(@PathVariable Long sessaoId, @AuthenticationPrincipal UsuarioAutenticado usuario) {
         return service.resumo(sessaoId, usuario.empresaId());

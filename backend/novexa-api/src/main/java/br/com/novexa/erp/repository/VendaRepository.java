@@ -30,8 +30,8 @@ public interface VendaRepository extends JpaRepository<VendaEntity, Long> {
             left join fetch v.sessaoCaixa
             where v.empresa.id = :empresaId
               and (:status is null or v.status = :status)
-              and (:inicio is null or v.dataHora >= :inicio)
-              and (:fimExclusivo is null or v.dataHora < :fimExclusivo)
+              and (cast(:inicio as timestamp) is null or v.dataHora >= :inicio)
+              and (cast(:fimExclusivo as timestamp) is null or v.dataHora < :fimExclusivo)
               and (:clienteId is null or v.cliente.id = :clienteId)
             order by v.dataHora desc, v.id desc
             """)

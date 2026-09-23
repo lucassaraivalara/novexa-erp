@@ -19,7 +19,7 @@ export default function AgenciaTab() {
     const [tentativa, setTentativa] = useState(0);
     const [busca, setBusca] = useState("");
     const [banco, setBanco] = useState("todos");
-    const [situacao, setSituacao] = useState("todos");
+    const [situacao, setSituacao] = useState("ativos");
     const [editor, setEditor] = useState<{ agencia: AgenciaResumo | null } | null>(null);
     const [alternando, setAlternando] = useState<number | null>(null);
     const [sucesso, setSucesso] = useState(false);
@@ -116,7 +116,7 @@ export default function AgenciaTab() {
                         </Select>
                     </FormControl>
                     <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <Select value={situacao} onChange={(e) => setSituacao(e.target.value)}>
+                        <Select value={situacao} inputProps={{ "aria-label": "Filtrar agências por situação" }} onChange={(e) => setSituacao(e.target.value)}>
                             <MenuItem value="todos">Todos</MenuItem>
                             <MenuItem value="ativos">Ativos</MenuItem>
                             <MenuItem value="inativos">Inativos</MenuItem>

@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -34,7 +36,11 @@ public class SessaoCaixaService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Caixa inativo não pode ser aberto.");
         if (sessoes.findByCaixaIdAndEmpresaIdAndStatus(caixaId, autenticado.empresaId(), StatusSessaoCaixa.ABERTO).isPresent())
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Já existe uma sessão aberta neste Caixa.");
-        return SessaoCaixaResponseDTO.from(sessoes.saveAndFlush(new SessaoCaixaEntity(caixa, usuario, saldoInicial)));
+        var sessao = sessoes.saveAndFlush(new SessaoCaixaEntity(caixa, usuario, saldoInicial));
+        if (saldoInicial.signum() > 0) {
+            operacional.registrarSaldoInicial(sessao, usuario, saldoInicial);
+        }
+        return SessaoCaixaResponseDTO.from(sessao);
     }
 
     public SessaoCaixaResponseDTO consultarAberta(Long caixaId, Long empresaId) {

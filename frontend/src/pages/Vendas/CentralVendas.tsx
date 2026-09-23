@@ -7,6 +7,7 @@ import {
     Alert,
     Button,
     Chip,
+    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -62,6 +63,8 @@ export default function CentralVendas() {
     const [selecionada, setSelecionada] = useState<VendaResumo | null>(null);
     const [detalhe, setDetalhe] = useState<VendaDetalhe | null>(null);
     const [carregandoDetalhe, setCarregandoDetalhe] = useState(false);
+    const [vendaParaCancelar, setVendaParaCancelar] = useState<VendaResumo | null>(null);
+    const [erroCancelamento, setErroCancelamento] = useState("");
     const [cancelando, setCancelando] = useState<number | null>(null);
     const [sucesso, setSucesso] = useState(false);
 
@@ -112,11 +115,17 @@ export default function CentralVendas() {
         }
     }
 
-    async function cancelar(venda: VendaResumo) {
-        if (!podeCancelarVenda(venda.status)
-            || !window.confirm(`Cancelar a venda #${venda.id}? O estoque e os efeitos financeiros serão revertidos.`)) return;
+    function solicitarCancelamento(venda: VendaResumo) {
+        if (!podeCancelarVenda(venda.status)) return;
+        setErroCancelamento("");
+        setVendaParaCancelar(venda);
+    }
+
+    async function confirmarCancelamento() {
+        const venda = vendaParaCancelar;
+        if (!venda || !podeCancelarVenda(venda.status) || cancelando !== null) return;
         setCancelando(venda.id);
-        setErro("");
+        setErroCancelamento("");
         try {
             const cancelada = await cancelarVenda(venda.id);
             setVendas(atuais => atuais.map(atual => atual.id === venda.id
@@ -126,10 +135,11 @@ export default function CentralVendas() {
                 setSelecionada(atual => atual ? { ...atual, status: "CANCELADA" } : null);
                 setDetalhe(cancelada);
             }
-            await carregarVendas();
+            setVendaParaCancelar(null);
             setSucesso(true);
+            await carregarVendas();
         } catch (e) {
-            setErro(mensagemVenda(e, "Não foi possível cancelar a venda."));
+            setErroCancelamento(mensagemVenda(e, "Não foi possível cancelar a venda."));
         } finally {
             setCancelando(null);
         }
@@ -160,7 +170,7 @@ export default function CentralVendas() {
             rotulo: "Cancelar venda",
             tooltip: "Cancelar venda",
             icone: <CancelOutlinedIcon fontSize="small" />,
-            onClick: venda => void cancelar(venda),
+            onClick: solicitarCancelamento,
             desabilitado: venda => !podeCancelarVenda(venda.status) || cancelando !== null,
             cor: "error",
         },
@@ -203,6 +213,28 @@ export default function CentralVendas() {
                 onPageChange: setPagina,
                 onRowsPerPageChange: linhasPorPagina => { setPorPagina(linhasPorPagina); setPagina(0); },
                 opcoesLinhasPorPagina: [10, 25, 50] }} />
+
+        <Dialog open={vendaParaCancelar !== null} fullWidth maxWidth="xs"
+            onClose={cancelando !== null ? undefined : () => setVendaParaCancelar(null)}
+            aria-labelledby="cancelar-venda-titulo" aria-describedby="cancelar-venda-descricao">
+            <DialogTitle id="cancelar-venda-titulo">Cancelar venda #{vendaParaCancelar?.id}?</DialogTitle>
+            <DialogContent dividers>
+                <Stack spacing={2}>
+                    <Typography id="cancelar-venda-descricao">
+                        A venda será preservada como cancelada. O sistema reverterá o estoque e os efeitos financeiros registrados.
+                    </Typography>
+                    {erroCancelamento && <Alert severity="error">{erroCancelamento}</Alert>}
+                </Stack>
+            </DialogContent>
+            <DialogActions>
+                <Button type="button" onClick={() => setVendaParaCancelar(null)} disabled={cancelando !== null}>Voltar</Button>
+                <Button type="button" color="error" variant="contained" onClick={() => void confirmarCancelamento()}
+                    disabled={cancelando !== null}
+                    startIcon={cancelando !== null ? <CircularProgress size={18} color="inherit" /> : <CancelOutlinedIcon />}>
+                    {cancelando !== null ? "Cancelando…" : "Cancelar venda"}
+                </Button>
+            </DialogActions>
+        </Dialog>
 
         <Dialog open={selecionada !== null} fullWidth maxWidth="md"
             onClose={carregandoDetalhe ? undefined : () => setSelecionada(null)} aria-labelledby="detalhe-venda-titulo">

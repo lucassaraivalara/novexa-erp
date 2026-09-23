@@ -3,10 +3,17 @@ package br.com.novexa.erp.mapper;
 import br.com.novexa.erp.dto.ProdutoRequestDTO;
 import br.com.novexa.erp.dto.ProdutoResponseDTO;
 import br.com.novexa.erp.entity.ProdutoEntity;
+import br.com.novexa.erp.storage.ArquivoStorageService;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ProdutoMapper {
+
+    private final ArquivoStorageService arquivoStorageService;
+
+    public ProdutoMapper(ArquivoStorageService arquivoStorageService) {
+        this.arquivoStorageService = arquivoStorageService;
+    }
 
     public ProdutoEntity toEntity(ProdutoRequestDTO request) {
         ProdutoEntity produto = new ProdutoEntity();
@@ -33,6 +40,8 @@ public class ProdutoMapper {
         response.setEstoqueAtual(produto.getEstoqueAtual());
         response.setEstoqueMinimo(produto.getEstoqueMinimo());
         response.setControlaEstoque(produto.getControlaEstoque());
+        response.setImagemPath(produto.getImagemPath());
+        response.setImagemUrl(arquivoStorageService.obterUrlPublica(produto.getImagemPath()));
         response.setAtivo(produto.getAtivo());
         response.setDataCadastro(produto.getDataCadastro());
 

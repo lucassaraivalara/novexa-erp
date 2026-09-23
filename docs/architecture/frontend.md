@@ -33,6 +33,35 @@ Não converter um filtro local correto em busca remota apenas para aplicar debou
 
 Produtos usa busca textual remota com o padrão de 2 caracteres e 350 ms. Clientes, Empresas, Caixa, Estoque e o catálogo atual do PDV usam filtro local imediato. Dados Bancários permanece um shell sem busca ou API fictícia.
 
+## Busca por coluna em Produtos, Clientes e Estoque
+
+Produtos permite selecionar Código interno, Produto ou Situação pelo botão textual
+do cabeçalho. O chip removível de PageFilters indica o campo ativo; o texto digitado
+é mantido ao trocar de coluna ou retornar à busca geral. Código interno também
+consulta código de barras; Produto consulta o nome; Situação compara prefixos de
+Ativo/Inativo. A busca local ignora caixa e acentos e combina o filtro de situação.
+
+Com coluna ativa, a filtragem é imediata sobre o último conjunto carregado, sem HTTP
+por digitação/Enter. Consultas gerais pendentes são canceladas ao selecionar uma
+coluna. Limpar o campo restaura esse conjunto, não o catálogo completo. Remover o
+chip retoma a busca geral remota com debounce/mínimo existentes. Atualizações após
+salvar/inativar reutilizam a consulta geral anterior e reaplicam o filtro local.
+
+A API opcional `AppTable.buscaPorColuna` controla o campo e a seleção; as colunas
+usam `pesquisavel` e `ordenavel` independentemente. O texto e a seta são botões
+separados; a seta alterna ordenação crescente/decrescente sem selecionar a busca.
+`PageFilters.campoBuscaAtivo` recebe o rótulo e a remoção do chip, devolvendo foco
+ao campo. Sem essas propriedades, os consumidores preservam seu comportamento.
+
+Clientes aplica o mesmo padrão localmente às colunas Código, Nome / Razão social,
+Nome fantasia, CPF/CNPJ, Cidade / UF e Telefone. Situação continua exclusivamente
+como filtro próprio. A ordenação é independente do campo ativo da busca e ocorre
+antes da paginação.
+
+Estoque aplica busca por coluna somente a Produto e Código, mantendo a busca geral
+local nos dois campos. Estoque atual, Estoque mínimo e Situação permitem apenas
+ordenação, sem se tornarem campos de busca.
+
 # Padrão de Formulários
 
 ## Cadastro simples

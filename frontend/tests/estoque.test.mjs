@@ -1,6 +1,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "vite";
+import { readFile } from "node:fs/promises";
 
 const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
 const { situacaoEstoque, novoSaldoEsperado } = await server.ssrLoadModule("/src/pages/Estoque/estoqueRegras.ts");
@@ -100,4 +101,25 @@ test("erro de estoque insuficiente preserva a mensagem de negócio", () => {
     });
 
     assert.equal(obterMensagemEstoque(erro, "Falha na movimentação."), "Estoque insuficiente: Produto.");
+});
+
+test("tela de estoque preserva busca, ações e diálogos acessíveis", async () => {
+    const fonte = await readFile(new URL("../src/pages/Estoque/Estoque.tsx", import.meta.url), "utf8");
+
+    assert.match(fonte, /campoBuscaAtivo=\{campoBusca === null/);
+    assert.match(fonte, /buscaPorColuna=\{\{ campo: campoBusca, onSelecionar: selecionarCampoBusca \}\}/);
+    assert.match(fonte, /"Pesquisar por produto ou código…"/);
+    assert.match(fonte, /nome: \{ rotulo: "Produto", placeholder: "Pesquisar por produto…" \}/);
+    assert.match(fonte, /codigoEstoque: \{ rotulo: "Código", placeholder: "Pesquisar por código…" \}/);
+    assert.equal((fonte.match(/pesquisavel: true/g) ?? []).length, 2);
+    assert.match(fonte, /tooltip: "Registrar entrada"/);
+    assert.match(fonte, /tooltip: "Registrar saída"/);
+    assert.match(fonte, /tooltip: "Ajustar novo saldo físico"/);
+    assert.match(fonte, /tooltip: "Consultar histórico"/);
+    assert.match(fonte, /aria-labelledby="estoque-movimentacao-titulo"/);
+    assert.match(fonte, /aria-labelledby="estoque-historico-titulo"/);
+    assert.match(fonte, /name="quantidade"/);
+    assert.match(fonte, /inputMode: "decimal"/);
+    assert.match(fonte, /e\.key === "Enter"/);
+    assert.match(fonte, /Registrando…/);
 });

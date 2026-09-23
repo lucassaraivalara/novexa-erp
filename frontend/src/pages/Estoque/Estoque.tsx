@@ -10,6 +10,7 @@ import {
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
+import PageFilters from "../../components/ui/PageFilters";
 import type { Produto } from "../../types/produto";
 import {
     listarHistoricoProduto, listarProdutosEstoque, obterMensagemEstoque,
@@ -22,6 +23,13 @@ const quantidadeFormatada = new Intl.NumberFormat("pt-BR", { maximumFractionDigi
 const dataFormatada = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 type Operacao = TipoMovimentacaoEstoque;
 type DialogoMovimentacao = { produto: Produto; operacao: Operacao } | null;
+type CampoBuscaEstoque = "nome" | "codigoEstoque";
+type ProdutoEstoque = Produto & { codigoEstoque: string; situacao: SituacaoEstoque };
+
+const camposBusca: Record<CampoBuscaEstoque, { rotulo: string; placeholder: string }> = {
+    nome: { rotulo: "Produto", placeholder: "Pesquisar por produto…" },
+    codigoEstoque: { rotulo: "Código", placeholder: "Pesquisar por código…" },
+};
 
 const coresSituacao: Record<SituacaoEstoque, "default" | "success" | "warning" | "error"> = {
     "SEM CONTROLE": "default", NORMAL: "success", BAIXO: "warning", ZERADO: "error",
@@ -34,6 +42,7 @@ function codigoProduto(produto: Produto): string {
 export default function Estoque() {
     const [produtos, setProdutos] = useState<Produto[]>([]);
     const [busca, setBusca] = useState("");
+    const [campoBusca, setCampoBusca] = useState<CampoBuscaEstoque | null>(null);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
     const [dialogo, setDialogo] = useState<DialogoMovimentacao>(null);
@@ -62,10 +71,27 @@ export default function Estoque() {
 
     const produtosFiltrados = useMemo(() => {
         const termo = busca.trim().toLocaleLowerCase("pt-BR");
-        if (!termo) return produtos;
-        return produtos.filter((produto) => produto.nome.toLocaleLowerCase("pt-BR").includes(termo)
-            || codigoProduto(produto).toLocaleLowerCase("pt-BR").includes(termo));
-    }, [busca, produtos]);
+        return produtos.map<ProdutoEstoque>((produto) => ({
+            ...produto,
+            codigoEstoque: codigoProduto(produto),
+            situacao: situacaoEstoque(produto),
+        })).filter((produto) => {
+            if (!termo) return true;
+            if (campoBusca === "nome") return produto.nome.toLocaleLowerCase("pt-BR").includes(termo);
+            if (campoBusca === "codigoEstoque") return produto.codigoEstoque.toLocaleLowerCase("pt-BR").includes(termo);
+            return produto.nome.toLocaleLowerCase("pt-BR").includes(termo)
+                || produto.codigoEstoque.toLocaleLowerCase("pt-BR").includes(termo);
+        });
+    }, [busca, campoBusca, produtos]);
+
+    function selecionarCampoBusca(campo: string) {
+        if (!(campo in camposBusca)) return;
+        setCampoBusca(campo as CampoBuscaEstoque);
+    }
+
+    function removerCampoBusca() {
+        setCampoBusca(null);
+    }
 
     function abrirMovimentacao(produto: Produto, operacao: Operacao) {
         setErro(""); setQuantidade(""); setMotivo(""); setDialogo({ produto, operacao });
@@ -95,15 +121,15 @@ export default function Estoque() {
         finally { setSalvando(false); }
     }
 
-    const colunas: Coluna<Produto>[] = [
-        { campo: "nome", cabecalho: "Produto", largura: 300 },
-        { campo: "codigoInterno", cabecalho: "Código", largura: 150, render: (_valor, produto) => codigoProduto(produto) },
-        { campo: "estoqueAtual", cabecalho: "Estoque atual", largura: 140, alinhar: "right", render: (valor) => quantidadeFormatada.format(Number(valor)) },
-        { campo: "estoqueMinimo", cabecalho: "Estoque mínimo", largura: 140, alinhar: "right", render: (valor) => quantidadeFormatada.format(Number(valor)) },
-        { campo: "controlaEstoque", cabecalho: "Situação", largura: 150, render: (_valor, produto) => { const situacao = situacaoEstoque(produto); return <Chip size="small" label={situacao} color={coresSituacao[situacao]} variant="outlined" />; } },
+    const colunas: Coluna<ProdutoEstoque>[] = [
+        { campo: "nome", cabecalho: "Produto", largura: 280, pesquisavel: true, ordenavel: true },
+        { campo: "codigoEstoque", cabecalho: "Código", largura: 135, pesquisavel: true, ordenavel: true },
+        { campo: "estoqueAtual", cabecalho: "Estoque atual", largura: 125, alinhar: "right", ordenavel: true, render: (valor) => quantidadeFormatada.format(Number(valor)) },
+        { campo: "estoqueMinimo", cabecalho: "Estoque mínimo", largura: 125, alinhar: "right", ordenavel: true, render: (valor) => quantidadeFormatada.format(Number(valor)) },
+        { campo: "situacao", cabecalho: "Situação", largura: 135, ordenavel: true, render: (valor) => { const situacao = valor as SituacaoEstoque; return <Chip size="small" label={situacao} color={coresSituacao[situacao]} variant="outlined" />; } },
     ];
 
-    const acoes: AcaoTabela<Produto>[] = [
+    const acoes: AcaoTabela<ProdutoEstoque>[] = [
         { rotulo: "Entrada", icone: <InputRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "ENTRADA"), desabilitado: (produto) => !produto.controlaEstoque || !produto.ativo, tooltip: "Registrar entrada" },
         { rotulo: "Saída", icone: <OutputRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "SAIDA"), desabilitado: (produto) => !produto.controlaEstoque || !produto.ativo, cor: "error", tooltip: "Registrar saída" },
         { rotulo: "Ajuste", icone: <TuneRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "AJUSTE"), desabilitado: (produto) => !produto.controlaEstoque || !produto.ativo, tooltip: "Ajustar novo saldo físico" },
@@ -119,34 +145,44 @@ export default function Estoque() {
     return <PageContainer>
         <PageHeader titulo="Estoque" descricao="Consulte saldos e registre movimentações operacionais." />
         {erro && <Alert severity="error" onClose={() => setErro("")}>{erro}</Alert>}
-        <AppTable colunas={colunas} linhas={produtosFiltrados} carregando={carregando} obterChaveLinha={(produto) => produto.id}
-            busca={{ placeholder: "Pesquisar por produto ou código", valor: busca, onChange: setBusca }}
+        <Stack spacing={1.5}>
+            <PageFilters
+                campoBuscaAtivo={campoBusca === null ? undefined : { rotulo: camposBusca[campoBusca].rotulo, onRemover: removerCampoBusca }}
+                busca={{
+                    placeholder: campoBusca === null ? "Pesquisar por produto ou código…" : camposBusca[campoBusca].placeholder,
+                    valor: busca,
+                    onChange: setBusca,
+                }}
+            />
+            <AppTable colunas={colunas} buscaPorColuna={{ campo: campoBusca, onSelecionar: selecionarCampoBusca }} linhas={produtosFiltrados} carregando={carregando} obterChaveLinha={(produto) => produto.id}
             vazio={{ titulo: "Nenhum produto encontrado", descricao: busca ? "Tente outro nome ou código." : "Cadastre produtos para acompanhar o estoque." }}
-            acoes={acoes} minWidth={980} />
+            acoes={acoes} minWidth={900} sx={{ "& .MuiTableCell-root": { py: 0.75 } }} />
+        </Stack>
 
-        <Dialog open={dialogo !== null} onClose={salvando ? undefined : () => setDialogo(null)} fullWidth maxWidth="xs">
-            <DialogTitle>{tituloOperacao}</DialogTitle>
+        <Dialog open={dialogo !== null} onClose={salvando ? undefined : () => setDialogo(null)} fullWidth maxWidth="xs" aria-labelledby="estoque-movimentacao-titulo">
+            <DialogTitle id="estoque-movimentacao-titulo">{tituloOperacao}</DialogTitle>
             <DialogContent>{dialogo && <Stack spacing={2} sx={{ pt: 1 }}>
-                <TextField label="Produto" value={`${dialogo.produto.nome} · ${codigoProduto(dialogo.produto)}`} slotProps={{ input: { readOnly: true } }} />
+                <TextField name="produto" autoComplete="off" label="Produto" value={`${dialogo.produto.nome} · ${codigoProduto(dialogo.produto)}`} slotProps={{ input: { readOnly: true } }} />
                 <Typography variant="body2" color="text.secondary">Saldo atual: <strong>{quantidadeFormatada.format(dialogo.produto.estoqueAtual)}</strong></Typography>
-                <TextField autoFocus required label={operacao === "AJUSTE" ? "Novo saldo físico" : "Quantidade"} value={quantidade}
-                    onChange={(e) => setQuantidade(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void confirmarMovimentacao(); } }} slotProps={{ htmlInput: { inputMode: "decimal", min: 0 } }} />
-                <TextField label="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} multiline minRows={2} />
+                <TextField name="quantidade" autoComplete="off" autoFocus required label={operacao === "AJUSTE" ? "Novo saldo físico" : "Quantidade"} value={quantidade}
+                    onChange={(e) => setQuantidade(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void confirmarMovimentacao(); } }} slotProps={{ htmlInput: { inputMode: "decimal", min: 0, "aria-describedby": "estoque-quantidade-ajuda" } }} />
+                <Typography id="estoque-quantidade-ajuda" variant="caption" color="text.secondary">Informe um valor decimal; entrada e saída exigem valor maior que zero.</Typography>
+                <TextField name="motivo" autoComplete="off" label="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} multiline minRows={2} />
                 <Typography variant="body2" color="text.secondary">Novo saldo esperado: <strong>{saldoEsperado !== null ? quantidadeFormatada.format(saldoEsperado) : "—"}</strong></Typography>
             </Stack>}</DialogContent>
-            <DialogActions><Button onClick={() => setDialogo(null)} disabled={salvando}>Cancelar</Button><Button variant="contained" onClick={() => void confirmarMovimentacao()} disabled={salvando}>{salvando ? "Registrando..." : "Confirmar"}</Button></DialogActions>
+            <DialogActions><Button type="button" onClick={() => setDialogo(null)} disabled={salvando}>Cancelar</Button><Button type="button" variant="contained" onClick={() => void confirmarMovimentacao()} disabled={salvando}>{salvando ? "Registrando…" : "Confirmar"}</Button></DialogActions>
         </Dialog>
 
-        <Dialog open={historicoProduto !== null} onClose={() => setHistoricoProduto(null)} fullWidth maxWidth="md">
-            <DialogTitle>Histórico de movimentações{historicoProduto ? ` · ${historicoProduto.nome}` : ""}</DialogTitle>
-            <DialogContent>{carregandoHistorico ? <Typography color="text.secondary">Carregando histórico...</Typography> : historico.length === 0 ? <Typography color="text.secondary">Nenhuma movimentação encontrada.</Typography> : <Stack divider={<Divider />}>
+        <Dialog open={historicoProduto !== null} onClose={() => setHistoricoProduto(null)} fullWidth maxWidth="md" aria-labelledby="estoque-historico-titulo">
+            <DialogTitle id="estoque-historico-titulo">Histórico de movimentações{historicoProduto ? ` · ${historicoProduto.nome}` : ""}</DialogTitle>
+            <DialogContent>{carregandoHistorico ? <Typography color="text.secondary">Carregando histórico…</Typography> : historico.length === 0 ? <Typography color="text.secondary">Nenhuma movimentação encontrada.</Typography> : <Stack divider={<Divider />}>
                 {historico.map((movimentacao) => <Stack key={movimentacao.id} spacing={0.5} sx={{ py: 1.5 }}>
                     <Stack direction="row" sx={{ justifyContent: "space-between", gap: 2 }}><Typography sx={{ fontWeight: 700 }}>{movimentacao.tipo} · {movimentacao.origem}</Typography><Typography variant="body2" color="text.secondary">{dataFormatada.format(new Date(movimentacao.dataHora))}</Typography></Stack>
                     <Typography variant="body2">Saldo: {quantidadeFormatada.format(movimentacao.saldoAnterior)} → {quantidadeFormatada.format(movimentacao.saldoPosterior)} · Valor: {quantidadeFormatada.format(movimentacao.quantidade)}</Typography>
                     <Typography variant="body2" color="text.secondary">{movimentacao.motivo || "Sem motivo informado"} · {movimentacao.nomeUsuario}</Typography>
                 </Stack>)}
             </Stack>}</DialogContent>
-            <DialogActions><Button onClick={() => setHistoricoProduto(null)}>Fechar</Button></DialogActions>
+            <DialogActions><Button type="button" onClick={() => setHistoricoProduto(null)}>Fechar</Button></DialogActions>
         </Dialog>
     </PageContainer>;
 }

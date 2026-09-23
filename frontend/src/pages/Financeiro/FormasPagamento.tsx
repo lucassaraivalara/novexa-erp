@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import { Alert, Button, Chip, Snackbar } from "@mui/material";
+import { Alert, Button, Chip, FormControl, InputLabel, MenuItem, Select, Snackbar } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
@@ -32,6 +32,7 @@ export default function FormasPagamento() {
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
     const [tentativa, setTentativa] = useState(0);
+    const [situacao, setSituacao] = useState("ativas");
     const [editor, setEditor] = useState<{ forma: FormaPagamentoResumo | null } | null>(null);
     const [sucesso, setSucesso] = useState(false);
 
@@ -63,6 +64,9 @@ export default function FormasPagamento() {
         setSucesso(true);
     }
 
+    const formasFiltradas = formas.filter((forma) =>
+        situacao === "todas" || forma.ativo === (situacao === "ativas"));
+
     return (
         <PageContainer>
             <PageHeader
@@ -79,12 +83,28 @@ export default function FormasPagamento() {
 
             <AppTable
                 colunas={colunas}
-                linhas={formas}
+                linhas={formasFiltradas}
                 carregando={carregando}
                 obterChaveLinha={(forma) => forma.id}
+                filtros={
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel id="forma-pagamento-situacao-label">Situação</InputLabel>
+                        <Select
+                            labelId="forma-pagamento-situacao-label"
+                            label="Situação"
+                            value={situacao}
+                            inputProps={{ "aria-label": "Filtrar formas de pagamento por situação", name: "situacao" }}
+                            onChange={(evento) => setSituacao(evento.target.value)}
+                        >
+                            <MenuItem value="todas">Todas</MenuItem>
+                            <MenuItem value="ativas">Ativas</MenuItem>
+                            <MenuItem value="inativas">Inativas</MenuItem>
+                        </Select>
+                    </FormControl>
+                }
                 vazio={{
                     titulo: "Nenhuma forma de pagamento encontrada",
-                    descricao: erro ? "Listagem indisponível." : "Não há formas de pagamento cadastradas.",
+                    descricao: erro ? "Listagem indisponível." : situacao !== "todas" ? "Tente ajustar o filtro de situação." : "Não há formas de pagamento cadastradas.",
                 }}
                 acoes={acoes}
                 minWidth={760}

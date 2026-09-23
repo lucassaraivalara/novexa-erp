@@ -10,6 +10,18 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; cadastros frontend estruturados
 Dashboard ...... placeholder
 
+## Produtos: piloto de busca por coluna (2026-09-22)
+
+- Implementado no worktree atual, pendente de integração: seleção de Código interno,
+  Produto ou Situação no cabeçalho, chip removível e ordenação independente nas
+  colunas de dados. Componentes AppTable/PageFilters possuem adesão opcional.
+- A busca por coluna filtra somente os produtos já retornados; a busca geral
+  remota e o filtro de situação foram preservados. Detalhes em [frontend.md](frontend.md).
+- Validado com quatro testes de interação Playwright com API simulada, três testes
+  de componentes, build, lint direcionado e revisão no navegador maximizado.
+  Uma verificação antiga de fonte de ProdutoForm falha por formatação preexistente;
+  o formulário não foi alterado. Backend e services preservados nesta tarefa.
+
 ## Caixa operacional MVP (2026-09-15)
 
 - Implementado no diretório/branch atual, ainda pendente de commit e integração. Reaproveita SessaoCaixa; novas vendas faturadas de qualquer forma exigem sessão aberta da empresa. Uma sessão é inferida; múltiplas exigem sessaoCaixaId.

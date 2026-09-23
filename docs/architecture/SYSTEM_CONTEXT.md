@@ -1,17 +1,62 @@
 # Novexa ERP — Contexto do sistema
 
-## Produto
+- Produto: ERP web para pequenos comércios, com PDV rápido, operação simples e gestão clara.
+- Público: conveniência, tabacaria, suplementos, padaria, cafeteria e pequenos comércios semelhantes.
+- Princípio: "O operador precisa de velocidade. O gestor precisa de informação."
 
-ERP para pequenas e médias empresas, com foco inicial em comércio, conveniência e frente de caixa.
+Fluxo principal do MVP:
+Login → abrir caixa → PDV → venda → pagamento → estoque → sessão de caixa → central de vendas → fechamento → dashboard.
 
-Princípio central: o operador precisa de velocidade; o gestor precisa de informação.
+Prioridade atual:
+consolidar o fluxo PDV ↔ Venda ↔ Pagamento ↔ Sessão de Caixa ↔ Fechamento ↔ Dashboard.
 
-## Base técnica
+Conceitos oficiais:
+- Venda = o que foi vendido.
+- Pagamento = como foi recebido.
+- Caixa = ponto operacional do PDV.
+- Sessão de Caixa = operação entre abertura e fechamento.
+- Dados Bancários = Banco, Agência e Conta Bancária.
+- Estoque = controle físico dos produtos.
 
-- Backend: Java 21, Spring Boot 3.5.4, JPA/Hibernate, PostgreSQL e Flyway.
-- Frontend: React, TypeScript, Vite e Material UI.
-- Autenticação: JWT; empresa e usuário vêm do contexto autenticado.
-- Schema: evoluído por migrations; Hibernate permanece em `validate`.
+Já existem no projeto:
+- autenticação/JWT
+- multiempresa
+- Empresa
+- Produto
+- Cliente
+- Estoque
+- Venda
+- Pagamento
+- Formas de Pagamento
+- Caixa
+- Sessão de Caixa
+- suprimento
+- sangria
+- fechamento
+- Central de Vendas
+- Dashboard
+- Banco
+- Agência
+- Conta Bancária
+
+Pós-MVP / não antecipar agora:
+- NFC-e/NF-e
+- TEF
+- offline/PWA
+- mobile
+- conciliação bancária
+- CNAB
+- contas a pagar completas
+- contas a receber completas
+- compras avançadas
+- BI avançado
+- integrações externas não essenciais
+
+Regra:
+antes de criar novos módulos, priorizar fechar fluxos completos já existentes.
+
+Não criar novo conceito genérico de Conta Financeira agora.
+Não misturar Caixa do PDV com Dados Bancários.
 
 ## Como consultar a documentação
 

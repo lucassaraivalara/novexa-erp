@@ -48,6 +48,18 @@ export async function atualizarProduto(
     return resposta.data;
 }
 
+export async function enviarImagemProduto(id: number, arquivo: File): Promise<Produto> {
+    const formulario = new FormData();
+    formulario.append("arquivo", arquivo);
+    const resposta = await api.post<Produto>(`/produtos/${id}/imagem`, formulario);
+    return resposta.data;
+}
+
+export async function removerImagemProduto(id: number): Promise<Produto> {
+    const resposta = await api.delete<Produto>(`/produtos/${id}/imagem`);
+    return resposta.data;
+}
+
 function dadosSemSaldo(dados: ProdutoInput): ProdutoInput {
     const dadosProduto = { ...dados } as ProdutoInput & { estoqueAtual?: number };
     delete dadosProduto.estoqueAtual;
@@ -70,6 +82,19 @@ export function obterMensagemDaApi(
 
     if (typeof erro.response?.data === "string" && erro.response.data.trim()) {
         return erro.response.data;
+    }
+
+    if (erro.response?.data && typeof erro.response.data === "object") {
+        const dados = erro.response.data as { message?: unknown; detail?: unknown };
+        const mensagem = typeof dados.message === "string"
+            ? dados.message
+            : typeof dados.detail === "string"
+                ? dados.detail
+                : null;
+
+        if (mensagem?.trim()) {
+            return mensagem;
+        }
     }
 
     if (!erro.response) {

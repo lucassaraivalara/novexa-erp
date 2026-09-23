@@ -70,8 +70,20 @@ export async function cancelarVenda(id: number): Promise<VendaDetalhe> {
     return (await api.post<VendaDetalhe>(`/vendas/${id}/cancelar`)).data;
 }
 
+function mensagemResposta(data: unknown): string | null {
+    if (typeof data === "string") return data.trim() || null;
+    if (!data || typeof data !== "object") return null;
+
+    const resposta = data as Record<string, unknown>;
+    for (const campo of ["detail", "message"]) {
+        const valor = resposta[campo];
+        if (typeof valor === "string" && valor.trim()) return valor.trim();
+    }
+    return null;
+}
+
 export function mensagemVenda(erro: unknown, padrao: string): string {
     if (!axios.isAxiosError(erro)) return padrao;
     if (!erro.response) return "Não foi possível comunicar com o servidor. Tente novamente.";
-    return typeof erro.response.data === "string" ? erro.response.data : erro.response.data?.detail ?? padrao;
+    return mensagemResposta(erro.response.data) ?? padrao;
 }

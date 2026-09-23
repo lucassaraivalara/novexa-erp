@@ -111,10 +111,19 @@ export default function EmpresaForm({ empresa, abaInicial = 0, onFechar, onSalvo
     function campo(item: Campo) {
         const valor = lerCampo(form, item.nome);
         const documento = item.nome === "cnpj";
-        return <TextField key={item.nome} label={item.label} required={item.required} autoFocus={item.nome === gruposEmpresa[0]?.campos[0]?.nome} fullWidth
-            value={documento ? formatarDocumentoEmpresa(valor, form.cadastro.produtorRural) : valor} select={!!item.opcoes} type={item.tipo === "email" ? "email" : "text"}
+        const autoComplete = item.nome === "razaoSocial" || item.nome === "nomeFantasia" ? "organization"
+            : item.nome === "email" ? "email"
+                : item.nome === "telefone" ? "tel"
+                    : item.nome === "cadastro.cep" ? "postal-code"
+                        : item.nome === "cadastro.logradouro" ? "street-address"
+                            : item.nome === "cadastro.cidade" ? "address-level2"
+                                : item.nome === "cadastro.uf" ? "address-level1" : "off";
+        const inputMode: "numeric" | "decimal" | "tel" | undefined = item.nome === "telefone" ? "tel"
+            : item.tipo === "digitos" ? "numeric" : item.tipo === "decimal" ? "decimal" : undefined;
+        return <TextField key={item.nome} name={item.nome} label={item.label} required={item.required} autoComplete={autoComplete} autoFocus={item.nome === gruposEmpresa[0]?.campos[0]?.nome} fullWidth
+            value={documento ? formatarDocumentoEmpresa(valor, form.cadastro.produtorRural) : valor} select={!!item.opcoes} type={item.nome === "telefone" ? "tel" : item.tipo === "email" ? "email" : "text"}
             error={!!erros[item.nome]} helperText={erros[item.nome] || item.ajuda}
-            slotProps={{ htmlInput: { maxLength: item.max, inputMode: item.tipo === "digitos" ? "numeric" : item.tipo === "decimal" ? "decimal" : undefined } }}
+            slotProps={{ htmlInput: { maxLength: item.max, inputMode } }}
             onChange={e => alterar(item.nome, documento ? formatarDocumentoEmpresa(e.target.value, form.cadastro.produtorRural) : item.tipo === "digitos" ? e.target.value.replace(/\D/g, "") : e.target.value)}>
             {item.opcoes && [<MenuItem key="vazio" value="">Não informado</MenuItem>, ...item.opcoes.map(([valor, label]) => <MenuItem key={valor} value={valor}>{label}</MenuItem>)]}
         </TextField>;
@@ -125,7 +134,7 @@ export default function EmpresaForm({ empresa, abaInicial = 0, onFechar, onSalvo
             <DialogTitle id="empresa-form-titulo" sx={{ pb: 1, position: "relative" }}>
                 {empresa ? `Editar empresa · ${empresa.id}` : "Nova Empresa"}
                 <Typography component="p" color="text.secondary" sx={{ fontSize: ".875rem", mt: .5 }}>Dados cadastrais, endereço e informações fiscais da empresa.</Typography>
-                <IconButton aria-label="Fechar" onClick={fechar} disabled={salvando || lendoLogo} sx={{ position: "absolute", top: 8, right: 12 }}>
+                <IconButton type="button" aria-label="Fechar" onClick={fechar} disabled={salvando || lendoLogo} sx={{ position: "absolute", top: 8, right: 12 }}>
                     <CloseRoundedIcon />
                 </IconButton>
             </DialogTitle>
@@ -138,8 +147,8 @@ export default function EmpresaForm({ empresa, abaInicial = 0, onFechar, onSalvo
                     {abasEmpresa.map((label, index) => <Box key={label} role="tabpanel" id={`empresa-painel-${index}`} aria-labelledby={`empresa-tab-${index}`} hidden={aba !== index}>
                         <Stack spacing={3}>
                             {index === 0 && <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap" }}>
-                                <FormControlLabel control={<Checkbox checked={form.cadastro.produtorRural} onChange={e => alterar("cadastro.produtorRural", e.target.checked)} />} label="Produtor rural" />
-                                <FormControlLabel control={<Checkbox checked={form.ativo} onChange={e => alterar("ativo", e.target.checked)} />} label="Empresa ativa" />
+                                <FormControlLabel control={<Checkbox slotProps={{ input: { name: "cadastro.produtorRural" } }} checked={form.cadastro.produtorRural} onChange={e => alterar("cadastro.produtorRural", e.target.checked)} />} label="Produtor rural" />
+                                <FormControlLabel control={<Checkbox slotProps={{ input: { name: "ativo" } }} checked={form.ativo} onChange={e => alterar("ativo", e.target.checked)} />} label="Empresa ativa" />
                             </Stack>}
                             {gruposEmpresa.filter(g => g.aba === index).map(grupo => <Stack key={grupo.titulo} spacing={2}>
                                 <Typography sx={{ fontWeight: 700 }}>{grupo.titulo}</Typography>
@@ -148,20 +157,20 @@ export default function EmpresaForm({ empresa, abaInicial = 0, onFechar, onSalvo
                             {index === 0 && <Paper variant="outlined" sx={{ p: 2 }}><Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: "center" }}>
                                 {form.logomarca ? <Box component="img" src={form.logomarca} alt="Prévia da logomarca" sx={{ width: 120, height: 90, objectFit: "contain" }} /> : <Box sx={{ width: 120, height: 90, display: "grid", placeItems: "center", bgcolor: "background.default", borderRadius: 2 }}><Typography color="text.secondary" variant="caption">Sem logomarca</Typography></Box>}
                                 <Stack spacing={1}><Typography sx={{ fontWeight: 600 }}>Logomarca</Typography><Typography variant="caption" color="text.secondary">PNG ou JPEG · até 1 MB · 2048 × 2048 pixels</Typography>
-                                    <Stack direction="row" spacing={1}><Button component="label" variant="outlined" disabled={lendoLogo || salvando}>{lendoLogo ? "Lendo imagem…" : "Selecionar imagem"}<input hidden type="file" accept="image/png,image/jpeg" onChange={e => { void carregarLogo(e.target.files?.[0]); e.target.value = ""; }} /></Button>
-                                        {form.logomarca && <Button color="error" onClick={() => setForm(f => ({ ...f, logomarca: null }))}>Remover imagem</Button>}</Stack>
+                                    <Stack direction="row" spacing={1}><Button type="button" component="label" variant="outlined" disabled={lendoLogo || salvando}>{lendoLogo ? "Lendo imagem…" : "Selecionar imagem"}<input name="logomarca" hidden type="file" accept="image/png,image/jpeg" onChange={e => { void carregarLogo(e.target.files?.[0]); e.target.value = ""; }} /></Button>
+                                        {form.logomarca && <Button type="button" color="error" onClick={() => setForm(f => ({ ...f, logomarca: null }))}>Remover imagem</Button>}</Stack>
                                 </Stack>
                             </Stack></Paper>}
                             {index === 1 && <Stack spacing={2}>
                                 {form.endereco && <Alert severity="info">Endereço anterior preservado: {form.endereco}. Complete os campos estruturados acima para usar a localização.</Alert>}
                                 {geoConfigurado === false && <Alert severity="info">{geoErro || "Busca de coordenadas aguardando configuração do serviço de mapas. Você pode informar latitude e longitude manualmente."}</Alert>}
                                 <Stack direction="row" spacing={2} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-                                    <Button variant="outlined" disabled={!geoConfigurado || buscandoGeo || salvando} onClick={() => void localizar()}>{buscandoGeo ? "Buscando…" : "Buscar coordenadas do endereço"}</Button>
+                                    <Button type="button" variant="outlined" disabled={!geoConfigurado || buscandoGeo || salvando} onClick={() => void localizar()}>{buscandoGeo ? "Buscando…" : "Buscar coordenadas do endereço"}</Button>
                                     {geoConfigurado && <Typography variant="caption" color="text.secondary">O endereço será enviado ao serviço de mapas configurado.</Typography>}
                                 </Stack>
                                 {geoErro && geoConfigurado && <Alert severity="warning">{geoErro}</Alert>}
                                 {geoConsultado && !coordenadas.length && <Alert severity="info">Nenhum endereço encontrado. Revise os dados ou informe as coordenadas manualmente.</Alert>}
-                                {!!coordenadas.length && <Stack spacing={1}><Typography variant="body2">Confira o endereço e selecione a localização:</Typography>{coordenadas.map((c, i) => <Button key={i} variant="outlined" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none" }} onClick={() => {
+                                {!!coordenadas.length && <Stack spacing={1}><Typography variant="body2">Confira o endereço e selecione a localização:</Typography>{coordenadas.map((c, i) => <Button type="button" key={i} variant="outlined" sx={{ justifyContent: "flex-start", textAlign: "left", textTransform: "none" }} onClick={() => {
                                     setForm(f => ({ ...f, cadastro: { ...f.cadastro, latitude: String(c.latitude), longitude: String(c.longitude) } }));
                                     setErros(e => ({ ...e, "cadastro.latitude": "", "cadastro.longitude": "" })); setCoordenadas([]); setGeoConsultado(false);
                                 }}>{c.descricao} · {c.latitude}, {c.longitude}</Button>)}<Typography variant="caption">Dados: <Link href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</Link></Typography></Stack>}
@@ -174,13 +183,13 @@ export default function EmpresaForm({ empresa, abaInicial = 0, onFechar, onSalvo
             </DialogContent>
             <DialogActions sx={{ px: 3, py: 2, borderTop: 1, borderColor: "divider" }}>
                 <Typography variant="caption" color="text.secondary" sx={{ mr: "auto" }}>{alterado ? "Alterações ainda não salvas" : "Campos com * são obrigatórios"}</Typography>
-                <Button onClick={fechar} disabled={salvando || lendoLogo}>Cancelar</Button>
+                <Button type="button" onClick={fechar} disabled={salvando || lendoLogo}>Cancelar</Button>
                 <Button type="submit" variant="contained" disabled={salvando || lendoLogo}>{salvando ? "Salvando…" : "Salvar empresa"}</Button>
             </DialogActions>
         </Box>
         <Dialog open={confirmarSaida || bloqueio.state === "blocked"} onClose={continuar} aria-labelledby="descartar-empresa">
             <DialogTitle id="descartar-empresa">Descartar alterações?</DialogTitle><DialogContent>As alterações não salvas serão perdidas.</DialogContent>
-            <DialogActions><Button onClick={continuar}>Continuar editando</Button><Button color="error" onClick={descartar} disabled={salvando}>Descartar</Button></DialogActions>
+            <DialogActions><Button type="button" onClick={continuar}>Continuar editando</Button><Button type="button" color="error" onClick={descartar} disabled={salvando}>Descartar</Button></DialogActions>
         </Dialog>
     </Dialog>;
 }
@@ -205,23 +214,23 @@ function InscricoesSt({ valor, ufEmpresa, erro, disabled, onChange, onDirty }: {
     return <Stack spacing={2}>
         <Stack direction={{ xs: "column", sm: "row" }} sx={{ justifyContent: "space-between", gap: 1 }}>
             <Box><Typography sx={{ fontWeight: 700 }}>Inscrições de Substituto Tributário (Outras UFs)</Typography><Typography color="text.secondary" variant="body2">IEST da NF-e / SPED e identificação para DIFAL — registro 0015.</Typography></Box>
-            <Button variant="outlined" disabled={disabled || valor.length >= 26} onClick={() => abrir(-1)}>Adicionar inscrição</Button>
+            <Button type="button" variant="outlined" disabled={disabled || valor.length >= 26} onClick={() => abrir(-1)}>Adicionar inscrição</Button>
         </Stack>
         {erro && <Alert severity="error">{erro}</Alert>}
         {!valor.length && <Typography color="text.secondary">Nenhuma inscrição em outra UF cadastrada.</Typography>}
         {valor.map((i, index) => <Paper key={i.uf} variant="outlined" sx={{ p: 2 }}><Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
             <Box><Typography sx={{ fontWeight: 600 }}>{i.uf} · IE {i.inscricaoEstadual}</Typography><Typography variant="caption">{i.difal ? "DIFAL EC 87/15" : "Substituição tributária"}</Typography></Box>
-            <Box><Button disabled={disabled} onClick={() => abrir(index)} aria-label={`Editar inscrição ${i.uf}`}>Editar</Button><Button disabled={disabled} color="error" onClick={() => onChange(valor.filter((_, pos) => pos !== index))}>Remover</Button></Box>
+            <Box><Button type="button" disabled={disabled} onClick={() => abrir(index)} aria-label={`Editar inscrição ${i.uf}`}>Editar</Button><Button type="button" disabled={disabled} color="error" onClick={() => onChange(valor.filter((_, pos) => pos !== index))}>Remover</Button></Box>
         </Stack></Paper>)}
         <Dialog open={!!edicao} onClose={fechar} fullWidth maxWidth="sm" aria-labelledby="inscricao-st-titulo">
             <DialogTitle id="inscricao-st-titulo">{edicao?.index === -1 ? "Adicionar inscrição ST" : "Editar inscrição ST"}</DialogTitle>
             {edicao && <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
                 {erroLocal && <Alert severity="error">{erroLocal}</Alert>}
-                <TextField select label="UF da inscrição" value={edicao.dados.uf} onChange={e => alterar({ ...edicao.dados, uf: e.target.value })}>{ufs.filter(uf => uf !== ufEmpresa).map(uf => <MenuItem key={uf} value={uf}>{uf}</MenuItem>)}</TextField>
-                <TextField autoFocus required label="Inscrição Estadual (IEST)" value={edicao.dados.inscricaoEstadual} slotProps={{ htmlInput: { maxLength: 20 } }} onChange={e => alterar({ ...edicao.dados, inscricaoEstadual: e.target.value })} />
-                <FormControlLabel control={<Checkbox checked={edicao.dados.difal} onChange={e => alterar({ ...edicao.dados, difal: e.target.checked })} />} label="Utilizada para DIFAL EC 87/15 (registro 0015)" />
+                <TextField select name="uf" autoComplete="address-level1" label="UF da inscrição" value={edicao.dados.uf} onChange={e => alterar({ ...edicao.dados, uf: e.target.value })}>{ufs.filter(uf => uf !== ufEmpresa).map(uf => <MenuItem key={uf} value={uf}>{uf}</MenuItem>)}</TextField>
+                <TextField autoFocus required name="inscricaoEstadual" autoComplete="off" label="Inscrição Estadual (IEST)" value={edicao.dados.inscricaoEstadual} slotProps={{ htmlInput: { maxLength: 20 } }} onChange={e => alterar({ ...edicao.dados, inscricaoEstadual: e.target.value })} />
+                <FormControlLabel control={<Checkbox slotProps={{ input: { name: "difal" } }} checked={edicao.dados.difal} onChange={e => alterar({ ...edicao.dados, difal: e.target.checked })} />} label="Utilizada para DIFAL EC 87/15 (registro 0015)" />
             </Stack></DialogContent>}
-            <DialogActions><Button onClick={fechar}>Cancelar</Button><Button variant="contained" onClick={adicionar}>Confirmar inscrição</Button></DialogActions>
+            <DialogActions><Button type="button" onClick={fechar}>Cancelar</Button><Button type="button" variant="contained" onClick={adicionar}>Confirmar inscrição</Button></DialogActions>
         </Dialog>
     </Stack>;
 }

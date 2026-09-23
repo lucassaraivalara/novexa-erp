@@ -31,6 +31,9 @@ export type ResumoSessaoCaixa = {
     sessaoId: number;
     caixaId: number;
     status: string;
+    descricaoCaixa: string;
+    dataHoraAbertura: string;
+    operadorAbertura: { id: number; nome: string };
     saldoInicial: number;
     totalVendas: number;
     totaisPorFormaPagamento: TotalFormaPagamento[];
@@ -38,6 +41,22 @@ export type ResumoSessaoCaixa = {
     sangrias: number;
     saldoEsperadoDinheiro: number;
     saldoFinalInformado: number | null;
+    diferenca: number | null;
+};
+
+export type SessaoCaixaHistorico = {
+    sessaoId: number;
+    caixaId: number;
+    descricaoCaixa: string;
+    status: string;
+    dataHoraAbertura: string;
+    operadorAbertura: { id: number; nome: string };
+    dataHoraFechamento: string | null;
+    operadorFechamento: { id: number; nome: string } | null;
+    saldoInicial: number;
+    totalVendas: number;
+    dinheiroEsperado: number;
+    valorInformado: number | null;
     diferenca: number | null;
 };
 

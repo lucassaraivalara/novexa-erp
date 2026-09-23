@@ -34,6 +34,12 @@ public class CaixaOperacionalService {
                 .stream().map(SessaoCaixaAbertaDTO::de).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<SessaoCaixaHistoricoDTO> fechadas(Long empresaId) {
+        return sessoes.findByEmpresaIdAndStatusOrderByDataFechamentoDescIdDesc(empresaId, StatusSessaoCaixa.FECHADO)
+                .stream().map(sessao -> SessaoCaixaHistoricoDTO.de(sessao, calcular(sessao))).toList();
+    }
+
     // Venda, movimentação manual, resumo e fechamento compartilham o lock desta sessão.
     @Transactional(propagation = Propagation.MANDATORY)
     public SessaoCaixaEntity bloquear(Long sessaoId, Long empresaId) {
@@ -64,6 +70,13 @@ public class CaixaOperacionalService {
         UUID chave = UUID.nameUUIDFromBytes(("pagamento:" + pagamento.getId()).getBytes(StandardCharsets.UTF_8));
         movimentos.save(new MovimentacaoCaixaEntity(sessao, pagamento.getUsuario(), pagamento,
                 chave, TipoMovimentacaoCaixa.VENDA, pagamento.getValor(), null));
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void registrarSaldoInicial(SessaoCaixaEntity sessao, UsuarioEntity usuario, BigDecimal valor) {
+        UUID chave = UUID.nameUUIDFromBytes(("saldo-inicial:" + sessao.getId()).getBytes(StandardCharsets.UTF_8));
+        movimentos.save(new MovimentacaoCaixaEntity(sessao, usuario, null, chave,
+                TipoMovimentacaoCaixa.SUPRIMENTO, valor, "Saldo inicial / Abertura de caixa"));
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -147,6 +160,8 @@ public class CaixaOperacionalService {
         }
         BigDecimal dinheiro = BigDecimal.ZERO, suprimentos = BigDecimal.ZERO, sangrias = BigDecimal.ZERO;
         for (var m : movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao.getId(), sessao.getEmpresa().getId())) {
+            if (m.getTipo() == TipoMovimentacaoCaixa.SUPRIMENTO
+                    && "Saldo inicial / Abertura de caixa".equals(m.getObservacao())) continue;
             switch (m.getTipo()) {
                 case VENDA -> dinheiro = dinheiro.add(m.getValor());
                 case ESTORNO_VENDA -> dinheiro = dinheiro.subtract(m.getValor());
@@ -157,7 +172,9 @@ public class CaixaOperacionalService {
         var esperado = sessao.getSaldoInicial().add(dinheiro).add(suprimentos).subtract(sangrias);
         return new ResumoSessaoCaixaDTO(sessao.getId(), sessao.getCaixa().getId(), sessao.getStatus(),
                 sessao.getSaldoInicial(), total, List.copyOf(porForma.values()), suprimentos, sangrias,
-                esperado, sessao.getSaldoFinal(), sessao.getSaldoFinal() == null ? null : sessao.getSaldoFinal().subtract(esperado));
+            esperado, sessao.getSaldoFinal(), sessao.getSaldoFinal() == null ? null : sessao.getSaldoFinal().subtract(esperado),
+            sessao.getCaixa().getDescricao(), sessao.getDataAbertura(),
+            new ResumoSessaoCaixaDTO.Operador(sessao.getUsuarioAbertura().getId(), sessao.getUsuarioAbertura().getNomeUsuario()));
     }
 
     private void exigirAberta(SessaoCaixaEntity sessao) {

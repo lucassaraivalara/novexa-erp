@@ -18,7 +18,7 @@ export default function BancoTab() {
     const [erro, setErro] = useState("");
     const [tentativa, setTentativa] = useState(0);
     const [busca, setBusca] = useState("");
-    const [situacao, setSituacao] = useState("todos");
+    const [situacao, setSituacao] = useState("ativos");
     const [editor, setEditor] = useState<{ banco: BancoResumo | null } | null>(null);
     const [alternando, setAlternando] = useState<number | null>(null);
     const [sucesso, setSucesso] = useState(false);
@@ -97,7 +97,7 @@ export default function BancoTab() {
             <Stack spacing={1}>
                 <PageFilters busca={{ placeholder: "Pesquisar por número ou nome", valor: busca, onChange: setBusca }}>
                     <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <Select value={situacao} onChange={(e) => setSituacao(e.target.value)}>
+                        <Select value={situacao} inputProps={{ "aria-label": "Filtrar bancos por situação" }} onChange={(e) => setSituacao(e.target.value)}>
                             <MenuItem value="todos">Todos</MenuItem>
                             <MenuItem value="ativos">Ativos</MenuItem>
                             <MenuItem value="inativos">Inativos</MenuItem>

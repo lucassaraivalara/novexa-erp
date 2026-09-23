@@ -8,6 +8,10 @@ import br.com.novexa.erp.exception.ProdutoNotFoundException;
 import br.com.novexa.erp.repository.ProdutoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import br.com.novexa.erp.storage.ArquivoStorageService;
+import br.com.novexa.erp.security.UsuarioAutenticado;
+import org.springframework.web.multipart.MultipartFile;
+
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -17,16 +21,20 @@ import java.util.Locale;
 public class ProdutoService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
+    private static final long TAMANHO_MAXIMO_IMAGEM = 2L * 1024 * 1024;
 
     private final ProdutoRepository produtoRepository;
     private final EmpresaService empresaService;
+    private final ArquivoStorageService arquivoStorageService;
 
     public ProdutoService(
             ProdutoRepository produtoRepository,
-            EmpresaService empresaService) {
-
+            EmpresaService empresaService,
+            ArquivoStorageService arquivoStorageService
+    ) {
         this.produtoRepository = produtoRepository;
         this.empresaService = empresaService;
+        this.arquivoStorageService = arquivoStorageService;
     }
 
     public ProdutoEntity salvar(ProdutoEntity produto, Long empresaId) {
@@ -60,6 +68,54 @@ public class ProdutoService {
 
         return produtoRepository.buscarPorTermo(empresaId, termo.trim());
     }
+    public ProdutoEntity salvarImagem(
+            Long produtoId,
+            MultipartFile arquivo,
+            UsuarioAutenticado usuarioAutenticado
+    ) {
+        validarImagem(arquivo);
+        ProdutoEntity produto = produtoRepository
+                .findByIdAndEmpresaId(produtoId, usuarioAutenticado.empresaId())
+                .orElseThrow(() -> new ProdutoNotFoundException(
+                        "Produto não encontrado para a empresa informada."
+                ));
+
+        String caminhoAntigo = produto.getImagemPath();
+
+        String novoCaminho = arquivoStorageService.salvarImagemProduto(
+                usuarioAutenticado.empresaId(),
+                produto.getId(),
+                arquivo
+        );
+
+        produto.setImagemPath(novoCaminho);
+
+        ProdutoEntity produtoSalvo = produtoRepository.save(produto);
+
+        if (caminhoAntigo != null && !caminhoAntigo.isBlank()) {
+            arquivoStorageService.removerImagem(caminhoAntigo);
+        }
+
+        return produtoSalvo;
+    }
+
+    @Transactional
+    public ProdutoEntity removerImagem(Long produtoId, UsuarioAutenticado usuarioAutenticado) {
+        ProdutoEntity produto = produtoRepository
+                .findByIdAndEmpresaId(produtoId, usuarioAutenticado.empresaId())
+                .orElseThrow(() -> new ProdutoNotFoundException("Produto não encontrado para a empresa informada."));
+
+        String caminhoAntigo = produto.getImagemPath();
+        produto.setImagemPath(null);
+        ProdutoEntity produtoSalvo = produtoRepository.save(produto);
+
+        if (caminhoAntigo != null && !caminhoAntigo.isBlank()) {
+            arquivoStorageService.removerImagem(caminhoAntigo);
+        }
+
+        return produtoSalvo;
+    }
+
 
     @Transactional
     public ProdutoEntity atualizar(
@@ -223,6 +279,18 @@ public class ProdutoService {
     private void validarValorNaoNegativo(BigDecimal valor, String mensagem) {
         if (valor.compareTo(ZERO) < 0) {
             throw new ProdutoInvalidoException(mensagem);
+        }
+    }
+
+    private void validarImagem(MultipartFile arquivo) {
+        if (arquivo == null || arquivo.isEmpty()) {
+            throw new ProdutoInvalidoException("Selecione uma imagem.");
+        }
+        if (arquivo.getSize() > TAMANHO_MAXIMO_IMAGEM) {
+            throw new ProdutoInvalidoException("A imagem deve ter no máximo 2 MB.");
+        }
+        if (arquivo.getContentType() == null || !arquivo.getContentType().startsWith("image/")) {
+            throw new ProdutoInvalidoException("O arquivo deve ser uma imagem.");
         }
     }
 }

@@ -7,9 +7,6 @@ const apiBase =
 
 const api = axios.create({
     baseURL: apiBase.replace(/\/$/, ""),
-    headers: {
-        "Content-Type": "application/json",
-    },
 });
 
 api.interceptors.request.use(

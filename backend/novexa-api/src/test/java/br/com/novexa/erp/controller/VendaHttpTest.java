@@ -47,6 +47,7 @@ class VendaHttpTest {
     @Autowired CaixaRepository caixas;
     @Autowired SessaoCaixaRepository sessoes;
     @Autowired MovimentacaoEstoqueRepository movimentos;
+    @Autowired MovimentacaoCaixaRepository movimentosCaixa;
     @MockitoSpyBean LancamentoFinanceiroRepository financeiro;
     @MockitoSpyBean PagamentoRepository pagamentos;
     @Autowired JwtService jwt;
@@ -128,6 +129,57 @@ class VendaHttpTest {
         assertThat(pagamento.getDataHora()).isNotNull();
         mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.itens[0].movimentacaoEstoqueId").value(movimento.getId()));
+    }
+
+    @Test
+    void cancelamentoPreservaVendaEReverteEfeitosSemDuplicarNoRetry() throws Exception {
+        long id = enviar(pedido());
+
+        for (int tentativa = 0; tentativa < 2; tentativa++) {
+            mvc.perform(post("/vendas/" + id + "/cancelar").header(HttpHeaders.AUTHORIZATION, authorization))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(id))
+                    .andExpect(jsonPath("$.status").value("CANCELADA"))
+                    .andExpect(jsonPath("$.total").value(20))
+                    .andExpect(jsonPath("$.itens[0].nomeProduto").value("Produto"));
+        }
+
+        assertThat(vendas.count()).isEqualTo(1);
+        assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.CANCELADA);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+        assertThat(movimentos.findAll()).hasSize(2)
+                .extracting(MovimentacaoEstoqueEntity::getOrigem)
+                .containsExactlyInAnyOrder(OrigemMovimentacaoEstoque.VENDA, OrigemMovimentacaoEstoque.CANCELAMENTO);
+        assertThat(pagamentos.findAll()).singleElement()
+                .extracting(PagamentoEntity::getStatus).isEqualTo(StatusPagamento.CANCELADO);
+        assertThat(financeiro.findAll()).singleElement()
+                .extracting(LancamentoFinanceiroEntity::getSituacao).isEqualTo(LancamentoFinanceiroEntity.Situacao.CANCELADO);
+        assertThat(movimentosCaixa.findAll()).hasSize(2)
+                .extracting(MovimentacaoCaixaEntity::getTipo)
+                .containsExactlyInAnyOrder(TipoMovimentacaoCaixa.VENDA, TipoMovimentacaoCaixa.ESTORNO_VENDA);
+    }
+
+    @Test
+    void cancelamentoComSessaoFechadaExplicaConflitoSemEfeitoParcial() throws Exception {
+        long id = enviar(pedido());
+        var sessao = sessoes.findAll().getFirst();
+        sessao.fechar(operador, new BigDecimal("20.00"));
+        sessoes.saveAndFlush(sessao);
+
+        mvc.perform(post("/vendas/" + id + "/cancelar").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isConflict())
+                .andExpect(content().string("Sessão de Caixa fechada."));
+
+        assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
+        assertThat(movimentos.findAll()).singleElement()
+                .extracting(MovimentacaoEstoqueEntity::getOrigem).isEqualTo(OrigemMovimentacaoEstoque.VENDA);
+        assertThat(pagamentos.findAll()).singleElement()
+                .extracting(PagamentoEntity::getStatus).isEqualTo(StatusPagamento.REGISTRADO);
+        assertThat(financeiro.findAll()).singleElement()
+                .extracting(LancamentoFinanceiroEntity::getSituacao).isEqualTo(LancamentoFinanceiroEntity.Situacao.RECEBIDO);
+        assertThat(movimentosCaixa.findAll()).singleElement()
+                .extracting(MovimentacaoCaixaEntity::getTipo).isEqualTo(TipoMovimentacaoCaixa.VENDA);
     }
 
     @ParameterizedTest

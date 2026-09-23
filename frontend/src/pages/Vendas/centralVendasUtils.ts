@@ -8,7 +8,7 @@ export type FiltrosCentralVendas = {
 };
 
 export const filtrosIniciais: FiltrosCentralVendas = {
-    status: "",
+    status: "FATURADA",
     dataInicial: "",
     dataFinal: "",
     clienteId: "",

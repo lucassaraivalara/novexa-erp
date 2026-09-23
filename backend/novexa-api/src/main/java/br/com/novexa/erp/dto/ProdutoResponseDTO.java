@@ -17,6 +17,8 @@ public class ProdutoResponseDTO {
     private BigDecimal estoqueAtual;
     private BigDecimal estoqueMinimo;
     private Boolean controlaEstoque;
+    private String imagemPath;
+    private String imagemUrl;
     private Boolean ativo;
     private LocalDateTime dataCadastro;
 
@@ -117,6 +119,22 @@ public class ProdutoResponseDTO {
 
     public void setControlaEstoque(Boolean controlaEstoque) {
         this.controlaEstoque = controlaEstoque;
+    }
+
+    public String getImagemPath() {
+        return imagemPath;
+    }
+
+    public void setImagemPath(String imagemPath) {
+        this.imagemPath = imagemPath;
+    }
+
+    public String getImagemUrl() {
+        return imagemUrl;
+    }
+
+    public void setImagemUrl(String imagemUrl) {
+        this.imagemUrl = imagemUrl;
     }
 
     public Boolean getAtivo() {

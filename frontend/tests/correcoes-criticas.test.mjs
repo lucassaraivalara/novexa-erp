@@ -271,7 +271,7 @@ test("listagem e formulário de Produtos preservam campos reais e organização 
     assert.match(listagem, /alinhar: "right", render: renderPreco/);
     assert.match(listagem, /cabecalho: "Estoque".*alinhar: "right"/s);
     assert.match(listagem, /compacta/);
-    assert.match(listagem, /titulo: buscaRemota\.term\.trim\(\) \|\| situacao !== "todas" \? "Nenhum produto encontrado" : "Nenhum produto cadastrado"/);
+    assert.match(listagem, /titulo: termoBusca\.trim\(\) \|\| situacao !== "todas" \? "Nenhum produto encontrado" : "Nenhum produto cadastrado"/);
     assert.match(listagem, /Novo produto/);
     assert.match(formulario, /<Typography variant="subtitle2">Estoque<\/Typography>/);
     assert.match(formulario, /<Typography variant="subtitle2">Identificação<\/Typography>/);
@@ -280,4 +280,65 @@ test("listagem e formulário de Produtos preservam campos reais e organização 
     assert.match(formulario, /label="Estoque mínimo"/);
     assert.match(formulario, /Saldo atual:/);
     assert.match(tabela, /cellPaddingCompact/);
+});
+
+test("formulários compartilhados expõem campos e ações acessíveis", async () => {
+    const produto = await readFile(new URL("../src/pages/Produtos/ProdutoForm.tsx", import.meta.url), "utf8");
+    const caixa = await readFile(new URL("../src/pages/Financeiro/CaixaForm.tsx", import.meta.url), "utf8");
+    const forma = await readFile(new URL("../src/pages/Financeiro/FormaPagamentoForm.tsx", import.meta.url), "utf8");
+    const empresa = await readFile(new URL("../src/pages/Empresa/EmpresaForm.tsx", import.meta.url), "utf8");
+
+    assert.match(produto, /name="precoVenda"/);
+    assert.match(produto, /inputMode: "decimal"/);
+    assert.match(produto, /role="button"/);
+    assert.match(produto, /name="imagem"/);
+    assert.match(produto, /aria-label="Remover imagem do produto"/);
+    assert.match(caixa, /autoComplete="off"/);
+    assert.match(forma, /autoComplete="off"/);
+    assert.match(empresa, /name=\{item\.nome\}/);
+    assert.match(empresa, /autoComplete=\{autoComplete\}/);
+    assert.match(empresa, /inputMode/);
+    assert.match(empresa, /<Button type="button"/);
+});
+
+test("filtros e linhas interativas da tabela preservam acessibilidade", async () => {
+    const filtros = await readFile(new URL("../src/components/ui/PageFilters.tsx", import.meta.url), "utf8");
+    const tabela = await readFile(new URL("../src/components/ui/AppTable.tsx", import.meta.url), "utf8");
+
+    assert.match(filtros, /aria-label=\{`Pesquisar: \$\{busca\.placeholder\}`\}/);
+    assert.match(tabela, /aria-label=\{`Pesquisar: \$\{busca\.placeholder\}`\}/);
+    assert.match(tabela, /onKeyDown=\{linhaCliqueavel \|\| onLinhaClick \?/);
+    assert.match(tabela, /evento\.key === "Enter" \|\| evento\.key === " "/);
+    assert.match(tabela, /tabIndex=\{linhaCliqueavel \|\| onLinhaClick \? 0 : undefined\}/);
+    assert.match(tabela, /evento\.stopPropagation\(\)/);
+    assert.match(tabela, /mensagem="Carregando dados…"/);
+});
+
+test("Produtos mantém filtro acessível e tabela densa", async () => {
+    const listagem = await readFile(new URL("../src/pages/Produtos/Produtos.tsx", import.meta.url), "utf8");
+
+    assert.match(listagem, /minWidth: \{ xs: "100%", sm: 160 \}/);
+    assert.match(listagem, /aria-label": "Filtrar produtos por situação"/);
+    assert.match(listagem, /name: "situacao"/);
+    assert.match(listagem, /largura: 300, pesquisavel: true, ordenavel: true, render: renderNome/);
+    assert.match(listagem, /largura: 160, ordenavel: true, alinhar: "right", render: renderPreco/);
+    assert.match(listagem, /tooltip: "Editar produto"/);
+    assert.match(listagem, /tooltip: "Inativar produto"/);
+});
+
+test("Caixa mantem abas, acoes e modais acessiveis", async () => {
+    const caixa = await readFile(new URL("../src/pages/Financeiro/Caixa.tsx", import.meta.url), "utf8");
+
+    assert.match(caixa, /aria-label="[^"]*Caixa"/);
+    assert.match(caixa, /caixa-atual-tab/);
+    assert.match(caixa, /caixas-anteriores-tab/);
+    assert.match(caixa, /aria-labelledby="caixa-abertura-titulo"/);
+    assert.match(caixa, /aria-labelledby="caixa-movimento-titulo"/);
+    assert.match(caixa, /aria-labelledby="caixa-fechamento-titulo"/);
+    assert.match(caixa, /name="saldoInicial"/);
+    assert.match(caixa, /name="saldoFinal"/);
+    assert.match(caixa, /name="observacao"/);
+    assert.match(caixa, /caixa-vazio-titulo/);
+    assert.match(caixa, /Nenhuma movimenta.{1,3}o registrada/);
+    assert.match(caixa, /type="button"/);
 });

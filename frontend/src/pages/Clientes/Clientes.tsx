@@ -3,7 +3,7 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
     Alert, Button, Chip, MenuItem, Snackbar,
-    FormControl, Select, Stack,
+    FormControl, InputLabel, Select, Stack,
 } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
@@ -14,14 +14,32 @@ import type { Cliente } from "../../types/cliente";
 import { obterEmpresaAtiva } from "../../utils/auth/sessao";
 import ClienteForm from "./ClienteForm";
 
-const normalizar = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+type CampoBuscaCliente = "id" | "nome" | "nomeFantasia" | "cpfCnpj" | "cidadeUf" | "telefone";
+type ClienteTabela = Cliente & { cidadeUf: string };
+
+const camposBusca: Record<CampoBuscaCliente, { rotulo: string; placeholder: string }> = {
+    id: { rotulo: "Código", placeholder: "Pesquisar por código…" },
+    nome: { rotulo: "Nome / Razão social", placeholder: "Pesquisar por nome ou razão social…" },
+    nomeFantasia: { rotulo: "Nome fantasia", placeholder: "Pesquisar por nome fantasia…" },
+    cpfCnpj: { rotulo: "CPF/CNPJ", placeholder: "Pesquisar por CPF ou CNPJ…" },
+    cidadeUf: { rotulo: "Cidade / UF", placeholder: "Pesquisar por cidade ou UF…" },
+    telefone: { rotulo: "Telefone", placeholder: "Pesquisar por telefone…" },
+};
+
+const normalizar = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+const obterCidadeUf = (cliente: Cliente) => {
+    const endereco = cliente.enderecos?.find((item) => item.principal) ?? cliente.enderecos?.[0];
+    return endereco ? `${endereco.cidade} / ${endereco.uf}` : "";
+};
 
 export default function Clientes() {
     const empresaId = obterEmpresaAtiva()?.id;
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [busca, setBusca] = useState("");
-    const [situacao, setSituacao] = useState("todos");
+    const [campoBusca, setCampoBusca] = useState<CampoBuscaCliente | null>(null);
+    const [situacao, setSituacao] = useState("ativos");
     const [pagina, setPagina] = useState(0);
+    const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: "asc" | "desc" }>({ campo: "", direcao: "asc" });
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
     const [mensagem, setMensagem] = useState("");
@@ -43,12 +61,43 @@ export default function Clientes() {
         return () => controller.abort();
     }, [empresaId, revisao]);
 
-    const filtrados = useMemo(() => clientes.filter((c) => {
+    const filtrados = useMemo(() => clientes.map<ClienteTabela>((cliente) => ({
+        ...cliente,
+        cidadeUf: obterCidadeUf(cliente),
+    })).filter((c) => {
         const termo = normalizar(busca.trim());
         const documento = busca.replace(/\D/g, "");
-        const bate = !termo || normalizar([c.id, c.nome, c.nomeFantasia, c.cpfCnpj].join(" ")).includes(termo) || (documento.length > 0 && (c.cpfCnpj ?? "").includes(documento));
+        let bate = !termo;
+        if (termo && campoBusca === null) {
+            bate = normalizar([c.id, c.nome, c.nomeFantasia, c.cpfCnpj].join(" ")).includes(termo)
+                || (documento.length > 0 && (c.cpfCnpj ?? "").includes(documento));
+        } else if (termo && campoBusca !== null) {
+            const valor = String(c[campoBusca] ?? "");
+            bate = normalizar(valor).includes(termo)
+                || ((campoBusca === "cpfCnpj" || campoBusca === "telefone") && documento.length > 0 && valor.replace(/\D/g, "").includes(documento));
+        }
         return (situacao === "todos" || c.ativo === (situacao === "ativos")) && bate;
-    }), [clientes, busca, situacao]);
+    }).sort((a, b) => {
+        if (!ordenacao.campo) return 0;
+        const valorA = a[ordenacao.campo as keyof ClienteTabela];
+        const valorB = b[ordenacao.campo as keyof ClienteTabela];
+        if (valorA === valorB) return 0;
+        if (valorA === null || valorA === undefined) return 1;
+        if (valorB === null || valorB === undefined) return -1;
+        const comparacao = valorA > valorB ? 1 : -1;
+        return ordenacao.direcao === "asc" ? comparacao : -comparacao;
+    }), [clientes, busca, campoBusca, ordenacao, situacao]);
+
+    function selecionarCampoBusca(campo: string) {
+        if (!(campo in camposBusca)) return;
+        setCampoBusca(campo as CampoBuscaCliente);
+        setPagina(0);
+    }
+
+    function removerCampoBusca() {
+        setCampoBusca(null);
+        setPagina(0);
+    }
 
     async function abrir(c: Cliente) {
         if (!empresaId) return;
@@ -71,7 +120,7 @@ export default function Clientes() {
         );
     }
 
-    const renderNome = (valor: unknown, linha: Cliente): React.ReactNode => (
+    const renderNome = (valor: unknown, linha: ClienteTabela): React.ReactNode => (
         <Button sx={{ textTransform: "none", fontWeight: 600 }} disabled={abrindo !== null} onClick={() => void abrir(linha)}>
             {String(valor)}
         </Button>
@@ -79,26 +128,23 @@ export default function Clientes() {
 
     const renderSimples = (valor: unknown): React.ReactNode => String(valor ?? "—");
 
-    const renderCidadeUf = (_: unknown, linha: Cliente): React.ReactNode => {
-        const e = linha.enderecos?.find((x) => x.principal) ?? linha.enderecos?.[0];
-        return e ? `${e.cidade} / ${e.uf}` : "—";
-    };
+    const renderCidadeUf = (valor: unknown): React.ReactNode => String(valor || "—");
 
     const renderSituacao = (valor: unknown): React.ReactNode => (
         <Chip size="small" color={valor ? "success" : "default"} variant="outlined" label={valor ? "Ativo" : "Inativo"} />
     );
 
-    const colunas: Coluna<Cliente>[] = [
-        { campo: "id", cabecalho: "Código", largura: 100 },
-        { campo: "nome", cabecalho: "Nome / Razão social", largura: 280, render: renderNome },
-        { campo: "nomeFantasia", cabecalho: "Nome fantasia", largura: 200, render: renderSimples },
-        { campo: "cpfCnpj", cabecalho: "CPF/CNPJ", largura: 180, render: renderSimples },
-        { campo: "enderecos", cabecalho: "Cidade / UF", largura: 200, render: renderCidadeUf },
-        { campo: "telefone", cabecalho: "Telefone", largura: 160, render: renderSimples },
-        { campo: "ativo", cabecalho: "Situação", largura: 120, render: renderSituacao },
+    const colunas: Coluna<ClienteTabela>[] = [
+        { campo: "id", cabecalho: "Código", largura: 100, pesquisavel: true, ordenavel: true },
+        { campo: "nome", cabecalho: "Nome / Razão social", largura: 280, pesquisavel: true, ordenavel: true, render: renderNome },
+        { campo: "nomeFantasia", cabecalho: "Nome fantasia", largura: 200, pesquisavel: true, ordenavel: true, render: renderSimples },
+        { campo: "cpfCnpj", cabecalho: "CPF/CNPJ", largura: 180, pesquisavel: true, ordenavel: true, render: renderSimples },
+        { campo: "cidadeUf", cabecalho: "Cidade / UF", largura: 200, pesquisavel: true, ordenavel: true, render: renderCidadeUf },
+        { campo: "telefone", cabecalho: "Telefone", largura: 160, pesquisavel: true, ordenavel: true, render: renderSimples },
+        { campo: "ativo", cabecalho: "Situação", largura: 120, ordenavel: true, render: renderSituacao },
     ];
 
-    const acoes: AcaoTabela<Cliente>[] = [
+    const acoes: AcaoTabela<ClienteTabela>[] = [
         {
             rotulo: "Editar",
             icone: <EditOutlinedIcon fontSize="small" />,
@@ -127,14 +173,22 @@ export default function Clientes() {
 
             <Stack spacing={1}>
                 <PageFilters
+                    campoBuscaAtivo={campoBusca === null ? undefined : { rotulo: camposBusca[campoBusca].rotulo, onRemover: removerCampoBusca }}
                     busca={{
-                        placeholder: "Nome, razão social, CPF/CNPJ ou código",
+                        placeholder: campoBusca === null ? "Pesquisar por nome, razão social, CPF/CNPJ ou código…" : camposBusca[campoBusca].placeholder,
                         onChange: (v) => { setBusca(v); setPagina(0); },
                         valor: busca,
                     }}
                 >
                     <FormControl size="small" sx={{ minWidth: 180 }}>
-                        <Select label="Situação" value={situacao} onChange={(e) => { setSituacao(e.target.value); setPagina(0); }}>
+                        <InputLabel id="cliente-situacao-label">Situação</InputLabel>
+                        <Select
+                            labelId="cliente-situacao-label"
+                            label="Situação"
+                            value={situacao}
+                            inputProps={{ "aria-label": "Filtrar clientes por situação", name: "situacao" }}
+                            onChange={(e) => { setSituacao(e.target.value); setPagina(0); }}
+                        >
                             <MenuItem value="todos">Todas</MenuItem>
                             <MenuItem value="ativos">Ativos</MenuItem>
                             <MenuItem value="inativos">Inativos</MenuItem>
@@ -144,6 +198,7 @@ export default function Clientes() {
 
                 <AppTable
                     colunas={colunas}
+                    buscaPorColuna={{ campo: campoBusca, onSelecionar: selecionarCampoBusca }}
                     linhas={linhasPagina}
                     carregando={carregando}
                     obterChaveLinha={(c) => c.id}
@@ -152,6 +207,14 @@ export default function Clientes() {
                         descricao: busca || situacao !== "todos" ? "Tente ajustar os filtros." : "Comece em Novo Cliente.",
                     }}
                     acoes={acoes}
+                    ordenacao={{
+                        campo: ordenacao.campo,
+                        direcao: ordenacao.direcao,
+                        onSort: (campo) => setOrdenacao((atual) => ({
+                            campo,
+                            direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc",
+                        })),
+                    }}
                     paginacao={{
                         pagina: paginaAtual,
                         linhasPorPagina: 10,

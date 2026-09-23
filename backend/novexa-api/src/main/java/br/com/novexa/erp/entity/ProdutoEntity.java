@@ -77,6 +77,9 @@ public class ProdutoEntity {
     @Column(name = "controla_estoque", nullable = false)
     private Boolean controlaEstoque = true;
 
+    @Column(name = "imagem_path", length = 500)
+    private String imagemPath;
+
     @Column(nullable = false)
     private Boolean ativo = true;
 
@@ -207,6 +210,14 @@ public class ProdutoEntity {
 
     public void setControlaEstoque(Boolean controlaEstoque) {
         this.controlaEstoque = controlaEstoque;
+    }
+
+    public String getImagemPath() {
+        return imagemPath;
+    }
+
+    public void setImagemPath(String imagemPath) {
+        this.imagemPath = imagemPath;
     }
 
     public Boolean getAtivo() {

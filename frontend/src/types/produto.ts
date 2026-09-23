@@ -11,6 +11,8 @@ export type Produto = {
     estoqueAtual: number;
     estoqueMinimo: number;
     controlaEstoque: boolean;
+    imagemPath: string | null;
+    imagemUrl: string | null;
     ativo: boolean;
     dataCadastro: string;
 };

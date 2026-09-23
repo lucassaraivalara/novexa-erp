@@ -64,11 +64,39 @@ class CaixaOperacionalHttpTest {
         token = "Bearer " + jwt.gerarToken(operador);
         caixa = caixa(empresa);
         sessao = sessoesService.abrir(caixa.getId(), new BigDecimal("100"), principal).id();
+        var abertura = movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao, empresa.getId());
+        assertThat(abertura).hasSize(1);
+        assertThat(abertura.getFirst().getTipo()).isEqualTo(TipoMovimentacaoCaixa.SUPRIMENTO);
+        assertThat(abertura.getFirst().getValor()).isEqualByComparingTo("100");
+        assertThat(abertura.getFirst().getObservacao()).isEqualTo("Saldo inicial / Abertura de caixa");
+        assertThat(abertura.getFirst().getUsuario().getId()).isEqualTo(operador.getId());
+        assertThat(abertura.getFirst().getSessao().getId()).isEqualTo(sessao);
+        assertThat(operacional.resumo(sessao, empresa.getId()).saldoEsperadoDinheiro()).isEqualByComparingTo("100");
         produto = new ProdutoEntity(); produto.setEmpresa(empresa); produto.setNome("Produto");
         produto.setUnidadeMedida("UN"); produto.setPrecoVenda(BigDecimal.TEN);
         produto.setControlaEstoque(true); produto.setEstoqueAtual(new BigDecimal("20"));
         produto = produtos.saveAndFlush(produto);
     }
+
+    @Test void saldoInicialZeroNaoCriaMovimentacao() {
+        var caixaSemSaldo = caixa(empresa);
+        var sessaoSemSaldo = sessoesService.abrir(caixaSemSaldo.getId(), BigDecimal.ZERO, principal).id();
+
+        assertThat(movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessaoSemSaldo, empresa.getId())).isEmpty();
+    }
+
+    @Test void aberturaComSaldoInicialApareceNoHistoricoHttp() throws Exception {
+        mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + "/movimentacoes").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].sessaoId").value(sessao))
+                .andExpect(jsonPath("$[0].usuarioId").value(operador.getId()))
+                .andExpect(jsonPath("$[0].tipo").value("SUPRIMENTO"))
+                .andExpect(jsonPath("$[0].valor").value(100))
+                .andExpect(jsonPath("$[0].observacao").value("Saldo inicial / Abertura de caixa"))
+                .andExpect(jsonPath("$[0].dataHora").exists());
+    }
+
     @AfterEach void limpar() {
         for (String tabela : List.of("movimentacoes_caixa", "pagamentos", "lancamentos_financeiros", "itens_venda",
                 "vendas", "movimentacoes_estoque", "produtos", "sessoes_caixa", "caixas", "usuario", "empresas", "formas_pagamento"))
@@ -91,7 +119,7 @@ class CaixaOperacionalHttpTest {
         assertThat(resumo.totalVendas()).isEqualByComparingTo("40");
         assertThat(resumo.totaisPorFormaPagamento()).hasSize(4).allSatisfy(t -> assertThat(t.total()).isEqualByComparingTo("10"));
         assertThat(resumo.saldoEsperadoDinheiro()).isEqualByComparingTo("112");
-        assertThat(movimentos.count()).isEqualTo(3); // uma venda em dinheiro + duas manuais
+        assertThat(movimentos.count()).isEqualTo(4); // saldo inicial + uma venda em dinheiro + duas manuais
         mvc.perform(post("/financeiro/caixas/" + caixa.getId() + "/sessoes/" + sessao + "/fechar")
                 .header("Authorization", token).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("saldoFinal",111))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.resumo.totalVendas").value(40))
@@ -115,6 +143,33 @@ class CaixaOperacionalHttpTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].sessaoId").value(outraSessao.getId()))
                 .andExpect(jsonPath("$[0].operadorAbertura.id").value(colega.getId()));
+    }
+
+    @Test void historicoDeSessoesFechadasRetornaResumoEOperadoresDaEmpresa() throws Exception {
+        var fechamento = new BigDecimal("112");
+        vendaService.finalizar(venda(FormaPagamento.DINHEIRO, null), principal);
+        operacional.movimentar(sessao, manual(TipoMovimentacaoCaixa.SUPRIMENTO, "5"), principal);
+        operacional.movimentar(sessao, manual(TipoMovimentacaoCaixa.SANGRIA, "3"), principal);
+        sessoesService.fechar(caixa.getId(), sessao, fechamento, principal);
+
+        mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + "/resumo").header("Authorization", token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.descricaoCaixa").value(caixa.getDescricao()))
+            .andExpect(jsonPath("$.dataHoraAbertura").exists())
+            .andExpect(jsonPath("$.operadorAbertura.id").value(operador.getId()));
+        mvc.perform(get("/financeiro/caixas/sessoes/fechadas").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].sessaoId").value(sessao))
+                .andExpect(jsonPath("$[0].caixaId").value(caixa.getId()))
+                .andExpect(jsonPath("$[0].descricaoCaixa").value(caixa.getDescricao()))
+                .andExpect(jsonPath("$[0].operadorAbertura.id").value(operador.getId()))
+                .andExpect(jsonPath("$[0].operadorFechamento.id").value(operador.getId()))
+                .andExpect(jsonPath("$[0].saldoInicial").value(100))
+                .andExpect(jsonPath("$[0].totalVendas").value(10))
+                .andExpect(jsonPath("$[0].dinheiroEsperado").value(112))
+                .andExpect(jsonPath("$[0].valorInformado").value(112))
+                .andExpect(jsonPath("$[0].diferenca").value(0));
     }
 
     @Test void multiempresaProtegeSessaoMovimentosResumoEFaturamento() throws Exception {
@@ -146,7 +201,7 @@ class CaixaOperacionalHttpTest {
                 pedido.chaveRequisicao(), pedido.tipo(), BigDecimal.TEN, null), principal)).hasMessageContaining("outros dados");
         assertThatThrownBy(() -> operacional.movimentar(sessao, manual(TipoMovimentacaoCaixa.SANGRIA, "106"), principal))
                 .hasMessageContaining("insuficiente");
-        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(movimentos.count()).isEqualTo(2);
     }
 
     @ParameterizedTest @ValueSource(strings = {"-1", "0", "1.001"})
@@ -168,10 +223,10 @@ class CaixaOperacionalHttpTest {
     @Test void rollbackDepoisDeTodosOsEfeitosNaoDeixaSaldoPagamentoOuVenda() {
         assertThatThrownBy(() -> new TransactionTemplate(transactions).executeWithoutResult(tx -> {
             vendaService.finalizar(venda(FormaPagamento.DINHEIRO, null), principal);
-            assertThat(movimentos.count()).isEqualTo(1);
+            assertThat(movimentos.count()).isEqualTo(2);
             throw new IllegalStateException("falha depois dos efeitos");
         })).isInstanceOf(IllegalStateException.class);
-        assertThat(vendas.count()).isZero(); assertThat(movimentos.count()).isZero();
+        assertThat(vendas.count()).isZero(); assertThat(movimentos.count()).isEqualTo(1);
         assertThat(jdbc.queryForObject("select count(*) from pagamentos", Long.class)).isZero();
         assertThat(jdbc.queryForObject("select count(*) from lancamentos_financeiros", Long.class)).isZero();
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("20");
@@ -180,14 +235,14 @@ class CaixaOperacionalHttpTest {
     @Test void estoqueInsuficienteNaoDeixaEfeitosNoCaixa() {
         produto.setEstoqueAtual(BigDecimal.ZERO); produtos.saveAndFlush(produto);
         assertThatThrownBy(() -> vendaService.finalizar(venda(FormaPagamento.DINHEIRO, null), principal)).isInstanceOf(RuntimeException.class);
-        assertThat(vendas.count()).isZero(); assertThat(movimentos.count()).isZero();
+        assertThat(vendas.count()).isZero(); assertThat(movimentos.count()).isEqualTo(1);
     }
 
     @Test void retriesConcorrentesDeMovimentoGeramUmaUnicaEntrada() throws Exception {
         var pedido = manual(TipoMovimentacaoCaixa.SUPRIMENTO, "5");
         concorrer(() -> operacional.movimentar(sessao, pedido, principal),
                 () -> operacional.movimentar(sessao, pedido, principal));
-        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(movimentos.count()).isEqualTo(2);
         assertThat(operacional.resumo(sessao, empresa.getId()).saldoEsperadoDinheiro()).isEqualByComparingTo("105");
     }
 
@@ -205,7 +260,7 @@ class CaixaOperacionalHttpTest {
         var b = manual(TipoMovimentacaoCaixa.SANGRIA, "80");
         assertThatThrownBy(() -> concorrer(() -> operacional.movimentar(sessao, a, principal),
                 () -> operacional.movimentar(sessao, b, principal))).hasCauseInstanceOf(org.springframework.web.server.ResponseStatusException.class);
-        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(movimentos.count()).isEqualTo(2);
         assertThat(operacional.resumo(sessao, empresa.getId()).saldoEsperadoDinheiro()).isEqualByComparingTo("20");
     }
 
@@ -217,7 +272,7 @@ class CaixaOperacionalHttpTest {
                 () -> vendaService.faturar(aberta.id(), pedido, principal));
         sessoesService.fechar(caixa.getId(), sessao, new BigDecimal("110"), principal);
         assertThat(vendaService.faturar(aberta.id(), pedido, principal).id()).isEqualTo(aberta.id());
-        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(movimentos.count()).isEqualTo(2);
         assertThat(jdbc.queryForObject("select count(*) from pagamentos", Long.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("select count(*) from lancamentos_financeiros", Long.class)).isEqualTo(1);
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("19");
@@ -229,7 +284,7 @@ class CaixaOperacionalHttpTest {
                 () -> vendaService.finalizar(venda(FormaPagamento.PIX, sessao), principal)))
                 .hasCauseInstanceOf(org.springframework.web.server.ResponseStatusException.class);
         assertThat(vendas.count()).isZero();
-        assertThat(movimentos.count()).isZero();
+        assertThat(movimentos.count()).isEqualTo(1);
     }
 
     @Test void falhaPosteriorAoMovimentoManualFazRollback() {
@@ -238,7 +293,7 @@ class CaixaOperacionalHttpTest {
             operacional.movimentar(sessao, pedido, principal);
             throw new IllegalStateException("falha");
         })).isInstanceOf(IllegalStateException.class);
-        assertThat(movimentos.count()).isZero();
+        assertThat(movimentos.count()).isEqualTo(1);
         assertThat(operacional.resumo(sessao, empresa.getId()).saldoEsperadoDinheiro()).isEqualByComparingTo("100");
     }
 

@@ -88,6 +88,7 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
                     fullWidth
                     required
                     label="Descrição"
+                    autoComplete="off"
                     placeholder="Ex: Caixa Principal, Caixa 01, PDV 02"
                     {...register("descricao")}
                     error={!!(errors.descricao || duplicado)}

@@ -19,7 +19,7 @@ export default function Empresa() {
     const [erro, setErro] = useState("");
     const [tentativa, setTentativa] = useState(0);
     const [busca, setBusca] = useState("");
-    const [situacao, setSituacao] = useState("todas");
+    const [situacao, setSituacao] = useState("ativas");
     const [pagina, setPagina] = useState(0);
     const [porPagina, setPorPagina] = useState(10);
     const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: "asc" | "desc" }>({ campo: "razaoSocial", direcao: "asc" });

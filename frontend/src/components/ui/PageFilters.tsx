@@ -1,12 +1,13 @@
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
     CircularProgress,
+    Chip,
     InputAdornment,
     Paper,
     Stack,
     TextField,
 } from "@mui/material";
-import type { KeyboardEvent, ReactNode } from "react";
+import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import { layoutTokens } from "../layout/layoutTokens";
 
 export interface BuscaPagina {
@@ -20,9 +21,11 @@ export interface BuscaPagina {
 interface PageFiltersProps {
     busca?: BuscaPagina;
     children?: ReactNode;
+    campoBuscaAtivo?: { rotulo: string; onRemover: () => void };
 }
 
-export default function PageFilters({ busca, children }: PageFiltersProps) {
+export default function PageFilters({ busca, children, campoBuscaAtivo }: PageFiltersProps) {
+    const buscaRef = useRef<HTMLInputElement>(null);
     return (
         <Paper component="section" aria-label="Filtros da página" variant="outlined" sx={{ px: { xs: 1.5, md: 2 }, py: 1.25 }}>
             <Stack
@@ -35,21 +38,24 @@ export default function PageFilters({ busca, children }: PageFiltersProps) {
             >
                 {busca && (
                     <TextField
+                        inputRef={buscaRef}
                         fullWidth
                         size="small"
+                        aria-label={`Pesquisar: ${busca.placeholder}`}
                         placeholder={busca.placeholder}
                         value={busca.valor}
                         onChange={(evento) => busca.onChange(evento.target.value)}
                         onKeyDown={busca.onKeyDown}
                         slotProps={{
                             input: {
+                                inputProps: { "aria-label": busca.placeholder },
                                 startAdornment: (
                                     <InputAdornment position="start">
                                         <SearchRoundedIcon fontSize="small" color="action" />
                                     </InputAdornment>
                                 ),
                                 endAdornment: busca.carregando
-                                    ? <CircularProgress size={18} aria-label="Pesquisando" />
+                                    ? <CircularProgress size={18} aria-label="Pesquisando…" />
                                     : undefined,
                             },
                         }}
@@ -60,6 +66,17 @@ export default function PageFilters({ busca, children }: PageFiltersProps) {
                                 borderRadius: layoutTokens.radius.field,
                             },
                         }}
+                    />
+                )}
+                {campoBuscaAtivo && (
+                    <Chip
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        label={`Buscando por: ${campoBuscaAtivo.rotulo}`}
+                        aria-label={`Buscando por: ${campoBuscaAtivo.rotulo}. Remover filtro de coluna`}
+                        onDelete={() => { campoBuscaAtivo.onRemover(); buscaRef.current?.focus(); }}
+                        sx={{ "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }}
                     />
                 )}
                 {children}

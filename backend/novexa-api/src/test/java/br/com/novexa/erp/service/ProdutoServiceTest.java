@@ -6,6 +6,7 @@ import br.com.novexa.erp.exception.ProdutoCodigoDuplicadoException;
 import br.com.novexa.erp.exception.ProdutoInvalidoException;
 import br.com.novexa.erp.exception.ProdutoNotFoundException;
 import br.com.novexa.erp.repository.ProdutoRepository;
+import br.com.novexa.erp.storage.ArquivoStorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,11 +31,14 @@ class ProdutoServiceTest {
     @Mock
     private EmpresaService empresaService;
 
+        @Mock
+        private ArquivoStorageService arquivoStorageService;
+
     private ProdutoService produtoService;
 
     @BeforeEach
     void configurar() {
-        produtoService = new ProdutoService(produtoRepository, empresaService);
+                produtoService = new ProdutoService(produtoRepository, empresaService, arquivoStorageService);
     }
 
     @Test

@@ -120,6 +120,31 @@ class VendaListagemHttpTest {
     }
 
     @Test
+    void filtraPorDataInicialEDataFinalSeparadamente() throws Exception {
+        LocalDate hoje = LocalDate.now();
+        long ontem = venda(empresa, operador, null, StatusVenda.FATURADA, "10.00",
+                hoje.minusDays(1).atTime(10, 0), null);
+        long hojeId = venda(empresa, operador, null, StatusVenda.FATURADA, "20.00",
+                hoje.atTime(10, 0), null);
+        long amanha = venda(empresa, operador, null, StatusVenda.FATURADA, "30.00",
+                hoje.plusDays(1).atTime(10, 0), null);
+
+        mvc.perform(get("/vendas").header(HttpHeaders.AUTHORIZATION, authorization)
+                        .param("dataInicial", hoje.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(amanha))
+                .andExpect(jsonPath("$[1].id").value(hojeId));
+
+        mvc.perform(get("/vendas").header(HttpHeaders.AUTHORIZATION, authorization)
+                        .param("dataFinal", hoje.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(hojeId))
+                .andExpect(jsonPath("$[1].id").value(ontem));
+    }
+
+    @Test
     void listagemExigeAutenticacaoERejeitaIntervaloInvalido() throws Exception {
         mvc.perform(get("/vendas")).andExpect(status().isUnauthorized());
 

@@ -7,6 +7,7 @@ import {
     TablePagination,
     TableRow,
     TableSortLabel,
+    ButtonBase,
     Toolbar,
     Tooltip,
     CircularProgress,
@@ -16,6 +17,9 @@ import {
     TextField,
     Stack,
 } from "@mui/material";
+import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
+import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
+import SwapVertRoundedIcon from "@mui/icons-material/SwapVertRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { layoutTokens } from "../layout/layoutTokens";
@@ -29,6 +33,7 @@ export interface Coluna<T> {
     largura?: string | number;
     alinhar?: "left" | "center" | "right" | "inherit" | "justify";
     ordenavel?: boolean;
+    pesquisavel?: boolean;
     render?: (valor: unknown, linha: T, indice: number) => ReactNode;
 }
 
@@ -75,6 +80,10 @@ interface AppTableProps<T> {
         direcao: "asc" | "desc";
         onSort: (campo: string) => void;
     };
+    buscaPorColuna?: {
+        campo: string | null;
+        onSelecionar: (campo: string) => void;
+    };
     linhaCliqueavel?: boolean;
     onLinhaClick?: (linha: T) => void;
     obterChaveLinha: (linha: T) => string | number;
@@ -93,6 +102,7 @@ export default function AppTable<T extends Record<string, unknown>>({
     filtros,
     paginacao,
     ordenacao,
+    buscaPorColuna,
     linhaCliqueavel = false,
     onLinhaClick,
     obterChaveLinha,
@@ -154,6 +164,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                             <TextField
                                 fullWidth
                                 size="small"
+                                aria-label={`Pesquisar: ${busca.placeholder}`}
                                 placeholder={busca.placeholder}
                                 value={busca.valor}
                                 onChange={(e) => busca.onChange(e.target.value)}
@@ -165,7 +176,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                 <SearchRoundedIcon fontSize="small" color="action" />
                                             </InputAdornment>
                                         ),
-                                        endAdornment: busca.carregando ? <CircularProgress size={18} aria-label="Pesquisando" /> : undefined,
+                                        endAdornment: busca.carregando ? <CircularProgress size={18} aria-label="Pesquisando…" /> : undefined,
                                     },
                                 }}
                                 sx={{
@@ -197,6 +208,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                     key={String(coluna.campo)}
                                     align={coluna.alinhar ?? "left"}
                                     style={{ width: coluna.largura }}
+                                    sortDirection={buscaPorColuna && ordenacaoAtiva?.campo === String(coluna.campo) ? ordenacaoAtiva.direcao : false}
                                     sx={{
                                         fontWeight: 700,
                                         color: "text.primary",
@@ -210,7 +222,42 @@ export default function AppTable<T extends Record<string, unknown>>({
                                         textOverflow: "ellipsis",
                                     }}
                                 >
-                                    {coluna.ordenavel && ordenacaoAtiva ? (
+                                    {buscaPorColuna ? (
+                                        <Stack direction="row" sx={{ alignItems: "center", justifyContent: coluna.alinhar === "right" ? "flex-end" : "flex-start", gap: 0.5, minWidth: 0 }}>
+                                            {coluna.pesquisavel ? (
+                                                <ButtonBase
+                                                    type="button"
+                                                    onClick={() => buscaPorColuna.onSelecionar(String(coluna.campo))}
+                                                    aria-label={`Buscar por: ${coluna.cabecalho}`}
+                                                    aria-pressed={buscaPorColuna.campo === String(coluna.campo)}
+                                                    sx={{
+                                                        font: "inherit", textAlign: "inherit", px: 0.5, py: 0.5,
+                                                        borderRadius: 1, minWidth: 0,
+                                                        color: buscaPorColuna.campo === String(coluna.campo) ? "primary.main" : "inherit",
+                                                        bgcolor: buscaPorColuna.campo === String(coluna.campo) ? "action.selected" : "transparent",
+                                                        "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 },
+                                                    }}
+                                                >
+                                                    {coluna.cabecalho}
+                                                </ButtonBase>
+                                            ) : coluna.cabecalho}
+                                            {coluna.ordenavel && (
+                                                <Tooltip title={`Ordenar por ${coluna.cabecalho}: ${ordenacaoAtiva?.campo === String(coluna.campo) && ordenacaoAtiva.direcao === "asc" ? "decrescente" : "crescente"}`}>
+                                                    <IconButton
+                                                        type="button"
+                                                        size="small"
+                                                        aria-label={`Ordenar por ${coluna.cabecalho}: ${ordenacaoAtiva?.campo === String(coluna.campo) && ordenacaoAtiva.direcao === "asc" ? "decrescente" : "crescente"}`}
+                                                        onClick={() => handleOrdenar(String(coluna.campo))}
+                                                        color={ordenacaoAtiva?.campo === String(coluna.campo) ? "primary" : "default"}
+                                                        sx={{ flexShrink: 0, "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }}
+                                                    >
+                                                        {ordenacaoAtiva?.campo !== String(coluna.campo) ? <SwapVertRoundedIcon fontSize="small" />
+                                                            : ordenacaoAtiva.direcao === "asc" ? <ArrowUpwardRoundedIcon fontSize="small" /> : <ArrowDownwardRoundedIcon fontSize="small" />}
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                        </Stack>
+                                    ) : coluna.ordenavel && ordenacaoAtiva ? (
                                         <TableSortLabel
                                             active={ordenacaoAtiva.campo === String(coluna.campo)}
                                             direction={ordenacaoAtiva.campo === String(coluna.campo) ? ordenacaoAtiva.direcao : "asc"}
@@ -247,7 +294,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                         {carregando ? (
                             <TableRow>
                                 <TableCell colSpan={colunas.length + (acoes && acoes.length > 0 ? 1 : 0)} align="center">
-                                    <LoadingState tamanho="pequeno" mensagem="Carregando dados..." />
+                                    <LoadingState tamanho="pequeno" mensagem="Carregando dados…" />
                                 </TableCell>
                             </TableRow>
                         ) : linhasOrdenadas.length === 0 ? (
@@ -282,6 +329,13 @@ export default function AppTable<T extends Record<string, unknown>>({
                                         },
                                     }}
                                     onClick={linhaCliqueavel || onLinhaClick ? () => onLinhaClick?.(linha) : undefined}
+                                    onKeyDown={linhaCliqueavel || onLinhaClick ? (evento) => {
+                                        if (evento.key === "Enter" || evento.key === " ") {
+                                            evento.preventDefault();
+                                            onLinhaClick?.(linha);
+                                        }
+                                    } : undefined}
+                                    tabIndex={linhaCliqueavel || onLinhaClick ? 0 : undefined}
                                 >
                                     {colunas.map((coluna) => {
                                         const valor = String(coluna.campo).split(".").reduce((obj: unknown, key: string) => (obj as Record<string, unknown>)?.[key], linha as Record<string, unknown>);
@@ -319,7 +373,10 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                             <IconButton
                                                                 size="small"
                                                                 color={acao.cor ?? "inherit"}
-                                                                onClick={() => acao.onClick(linha)}
+                                                                onClick={(evento) => {
+                                                                    evento.stopPropagation();
+                                                                    acao.onClick(linha);
+                                                                }}
                                                                 disabled={acao.desabilitado?.(linha)}
                                                                 aria-label={acao.tooltip ?? acao.rotulo}
                                                                 sx={{

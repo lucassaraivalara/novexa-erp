@@ -67,6 +67,7 @@ export default function FormaPagamentoForm({ forma, onFechar, onSalvo }: FormaPa
                             fullWidth
                             required
                             autoFocus
+                            autoComplete="off"
                             label="Descrição"
                             {...register("descricao")}
                             error={!!errors.descricao}
@@ -85,6 +86,7 @@ export default function FormaPagamentoForm({ forma, onFechar, onSalvo }: FormaPa
                                     label="Tipo"
                                     error={!!errors.tipo}
                                     helperText={errors.tipo?.message}
+                                    autoComplete="off"
                                     disabled={!!forma}
                                 >
                                     {tipos.map(([valor, label]) => <MenuItem key={valor} value={valor}>{label}</MenuItem>)}
