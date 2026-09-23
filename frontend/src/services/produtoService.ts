@@ -2,22 +2,18 @@ import axios from "axios";
 import type { Produto, ProdutoInput } from "../types/produto";
 import api from "./api";
 
-export async function listarProdutos(empresaId: number, signal?: AbortSignal): Promise<Produto[]> {
-    const resposta = await api.get<Produto[]>("/produtos", {
-        params: { empresaId },
-        signal,
-    });
+export async function listarProdutos(signal?: AbortSignal): Promise<Produto[]> {
+    const resposta = await api.get<Produto[]>("/produtos", { signal });
 
     return resposta.data;
 }
 
 export async function pesquisarProdutos(
-    empresaId: number,
     termo: string,
     signal?: AbortSignal,
 ): Promise<Produto[]> {
     const resposta = await api.get<Produto[]>("/produtos/buscar", {
-        params: { empresaId, termo },
+        params: { termo },
         signal,
     });
 
@@ -26,11 +22,8 @@ export async function pesquisarProdutos(
 
 export async function buscarProdutoPorId(
     id: number,
-    empresaId: number,
 ): Promise<Produto> {
-    const resposta = await api.get<Produto>(`/produtos/${id}`, {
-        params: { empresaId },
-    });
+    const resposta = await api.get<Produto>(`/produtos/${id}`);
 
     return resposta.data;
 }
@@ -66,10 +59,8 @@ function dadosSemSaldo(dados: ProdutoInput): ProdutoInput {
     return dadosProduto;
 }
 
-export async function excluirProduto(id: number, empresaId: number): Promise<void> {
-    await api.delete(`/produtos/${id}`, {
-        params: { empresaId },
-    });
+export async function excluirProduto(id: number): Promise<void> {
+    await api.delete(`/produtos/${id}`);
 }
 
 export function obterMensagemDaApi(

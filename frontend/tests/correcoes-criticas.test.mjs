@@ -132,7 +132,7 @@ test("cadastro e edição de produto não enviam estoqueAtual", async () => {
 test("formulário trata saldo como informação e estoque mínimo conforme o controle", async () => {
     const fonte = await readFile(new URL("../src/pages/Produtos/ProdutoForm.tsx", import.meta.url), "utf8");
     assert.match(fonte, /label="Estoque mínimo"/);
-    assert.match(fonte, /disabled={!formulario\.controlaEstoque}/);
+    assert.match(fonte, /disabled=\{\s*!formulario\.controlaEstoque\s*\}/s);
     assert.match(fonte, /Saldo atual:/);
     assert.doesNotMatch(fonte, /label="Estoque atual"/);
     assert.doesNotMatch(fonte, /alterarCampo\("estoqueAtual"/);
@@ -273,10 +273,10 @@ test("listagem e formulário de Produtos preservam campos reais e organização 
     assert.match(listagem, /compacta/);
     assert.match(listagem, /titulo: termoBusca\.trim\(\) \|\| situacao !== "todas" \? "Nenhum produto encontrado" : "Nenhum produto cadastrado"/);
     assert.match(listagem, /Novo produto/);
-    assert.match(formulario, /<Typography variant="subtitle2">Estoque<\/Typography>/);
-    assert.match(formulario, /<Typography variant="subtitle2">Identificação<\/Typography>/);
-    assert.match(formulario, /<Typography variant="subtitle2">Preços<\/Typography>/);
-    assert.match(formulario, />Controla estoque<\/Typography>/);
+    assert.match(formulario, /<Typography variant="subtitle2">\s*Estoque\s*<\/Typography>/s);
+    assert.match(formulario, /<Typography variant="subtitle2">\s*Identificação\s*<\/Typography>/s);
+    assert.match(formulario, /<Typography variant="subtitle2">\s*Preços\s*<\/Typography>/s);
+    assert.match(formulario, />\s*Controla estoque\s*<\/Typography>/s);
     assert.match(formulario, /label="Estoque mínimo"/);
     assert.match(formulario, /Saldo atual:/);
     assert.match(tabela, /cellPaddingCompact/);

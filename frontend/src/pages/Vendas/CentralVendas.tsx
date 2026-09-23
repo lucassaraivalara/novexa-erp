@@ -89,7 +89,7 @@ export default function CentralVendas() {
     useEffect(() => {
         if (!empresaId) return;
         const controller = new AbortController();
-        listarClientes(empresaId, controller.signal)
+        listarClientes(controller.signal)
             .then(setClientes)
             .catch(() => { /* O filtro continua utilizável sem a lista de clientes. */ });
         return () => controller.abort();

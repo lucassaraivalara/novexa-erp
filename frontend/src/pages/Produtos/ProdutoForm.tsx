@@ -18,7 +18,6 @@ type ProdutoFormProps = {
     produto: Produto | null;
     carregandoProduto: boolean;
     salvando: boolean;
-    empresaId: number;
     erroExterno: string;
     onFechar: () => void;
     onSalvar: (dados: ProdutoInput, arquivoImagem: File | null, removerImagem: boolean) => Promise<void>;
@@ -97,7 +96,6 @@ function ProdutoForm({
                          produto,
                          carregandoProduto,
                          salvando,
-                         empresaId,
                          erroExterno,
                          onFechar,
                          onSalvar,
@@ -233,7 +231,6 @@ function ProdutoForm({
         }
 
         return {
-            empresaId,
             codigoInterno:
                 formulario.codigoInterno.trim() || null,
             codigoBarras:

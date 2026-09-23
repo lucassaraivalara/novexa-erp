@@ -50,7 +50,7 @@ export default function Clientes() {
     useEffect(() => {
         const controller = new AbortController();
         if (!empresaId) return;
-        listarClientes(empresaId, controller.signal)
+        listarClientes(controller.signal)
             .then(setClientes)
             .catch((e) => {
                 if (!controller.signal.aborted) setErro(mensagemCliente(e, "Não foi possível carregar os clientes."));
@@ -103,7 +103,7 @@ export default function Clientes() {
         if (!empresaId) return;
         setAbrindo(c.id);
         try {
-            setEdicao(await buscarCliente(c.id, empresaId));
+            setEdicao(await buscarCliente(c.id));
         } catch (e) {
             setErro(mensagemCliente(e, "Não foi possível abrir o cliente."));
         } finally {
@@ -231,7 +231,6 @@ export default function Clientes() {
                 <ClienteForm
                     key={edicao?.id ?? "novo"}
                     cliente={edicao}
-                    empresaId={empresaId}
                     onFechar={() => setEdicao(undefined)}
                     onSalvo={(c) => {
                         setClientes((lista) => [...lista.filter((x) => x.id !== c.id), c].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));

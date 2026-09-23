@@ -2,12 +2,12 @@ import axios from "axios";
 import api from "./api";
 import type { Cliente, ClienteInput } from "../types/cliente";
 
-export async function listarClientes(empresaId: number, signal?: AbortSignal) {
-    return (await api.get<Cliente[]>("/clientes", { params: { empresaId }, signal })).data;
+export async function listarClientes(signal?: AbortSignal) {
+    return (await api.get<Cliente[]>("/clientes", { signal })).data;
 }
 
-export async function buscarCliente(id: number, empresaId: number) {
-    return (await api.get<Cliente>(`/clientes/${id}`, { params: { empresaId } })).data;
+export async function buscarCliente(id: number) {
+    return (await api.get<Cliente>(`/clientes/${id}`)).data;
 }
 
 export async function salvarCliente(dados: ClienteInput, id?: number) {

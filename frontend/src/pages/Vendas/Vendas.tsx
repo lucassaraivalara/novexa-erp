@@ -86,7 +86,7 @@ export default function Vendas() {
 
     useEffect(() => {
         let ativo = true;
-        if (empresaId) listarProdutos(empresaId).then(p => { if (ativo) setProdutos(p); })
+        if (empresaId) listarProdutos().then(p => { if (ativo) setProdutos(p); })
             .catch(e => { if (ativo) setErroCatalogo(obterMensagemDaApi(e, "Não foi possível carregar os produtos.")); })
             .finally(() => { if (ativo) setCarregando(false); });
         return () => { ativo = false; };
@@ -97,7 +97,7 @@ export default function Vendas() {
         opcionalRef.current?.focus();
         if (opcional !== "cliente" || !empresaId) return;
         const abort = new AbortController();
-        listarClientes(empresaId, abort.signal).then(c => setClientes(c.filter(c => c.ativo)))
+        listarClientes(abort.signal).then(c => setClientes(c.filter(c => c.ativo)))
             .catch(e => { if (!abort.signal.aborted) setErro(obterMensagemDaApi(e, "Não foi possível carregar os clientes.")); });
         return () => abort.abort();
     }, [opcional, empresaId]);
@@ -125,7 +125,7 @@ export default function Vendas() {
     async function recarregarCatalogo(focarAoConcluir = true) {
         if (!empresaId) return;
         setCarregando(true);
-        try { setProdutos(await listarProdutos(empresaId)); setErroCatalogo(""); }
+        try { setProdutos(await listarProdutos()); setErroCatalogo(""); }
         catch (e) { setErroCatalogo(obterMensagemDaApi(e, "Não foi possível carregar os produtos.")); }
         finally { setCarregando(false); if (focarAoConcluir) focarBusca(); }
     }

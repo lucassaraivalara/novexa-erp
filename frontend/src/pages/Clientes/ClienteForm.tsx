@@ -7,12 +7,12 @@ import type { Cliente, ClienteInput, ContatoCliente, EnderecoCliente } from "../
 import { mensagemCliente, salvarCliente } from "../../services/clienteService";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 
-type Props = { cliente: Cliente | null; empresaId: number; onFechar: () => void; onSalvo: (cliente: Cliente) => void };
+type Props = { cliente: Cliente | null; onFechar: () => void; onSalvo: (cliente: Cliente) => void };
 type Aba = "gerais" | "enderecos" | "contatos" | "comercial" | "observacoes";
 const novoEndereco = (): EnderecoCliente => ({ logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", cep: "", principal: true, entrega: true });
 const novoContato = (): ContatoCliente => ({ nome: "", cargo: "", telefone: "", email: "" });
 
-export default function ClienteForm({ cliente, empresaId, onFechar, onSalvo }: Props) {
+export default function ClienteForm({ cliente, onFechar, onSalvo }: Props) {
     const [aba, setAba] = useState<Aba>("gerais");
     const [salvando, setSalvando] = useState(false);
     const [erro, setErro] = useState("");
@@ -21,7 +21,7 @@ export default function ClienteForm({ cliente, empresaId, onFechar, onSalvo }: P
     const [enderecoAberto, setEnderecoAberto] = useState<number | null>(null);
     const [contatoAberto, setContatoAberto] = useState<number | null>(null);
     const [form, setForm] = useState<ClienteInput>(() => ({
-        empresaId, nome: cliente?.nome ?? "", nomeFantasia: cliente?.nomeFantasia ?? "", tipoPessoa: cliente?.tipoPessoa ?? "JURIDICA",
+        nome: cliente?.nome ?? "", nomeFantasia: cliente?.nomeFantasia ?? "", tipoPessoa: cliente?.tipoPessoa ?? "JURIDICA",
         cpfCnpj: cliente?.cpfCnpj ?? "", inscricaoEstadual: cliente?.inscricaoEstadual ?? "", email: cliente?.email ?? "", telefone: cliente?.telefone ?? "",
         endereco: cliente?.endereco ?? "", ativo: cliente?.ativo ?? true, enderecos: cliente?.enderecos ?? [], contatos: cliente?.contatos ?? [],
         vendedor: cliente?.vendedor ?? "", condicaoPagamento: cliente?.condicaoPagamento ?? "", limiteCredito: cliente?.limiteCredito ?? null,
@@ -52,7 +52,7 @@ export default function ClienteForm({ cliente, empresaId, onFechar, onSalvo }: P
         if (!form.nome.trim()) { setErro("Informe o nome ou razão social do cliente."); setAba("gerais"); return; }
         if (form.cpfCnpj && !/^([\d.\-/\s]{11,18})$/.test(form.cpfCnpj)) { setErro("Informe um CPF ou CNPJ válido."); setAba("gerais"); return; }
         setSalvando(true); setErro("");
-        try { const salvo = await salvarCliente({ ...form, nome: form.nome.trim(), empresaId }, cliente?.id); setAlterado(false); onSalvo(salvo); }
+        try { const salvo = await salvarCliente({ ...form, nome: form.nome.trim() }, cliente?.id); setAlterado(false); onSalvo(salvo); }
         catch (e) { setErro(mensagemCliente(e, "Não foi possível salvar o cliente.")); }
         finally { setSalvando(false); }
     }

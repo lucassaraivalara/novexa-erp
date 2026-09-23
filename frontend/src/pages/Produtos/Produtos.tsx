@@ -51,7 +51,7 @@ function Produtos() {
 
     const carregarProdutos = useCallback((busca: string, signal: AbortSignal) => {
         if (!empresaId) return Promise.resolve([]);
-        return busca ? pesquisarProdutos(empresaId, busca, signal) : listarProdutos(empresaId, signal);
+        return busca ? pesquisarProdutos(busca, signal) : listarProdutos(signal);
     }, [empresaId]);
     const buscaRemota = useRemoteSearch({
         enabled: Boolean(empresaId),
@@ -89,7 +89,7 @@ function Produtos() {
         setFormularioAberto(true);
         setCarregandoProduto(true);
         try {
-            setProdutoEmEdicao(await buscarProdutoPorId(produto.id, empresaId));
+            setProdutoEmEdicao(await buscarProdutoPorId(produto.id));
         } catch (erro) {
             setErroFormulario(obterMensagemDaApi(erro, "Não foi possível carregar o produto."));
         } finally {
@@ -138,7 +138,7 @@ function Produtos() {
         if (!empresaId || !produtoParaExcluir || excluindo) return;
         setExcluindo(true);
         try {
-            await excluirProduto(produtoParaExcluir.id, empresaId);
+            await excluirProduto(produtoParaExcluir.id);
             setProdutoParaExcluir(null);
             setNotificacao({ mensagem: "Produto inativado com sucesso.", tipo: "success" });
             await buscaRemota.refresh();
@@ -282,7 +282,6 @@ function Produtos() {
                 carregandoProduto={carregandoProduto}
                 key={produtoEmEdicao?.id ?? `novo-${formularioAberto}`}
                 salvando={salvando}
-                empresaId={empresaId}
                 erroExterno={erroFormulario}
                 onFechar={fecharFormulario}
                 onSalvar={salvarProduto}

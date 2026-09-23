@@ -18,7 +18,6 @@ export type Produto = {
 };
 
 export type ProdutoInput = {
-    empresaId: number;
     codigoInterno: string | null;
     codigoBarras: string | null;
     nome: string;
