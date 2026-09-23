@@ -138,6 +138,15 @@ test("formulário trata saldo como informação e estoque mínimo conforme o con
     assert.doesNotMatch(fonte, /alterarCampo\("estoqueAtual"/);
 });
 
+test("modal de fechamento soma dinheiro e usa os tipos reais da API", async () => {
+    const fonte = await readFile(new URL("../src/pages/Financeiro/Caixa.tsx", import.meta.url), "utf8");
+    assert.match(fonte, /filter\(\(forma\) => forma\.tipo === "DINHEIRO"\)/);
+    assert.match(fonte, /reduce\(\(total, forma\) => total \+ forma\.total, 0\)/);
+    assert.match(fonte, /\["PIX", "DEBITO", "CREDITO"\]/);
+    assert.doesNotMatch(fonte, /\["PIX", "CARTAO_DEBITO", "CARTAO_CREDITO"\]/);
+    assert.match(fonte, /DEBITO: "Débito", CREDITO: "Crédito"/);
+});
+
 test("Dados Bancários organiza Bancos, Agências e Contas em abas sem pedir empresa ao usuário", async () => {
     const navegacao = await readFile(new URL("../src/routes/navigation.tsx", import.meta.url), "utf8");
     const dadosBancarios = await readFile(new URL("../src/pages/Financeiro/DadosBancarios.tsx", import.meta.url), "utf8");
@@ -337,6 +346,9 @@ test("Caixa mantem abas, acoes e modais acessiveis", async () => {
     assert.match(caixa, /aria-labelledby="caixa-fechamento-titulo"/);
     assert.match(caixa, /name="saldoInicial"/);
     assert.match(caixa, /name="saldoFinal"/);
+    assert.match(caixa, /Dinheiro físico contado/);
+    assert.match(caixa, /Confirmar fechamento com divergência/);
+    assert.match(caixa, /saldoFinal: final/);
     assert.match(caixa, /name="observacao"/);
     assert.match(caixa, /caixa-vazio-titulo/);
     assert.match(caixa, /Nenhuma movimenta.{1,3}o registrada/);
