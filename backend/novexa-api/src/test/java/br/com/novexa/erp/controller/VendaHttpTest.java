@@ -160,6 +160,27 @@ class VendaHttpTest {
     }
 
     @Test
+    void outraEmpresaNaoCancelaVendaFaturadaNemAlteraSeusEfeitos() throws Exception {
+        long id = enviar(pedido());
+        var operadorOutraEmpresa = usuario(outra, "52998224725");
+
+        mvc.perform(post("/vendas/" + id + "/cancelar")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt.gerarToken(operadorOutraEmpresa)))
+                .andExpect(status().isNotFound());
+
+        assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
+        assertThat(movimentos.findAll()).singleElement()
+                .extracting(MovimentacaoEstoqueEntity::getOrigem).isEqualTo(OrigemMovimentacaoEstoque.VENDA);
+        assertThat(pagamentos.findAll()).singleElement()
+                .extracting(PagamentoEntity::getStatus).isEqualTo(StatusPagamento.REGISTRADO);
+        assertThat(financeiro.findAll()).singleElement()
+                .extracting(LancamentoFinanceiroEntity::getSituacao).isEqualTo(LancamentoFinanceiroEntity.Situacao.RECEBIDO);
+        assertThat(movimentosCaixa.findAll()).singleElement()
+                .extracting(MovimentacaoCaixaEntity::getTipo).isEqualTo(TipoMovimentacaoCaixa.VENDA);
+    }
+
+    @Test
     void cancelamentoComSessaoFechadaExplicaConflitoSemEfeitoParcial() throws Exception {
         long id = enviar(pedido());
         var sessao = sessoes.findAll().getFirst();
