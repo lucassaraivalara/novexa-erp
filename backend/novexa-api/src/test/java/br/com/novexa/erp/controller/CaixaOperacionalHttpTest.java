@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 import static org.assertj.core.api.Assertions.*;
@@ -47,6 +50,7 @@ class CaixaOperacionalHttpTest {
     @Autowired CaixaOperacionalService operacional;
     @Autowired SessaoCaixaService sessoesService;
     @Autowired VendaService vendaService;
+    @Autowired PagamentoRepository pagamentos;
     @Autowired JwtService jwt;
     @Autowired PlatformTransactionManager transactions;
     EmpresaEntity empresa;
@@ -101,6 +105,175 @@ class CaixaOperacionalHttpTest {
         for (String tabela : List.of("movimentacoes_caixa", "pagamentos", "lancamentos_financeiros", "itens_venda",
                 "vendas", "movimentacoes_estoque", "produtos", "sessoes_caixa", "caixas", "usuario", "empresas", "formas_pagamento"))
             jdbc.update("delete from " + tabela);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"DINHEIRO,1,DINHEIRO,110,2", "PIX,2,PIX,100,1",
+            "CARTAO_DEBITO,3,DEBITO,100,1", "CARTAO_CREDITO,4,CREDITO,100,1"})
+    void vendaCriaUmPagamentoESeparaDinheiroFisicoDosDemaisMeios(FormaPagamento forma, long formaId,
+            String tipo, int esperado, int quantidadeMovimentos) throws Exception {
+        var outra = sessoesService.abrir(caixa(empresa).getId(), new BigDecimal("500"), principal);
+        var pedido = venda(forma, sessao);
+        var resposta = vendaService.finalizar(pedido, principal);
+        assertThat(resposta.sessaoCaixaId()).isEqualTo(sessao);
+        assertThat(vendas.findById(resposta.id()).orElseThrow().getSessaoCaixa().getId()).isEqualTo(sessao);
+        var registros = pagamentos.findByEmpresaIdAndVendaIdOrderBySequenciaAsc(empresa.getId(), resposta.id());
+        assertThat(registros).hasSize(1);
+        var pagamento = registros.getFirst();
+        assertThat(pagamento.getStatus()).isEqualTo(StatusPagamento.REGISTRADO);
+        assertThat(pagamento.getForma().getId()).isEqualTo(formaId);
+        assertThat(pagamento.getFormaPagamento()).isEqualTo(forma);
+        assertThat(pagamento.getValor()).isEqualByComparingTo("10");
+        assertThat(pagamento.getSequencia()).isEqualTo(1);
+        assertThat(pagamento.getUsuario().getId()).isEqualTo(operador.getId());
+        assertThat(pagamento.getChaveRequisicao()).isEqualTo(pedido.chaveRequisicao());
+        if (forma == FormaPagamento.DINHEIRO) {
+            assertThat(pagamento.getValorRecebido()).isEqualByComparingTo("20");
+            assertThat(pagamento.getTroco()).isEqualByComparingTo("10");
+        } else {
+            assertThat(pagamento.getValorRecebido()).isNull();
+            assertThat(pagamento.getTroco()).isNull();
+        }
+        mvc.perform(get("/vendas/" + resposta.id() + "/pagamentos").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].formaPagamentoId").value(formaId))
+                .andExpect(jsonPath("$[0].tipoFormaPagamento").value(tipo))
+                .andExpect(jsonPath("$[0].valor").value(10));
+        var fisicos = movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao, empresa.getId());
+        assertThat(fisicos).hasSize(quantidadeMovimentos);
+        if (forma == FormaPagamento.DINHEIRO) {
+            var entrada = fisicos.getLast();
+            assertThat(entrada.getTipo()).isEqualTo(TipoMovimentacaoCaixa.VENDA);
+            assertThat(entrada.getPagamento().getId()).isEqualTo(pagamento.getId());
+            assertThat(entrada.getValor()).isEqualByComparingTo("10");
+        } else {
+            assertThat(fisicos).allSatisfy(m -> {
+                assertThat(m.getTipo()).isEqualTo(TipoMovimentacaoCaixa.SUPRIMENTO);
+                assertThat(m.getPagamento()).isNull();
+            });
+        }
+        mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + "/resumo").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalVendas").value(10))
+                .andExpect(jsonPath("$.saldoEsperadoDinheiro").value(esperado))
+                .andExpect(jsonPath("$.totaisPorFormaPagamento.length()").value(1))
+                .andExpect(jsonPath("$.totaisPorFormaPagamento[0].formaPagamentoId").value(formaId))
+                .andExpect(jsonPath("$.totaisPorFormaPagamento[0].tipo").value(tipo))
+                .andExpect(jsonPath("$.totaisPorFormaPagamento[0].total").value(10));
+        assertThat(operacional.resumo(outra.id(), empresa.getId()).saldoEsperadoDinheiro()).isEqualByComparingTo("500");
+        assertThat(operacional.resumo(outra.id(), empresa.getId()).totalVendas()).isZero();
+    }
+
+    @ParameterizedTest @CsvSource({"SUPRIMENTO,125,25,0", "SANGRIA,75,0,25"})
+    void movimentoManualAfetaSomenteASessaoInformada(TipoMovimentacaoCaixa tipo, int esperado,
+            int suprimentos, int sangrias) throws Exception {
+        var outra = sessoesService.abrir(caixa(empresa).getId(), new BigDecimal("500"), principal);
+        var pedido = manual(tipo, "25");
+        var resposta = mvc.perform(post("/financeiro/caixas/sessoes/" + sessao + "/movimentacoes")
+                .header("Authorization", token).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pedido)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.sessaoId").value(sessao))
+                .andExpect(jsonPath("$.usuarioId").value(operador.getId()))
+                .andExpect(jsonPath("$.tipo").value(tipo.name())).andExpect(jsonPath("$.valor").value(25))
+                .andReturn();
+        var id = json.readTree(resposta.getResponse().getContentAsString()).get("id").asLong();
+        var salvo = movimentos.findById(id).orElseThrow();
+        assertThat(salvo.getSessao().getId()).isEqualTo(sessao);
+        assertThat(salvo.getPagamento()).isNull();
+        var resumo = operacional.resumo(sessao, empresa.getId());
+        assertThat(resumo.saldoEsperadoDinheiro()).isEqualByComparingTo(Integer.toString(esperado));
+        assertThat(resumo.suprimentos()).isEqualByComparingTo(Integer.toString(suprimentos));
+        assertThat(resumo.sangrias()).isEqualByComparingTo(Integer.toString(sangrias));
+        assertThat(operacional.resumo(outra.id(), empresa.getId()).saldoEsperadoDinheiro()).isEqualByComparingTo("500");
+        assertThat(movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(outra.id(), empresa.getId())).hasSize(1);
+    }
+
+    @Test void sangriaNaoUsaSaldoDeOutraSessaoNemTotaisEletronicos() throws Exception {
+        sessoesService.abrir(caixa(empresa).getId(), new BigDecimal("500"), principal);
+        for (var forma : List.of(FormaPagamento.PIX, FormaPagamento.CARTAO_DEBITO, FormaPagamento.CARTAO_CREDITO))
+            vendaService.finalizar(venda(forma, sessao), principal);
+        mvc.perform(post("/financeiro/caixas/sessoes/" + sessao + "/movimentacoes")
+                .header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(manual(TipoMovimentacaoCaixa.SANGRIA, "100.01"))))
+                .andExpect(status().isConflict()).andExpect(content().string("Saldo em dinheiro insuficiente para sangria."));
+        assertThat(movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao, empresa.getId())).hasSize(1);
+        assertThat(operacional.resumo(sessao, empresa.getId()).saldoEsperadoDinheiro()).isEqualByComparingTo("100");
+    }
+
+    @ParameterizedTest @CsvSource({"112.50,2.50", "107.50,-2.50", "110.00,0.00"})
+    void fechamentoRegistraOperadorDataESaldoECalculaSobraOuFalta(BigDecimal informado, BigDecimal diferenca) throws Exception {
+        vendaService.finalizar(venda(FormaPagamento.DINHEIRO, sessao), principal);
+        var colega = usuario(empresa, "22222222222");
+        var antes = LocalDateTime.now().minusSeconds(1);
+        mvc.perform(post("/financeiro/caixas/" + caixa.getId() + "/sessoes/" + sessao + "/fechar")
+                .header("Authorization", "Bearer " + jwt.gerarToken(colega)).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(Map.of("saldoFinal", informado))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("FECHADO"))
+                .andExpect(jsonPath("$.usuarioFechamentoId").value(colega.getId()))
+                .andExpect(jsonPath("$.dataFechamento").isNotEmpty())
+                .andExpect(jsonPath("$.saldoFinal").value(informado.doubleValue()))
+                .andExpect(jsonPath("$.resumo.diferenca").value(diferenca.doubleValue()));
+        var salva = sessoes.findById(sessao).orElseThrow();
+        assertThat(salva.getUsuarioAbertura().getId()).isEqualTo(operador.getId());
+        assertThat(salva.getUsuarioFechamento().getId()).isEqualTo(colega.getId());
+        assertThat(salva.getDataFechamento()).isBetween(antes, LocalDateTime.now().plusSeconds(1));
+        assertThat(salva.getSaldoFinal()).isEqualByComparingTo(informado);
+        var resumo = operacional.resumo(sessao, empresa.getId());
+        assertThat(resumo.saldoEsperadoDinheiro()).isEqualByComparingTo("110");
+        assertThat(resumo.saldoFinalInformado()).isEqualByComparingTo(informado);
+        assertThat(resumo.diferenca()).isEqualByComparingTo(diferenca);
+    }
+
+    @ParameterizedTest @EnumSource(FormaPagamento.class)
+    void cancelamentoEmSessaoAbertaEstornaSomenteDinheiroSemDuplicar(FormaPagamento forma) throws Exception {
+        var venda = vendaService.finalizar(venda(forma, sessao), principal);
+        var pagamento = pagamentos.findByEmpresaIdAndVendaIdOrderBySequenciaAsc(empresa.getId(), venda.id()).getFirst();
+        var originais = movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao, empresa.getId());
+        for (int tentativa = 0; tentativa < 2; tentativa++)
+            mvc.perform(post("/vendas/" + venda.id() + "/cancelar").header("Authorization", token))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELADA"));
+        var atuais = movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao, empresa.getId());
+        assertThat(atuais).extracting(MovimentacaoCaixaEntity::getId)
+                .containsAll(originais.stream().map(MovimentacaoCaixaEntity::getId).toList());
+        if (forma == FormaPagamento.DINHEIRO) {
+            assertThat(atuais).hasSize(3);
+            var estorno = atuais.getLast();
+            assertThat(estorno.getTipo()).isEqualTo(TipoMovimentacaoCaixa.ESTORNO_VENDA);
+            assertThat(estorno.getPagamento().getId()).isEqualTo(pagamento.getId());
+            assertThat(estorno.getValor()).isEqualByComparingTo("10");
+            assertThat(atuais.get(1).getTipo()).isEqualTo(TipoMovimentacaoCaixa.VENDA);
+            assertThat(atuais.get(1).getValor()).isEqualByComparingTo("10");
+        } else {
+            assertThat(atuais).hasSize(1);
+            assertThat(atuais.getFirst().getTipo()).isEqualTo(TipoMovimentacaoCaixa.SUPRIMENTO);
+        }
+        var registros = pagamentos.findByEmpresaIdAndVendaIdOrderBySequenciaAsc(empresa.getId(), venda.id());
+        assertThat(registros).hasSize(1);
+        assertThat(registros.getFirst().getStatus()).isEqualTo(StatusPagamento.CANCELADO);
+        assertThat(registros.getFirst().getValor()).isEqualByComparingTo("10");
+        var resumo = operacional.resumo(sessao, empresa.getId());
+        assertThat(resumo.totalVendas()).isZero();
+        assertThat(resumo.totaisPorFormaPagamento()).isEmpty();
+        assertThat(resumo.saldoEsperadoDinheiro()).isEqualByComparingTo("100");
+    }
+
+    @ParameterizedTest @EnumSource(FormaPagamento.class)
+    void sessaoFechadaRejeitaCancelamentoDeQualquerMeioSemEfeitoParcial(FormaPagamento forma) throws Exception {
+        var venda = vendaService.finalizar(venda(forma, sessao), principal);
+        var resumoAntes = operacional.resumo(sessao, empresa.getId());
+        sessoesService.fechar(caixa.getId(), sessao, resumoAntes.saldoEsperadoDinheiro(), principal);
+        var movimentosAntes = movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao, empresa.getId())
+                .stream().map(MovimentacaoCaixaEntity::getId).toList();
+        mvc.perform(post("/vendas/" + venda.id() + "/cancelar").header("Authorization", token))
+                .andExpect(status().isConflict()).andExpect(content().string("Sessão de Caixa fechada."));
+        assertThat(vendas.findById(venda.id()).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
+        assertThat(pagamentos.findByEmpresaIdAndVendaIdOrderBySequenciaAsc(empresa.getId(), venda.id()))
+                .singleElement().satisfies(p -> assertThat(p.getStatus()).isEqualTo(StatusPagamento.REGISTRADO));
+        assertThat(movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao, empresa.getId())
+                .stream().map(MovimentacaoCaixaEntity::getId).toList()).isEqualTo(movimentosAntes);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("19");
+        var resumoDepois = operacional.resumo(sessao, empresa.getId());
+        assertThat(resumoDepois.totalVendas()).isEqualByComparingTo(resumoAntes.totalVendas());
+        assertThat(resumoDepois.totaisPorFormaPagamento()).isEqualTo(resumoAntes.totaisPorFormaPagamento());
+        assertThat(resumoDepois.saldoEsperadoDinheiro()).isEqualByComparingTo(resumoAntes.saldoEsperadoDinheiro());
     }
 
     @Test void cicloCompletoSeparaTotaisDeDinheiroEFechaComDiferenca() throws Exception {
@@ -174,15 +347,30 @@ class CaixaOperacionalHttpTest {
 
     @Test void multiempresaProtegeSessaoMovimentosResumoEFaturamento() throws Exception {
         var b = empresa("B"); var ub = usuario(b, "11144477735");
-        var sb = sessoes.saveAndFlush(new SessaoCaixaEntity(caixa(b), ub, BigDecimal.ZERO));
+        var caixaB = caixa(b);
+        var sb = sessoes.saveAndFlush(new SessaoCaixaEntity(caixaB, ub, BigDecimal.TEN));
         for (String rota : List.of("/resumo", "/movimentacoes"))
             mvc.perform(get("/financeiro/caixas/sessoes/" + sb.getId() + rota).header("Authorization", token)).andExpect(status().isNotFound());
-        mvc.perform(post("/financeiro/caixas/sessoes/" + sb.getId() + "/movimentacoes").header("Authorization", token)
-                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(manual(TipoMovimentacaoCaixa.SUPRIMENTO, "1"))))
-                .andExpect(status().isNotFound());
+        for (var tipo : List.of(TipoMovimentacaoCaixa.SUPRIMENTO, TipoMovimentacaoCaixa.SANGRIA))
+            mvc.perform(post("/financeiro/caixas/sessoes/" + sb.getId() + "/movimentacoes").header("Authorization", token)
+                    .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(manual(tipo, "1"))))
+                    .andExpect(status().isNotFound());
+        mvc.perform(get("/financeiro/caixas/" + caixaB.getId() + "/sessoes/aberta")
+                .header("Authorization", token)).andExpect(status().isNotFound());
+        for (var idCaixa : List.of(caixaB.getId(), caixa.getId()))
+            mvc.perform(post("/financeiro/caixas/" + idCaixa + "/sessoes/" + sb.getId() + "/fechar")
+                    .header("Authorization", token).contentType(MediaType.APPLICATION_JSON).content("{\"saldoFinal\":10}"))
+                    .andExpect(status().isNotFound());
         assertThatThrownBy(() -> vendaService.finalizar(venda(FormaPagamento.DINHEIRO, sb.getId()), principal))
                 .hasMessageContaining("404");
         assertThat(vendas.count()).isZero();
+        var preservada = sessoes.findById(sb.getId()).orElseThrow();
+        assertThat(preservada.getStatus()).isEqualTo(StatusSessaoCaixa.ABERTO);
+        assertThat(preservada.getSaldoFinal()).isNull();
+        assertThat(preservada.getUsuarioFechamento()).isNull();
+        assertThat(preservada.getDataFechamento()).isNull();
+        assertThat(movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sb.getId(), b.getId())).isEmpty();
+        assertThat(operacional.resumo(sb.getId(), b.getId()).saldoEsperadoDinheiro()).isEqualByComparingTo("10");
     }
 
     @Test void exigeSelecaoQuandoAmbiguaESessaoAbertaParaTodasAsFormas() {
