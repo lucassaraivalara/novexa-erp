@@ -2,3 +2,27 @@
 .m2/
 .codex/
 /backend/novexa-api/config/application-local.properties
+
+# Local environment and credential files
+.env
+.env.*
+!.env.example
+!**/.env.example
+**/application-local.properties
+!**/application-local.example.properties
+*.credentials
+*.credentials.*
+credentials.json
+**/credentials/
+*.secret
+*.secrets
+secrets.json
+**/secrets/
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
