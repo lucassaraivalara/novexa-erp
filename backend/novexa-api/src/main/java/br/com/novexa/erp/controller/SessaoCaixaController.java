@@ -29,7 +29,7 @@ public class SessaoCaixaController {
     @PostMapping("/{sessaoId}/fechar")
     public SessaoCaixaResponseDTO fechar(@PathVariable Long caixaId, @PathVariable Long sessaoId,
             @Valid @RequestBody FechamentoCaixaDTO request, @AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return service.fechar(caixaId, sessaoId, request.saldoFinal(), usuario);
+        return service.fechar(caixaId, sessaoId, request, usuario);
     }
 
     @ExceptionHandler(ResponseStatusException.class)

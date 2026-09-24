@@ -10,9 +10,29 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; cadastros frontend estruturados
 Dashboard ...... placeholder
 
+## Fechamento de Caixa: conferência por forma de pagamento — Fase 2 frontend (2026-09-24)
+
+- Aplicada na branch `feat/conferencia-fechamento-backend`, sobre `0da945a`, junto ao contrato da Fase 1. Somente os tres arquivos frontend da Fase 2 e este registro foram integrados; alteracoes locais do checkout principal preservadas.
+- Frontend do modal "Fechar Caixa" ([Caixa.tsx](../../frontend/src/pages/Financeiro/Caixa.tsx)) confere cada forma nao dinheiro do resumo, pre-preenchida com o esperado e ajustavel pelo operador, alem do dinheiro fisico. Exibe esperado/informado/diferenca por linha e exige observacao quando ha divergencia.
+- Envio usa `{saldoFinal, conferencia: {formas: [{formaPagamentoId, valorInformado}], observacao?}}`. Sessoes somente em dinheiro enviam `formas: []`, preservando snapshot e observacao no modo POR_FORMA. O tipo opcional em [caixa.ts](../../frontend/src/types/caixa.ts) mantem chamadas legadas validas.
+- Erro 409 exibe a mensagem do backend, tenta atualizar o resumo e preserva os valores digitados para reconferencia.
+- Ajustes de integracao restritos ao modal: envio de conferencia tambem em sessoes somente em dinheiro e uso de `sx.display` em Typography para compatibilidade com o MUI instalado. Teste de regressao atualizado em [correcoes-criticas.test.mjs](../../frontend/tests/correcoes-criticas.test.mjs).
+- Validacao combinada: 24 testes frontend relacionados e suite completa de 70 testes aprovados; `npm run build` (TypeScript + Vite) aprovado; 155 testes backend relacionados aprovados (66 CaixaOperacionalHttpTest, 12 SessaoCaixaHttpTest, 68 VendaHttpTest, 9 CancelamentoVendaServiceTest). Nenhuma alteracao no backend da Fase 1.
+- Lint direcionado aponta dois `react-hooks/set-state-in-effect` preexistentes em Caixa.tsx, reproduzidos no baseline `0da945a`; E2E autenticado nao executado. Alteracoes originais da Fase 2 permanecem no checkout principal, junto das demais alteracoes locais.
+
+## Conferencia do fechamento por forma — Fase 1 backend (2026-09-24)
+
+- Branch `feat/conferencia-fechamento-backend`, atualizada com o baseline `1b313df`; implementado na branch, pendente de integracao.
+- V16 aditiva: modalidade/observacao na sessao e snapshots em conferencias_fechamento_caixa, com FK de tenant e unicidade. Fechamentos antigos classificados LEGADA sem valores conferidos inventados.
+- POST de fechamento aceita conferencia opcional. LEGADA preserva saldoFinal; POR_FORMA exige dinheiro fisico e todas as formas nao dinheiro da sessao, com observacao em qualquer divergencia. Recalculo sob lock, persistencia atomica e retry equivalente sem duplicacao; alteracao retorna 409.
+- Resposta inclui modalidade, observacao e linhas persistidas. Cancelamento de venda em sessao fechada permanece bloqueado para todos os meios. Contrato detalhado em [financeiro.md](financeiro.md).
+- Validacao atualizada: 156 testes relacionados aprovados (66 CaixaOperacionalHttpTest, 12 SessaoCaixaHttpTest, 68 VendaHttpTest, 9 CancelamentoVendaServiceTest e 1 ConferenciaFechamentoCaixaMigrationTest). V1-V16, constraints e Hibernate validate verificados em schema temporario no PostgreSQL 18 de testes. Cobertura comprova recalculo dos esperados e desconsideracao de valores esperados forjados pelo cliente; limpeza das fixtures de sessao ajustada para respeitar as FKs.
+- Suite backend completa (`mvn test`): 542 cenarios, 525 aprovados, 2 ignorados (migrations antigas condicionais) e 15 erros em EstoqueConcorrenciaTest por bean ArquivoStorageService ausente. Mesmos 15 erros reproduzidos no checkout principal `1b313df`; correcao fora deste escopo. `clean` nao executado para preservar o cluster PostgreSQL local existente em target.
+- Frontend, historico detalhado, relatorios e revisao do resumo do modal permanecem fora desta fase. Nenhuma alteracao de frontend ou de configuracao de deploy.
+
 ## Consolidacao dos testes Caixa/PDV (2026-09-23)
 
-- Branch `test/contrato-caixa-pdv`, base `dad70f2`, pendente de integracao. Reutiliza fixtures/helpers de CaixaOperacionalHttpTest e protege o contrato de uma forma por venda.
+- Branch `test/contrato-caixa-pdv`, base `dad70f2`, integrada no checkout principal por `1b313df`. Reutiliza fixtures/helpers de CaixaOperacionalHttpTest e protege o contrato de uma forma por venda.
 - Acrescentados 18 cenarios: pagamento/movimento/resumo por meio, separacao entre sessoes, suprimento/sangria, limite de dinheiro fisico, fechamento com sobra/falta/zero e cancelamento nas quatro formas com sessao aberta/fechada. Isolamento HTTP reforcado para consulta, fechamento e ambos os movimentos manuais, verificando ausencia de efeitos.
 - Validacao: 115 testes aprovados, sem falhas ou ignorados (38 CaixaOperacionalHttpTest, 68 VendaHttpTest, 9 CancelamentoVendaServiceTest). Somente testes backend relacionados executados, com H2/MockMvc; suite completa e migrations nao executadas nesta tarefa.
 - Nenhuma alteracao de codigo de producao ou frontend. Pagamento misto e conferencia por forma nao fazem parte desta consolidacao.

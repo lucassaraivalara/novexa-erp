@@ -16,6 +16,8 @@ A V6 migra o modelo legado e mantém a tabela original somente como arquivo hist
 
 ## Evolução financeira
 
+Na branch `feat/conferencia-fechamento-backend` (baseline atualizado `1b313df`), a V16 acrescenta modalidade/observacao a SessaoCaixa e a relacao 1:N com ConferenciaFechamentoCaixa. O fechamento POR_FORMA persiste snapshots operacionais por forma e uma contagem fisica unica; o contrato LEGADA permanece disponivel. FK composta protege o tenant e o lock existente serializa fechamento, vendas e cancelamentos. Contrato e limites da Fase 1 em [financeiro.md](financeiro.md); frontend/historico detalhado ainda pendentes de implementacao.
+
 `Venda → Pagamento` existe na base `aeaec2e`; `Pagamento DINHEIRO → MovimentacaoCaixa` existe no MVP operacional, pela sessão associada à Venda. Os demais destinos permanecem FUTUROS. O lançamento temporário não substitui os destinos oficiais.
 
 A fundação de Formas de Pagamento separa o catálogo global compartilhado (`FormaPagamentoEntity`, sem Empresa) do tipo técnico (`TipoFormaPagamento`). Pagamento referencia a forma, mantendo seu próprio tenant. Condição de prazo/parcelamento e os cadastros `Banco → Agência → Conta Bancária` permanecem futuros. Caixa possui cadastro e relação 1:N com SessaoCaixaEntity, com uma única sessão aberta e histórico de fechamentos; com Venda vinculada à sessão, totais operacionais por forma e movimentos físicos VENDA/SUPRIMENTO/SANGRIA. A sessão não transforma PIX/cartões em dinheiro; veja os contratos em financeiro.md. Configuração cadastral, sessão operacional, registro de pagamento e movimentação financeira têm responsabilidades distintas.

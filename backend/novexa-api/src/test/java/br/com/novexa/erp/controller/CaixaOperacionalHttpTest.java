@@ -53,6 +53,9 @@ class CaixaOperacionalHttpTest {
     @Autowired PagamentoRepository pagamentos;
     @Autowired JwtService jwt;
     @Autowired PlatformTransactionManager transactions;
+    @Autowired ConferenciaFechamentoCaixaRepository conferencias;
+    @Autowired FormaPagamentoRepository formas;
+    @Autowired CancelamentoVendaService cancelamento;
     EmpresaEntity empresa;
     UsuarioEntity operador;
     UsuarioAutenticado principal;
@@ -102,7 +105,7 @@ class CaixaOperacionalHttpTest {
     }
 
     @AfterEach void limpar() {
-        for (String tabela : List.of("movimentacoes_caixa", "pagamentos", "lancamentos_financeiros", "itens_venda",
+        for (String tabela : List.of("conferencias_fechamento_caixa", "movimentacoes_caixa", "pagamentos", "lancamentos_financeiros", "itens_venda",
                 "vendas", "movimentacoes_estoque", "produtos", "sessoes_caixa", "caixas", "usuario", "empresas", "formas_pagamento"))
             jdbc.update("delete from " + tabela);
     }
@@ -485,6 +488,222 @@ class CaixaOperacionalHttpTest {
         assertThat(operacional.resumo(sessao, empresa.getId()).saldoEsperadoDinheiro()).isEqualByComparingTo("100");
     }
 
+
+    @Test void fechamentoLegadoMantemDivergenciaSemObservacao() throws Exception {
+        mvc.perform(post(urlFechamento()).header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"saldoFinal\":90}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.modalidadeConferencia").value("LEGADA"))
+                .andExpect(jsonPath("$.resumo.diferenca").value(-10)).andExpect(jsonPath("$.conferencias").isEmpty());
+        var salvo = sessoes.findById(sessao).orElseThrow();
+        assertThat(salvo.getModalidadeConferencia()).isEqualTo(ModalidadeConferencia.LEGADA);
+        assertThat(salvo.getObservacaoFechamento()).isNull();
+        assertThat(conferencias.count()).isZero();
+        assertThat(sessoesService.fechar(caixa.getId(), sessao, new BigDecimal("90.00"), principal).dataFechamento())
+                .isEqualTo(salvo.getDataFechamento());
+        assertThatThrownBy(() -> sessoesService.fechar(caixa.getId(), sessao, new BigDecimal("91"), principal))
+                .hasMessageContaining("409");
+    }
+
+    @Test void conferenciaCompletaPersisteDinheiroLiquidoETodasAsFormas() throws Exception {
+        for (var forma : FormaPagamento.values()) vendaService.finalizar(venda(forma, null), principal);
+        operacional.movimentar(sessao, manual(TipoMovimentacaoCaixa.SUPRIMENTO, "5"), principal);
+        operacional.movimentar(sessao, manual(TipoMovimentacaoCaixa.SANGRIA, "3"), principal);
+        var pedido = conferencia("112", null, informado(2, "10"), informado(3, "10"), informado(4, "10"));
+        mvc.perform(post(urlFechamento()).header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(pedido)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.modalidadeConferencia").value("POR_FORMA"))
+                .andExpect(jsonPath("$.conferencias.length()").value(4))
+                .andExpect(jsonPath("$.conferencias[0].escopo").value("DINHEIRO_FISICO"))
+                .andExpect(jsonPath("$.conferencias[0].valorEsperado").value(112))
+                .andExpect(jsonPath("$.conferencias[0].valorInformado").value(112))
+                .andExpect(jsonPath("$.conferencias[0].diferenca").value(0));
+        var salvas = conferencias.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao, empresa.getId());
+        assertThat(salvas).hasSize(4).allSatisfy(l -> {
+            assertThat(l.getEmpresa().getId()).isEqualTo(empresa.getId());
+            assertThat(l.getDiferenca()).isEqualByComparingTo("0");
+        });
+    }
+
+    @Test void fechamentoRecalculaEsperadosEIgnoraValoresForjadosNoRequest() throws Exception {
+        vendaService.finalizar(venda(FormaPagamento.PIX, null), principal);
+        operacional.resumo(sessao, empresa.getId());
+        vendaService.finalizar(venda(FormaPagamento.PIX, null), principal);
+        operacional.movimentar(sessao, manual(TipoMovimentacaoCaixa.SUPRIMENTO, "5"), principal);
+        mvc.perform(post(urlFechamento()).header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"saldoFinal":105,"saldoEsperadoDinheiro":0,
+                         "conferencia":{"formas":[{"formaPagamentoId":2,"valorInformado":20,"valorEsperado":0}]}}
+                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conferencias[0].valorEsperado").value(105))
+                .andExpect(jsonPath("$.conferencias[1].valorEsperado").value(20))
+                .andExpect(jsonPath("$.conferencias[1].diferenca").value(0));
+        var salvas = conferencias.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao, empresa.getId());
+        assertThat(salvas.getFirst().getValorEsperado()).isEqualByComparingTo("105");
+        assertThat(salvas.getLast().getValorEsperado()).isEqualByComparingTo("20");
+    }
+
+    @Test void nenhumaVendaExigeSomenteConferenciaDoDinheiro() {
+        var resposta = sessoesService.fechar(caixa.getId(), sessao, conferencia("100", null), principal);
+        assertThat(resposta.conferencias()).hasSize(1);
+        assertThat(resposta.conferencias().getFirst().formaPagamentoId()).isNull();
+    }
+
+    @Test void divergenciasNaoSeCompensamEExigemObservacao() throws Exception {
+        vendaService.finalizar(venda(FormaPagamento.PIX, null), principal);
+        var pedido = conferencia("99", "  ", informado(2, "11"));
+        mvc.perform(post(urlFechamento()).header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(pedido))).andExpect(status().isConflict());
+        assertThat(conferencias.count()).isZero();
+        assertThat(sessoes.findById(sessao).orElseThrow().getStatus()).isEqualTo(StatusSessaoCaixa.ABERTO);
+        var resposta = sessoesService.fechar(caixa.getId(), sessao,
+                conferencia("99", "  Falta em dinheiro e sobra no PIX  ", informado(2, "11")), principal);
+        assertThat(resposta.observacaoFechamento()).isEqualTo("Falta em dinheiro e sobra no PIX");
+        assertThat(resposta.conferencias().getFirst().diferenca()).isEqualByComparingTo("-1");
+        assertThat(resposta.conferencias().getLast().diferenca()).isEqualByComparingTo("1");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "[]",
+        "[{\"formaPagamentoId\":2,\"valorInformado\":10},{\"formaPagamentoId\":2,\"valorInformado\":10}]",
+        "[{\"formaPagamentoId\":2,\"valorInformado\":10},{\"formaPagamentoId\":3,\"valorInformado\":0}]",
+        "[{\"formaPagamentoId\":999999,\"valorInformado\":10}]",
+        "[{\"formaPagamentoId\":1,\"valorInformado\":10}]",
+        "[{\"formaPagamentoId\":2,\"valorInformado\":-1}]",
+        "[{\"formaPagamentoId\":2,\"valorInformado\":1.001}]",
+        "[{\"formaPagamentoId\":2,\"valorInformado\":100000000000000000}]",
+        "[{\"formaPagamentoId\":2}]", "[null]", "null"
+    })
+    void rejeitaConferenciaInvalidaSemFecharOuPersistir(String formasJson) throws Exception {
+        vendaService.finalizar(venda(FormaPagamento.PIX, null), principal);
+        mvc.perform(post(urlFechamento()).header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"saldoFinal\":100,\"conferencia\":{\"formas\":" + formasJson + "}}"))
+                .andExpect(status().isBadRequest());
+        assertThat(conferencias.count()).isZero();
+        var aberta = sessoes.findById(sessao).orElseThrow();
+        assertThat(aberta.getStatus()).isEqualTo(StatusSessaoCaixa.ABERTO);
+        assertThat(aberta.getModalidadeConferencia()).isNull();
+    }
+
+    @Test void retryEquivalentePreservaSnapshotMesmoAposRenomearEInativarForma() {
+        vendaService.finalizar(venda(FormaPagamento.PIX, null), principal);
+        vendaService.finalizar(venda(FormaPagamento.CARTAO_DEBITO, null), principal);
+        var primeira = sessoesService.fechar(caixa.getId(), sessao,
+                conferencia("100", "Conferido", informado(2, "10"), informado(3, "10")), principal);
+        var ids = conferencias.findAll().stream().map(ConferenciaFechamentoCaixaEntity::getId).toList();
+        var pix = formas.findById(2L).orElseThrow();
+        pix.atualizar("PIX renomeado", false); formas.saveAndFlush(pix);
+        var segunda = sessoesService.fechar(caixa.getId(), sessao,
+                conferencia("100.00", " Conferido ", informado(3, "10.00"), informado(2, "10.0")), principal);
+        assertThat(segunda.conferencias()).isEqualTo(primeira.conferencias());
+        assertThat(segunda.dataFechamento()).isEqualTo(primeira.dataFechamento());
+        assertThat(segunda.usuarioFechamentoId()).isEqualTo(primeira.usuarioFechamentoId());
+        assertThat(conferencias.findAll().stream().map(ConferenciaFechamentoCaixaEntity::getId).toList()).isEqualTo(ids);
+    }
+
+    @Test void retryDiferenteNaoSobrescreveConferencia() throws Exception {
+        vendaService.finalizar(venda(FormaPagamento.PIX, null), principal);
+        var pedido = conferencia("100", null, informado(2, "10"));
+        sessoesService.fechar(caixa.getId(), sessao, pedido, principal);
+        for (var alterado : List.of(
+                conferencia("101", null, informado(2, "10")),
+                conferencia("100", null, informado(2, "11")),
+                conferencia("100", "Outra observacao", informado(2, "10")),
+                conferencia("100", null),
+                new FechamentoCaixaDTO(new BigDecimal("100")))) {
+            mvc.perform(post(urlFechamento()).header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                    .content(json.writeValueAsBytes(alterado))).andExpect(status().isConflict());
+        }
+        assertThat(conferencias.count()).isEqualTo(2);
+        assertThat(sessoesService.fechar(caixa.getId(), sessao, pedido, principal).observacaoFechamento()).isNull();
+    }
+
+    @Test void fechamentoLegadoNaoPodeSerConvertidoEmConferencia() {
+        sessoesService.fechar(caixa.getId(), sessao, new BigDecimal("100"), principal);
+        assertThatThrownBy(() -> sessoesService.fechar(caixa.getId(), sessao, conferencia("100", null), principal))
+                .hasMessageContaining("409");
+        assertThat(conferencias.count()).isZero();
+    }
+
+    @Test void outraEmpresaNaoFechaNemReexecutaConferencia() throws Exception {
+        var b = empresa("B"); var ub = usuario(b, "11144477735");
+        String tokenB = "Bearer " + jwt.gerarToken(ub);
+        var pedido = conferencia("100", null);
+        for (boolean fecharPrimeiro : List.of(false, true)) {
+            if (fecharPrimeiro) sessoesService.fechar(caixa.getId(), sessao, pedido, principal);
+            mvc.perform(post(urlFechamento()).header("Authorization", tokenB).contentType(MediaType.APPLICATION_JSON)
+                    .content(json.writeValueAsBytes(pedido))).andExpect(status().isNotFound());
+        }
+        assertThat(conferencias.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao, b.getId())).isEmpty();
+        assertThat(conferencias.count()).isEqualTo(1);
+    }
+
+    @Test void rollbackDoFechamentoRemoveConferenciaEMantemSessaoAberta() {
+        assertThatThrownBy(() -> new TransactionTemplate(transactions).executeWithoutResult(tx -> {
+            sessoesService.fechar(caixa.getId(), sessao, conferencia("100", null), principal);
+            throw new IllegalStateException("falha posterior");
+        })).hasMessageContaining("falha posterior");
+        assertThat(conferencias.count()).isZero();
+        assertThat(sessoes.findById(sessao).orElseThrow().getStatus()).isEqualTo(StatusSessaoCaixa.ABERTO);
+    }
+
+    @Test void retriesConcorrentesDeConferenciaPersistemUmaVez() throws Exception {
+        var pedido = conferencia("100", null);
+        concorrer(() -> sessoesService.fechar(caixa.getId(), sessao, pedido, principal),
+                () -> sessoesService.fechar(caixa.getId(), sessao, pedido, principal));
+        assertThat(conferencias.count()).isEqualTo(1);
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"DINHEIRO", "PIX", "CARTAO_DEBITO", "CARTAO_CREDITO"})
+    void conferenciaPreservaBloqueioDoCancelamentoEmSessaoFechada(String codigo) {
+        var forma = FormaPagamento.valueOf(codigo);
+        var venda = vendaService.finalizar(venda(forma, null), principal);
+        var pedido = forma == FormaPagamento.DINHEIRO ? conferencia("110", null)
+                : conferencia("100", null, informado(forma.idPadrao(), "10"));
+        sessoesService.fechar(caixa.getId(), sessao, pedido, principal);
+        assertThatThrownBy(() -> cancelamento.cancelarVendaFaturada(venda.id(), principal)).hasMessageContaining("fechada");
+        assertThat(vendas.findById(venda.id()).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("19");
+    }
+
+    private String urlFechamento() { return "/financeiro/caixas/" + caixa.getId() + "/sessoes/" + sessao + "/fechar"; }
+    @Test void separaFormasDoMesmoTipoEConsolidaSomenteDinheiroFisico() {
+        var pix = formas.saveAndFlush(new FormaPagamentoEntity("PIX loja", TipoFormaPagamento.PIX, true));
+        var dinheiro = formas.saveAndFlush(new FormaPagamentoEntity("Dinheiro balcao", TipoFormaPagamento.DINHEIRO, true));
+        vendaService.finalizar(venda(FormaPagamento.PIX, null), principal);
+        vendaService.finalizar(venda(FormaPagamento.DINHEIRO, null), principal);
+        for (var forma : List.of(pix, dinheiro)) {
+            var base = venda(FormaPagamento.PIX, null);
+            vendaService.finalizar(new VendaRequestDTO(base.chaveRequisicao(), base.itens(), base.clienteId(),
+                    base.desconto(), base.totalEsperado(), null, base.valorRecebido(), null, null, forma.getId(), sessao), principal);
+        }
+        pix.atualizar(pix.getDescricao(), false); formas.saveAndFlush(pix);
+        var resposta = sessoesService.fechar(caixa.getId(), sessao,
+                conferencia("120", null, informado(2, "10"), informado(pix.getId(), "10")), principal);
+        assertThat(resposta.conferencias()).hasSize(3);
+        assertThat(resposta.conferencias().getFirst().valorEsperado()).isEqualByComparingTo("120");
+        assertThat(resposta.conferencias()).filteredOn(c -> c.escopo() == EscopoConferenciaCaixa.FORMA_PAGAMENTO)
+                .extracting(ConferenciaFechamentoCaixaDTO::formaPagamentoId).containsExactlyInAnyOrder(2L, pix.getId());
+    }
+
+    @Test void cancelamentosAnterioresNaoEntramNosEsperados() {
+        for (var forma : List.of(FormaPagamento.DINHEIRO, FormaPagamento.PIX)) {
+            var venda = vendaService.finalizar(venda(forma, null), principal);
+            cancelamento.cancelarVendaFaturada(venda.id(), principal);
+        }
+        var resposta = sessoesService.fechar(caixa.getId(), sessao, conferencia("100", null), principal);
+        assertThat(resposta.conferencias()).hasSize(1);
+        assertThat(resposta.conferencias().getFirst().valorEsperado()).isEqualByComparingTo("100");
+        assertThat(resposta.resumo().totalVendas()).isEqualByComparingTo("0");
+    }
+
+    private FechamentoCaixaDTO conferencia(String dinheiro, String observacao, FechamentoCaixaDTO.Forma... formas) {
+        return new FechamentoCaixaDTO(new BigDecimal(dinheiro), new FechamentoCaixaDTO.Conferencia(List.of(formas), observacao));
+    }
+    private FechamentoCaixaDTO.Forma informado(long id, String valor) {
+        return new FechamentoCaixaDTO.Forma(id, new BigDecimal(valor));
+    }
     private void concorrer(Callable<?> primeira, Callable<?> segunda) throws Exception {
         var gravou = new CountDownLatch(1); var liberar = new CountDownLatch(1); var iniciou = new CountDownLatch(1);
         try (var pool = Executors.newFixedThreadPool(2)) {
