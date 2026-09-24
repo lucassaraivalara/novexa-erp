@@ -3,6 +3,7 @@ package br.com.novexa.erp.entity;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "sessoes_caixa")
@@ -27,6 +28,10 @@ public class SessaoCaixaEntity {
     private LocalDateTime dataFechamento;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 10)
     private StatusSessaoCaixa status;
+    @Enumerated(EnumType.STRING) @Column(length = 10)
+    private ModalidadeConferencia modalidadeConferencia;
+    @Column(length = 500)
+    private String observacaoFechamento;
 
     protected SessaoCaixaEntity() {}
     public SessaoCaixaEntity(CaixaEntity caixa, UsuarioEntity usuario, BigDecimal saldoInicial) {
@@ -39,11 +44,17 @@ public class SessaoCaixaEntity {
     }
 
     public void fechar(UsuarioEntity usuario, BigDecimal saldoFinal) {
+        fechar(usuario, saldoFinal, ModalidadeConferencia.LEGADA, null);
+    }
+
+    public void fechar(UsuarioEntity usuario, BigDecimal saldoFinal, ModalidadeConferencia modalidade, String observacao) {
         if (status != StatusSessaoCaixa.ABERTO) throw new IllegalStateException("Sessão já fechada.");
         this.usuarioFechamento = usuario;
         this.saldoFinal = saldoFinal;
-        this.dataFechamento = LocalDateTime.now();
+        this.dataFechamento = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
         this.status = StatusSessaoCaixa.FECHADO;
+        this.modalidadeConferencia = modalidade;
+        this.observacaoFechamento = observacao;
     }
 
     public Long getId() { return id; }
@@ -56,4 +67,6 @@ public class SessaoCaixaEntity {
     public LocalDateTime getDataAbertura() { return dataAbertura; }
     public LocalDateTime getDataFechamento() { return dataFechamento; }
     public StatusSessaoCaixa getStatus() { return status; }
+    public ModalidadeConferencia getModalidadeConferencia() { return modalidadeConferencia; }
+    public String getObservacaoFechamento() { return observacaoFechamento; }
 }

@@ -10,6 +10,15 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; cadastros frontend estruturados
 Dashboard ...... placeholder
 
+## Conferencia do fechamento por forma — Fase 1 backend (2026-09-24)
+
+- Branch `feat/conferencia-fechamento-backend`, base `dad70f2`; implementado na branch, pendente de integracao.
+- V16 aditiva: modalidade/observacao na sessao e snapshots em conferencias_fechamento_caixa, com FK de tenant e unicidade. Fechamentos antigos classificados LEGADA sem valores conferidos inventados.
+- POST de fechamento aceita conferencia opcional. LEGADA preserva saldoFinal; POR_FORMA exige dinheiro fisico e todas as formas nao dinheiro da sessao, com observacao em qualquer divergencia. Recalculo sob lock, persistencia atomica e retry equivalente sem duplicacao; alteracao retorna 409.
+- Resposta inclui modalidade, observacao e linhas persistidas. Cancelamento de venda em sessao fechada permanece bloqueado para todos os meios. Contrato detalhado em [financeiro.md](financeiro.md).
+- Validacao: 57 testes focados aprovados (47 CaixaOperacionalHttpTest, 9 CancelamentoVendaServiceTest, 1 ConferenciaFechamentoCaixaMigrationTest), sem falhas ou ignorados. V1-V16, constraints e Hibernate validate verificados em PostgreSQL 18 descartavel.
+- Frontend, historico detalhado, relatorios e revisao do resumo do modal permanecem fora desta fase. Suite completa nao executada; nenhuma alteracao de frontend ou de configuracao de deploy.
+
 ## Produtos: piloto de busca por coluna (2026-09-22)
 
 - Implementado no worktree atual, pendente de integração: seleção de Código interno,

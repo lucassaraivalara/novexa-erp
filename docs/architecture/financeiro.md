@@ -108,12 +108,26 @@ Caixa possui cadastro e sessões operacionais. A venda faturada vincula-se à se
 - V10 adiciona o vínculo Venda–Sessão e movimentacoes_caixa com chaves de empresa e unicidade por pagamento/requisição. Vendas antigas não recebem sessão fictícia nem geram movimentos retroativos.
 - Continua um pagamento por venda no contrato atual. Misto, confirmação de PIX/cartões e destinos bancários não fazem parte deste bloco. A implementação parcial anterior de venda em dinheiro em outro worktree foi superada por este bloco: não integrar sua V10 concorrente.
 
+### Conferencia por forma no fechamento — Fase 1 backend
+
+Implementada na branch `feat/conferencia-fechamento-backend`, a partir de `dad70f2`; pendente de integracao.
+
+- O mesmo POST de fechamento aceita `{saldoFinal, conferencia?: {formas: [{formaPagamentoId, valorInformado}], observacao?}}`. Ausencia/null de conferencia seleciona LEGADA; objeto presente seleciona POR_FORMA. Dinheiro fisico continua exclusivamente em saldoFinal.
+- LEGADA preserva o contrato anterior, inclusive divergencia sem observacao; grava modalidade LEGADA e nao inventa conferencias dos demais meios. A V16 classifica sessoes antigas fechadas como LEGADA, sem criar linhas retroativas.
+- POR_FORMA reutiliza os esperados do CaixaOperacionalService sob lock da sessao. Exige exatamente as formas nao dinheiro com pagamentos nao cancelados na sessao, inclusive formas posteriormente inativadas. Lista vazia e valida se nao houver meios nao dinheiro. Duplicidade, omissao, forma extra/desconhecida/DINHEIRO, valor negativo ou com mais de duas casas retornam 400.
+- Uma unica linha DINHEIRO_FISICO representa toda a gaveta; as demais linhas sao por ID cadastral, mesmo quando compartilham tipo. Diferenca = informado - esperado, sem compensar divergencias entre linhas. Qualquer divergencia exige observacao nao vazia (ate 500 caracteres); ausencia retorna 409 sem fechar.
+- A V16 cria conferencias_fechamento_caixa com FK composta sessao/empresa, unicidade por escopo/forma e snapshots de descricao, tipo, esperado e informado. Sessao grava modalidade e observacao; operador/horario existentes sao preservados. Fechamento e linhas sao atomicos.
+- Resposta do POST preserva campos anteriores e acrescenta modalidadeConferencia, observacaoFechamento e conferencias [{escopo, formaPagamentoId, descricao, tipo, valorEsperado, valorInformado, diferenca}]. As linhas retornam os snapshots salvos; o resumo anterior continua derivado do historico operacional.
+- Retry compara modalidade, saldoFinal, mapa de IDs/valores e observacao normalizada. Ordem da lista, escala decimal equivalente e espacos externos da observacao nao mudam a identidade. Alteracao retorna 409; replay nao altera operador, horario ou snapshots, mesmo apos renomear/inativar a forma.
+- Empresa vem do JWT. Conferencia nao liquida PIX/cartao, nao movimenta bancos e nao ajusta caixa/estoque. Boleto/transferencia continuam bloqueados no faturamento.
+- Fora desta fase: frontend, consulta detalhada das conferencias no historico, relatorios e revisao do resumo para detectar alteracoes desde a abertura do modal. O servidor sempre recalcula sob lock e exige observacao conforme os valores atuais.
+
 ### Cancelamento integral de Venda
 
 - `POST /vendas/{id}/cancelar` aceita somente Venda FATURADA da empresa autenticada. O retry de uma Venda já CANCELADA devolve o estado preservado sem repetir efeitos.
 - A mesma transação marca a Venda como CANCELADA, cria movimentos compensatórios ENTRADA/CANCELAMENTO para as baixas originais de estoque, cancela Pagamento e lançamento financeiro e, em DINHEIRO, registra `ESTORNO_VENDA` na sessão de Caixa.
 - Venda, itens, valores, movimentos originais, Pagamento e lançamento não são excluídos nem reescritos; os registros de cancelamento preservam a trilha histórica.
-- O cancelamento de uma venda em dinheiro vinculada ao Caixa exige que a sessão ainda esteja ABERTA. Sessão fechada ou histórico original ausente/incompatível retorna conflito e desfaz toda a tentativa.
+- O cancelamento de qualquer venda vinculada ao Caixa exige que a sessão ainda esteja ABERTA, inclusive PIX/cartões. Sessão fechada ou histórico original ausente/incompatível retorna conflito e desfaz toda a tentativa.
 - A V15 alinha as constraints de Pagamento, lançamento financeiro e movimentos de Caixa aos estados de cancelamento, permitindo preservar a entrada original e registrar um único `ESTORNO_VENDA` por pagamento.
 - PIX e cartões têm apenas os registros atuais de Pagamento/lançamento marcados como cancelados. Não existem ainda movimentação bancária, recebível ou liquidação externa para reverter.
 
