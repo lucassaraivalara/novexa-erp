@@ -10,6 +10,13 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; cadastros frontend estruturados
 Dashboard ...... placeholder
 
+## Consolidacao dos testes Caixa/PDV (2026-09-23)
+
+- Branch `test/contrato-caixa-pdv`, base `dad70f2`, pendente de integracao. Reutiliza fixtures/helpers de CaixaOperacionalHttpTest e protege o contrato de uma forma por venda.
+- Acrescentados 18 cenarios: pagamento/movimento/resumo por meio, separacao entre sessoes, suprimento/sangria, limite de dinheiro fisico, fechamento com sobra/falta/zero e cancelamento nas quatro formas com sessao aberta/fechada. Isolamento HTTP reforcado para consulta, fechamento e ambos os movimentos manuais, verificando ausencia de efeitos.
+- Validacao: 115 testes aprovados, sem falhas ou ignorados (38 CaixaOperacionalHttpTest, 68 VendaHttpTest, 9 CancelamentoVendaServiceTest). Somente testes backend relacionados executados, com H2/MockMvc; suite completa e migrations nao executadas nesta tarefa.
+- Nenhuma alteracao de codigo de producao ou frontend. Pagamento misto e conferencia por forma nao fazem parte desta consolidacao.
+
 ## Produtos: piloto de busca por coluna (2026-09-22)
 
 - Implementado no worktree atual, pendente de integração: seleção de Código interno,
