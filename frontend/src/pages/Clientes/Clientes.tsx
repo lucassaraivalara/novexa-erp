@@ -39,6 +39,7 @@ export default function Clientes() {
     const [campoBusca, setCampoBusca] = useState<CampoBuscaCliente | null>(null);
     const [situacao, setSituacao] = useState("ativos");
     const [pagina, setPagina] = useState(0);
+    const [porPagina, setPorPagina] = useState(25);
     const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: "asc" | "desc" }>({ campo: "", direcao: "asc" });
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
@@ -154,8 +155,8 @@ export default function Clientes() {
         },
     ];
 
-    const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(filtrados.length / 10) - 1));
-    const linhasPagina = filtrados.slice(paginaAtual * 10, paginaAtual * 10 + 10);
+    const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(filtrados.length / porPagina) - 1));
+    const linhasPagina = filtrados.slice(paginaAtual * porPagina, paginaAtual * porPagina + porPagina);
 
     return (
         <PageContainer>
@@ -217,11 +218,11 @@ export default function Clientes() {
                     }}
                     paginacao={{
                         pagina: paginaAtual,
-                        linhasPorPagina: 10,
+                        linhasPorPagina: porPagina,
                         total: filtrados.length,
                         onPageChange: setPagina,
-                        onRowsPerPageChange: () => {},
-                        opcoesLinhasPorPagina: [10],
+                        onRowsPerPageChange: (valor) => { setPorPagina(valor); setPagina(0); },
+                        opcoesLinhasPorPagina: [10, 25, 50],
                     }}
                     alturaCorpo={480}
                     minWidth={1000}

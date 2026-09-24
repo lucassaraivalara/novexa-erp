@@ -43,6 +43,8 @@ export default function Estoque() {
     const [produtos, setProdutos] = useState<Produto[]>([]);
     const [busca, setBusca] = useState("");
     const [campoBusca, setCampoBusca] = useState<CampoBuscaEstoque | null>(null);
+    const [pagina, setPagina] = useState(0);
+    const [porPagina, setPorPagina] = useState(25);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
     const [dialogo, setDialogo] = useState<DialogoMovimentacao>(null);
@@ -83,6 +85,8 @@ export default function Estoque() {
                 || produto.codigoEstoque.toLocaleLowerCase("pt-BR").includes(termo);
         });
     }, [busca, campoBusca, produtos]);
+    const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(produtosFiltrados.length / porPagina) - 1));
+    const linhasPagina = produtosFiltrados.slice(paginaAtual * porPagina, paginaAtual * porPagina + porPagina);
 
     function selecionarCampoBusca(campo: string) {
         if (!(campo in camposBusca)) return;
@@ -154,9 +158,18 @@ export default function Estoque() {
                     onChange: setBusca,
                 }}
             />
-            <AppTable colunas={colunas} buscaPorColuna={{ campo: campoBusca, onSelecionar: selecionarCampoBusca }} linhas={produtosFiltrados} carregando={carregando} obterChaveLinha={(produto) => produto.id}
+            <AppTable colunas={colunas} buscaPorColuna={{ campo: campoBusca, onSelecionar: selecionarCampoBusca }} linhas={linhasPagina} carregando={carregando} obterChaveLinha={(produto) => produto.id}
             vazio={{ titulo: "Nenhum produto encontrado", descricao: busca ? "Tente outro nome ou código." : "Cadastre produtos para acompanhar o estoque." }}
-            acoes={acoes} minWidth={900} sx={{ "& .MuiTableCell-root": { py: 0.75 } }} />
+            acoes={acoes} compacta alturaCorpo={480}
+            minWidth={900} sx={{ "& .MuiTableCell-root": { py: 0.75 } }}
+            paginacao={{
+                pagina: paginaAtual,
+                linhasPorPagina: porPagina,
+                total: produtosFiltrados.length,
+                onPageChange: setPagina,
+                onRowsPerPageChange: (valor) => { setPorPagina(valor); setPagina(0); },
+                opcoesLinhasPorPagina: [10, 25, 50],
+            }} />
         </Stack>
 
         <Dialog open={dialogo !== null} onClose={salvando ? undefined : () => setDialogo(null)} fullWidth maxWidth="xs" aria-labelledby="estoque-movimentacao-titulo">

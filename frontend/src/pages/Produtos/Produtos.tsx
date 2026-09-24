@@ -48,6 +48,8 @@ function Produtos() {
     const [situacao, setSituacao] = useState("ativas");
     const [campoBusca, setCampoBusca] = useState<CampoBuscaProduto | null>(null);
     const [termoLocal, setTermoLocal] = useState("");
+    const [pagina, setPagina] = useState(0);
+    const [porPagina, setPorPagina] = useState(25);
 
     const carregarProdutos = useCallback((busca: string, signal: AbortSignal) => {
         if (!empresaId) return Promise.resolve([]);
@@ -216,6 +218,8 @@ function Produtos() {
         if (campoBusca === "nome") return normalizarBusca(produto.nome).includes(termoNormalizado);
         return (produto.ativo ? "ativo" : "inativo").startsWith(termoNormalizado);
     });
+    const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(produtosFiltrados.length / porPagina) - 1));
+    const linhasPagina = produtosFiltrados.slice(paginaAtual * porPagina, paginaAtual * porPagina + porPagina);
 
     return (
         <PageContainer>
@@ -261,8 +265,7 @@ function Produtos() {
                 <AppTable
                     colunas={colunas}
                     buscaPorColuna={{ campo: campoBusca, onSelecionar: selecionarCampoBusca }}
-                    linhas={produtosFiltrados}
-                    contagem={{ total: produtosFiltrados.length }}
+                    linhas={linhasPagina}
                     carregando={buscaRemota.loading && !produtos.length}
                     obterChaveLinha={(p) => p.id}
                     vazio={{
@@ -275,6 +278,14 @@ function Produtos() {
                     sx={{ "& .MuiTableCell-root": { py: 0.75 } }}
                     alturaCorpo={480}
                     minWidth={1214}
+                    paginacao={{
+                        pagina: paginaAtual,
+                        linhasPorPagina: porPagina,
+                        total: produtosFiltrados.length,
+                        onPageChange: setPagina,
+                        onRowsPerPageChange: (valor) => { setPorPagina(valor); setPagina(0); },
+                        opcoesLinhasPorPagina: [10, 25, 50],
+                    }}
                 />
             </Stack>
 
