@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import axios from "axios";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
 import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
@@ -7,8 +8,8 @@ import BlockRoundedIcon from "@mui/icons-material/BlockRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import {
-    Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider,
-    FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tab, Tabs, TextField, Typography,
+    Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider,
+    FormControl, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tab, Tabs, TextField, Typography,
 } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
@@ -34,6 +35,7 @@ const valorDecimal = (texto: string) => {
     const numero = Number(texto.trim().replace(/\./g, "").replace(",", "."));
     return Number.isFinite(numero) && numero >= 0 ? Math.round(numero * 100) / 100 : null;
 };
+const valorEditavel = (valor: number) => valor.toFixed(2).replace(".", ",");
 const chave = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 const rotuloFormaPagamento: Record<NonNullable<VendaDetalhe["formaPagamento"]>, string> = {
     DINHEIRO: "Dinheiro", PIX: "PIX", CARTAO_DEBITO: "Débito", CARTAO_CREDITO: "Crédito",
@@ -93,7 +95,8 @@ export default function Caixa() {
     const [modalMovimento, setModalMovimento] = useState<ModalMovimento>(null);
     const [modalAbertura, setModalAbertura] = useState(false);
     const [modalFechamento, setModalFechamento] = useState(false);
-    const [diferencaConfirmada, setDiferencaConfirmada] = useState(false);
+    const [valoresConferidos, setValoresConferidos] = useState<Record<number, string>>({});
+    const [observacaoFechamento, setObservacaoFechamento] = useState("");
     const [detalhe, setDetalhe] = useState<SessaoCaixaHistorico | null>(null);
     const [gerenciando, setGerenciando] = useState(false);
     const [editor, setEditor] = useState<{ caixa: CaixaCompleta | null } | null>(null);
@@ -186,8 +189,27 @@ export default function Caixa() {
         evento.preventDefault();
         const final = valorDecimal(saldo);
         if (sessaoAtual === null || sessaoId === null || final === null) { setErroModal("Informe um valor final válido."); return; }
-        if (temDiferencaFechamento && !diferencaConfirmada) { setErroModal("Confirme a divergência para concluir o fechamento."); return; }
-        await executar(async () => { await fecharSessaoCaixa(sessaoAtual.caixaId, sessaoId, { saldoFinal: final }); setModalFechamento(false); setSaldo(""); setDiferencaConfirmada(false); }, "Não foi possível fechar o Caixa.");
+        if (formasIncompletas) { setErroModal("Informe o valor conferido para todas as formas de pagamento."); return; }
+        if (temDiferencaFechamento && observacaoFechamento.trim() === "") { setErroModal("Informe uma observação para confirmar a divergência."); return; }
+        const conferencia = {
+            formas: linhasConferencia.map((linha) => ({ formaPagamentoId: linha.formaPagamentoId, valorInformado: linha.informado as number })),
+            observacao: temDiferencaFechamento ? observacaoFechamento.trim() : undefined,
+        };
+        setProcessando(true); setErroModal("");
+        try {
+            await fecharSessaoCaixa(sessaoAtual.caixaId, sessaoId, { saldoFinal: final, conferencia });
+            setModalFechamento(false); setSaldo(""); setObservacaoFechamento(""); setValoresConferidos({});
+            await carregar();
+        } catch (e) {
+            if (axios.isAxiosError(e) && e.response?.status === 409) {
+                setErroModal(`${mensagemCaixa(e, "O resumo do Caixa mudou.")} Atualize o resumo e confira os valores novamente.`);
+                await carregarSessao(sessaoId).catch(() => {});
+            } else {
+                setErroModal(mensagemCaixa(e, "Não foi possível fechar o Caixa."));
+            }
+        } finally {
+            setProcessando(false);
+        }
     }
 
     async function editar(id: number) {
@@ -221,12 +243,25 @@ export default function Caixa() {
     const historicoPagina = historico.slice(paginaHistoricoAtual * porPaginaHistorico, paginaHistoricoAtual * porPaginaHistorico + porPaginaHistorico);
     const saldoFinalInformado = valorDecimal(saldo);
     const diferencaFechamento = resumo && saldoFinalInformado !== null ? saldoFinalInformado - resumo.saldoEsperadoDinheiro : null;
-    const temDiferencaFechamento = diferencaFechamento !== null && Math.abs(diferencaFechamento) >= 0.005;
+    const temDiferencaDinheiro = diferencaFechamento !== null && Math.abs(diferencaFechamento) >= 0.005;
     const vendasEmDinheiro = resumo?.totaisPorFormaPagamento
         .filter((forma) => forma.tipo === "DINHEIRO")
         .reduce((total, forma) => total + forma.total, 0) ?? 0;
-    const totaisEletronicos = resumo?.totaisPorFormaPagamento.filter((forma) =>
-        ["PIX", "DEBITO", "CREDITO"].includes(forma.tipo)) ?? [];
+    const formasNaoDinheiro = resumo?.totaisPorFormaPagamento.filter((forma) => forma.tipo !== "DINHEIRO") ?? [];
+    const linhasConferencia = formasNaoDinheiro.map((forma) => {
+        const informado = valorDecimal(valoresConferidos[forma.formaPagamentoId] ?? "");
+        return {
+            formaPagamentoId: forma.formaPagamentoId,
+            descricao: rotuloTipoFormaPagamento[forma.tipo] ?? forma.descricao,
+            esperado: forma.total,
+            informado,
+            diferenca: informado === null ? null : Math.round((informado - forma.total) * 100) / 100,
+        };
+    });
+    const formasIncompletas = linhasConferencia.some((linha) => linha.informado === null);
+    const temDiferencaFormas = linhasConferencia.some((linha) => linha.diferenca !== null && Math.abs(linha.diferenca) >= 0.005);
+    const temDiferencaFechamento = temDiferencaDinheiro || temDiferencaFormas;
+    const podeFechar = saldoFinalInformado !== null && !formasIncompletas && (!temDiferencaFechamento || observacaoFechamento.trim() !== "");
 
     return <PageContainer>
         <PageHeader titulo="Caixas" descricao="Acompanhe a operação do PDV e o histórico de sessões."
@@ -234,7 +269,7 @@ export default function Caixa() {
             acoesSecundarias={<Button variant="outlined" startIcon={<SettingsRoundedIcon />} onClick={() => setGerenciando(true)}>Gerenciar caixas</Button>} />
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregar()}>Tentar novamente</Button>}>{erro}</Alert>}
         <Paper variant="outlined"><Tabs value={aba} onChange={(_, valor) => setAba(valor)} aria-label="Visões do Caixa" variant="scrollable" scrollButtons="auto" sx={{ minHeight: 44 }}><Tab id="caixa-atual-tab" aria-controls="caixa-atual-painel" label="Caixa atual" sx={{ minHeight: 44, py: 1 }} /><Tab id="caixas-anteriores-tab" aria-controls="caixas-anteriores-painel" label="Caixas anteriores" sx={{ minHeight: 44, py: 1 }} /></Tabs></Paper>
-        {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} onSuprimento={() => { setErroModal(""); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setDiferencaConfirmada(false); setModalFechamento(true); }} /></Box>)}
+        {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} onSuprimento={() => { setErroModal(""); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setObservacaoFechamento(""); setValoresConferidos(Object.fromEntries((resumo?.totaisPorFormaPagamento ?? []).filter((forma) => forma.tipo !== "DINHEIRO").map((forma) => [forma.formaPagamentoId, valorEditavel(forma.total)]))); setModalFechamento(true); }} /></Box>)}
         {aba === 1 && <Box id="caixas-anteriores-painel" role="tabpanel" aria-labelledby="caixas-anteriores-tab"><AppTable colunas={[
             { campo: "descricaoCaixa", cabecalho: "Caixa", largura: 180 }, { campo: "dataHoraAbertura", cabecalho: "Abertura", largura: 170, render: (valor) => data(valor as string) },
             { campo: "dataHoraFechamento", cabecalho: "Fechamento", largura: 170, render: (valor) => data(valor as string | null) }, { campo: "operadorAbertura.nome", cabecalho: "Operador", largura: 180 },
@@ -252,43 +287,59 @@ export default function Caixa() {
 
         <Dialog open={modalAbertura} fullWidth maxWidth="xs" aria-labelledby="caixa-abertura-titulo" onClose={() => !processando && setModalAbertura(false)}><form onSubmit={abrir}><DialogTitle id="caixa-abertura-titulo">Abrir Caixa</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}>{erroModal && <Alert severity="error">{erroModal}</Alert>}<TextField select required name="caixaAbertura" autoComplete="off" label="Caixa" value={caixaAbertura} onChange={(e) => setCaixaAbertura(Number(e.target.value))} helperText={caixasAtivos.length === 0 ? "Nenhum Caixa ativo está disponível." : undefined}>{caixasAtivos.map((caixa) => <MenuItem key={caixa.id} value={caixa.id}>{caixa.descricao}</MenuItem>)}</TextField><TextField required name="saldoInicial" autoComplete="off" label="Saldo inicial (R$)" value={saldo} onChange={(e) => setSaldo(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} /></Stack></DialogContent><DialogActions><Button type="button" onClick={() => setModalAbertura(false)}>Cancelar</Button><Button type="submit" variant="contained" disabled={processando || caixasAtivos.length === 0}>{processando ? "Abrindo…" : "Abrir Caixa"}</Button></DialogActions></form></Dialog>
         <Dialog open={modalMovimento !== null} fullWidth maxWidth="xs" aria-labelledby="caixa-movimento-titulo" onClose={() => !processando && setModalMovimento(null)}><form onSubmit={movimentar}><DialogTitle id="caixa-movimento-titulo">{modalMovimento === "SANGRIA" ? "Registrar Sangria" : "Registrar Suprimento"}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}>{erroModal && <Alert severity="error">{erroModal}</Alert>}<TextField required autoFocus name="valor" autoComplete="off" label="Valor (R$)" value={saldo} onChange={(e) => setSaldo(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} /><TextField name="observacao" autoComplete="off" label="Observação" value={observacao} onChange={(e) => setObservacao(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} /></Stack></DialogContent><DialogActions><Button type="button" onClick={() => setModalMovimento(null)}>Cancelar</Button><Button type="submit" variant="contained" disabled={processando}>{processando ? "Registrando…" : "Confirmar"}</Button></DialogActions></form></Dialog>
-        <Dialog open={modalFechamento} fullWidth maxWidth="sm" aria-labelledby="caixa-fechamento-titulo" aria-describedby="caixa-fechamento-descricao" onClose={() => { if (!processando) { setDiferencaConfirmada(false); setModalFechamento(false); } }}>
+        <Dialog open={modalFechamento} fullWidth maxWidth="sm" aria-labelledby="caixa-fechamento-titulo" aria-describedby="caixa-fechamento-descricao" onClose={() => { if (!processando) { setObservacaoFechamento(""); setModalFechamento(false); } }}>
             <form onSubmit={fechar}>
                 <DialogTitle id="caixa-fechamento-titulo">Fechar Caixa</DialogTitle>
                 <DialogContent dividers>
                     <Stack spacing={2.5} sx={{ pt: 0.5 }}>
                         {erroModal && <Alert severity="error">{erroModal}</Alert>}
                         <Typography id="caixa-fechamento-descricao" color="text.secondary">
-                            Confira os valores da sessão. Informe abaixo somente o dinheiro físico contado no caixa.
+                            Confira o valor esperado de cada forma de pagamento e informe o que foi efetivamente contado ou conferido.
                         </Typography>
                         {resumo && <Box component="dl" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1.5, m: 0 }}>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo inicial</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(resumo.saldoInicial)}</Typography></Box>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Vendas em dinheiro</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(vendasEmDinheiro)}</Typography></Box>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Suprimentos</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700, color: "success.main" }}>{dinheiro(resumo.suprimentos)}</Typography></Box>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Sangrias</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700, color: "error.main" }}>{dinheiro(resumo.sangrias)}</Typography></Box>
-                            {totaisEletronicos.map((forma) => <Box key={forma.formaPagamentoId}><Typography component="dt" variant="caption" color="text.secondary">{rotuloTipoFormaPagamento[forma.tipo] ?? forma.descricao}</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(forma.total)}</Typography></Box>)}
                         </Box>}
-                        <Box sx={{ borderBlock: 1, borderColor: "divider", py: 1.5 }}>
-                            <Typography variant="body2" color="text.secondary">Saldo esperado em dinheiro</Typography>
-                            <Typography variant="h5" sx={{ mt: 0.25, fontWeight: 750, fontVariantNumeric: "tabular-nums" }}>{dinheiro(resumo?.saldoEsperadoDinheiro)}</Typography>
+                        <Divider />
+                        <Box>
+                            <Typography component="label" htmlFor="input-saldoFinal" variant="body2" sx={{ fontWeight: 700 }}>Dinheiro físico</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Esperado: {dinheiro(resumo?.saldoEsperadoDinheiro)}</Typography>
+                            <TextField id="input-saldoFinal" required autoFocus fullWidth name="saldoFinal" autoComplete="off" label="Dinheiro físico contado (R$)" value={saldo}
+                                sx={{ mt: 1 }}
+                                onChange={(e) => setSaldo(e.target.value)}
+                                slotProps={{ htmlInput: { inputMode: "decimal", "aria-describedby": "caixa-fechamento-descricao" } }} />
+                            <Box role="status" aria-live="polite" sx={{ mt: 1, borderLeft: 3, borderColor: diferencaFechamento === null ? "divider" : temDiferencaDinheiro ? "warning.main" : "success.main", bgcolor: "action.hover", px: 2, py: 1.5 }}>
+                                {diferencaFechamento === null ? <Typography variant="body2">Informe o dinheiro contado para conferir a diferença.</Typography>
+                                    : temDiferencaDinheiro ? <Typography variant="body2" sx={{ fontWeight: 700 }}>{diferencaFechamento > 0 ? "Sobra de dinheiro" : "Falta de dinheiro"}: {dinheiro(Math.abs(diferencaFechamento))}</Typography>
+                                        : <Typography variant="body2" sx={{ fontWeight: 700 }}>Conferência sem diferença.</Typography>}
+                            </Box>
                         </Box>
-                        <TextField required autoFocus name="saldoFinal" autoComplete="off" label="Dinheiro físico contado (R$)" value={saldo}
-                            helperText="Este valor representa apenas o dinheiro físico contado no caixa."
-                            onChange={(e) => { setSaldo(e.target.value); setDiferencaConfirmada(false); }}
-                            slotProps={{ htmlInput: { inputMode: "decimal", "aria-describedby": "caixa-fechamento-descricao" } }} />
-                        <Box role="status" aria-live="polite" sx={{ borderLeft: 3, borderColor: diferencaFechamento === null ? "divider" : temDiferencaFechamento ? "warning.main" : "success.main", bgcolor: "action.hover", px: 2, py: 1.5 }}>
-                            {diferencaFechamento === null ? <Typography variant="body2">Informe o dinheiro contado para conferir a diferença.</Typography>
-                                : temDiferencaFechamento ? <><Typography variant="body2" sx={{ fontWeight: 700 }}>{diferencaFechamento > 0 ? "Sobra de dinheiro" : "Falta de dinheiro"}: {dinheiro(Math.abs(diferencaFechamento))}</Typography><Typography variant="caption" color="text.secondary">A confirmação abaixo é necessária para fechar com divergência.</Typography></>
-                                    : <Typography variant="body2" sx={{ fontWeight: 700 }}>Conferência sem diferença.</Typography>}
-                        </Box>
-                        {temDiferencaFechamento && <FormControlLabel
-                            control={<Checkbox checked={diferencaConfirmada} onChange={(e) => setDiferencaConfirmada(e.target.checked)} slotProps={{ input: { "aria-label": "Confirmar fechamento com divergência" } }} sx={{ "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }} />}
-                            label="Confirmo que conferi a sobra ou falta de dinheiro e desejo fechar o caixa." />}
+                        {linhasConferencia.length > 0 && <Stack spacing={2} divider={<Divider flexItem />}>
+                            {linhasConferencia.map((linha) => <Box key={linha.formaPagamentoId}>
+                                <Typography component="label" htmlFor={`input-forma-${linha.formaPagamentoId}`} variant="body2" sx={{ fontWeight: 700 }}>{linha.descricao}</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Esperado: {dinheiro(linha.esperado)}</Typography>
+                                <TextField id={`input-forma-${linha.formaPagamentoId}`} required fullWidth label={`Valor conferido de ${linha.descricao} (R$)`} sx={{ mt: 1 }}
+                                    value={valoresConferidos[linha.formaPagamentoId] ?? ""}
+                                    onChange={(e) => setValoresConferidos((atuais) => ({ ...atuais, [linha.formaPagamentoId]: e.target.value }))}
+                                    slotProps={{ htmlInput: { inputMode: "decimal" } }} />
+                                <Box role="status" aria-live="polite" sx={{ mt: 1, borderLeft: 3, borderColor: linha.diferenca === null ? "divider" : Math.abs(linha.diferenca) >= 0.005 ? "warning.main" : "success.main", bgcolor: "action.hover", px: 2, py: 1.5 }}>
+                                    {linha.diferenca === null ? <Typography variant="body2">Informe o valor conferido.</Typography>
+                                        : Math.abs(linha.diferenca) >= 0.005 ? <Typography variant="body2" sx={{ fontWeight: 700 }}>{linha.diferenca > 0 ? "Sobra" : "Falta"}: {dinheiro(Math.abs(linha.diferenca))}</Typography>
+                                            : <Typography variant="body2" sx={{ fontWeight: 700 }}>Conferência sem diferença.</Typography>}
+                                </Box>
+                            </Box>)}
+                        </Stack>}
+                        {temDiferencaFechamento && <TextField required multiline minRows={2} fullWidth name="observacaoFechamento" autoComplete="off"
+                            label="Observação da divergência" value={observacaoFechamento} onChange={(e) => setObservacaoFechamento(e.target.value)}
+                            helperText="Obrigatório: descreva a sobra ou falta identificada para concluir o fechamento com divergência."
+                            slotProps={{ htmlInput: { maxLength: 500 } }} />}
                     </Stack>
                 </DialogContent>
                 <DialogActions>
-                    <Button type="button" onClick={() => { setDiferencaConfirmada(false); setModalFechamento(false); }} disabled={processando}>Cancelar</Button>
-                    <Button type="submit" variant="contained" disabled={processando || saldoFinalInformado === null || (temDiferencaFechamento && !diferencaConfirmada)}>
+                    <Button type="button" onClick={() => { setObservacaoFechamento(""); setModalFechamento(false); }} disabled={processando}>Cancelar</Button>
+                    <Button type="submit" variant="contained" disabled={processando || !podeFechar}>
                         {processando ? "Fechando…" : temDiferencaFechamento ? "Confirmar fechamento com divergência" : "Confirmar fechamento"}
                     </Button>
                 </DialogActions>

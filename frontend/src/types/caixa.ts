@@ -83,8 +83,14 @@ export type AberturaCaixaInput = {
     saldoInicial: number;
 };
 
+export type ConferenciaFechamentoInput = {
+    formas: { formaPagamentoId: number; valorInformado: number }[];
+    observacao?: string | null;
+};
+
 export type FechamentoCaixaInput = {
     saldoFinal: number;
+    conferencia?: ConferenciaFechamentoInput;
 };
 
 export type SessaoCaixaResponse = {
