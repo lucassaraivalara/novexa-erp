@@ -41,6 +41,8 @@ class SessaoCaixaHttpTest {
     @Autowired UsuarioRepository usuarios;
     @Autowired CaixaRepository caixas;
     @Autowired SessaoCaixaRepository sessoes;
+    @Autowired MovimentacaoCaixaRepository movimentos;
+    @Autowired ConferenciaFechamentoCaixaRepository conferencias;
     @Autowired SessaoCaixaService service;
     @Autowired JwtService jwt;
     @Autowired PlatformTransactionManager transactions;
@@ -51,6 +53,8 @@ class SessaoCaixaHttpTest {
 
     @BeforeEach
     void preparar() {
+        conferencias.deleteAllInBatch();
+        movimentos.deleteAllInBatch();
         sessoes.deleteAllInBatch();
         caixas.deleteAllInBatch();
         usuarios.deleteAllInBatch();

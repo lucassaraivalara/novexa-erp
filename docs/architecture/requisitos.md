@@ -78,6 +78,7 @@ As capacidades abaixo distinguem a fundação implementada das etapas planejadas
 |---|---|
 | IMPLEMENTADO no backend | Administrar formas de pagamento globais, sem empresaId, com descrição, tipo técnico e ativo; preservar códigos/contratos antigos e histórico durante a transição para ID |
 | IMPLEMENTADO no backend | Abrir, consultar sessão aberta e fechar Caixa da empresa autenticada; registrar operadores e horários; impedir sessões abertas simultâneas no mesmo Caixa; vincular novas vendas faturadas à sessão, totalizar formas sem inflar dinheiro, registrar suprimento/sangria idempotentes e calcular esperado/diferença no fechamento |
+| IMPLEMENTADO na branch feat/conferencia-fechamento-backend | Conferir opcionalmente o fechamento por forma, com snapshots, observacao obrigatoria em divergencias e retry idempotente; contrato legado preservado. Integracao e validacoes em CURRENT_STATE.md |
 | PRÓXIMO | Cadastrar condições de pagamento para prazo e parcelamento, sem confundi-las com forma de pagamento |
 | PRÓXIMO | Cadastrar Banco, Agência e Conta Bancária com seus relacionamentos e escopo autorizado |
 | FUTURO | Produzir os demais efeitos de Pagamento nos destinos bancários, confirmação/baixa e reversões; a entrada de DINHEIRO no Caixa já existe no MVP |
@@ -85,7 +86,7 @@ As capacidades abaixo distinguem a fundação implementada das etapas planejadas
 | FUTURO | Operar pagamento misto sobre a relação Venda 1:N Pagamento, com validação explícita da composição e dos valores |
 | FUTURO | Evoluir cobrança, conciliação e relatórios financeiros avançados após as fundações e integrações |
 
-Caixa deve tratar exclusivamente dinheiro físico. Selecionar uma forma, cadastrar uma condição ou registrar um Pagamento não comprova recebimento nem gera, por si só, movimentação financeira. Preservar histórico, idempotência e empresa obtida da autenticação.
+Movimentacoes de Caixa tratam exclusivamente dinheiro fisico; a sessao tambem totaliza e confere operacionalmente os demais meios, sem liquidacao financeira. Selecionar uma forma, cadastrar uma condição ou registrar um Pagamento não comprova recebimento nem gera, por si só, movimentação financeira. Preservar histórico, idempotência e empresa obtida da autenticação.
 
 Conceitos, exemplos e limites de escopo estão em [financeiro.md](financeiro.md); a sequência de entrega, em [roadmap.md](roadmap.md). Os recursos avançados ali classificados como FUTURO não são requisitos de entrega da próxima fundação.
 

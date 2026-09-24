@@ -128,6 +128,8 @@ O lançamento financeiro temporário continua por compatibilidade. Não represen
 
 ## 7.2 Próxima fundação — PRÓXIMO
 
+Fase 1 de conferencia operacional por forma entregue na branch `feat/conferencia-fechamento-backend`, sobre o baseline `1b313df`, pendente de integracao. Inclui snapshots e preserva o fechamento legado; frontend, recebiveis e conciliacao permanecem etapas separadas. Contrato e validacoes em [financeiro.md](financeiro.md) e [CURRENT_STATE.md](CURRENT_STATE.md).
+
 1. Frontend de Formas de Pagamento: consumir o catálogo global após integração do backend; migrar a seleção do PDV para ID em tarefa coordenada, respeitando os tipos suportados pelo faturamento.
 2. Condição de Pagamento: cadastro de prazos/parcelamento, separado da forma e sem regras de crédito ou cobrança avançada.
 3. Banco: cadastro da instituição.

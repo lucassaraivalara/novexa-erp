@@ -110,7 +110,7 @@ Caixa possui cadastro e sessões operacionais. A venda faturada vincula-se à se
 
 ### Conferencia por forma no fechamento — Fase 1 backend
 
-Implementada na branch `feat/conferencia-fechamento-backend`, a partir de `dad70f2`; pendente de integracao.
+Implementada na branch `feat/conferencia-fechamento-backend`, atualizada com o baseline `1b313df`; pendente de integracao.
 
 - O mesmo POST de fechamento aceita `{saldoFinal, conferencia?: {formas: [{formaPagamentoId, valorInformado}], observacao?}}`. Ausencia/null de conferencia seleciona LEGADA; objeto presente seleciona POR_FORMA. Dinheiro fisico continua exclusivamente em saldoFinal.
 - LEGADA preserva o contrato anterior, inclusive divergencia sem observacao; grava modalidade LEGADA e nao inventa conferencias dos demais meios. A V16 classifica sessoes antigas fechadas como LEGADA, sem criar linhas retroativas.

@@ -12,12 +12,20 @@ Dashboard ...... placeholder
 
 ## Conferencia do fechamento por forma — Fase 1 backend (2026-09-24)
 
-- Branch `feat/conferencia-fechamento-backend`, base `dad70f2`; implementado na branch, pendente de integracao.
+- Branch `feat/conferencia-fechamento-backend`, atualizada com o baseline `1b313df`; implementado na branch, pendente de integracao.
 - V16 aditiva: modalidade/observacao na sessao e snapshots em conferencias_fechamento_caixa, com FK de tenant e unicidade. Fechamentos antigos classificados LEGADA sem valores conferidos inventados.
 - POST de fechamento aceita conferencia opcional. LEGADA preserva saldoFinal; POR_FORMA exige dinheiro fisico e todas as formas nao dinheiro da sessao, com observacao em qualquer divergencia. Recalculo sob lock, persistencia atomica e retry equivalente sem duplicacao; alteracao retorna 409.
 - Resposta inclui modalidade, observacao e linhas persistidas. Cancelamento de venda em sessao fechada permanece bloqueado para todos os meios. Contrato detalhado em [financeiro.md](financeiro.md).
-- Validacao: 57 testes focados aprovados (47 CaixaOperacionalHttpTest, 9 CancelamentoVendaServiceTest, 1 ConferenciaFechamentoCaixaMigrationTest), sem falhas ou ignorados. V1-V16, constraints e Hibernate validate verificados em PostgreSQL 18 descartavel.
-- Frontend, historico detalhado, relatorios e revisao do resumo do modal permanecem fora desta fase. Suite completa nao executada; nenhuma alteracao de frontend ou de configuracao de deploy.
+- Validacao atualizada: 156 testes relacionados aprovados (66 CaixaOperacionalHttpTest, 12 SessaoCaixaHttpTest, 68 VendaHttpTest, 9 CancelamentoVendaServiceTest e 1 ConferenciaFechamentoCaixaMigrationTest). V1-V16, constraints e Hibernate validate verificados em schema temporario no PostgreSQL 18 de testes. Cobertura comprova recalculo dos esperados e desconsideracao de valores esperados forjados pelo cliente; limpeza das fixtures de sessao ajustada para respeitar as FKs.
+- Suite backend completa (`mvn test`): 542 cenarios, 525 aprovados, 2 ignorados (migrations antigas condicionais) e 15 erros em EstoqueConcorrenciaTest por bean ArquivoStorageService ausente. Mesmos 15 erros reproduzidos no checkout principal `1b313df`; correcao fora deste escopo. `clean` nao executado para preservar o cluster PostgreSQL local existente em target.
+- Frontend, historico detalhado, relatorios e revisao do resumo do modal permanecem fora desta fase. Nenhuma alteracao de frontend ou de configuracao de deploy.
+
+## Consolidacao dos testes Caixa/PDV (2026-09-23)
+
+- Branch `test/contrato-caixa-pdv`, base `dad70f2`, integrada no checkout principal por `1b313df`. Reutiliza fixtures/helpers de CaixaOperacionalHttpTest e protege o contrato de uma forma por venda.
+- Acrescentados 18 cenarios: pagamento/movimento/resumo por meio, separacao entre sessoes, suprimento/sangria, limite de dinheiro fisico, fechamento com sobra/falta/zero e cancelamento nas quatro formas com sessao aberta/fechada. Isolamento HTTP reforcado para consulta, fechamento e ambos os movimentos manuais, verificando ausencia de efeitos.
+- Validacao: 115 testes aprovados, sem falhas ou ignorados (38 CaixaOperacionalHttpTest, 68 VendaHttpTest, 9 CancelamentoVendaServiceTest). Somente testes backend relacionados executados, com H2/MockMvc; suite completa e migrations nao executadas nesta tarefa.
+- Nenhuma alteracao de codigo de producao ou frontend. Pagamento misto e conferencia por forma nao fazem parte desta consolidacao.
 
 ## Produtos: piloto de busca por coluna (2026-09-22)
 
