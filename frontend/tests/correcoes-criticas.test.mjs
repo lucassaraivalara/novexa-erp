@@ -142,7 +142,7 @@ test("modal de fechamento soma dinheiro e usa os tipos reais da API", async () =
     const fonte = await readFile(new URL("../src/pages/Financeiro/Caixa.tsx", import.meta.url), "utf8");
     assert.match(fonte, /filter\(\(forma\) => forma\.tipo === "DINHEIRO"\)/);
     assert.match(fonte, /reduce\(\(total, forma\) => total \+ forma\.total, 0\)/);
-    assert.match(fonte, /\["PIX", "DEBITO", "CREDITO"\]/);
+    assert.match(fonte, /filter\(\(forma\) => forma\.tipo !== "DINHEIRO"\)/);
     assert.doesNotMatch(fonte, /\["PIX", "CARTAO_DEBITO", "CARTAO_CREDITO"\]/);
     assert.match(fonte, /DEBITO: "Débito", CREDITO: "Crédito"/);
 });
@@ -353,4 +353,25 @@ test("Caixa mantem abas, acoes e modais acessiveis", async () => {
     assert.match(caixa, /caixa-vazio-titulo/);
     assert.match(caixa, /Nenhuma movimenta.{1,3}o registrada/);
     assert.match(caixa, /type="button"/);
+});
+
+test("Fechamento de Caixa confere valores por forma de pagamento", async () => {
+    const caixa = await readFile(new URL("../src/pages/Financeiro/Caixa.tsx", import.meta.url), "utf8");
+
+    // Pré-preenchimento das formas não dinheiro com o valor esperado ao abrir o modal.
+    assert.match(caixa, /valorEditavel\(forma\.total\)/);
+    assert.match(caixa, /formasNaoDinheiro = resumo\?\.totaisPorFormaPagamento\.filter\(\(forma\) => forma\.tipo !== "DINHEIRO"\)/);
+    assert.match(caixa, /linhasConferencia\.map\(\(linha\) => \(\{ formaPagamentoId: linha\.formaPagamentoId, valorInformado: linha\.informado as number \}\)\)/);
+    assert.match(caixa, /formas: linhasConferencia\.map/);
+    assert.match(caixa, /saldoFinal: final, conferencia \}/);
+
+    // Diferença por linha exige observação antes de habilitar o fechamento.
+    assert.match(caixa, /temDiferencaFormas = linhasConferencia\.some/);
+    assert.match(caixa, /podeFechar = saldoFinalInformado !== null && !formasIncompletas && \(!temDiferencaFechamento \|\| observacaoFechamento\.trim\(\) !== ""\)/);
+    assert.match(caixa, /name="observacaoFechamento"/);
+    assert.match(caixa, /disabled=\{processando \|\| !podeFechar\}/);
+
+    // Conflito de resumo (409) preserva os valores digitados e orienta reconferência.
+    assert.match(caixa, /e\.response\?\.status === 409/);
+    assert.match(caixa, /Atualize o resumo e confira os valores novamente\./);
 });

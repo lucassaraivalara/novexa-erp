@@ -1,14 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
+import axios from "axios";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
 import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
 import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import BlockRoundedIcon from "@mui/icons-material/BlockRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import {
-    Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider,
-    FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tab, Tabs, TextField, Typography,
+    Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer,
+    FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tab, Tabs, TextField, Typography,
 } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
@@ -34,6 +37,7 @@ const valorDecimal = (texto: string) => {
     const numero = Number(texto.trim().replace(/\./g, "").replace(",", "."));
     return Number.isFinite(numero) && numero >= 0 ? Math.round(numero * 100) / 100 : null;
 };
+const valorEditavel = (valor: number) => valor.toFixed(2).replace(".", ",");
 const chave = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 const rotuloFormaPagamento: Record<NonNullable<VendaDetalhe["formaPagamento"]>, string> = {
     DINHEIRO: "Dinheiro", PIX: "PIX", CARTAO_DEBITO: "Débito", CARTAO_CREDITO: "Crédito",
@@ -41,6 +45,7 @@ const rotuloFormaPagamento: Record<NonNullable<VendaDetalhe["formaPagamento"]>, 
 const rotuloTipoFormaPagamento: Record<string, string> = {
     DINHEIRO: "Dinheiro", PIX: "PIX", DEBITO: "Débito", CREDITO: "Crédito",
 };
+const rotuloMovimentacao: Record<string, string> = { SUPRIMENTO: "Suprimento", SANGRIA: "Sangria" };
 
 type ModalMovimento = "SUPRIMENTO" | "SANGRIA" | null;
 type ItemTimeline = {
@@ -93,8 +98,13 @@ export default function Caixa() {
     const [modalMovimento, setModalMovimento] = useState<ModalMovimento>(null);
     const [modalAbertura, setModalAbertura] = useState(false);
     const [modalFechamento, setModalFechamento] = useState(false);
-    const [diferencaConfirmada, setDiferencaConfirmada] = useState(false);
+    const [valoresConferidos, setValoresConferidos] = useState<Record<number, string>>({});
+    const [observacaoFechamento, setObservacaoFechamento] = useState("");
     const [detalhe, setDetalhe] = useState<SessaoCaixaHistorico | null>(null);
+    const [drawerResumo, setDrawerResumo] = useState<ResumoSessaoCaixa | null>(null);
+    const [drawerMovimentos, setDrawerMovimentos] = useState<MovimentacaoCaixa[] | null>(null);
+    const [drawerCarregando, setDrawerCarregando] = useState(false);
+    const [drawerErro, setDrawerErro] = useState("");
     const [gerenciando, setGerenciando] = useState(false);
     const [editor, setEditor] = useState<{ caixa: CaixaCompleta | null } | null>(null);
     const [processando, setProcessando] = useState(false);
@@ -152,6 +162,25 @@ export default function Caixa() {
         return () => { controller.abort(); window.clearInterval(intervalo); };
     }, [sessaoId]);
 
+    useEffect(() => {
+        if (detalhe === null) { setDrawerResumo(null); setDrawerMovimentos(null); setDrawerErro(""); return; }
+        const controller = new AbortController();
+        setDrawerCarregando(true); setDrawerErro("");
+        Promise.all([
+            buscarResumoSessao(detalhe.sessaoId, controller.signal),
+            listarMovimentacoes(detalhe.sessaoId, controller.signal),
+        ]).then(([resumoSessao, movimentosSessao]) => {
+            if (controller.signal.aborted) return;
+            setDrawerResumo(resumoSessao);
+            setDrawerMovimentos(movimentosSessao);
+        }).catch((e) => {
+            if (!controller.signal.aborted) setDrawerErro(mensagemCaixa(e, "Não foi possível carregar o detalhe da sessão."));
+        }).finally(() => {
+            if (!controller.signal.aborted) setDrawerCarregando(false);
+        });
+        return () => controller.abort();
+    }, [detalhe]);
+
     async function executar(acao: () => Promise<void>, mensagem: string, atualizarSessaoId?: number | null) {
         setProcessando(true); setErroModal("");
         try {
@@ -186,8 +215,27 @@ export default function Caixa() {
         evento.preventDefault();
         const final = valorDecimal(saldo);
         if (sessaoAtual === null || sessaoId === null || final === null) { setErroModal("Informe um valor final válido."); return; }
-        if (temDiferencaFechamento && !diferencaConfirmada) { setErroModal("Confirme a divergência para concluir o fechamento."); return; }
-        await executar(async () => { await fecharSessaoCaixa(sessaoAtual.caixaId, sessaoId, { saldoFinal: final }); setModalFechamento(false); setSaldo(""); setDiferencaConfirmada(false); }, "Não foi possível fechar o Caixa.");
+        if (formasIncompletas) { setErroModal("Informe o valor conferido para todas as formas de pagamento."); return; }
+        if (temDiferencaFechamento && observacaoFechamento.trim() === "") { setErroModal("Informe uma observação para confirmar a divergência."); return; }
+        const conferencia = formasNaoDinheiro.length > 0 ? {
+            formas: linhasConferencia.map((linha) => ({ formaPagamentoId: linha.formaPagamentoId, valorInformado: linha.informado as number })),
+            observacao: temDiferencaFechamento ? observacaoFechamento.trim() : undefined,
+        } : undefined;
+        setProcessando(true); setErroModal("");
+        try {
+            await fecharSessaoCaixa(sessaoAtual.caixaId, sessaoId, { saldoFinal: final, conferencia });
+            setModalFechamento(false); setSaldo(""); setObservacaoFechamento(""); setValoresConferidos({});
+            await carregar();
+        } catch (e) {
+            if (axios.isAxiosError(e) && e.response?.status === 409) {
+                setErroModal(`${mensagemCaixa(e, "O resumo do Caixa mudou.")} Atualize o resumo e confira os valores novamente.`);
+                await carregarSessao(sessaoId).catch(() => {});
+            } else {
+                setErroModal(mensagemCaixa(e, "Não foi possível fechar o Caixa."));
+            }
+        } finally {
+            setProcessando(false);
+        }
     }
 
     async function editar(id: number) {
@@ -221,12 +269,25 @@ export default function Caixa() {
     const historicoPagina = historico.slice(paginaHistoricoAtual * porPaginaHistorico, paginaHistoricoAtual * porPaginaHistorico + porPaginaHistorico);
     const saldoFinalInformado = valorDecimal(saldo);
     const diferencaFechamento = resumo && saldoFinalInformado !== null ? saldoFinalInformado - resumo.saldoEsperadoDinheiro : null;
-    const temDiferencaFechamento = diferencaFechamento !== null && Math.abs(diferencaFechamento) >= 0.005;
+    const temDiferencaDinheiro = diferencaFechamento !== null && Math.abs(diferencaFechamento) >= 0.005;
     const vendasEmDinheiro = resumo?.totaisPorFormaPagamento
         .filter((forma) => forma.tipo === "DINHEIRO")
         .reduce((total, forma) => total + forma.total, 0) ?? 0;
-    const totaisEletronicos = resumo?.totaisPorFormaPagamento.filter((forma) =>
-        ["PIX", "DEBITO", "CREDITO"].includes(forma.tipo)) ?? [];
+    const formasNaoDinheiro = resumo?.totaisPorFormaPagamento.filter((forma) => forma.tipo !== "DINHEIRO") ?? [];
+    const linhasConferencia = formasNaoDinheiro.map((forma) => {
+        const informado = valorDecimal(valoresConferidos[forma.formaPagamentoId] ?? "");
+        return {
+            formaPagamentoId: forma.formaPagamentoId,
+            descricao: rotuloTipoFormaPagamento[forma.tipo] ?? forma.descricao,
+            esperado: forma.total,
+            informado,
+            diferenca: informado === null ? null : Math.round((informado - forma.total) * 100) / 100,
+        };
+    });
+    const formasIncompletas = linhasConferencia.some((linha) => linha.informado === null);
+    const temDiferencaFormas = linhasConferencia.some((linha) => linha.diferenca !== null && Math.abs(linha.diferenca) >= 0.005);
+    const temDiferencaFechamento = temDiferencaDinheiro || temDiferencaFormas;
+    const podeFechar = saldoFinalInformado !== null && !formasIncompletas && (!temDiferencaFechamento || observacaoFechamento.trim() !== "");
 
     return <PageContainer>
         <PageHeader titulo="Caixas" descricao="Acompanhe a operação do PDV e o histórico de sessões."
@@ -234,14 +295,16 @@ export default function Caixa() {
             acoesSecundarias={<Button variant="outlined" startIcon={<SettingsRoundedIcon />} onClick={() => setGerenciando(true)}>Gerenciar caixas</Button>} />
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregar()}>Tentar novamente</Button>}>{erro}</Alert>}
         <Paper variant="outlined"><Tabs value={aba} onChange={(_, valor) => setAba(valor)} aria-label="Visões do Caixa" variant="scrollable" scrollButtons="auto" sx={{ minHeight: 44 }}><Tab id="caixa-atual-tab" aria-controls="caixa-atual-painel" label="Caixa atual" sx={{ minHeight: 44, py: 1 }} /><Tab id="caixas-anteriores-tab" aria-controls="caixas-anteriores-painel" label="Caixas anteriores" sx={{ minHeight: 44, py: 1 }} /></Tabs></Paper>
-        {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} onSuprimento={() => { setErroModal(""); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setDiferencaConfirmada(false); setModalFechamento(true); }} /></Box>)}
+        {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} onSuprimento={() => { setErroModal(""); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setObservacaoFechamento(""); setValoresConferidos(Object.fromEntries((resumo?.totaisPorFormaPagamento ?? []).filter((forma) => forma.tipo !== "DINHEIRO").map((forma) => [forma.formaPagamentoId, valorEditavel(forma.total)]))); setModalFechamento(true); }} /></Box>)}
         {aba === 1 && <Box id="caixas-anteriores-painel" role="tabpanel" aria-labelledby="caixas-anteriores-tab"><AppTable colunas={[
             { campo: "descricaoCaixa", cabecalho: "Caixa", largura: 180 }, { campo: "dataHoraAbertura", cabecalho: "Abertura", largura: 170, render: (valor) => data(valor as string) },
             { campo: "dataHoraFechamento", cabecalho: "Fechamento", largura: 170, render: (valor) => data(valor as string | null) }, { campo: "operadorAbertura.nome", cabecalho: "Operador", largura: 180 },
             { campo: "saldoInicial", cabecalho: "Saldo inicial", alinhar: "right", render: (valor) => dinheiro(valor as number) }, { campo: "totalVendas", cabecalho: "Vendas", alinhar: "right", render: (valor) => dinheiro(valor as number) },
             { campo: "dinheiroEsperado", cabecalho: "Esperado", alinhar: "right", render: (valor) => dinheiro(valor as number) }, { campo: "valorInformado", cabecalho: "Informado", alinhar: "right", render: (valor) => dinheiro(valor as number | null) },
             { campo: "diferenca", cabecalho: "Diferença", alinhar: "right", render: (valor) => <Typography color={(valor as number | null) === 0 ? "success.main" : "error.main"} sx={{ fontWeight: 700 }}>{dinheiro(valor as number | null)}</Typography> },
-        ]} linhas={historicoPagina} carregando={carregando} obterChaveLinha={(sessao) => sessao.sessaoId} minWidth={1100} alturaCorpo={480} linhaCliqueavel onLinhaClick={setDetalhe} vazio={{ titulo: "Nenhuma sessão encerrada", descricao: "As sessões fechadas aparecerão aqui." }} paginacao={{
+        ]} linhas={historicoPagina} carregando={carregando} obterChaveLinha={(sessao) => sessao.sessaoId} minWidth={1100} alturaCorpo={480} linhaCliqueavel onLinhaClick={setDetalhe}
+            acoes={[{ rotulo: "Ver detalhe", icone: <VisibilityRoundedIcon fontSize="small" />, onClick: setDetalhe, tooltip: "Ver detalhe da sessão" }]}
+            vazio={{ titulo: "Nenhuma sessão encerrada", descricao: "As sessões fechadas aparecerão aqui." }} paginacao={{
             pagina: paginaHistoricoAtual,
             linhasPorPagina: porPaginaHistorico,
             total: historico.length,
@@ -252,49 +315,138 @@ export default function Caixa() {
 
         <Dialog open={modalAbertura} fullWidth maxWidth="xs" aria-labelledby="caixa-abertura-titulo" onClose={() => !processando && setModalAbertura(false)}><form onSubmit={abrir}><DialogTitle id="caixa-abertura-titulo">Abrir Caixa</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}>{erroModal && <Alert severity="error">{erroModal}</Alert>}<TextField select required name="caixaAbertura" autoComplete="off" label="Caixa" value={caixaAbertura} onChange={(e) => setCaixaAbertura(Number(e.target.value))} helperText={caixasAtivos.length === 0 ? "Nenhum Caixa ativo está disponível." : undefined}>{caixasAtivos.map((caixa) => <MenuItem key={caixa.id} value={caixa.id}>{caixa.descricao}</MenuItem>)}</TextField><TextField required name="saldoInicial" autoComplete="off" label="Saldo inicial (R$)" value={saldo} onChange={(e) => setSaldo(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} /></Stack></DialogContent><DialogActions><Button type="button" onClick={() => setModalAbertura(false)}>Cancelar</Button><Button type="submit" variant="contained" disabled={processando || caixasAtivos.length === 0}>{processando ? "Abrindo…" : "Abrir Caixa"}</Button></DialogActions></form></Dialog>
         <Dialog open={modalMovimento !== null} fullWidth maxWidth="xs" aria-labelledby="caixa-movimento-titulo" onClose={() => !processando && setModalMovimento(null)}><form onSubmit={movimentar}><DialogTitle id="caixa-movimento-titulo">{modalMovimento === "SANGRIA" ? "Registrar Sangria" : "Registrar Suprimento"}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}>{erroModal && <Alert severity="error">{erroModal}</Alert>}<TextField required autoFocus name="valor" autoComplete="off" label="Valor (R$)" value={saldo} onChange={(e) => setSaldo(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} /><TextField name="observacao" autoComplete="off" label="Observação" value={observacao} onChange={(e) => setObservacao(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} /></Stack></DialogContent><DialogActions><Button type="button" onClick={() => setModalMovimento(null)}>Cancelar</Button><Button type="submit" variant="contained" disabled={processando}>{processando ? "Registrando…" : "Confirmar"}</Button></DialogActions></form></Dialog>
-        <Dialog open={modalFechamento} fullWidth maxWidth="sm" aria-labelledby="caixa-fechamento-titulo" aria-describedby="caixa-fechamento-descricao" onClose={() => { if (!processando) { setDiferencaConfirmada(false); setModalFechamento(false); } }}>
+        <Dialog open={modalFechamento} fullWidth maxWidth="sm" aria-labelledby="caixa-fechamento-titulo" aria-describedby="caixa-fechamento-descricao" onClose={() => { if (!processando) { setObservacaoFechamento(""); setModalFechamento(false); } }}>
             <form onSubmit={fechar}>
                 <DialogTitle id="caixa-fechamento-titulo">Fechar Caixa</DialogTitle>
                 <DialogContent dividers>
                     <Stack spacing={2.5} sx={{ pt: 0.5 }}>
                         {erroModal && <Alert severity="error">{erroModal}</Alert>}
                         <Typography id="caixa-fechamento-descricao" color="text.secondary">
-                            Confira os valores da sessão. Informe abaixo somente o dinheiro físico contado no caixa.
+                            Confira o valor esperado de cada forma de pagamento e informe o que foi efetivamente contado ou conferido.
                         </Typography>
                         {resumo && <Box component="dl" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1.5, m: 0 }}>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo inicial</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(resumo.saldoInicial)}</Typography></Box>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Vendas em dinheiro</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(vendasEmDinheiro)}</Typography></Box>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Suprimentos</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700, color: "success.main" }}>{dinheiro(resumo.suprimentos)}</Typography></Box>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Sangrias</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700, color: "error.main" }}>{dinheiro(resumo.sangrias)}</Typography></Box>
-                            {totaisEletronicos.map((forma) => <Box key={forma.formaPagamentoId}><Typography component="dt" variant="caption" color="text.secondary">{rotuloTipoFormaPagamento[forma.tipo] ?? forma.descricao}</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(forma.total)}</Typography></Box>)}
                         </Box>}
-                        <Box sx={{ borderBlock: 1, borderColor: "divider", py: 1.5 }}>
-                            <Typography variant="body2" color="text.secondary">Saldo esperado em dinheiro</Typography>
-                            <Typography variant="h5" sx={{ mt: 0.25, fontWeight: 750, fontVariantNumeric: "tabular-nums" }}>{dinheiro(resumo?.saldoEsperadoDinheiro)}</Typography>
+                        <Divider />
+                        <Box>
+                            <Typography component="label" htmlFor="input-saldoFinal" variant="body2" sx={{ fontWeight: 700 }}>Dinheiro físico</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Esperado: {dinheiro(resumo?.saldoEsperadoDinheiro)}</Typography>
+                            <TextField id="input-saldoFinal" required autoFocus fullWidth name="saldoFinal" autoComplete="off" label="Dinheiro físico contado (R$)" value={saldo}
+                                sx={{ mt: 1 }}
+                                onChange={(e) => setSaldo(e.target.value)}
+                                slotProps={{ htmlInput: { inputMode: "decimal", "aria-describedby": "caixa-fechamento-descricao" } }} />
+                            <Box role="status" aria-live="polite" sx={{ mt: 1, borderLeft: 3, borderColor: diferencaFechamento === null ? "divider" : temDiferencaDinheiro ? "warning.main" : "success.main", bgcolor: "action.hover", px: 2, py: 1.5 }}>
+                                {diferencaFechamento === null ? <Typography variant="body2">Informe o dinheiro contado para conferir a diferença.</Typography>
+                                    : temDiferencaDinheiro ? <Typography variant="body2" sx={{ fontWeight: 700 }}>{diferencaFechamento > 0 ? "Sobra de dinheiro" : "Falta de dinheiro"}: {dinheiro(Math.abs(diferencaFechamento))}</Typography>
+                                        : <Typography variant="body2" sx={{ fontWeight: 700 }}>Conferência sem diferença.</Typography>}
+                            </Box>
                         </Box>
-                        <TextField required autoFocus name="saldoFinal" autoComplete="off" label="Dinheiro físico contado (R$)" value={saldo}
-                            helperText="Este valor representa apenas o dinheiro físico contado no caixa."
-                            onChange={(e) => { setSaldo(e.target.value); setDiferencaConfirmada(false); }}
-                            slotProps={{ htmlInput: { inputMode: "decimal", "aria-describedby": "caixa-fechamento-descricao" } }} />
-                        <Box role="status" aria-live="polite" sx={{ borderLeft: 3, borderColor: diferencaFechamento === null ? "divider" : temDiferencaFechamento ? "warning.main" : "success.main", bgcolor: "action.hover", px: 2, py: 1.5 }}>
-                            {diferencaFechamento === null ? <Typography variant="body2">Informe o dinheiro contado para conferir a diferença.</Typography>
-                                : temDiferencaFechamento ? <><Typography variant="body2" sx={{ fontWeight: 700 }}>{diferencaFechamento > 0 ? "Sobra de dinheiro" : "Falta de dinheiro"}: {dinheiro(Math.abs(diferencaFechamento))}</Typography><Typography variant="caption" color="text.secondary">A confirmação abaixo é necessária para fechar com divergência.</Typography></>
-                                    : <Typography variant="body2" sx={{ fontWeight: 700 }}>Conferência sem diferença.</Typography>}
-                        </Box>
-                        {temDiferencaFechamento && <FormControlLabel
-                            control={<Checkbox checked={diferencaConfirmada} onChange={(e) => setDiferencaConfirmada(e.target.checked)} slotProps={{ input: { "aria-label": "Confirmar fechamento com divergência" } }} sx={{ "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }} />}
-                            label="Confirmo que conferi a sobra ou falta de dinheiro e desejo fechar o caixa." />}
+                        {linhasConferencia.length > 0 && <Stack spacing={2} divider={<Divider flexItem />}>
+                            {linhasConferencia.map((linha) => <Box key={linha.formaPagamentoId}>
+                                <Typography component="label" htmlFor={`input-forma-${linha.formaPagamentoId}`} variant="body2" sx={{ fontWeight: 700 }}>{linha.descricao}</Typography>
+                               <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Esperado: {dinheiro(linha.esperado)}</Typography>
+                                <TextField id={`input-forma-${linha.formaPagamentoId}`} required fullWidth label={`Valor conferido de ${linha.descricao} (R$)`} sx={{ mt: 1 }}
+                                    value={valoresConferidos[linha.formaPagamentoId] ?? ""}
+                                    onChange={(e) => setValoresConferidos((atuais) => ({ ...atuais, [linha.formaPagamentoId]: e.target.value }))}
+                                    slotProps={{ htmlInput: { inputMode: "decimal" } }} />
+                                <Box role="status" aria-live="polite" sx={{ mt: 1, borderLeft: 3, borderColor: linha.diferenca === null ? "divider" : Math.abs(linha.diferenca) >= 0.005 ? "warning.main" : "success.main", bgcolor: "action.hover", px: 2, py: 1.5 }}>
+                                    {linha.diferenca === null ? <Typography variant="body2">Informe o valor conferido.</Typography>
+                                        : Math.abs(linha.diferenca) >= 0.005 ? <Typography variant="body2" sx={{ fontWeight: 700 }}>{linha.diferenca > 0 ? "Sobra" : "Falta"}: {dinheiro(Math.abs(linha.diferenca))}</Typography>
+                                            : <Typography variant="body2" sx={{ fontWeight: 700 }}>Conferência sem diferença.</Typography>}
+                                </Box>
+                            </Box>)}
+                        </Stack>}
+                        {temDiferencaFechamento && <TextField required multiline minRows={2} fullWidth name="observacaoFechamento" autoComplete="off"
+                            label="Observação da divergência" value={observacaoFechamento} onChange={(e) => setObservacaoFechamento(e.target.value)}
+                            helperText="Obrigatório: descreva a sobra ou falta identificada para concluir o fechamento com divergência."
+                            slotProps={{ htmlInput: { maxLength: 500 } }} />}
                     </Stack>
                 </DialogContent>
                 <DialogActions>
-                    <Button type="button" onClick={() => { setDiferencaConfirmada(false); setModalFechamento(false); }} disabled={processando}>Cancelar</Button>
-                    <Button type="submit" variant="contained" disabled={processando || saldoFinalInformado === null || (temDiferencaFechamento && !diferencaConfirmada)}>
+                    <Button type="button" onClick={() => { setObservacaoFechamento(""); setModalFechamento(false); }} disabled={processando}>Cancelar</Button>
+                    <Button type="submit" variant="contained" disabled={processando || !podeFechar}>
                         {processando ? "Fechando…" : temDiferencaFechamento ? "Confirmar fechamento com divergência" : "Confirmar fechamento"}
                     </Button>
                 </DialogActions>
             </form>
         </Dialog>
-        <Dialog open={detalhe !== null} fullWidth maxWidth="sm" aria-labelledby="caixa-detalhe-titulo" onClose={() => setDetalhe(null)}><DialogTitle id="caixa-detalhe-titulo">Detalhes da sessão</DialogTitle><DialogContent dividers>{detalhe && <Stack spacing={1.5}><Typography variant="h6">{detalhe.descricaoCaixa}</Typography><Typography color="text.secondary">{data(detalhe.dataHoraAbertura)} até {data(detalhe.dataHoraFechamento)}</Typography><Divider /><Typography>Operador: <strong>{detalhe.operadorAbertura.nome}</strong></Typography><Typography>Saldo inicial: <strong>{dinheiro(detalhe.saldoInicial)}</strong></Typography><Typography>Total de vendas: <strong>{dinheiro(detalhe.totalVendas)}</strong></Typography><Typography>Dinheiro esperado: <strong>{dinheiro(detalhe.dinheiroEsperado)}</strong></Typography><Typography>Dinheiro informado: <strong>{dinheiro(detalhe.valorInformado)}</strong></Typography><Typography>Diferença: <strong>{dinheiro(detalhe.diferenca)}</strong></Typography></Stack>}</DialogContent><DialogActions><Button type="button" onClick={() => setDetalhe(null)}>Fechar</Button></DialogActions></Dialog>
+        <Drawer anchor="right" open={detalhe !== null} onClose={() => setDetalhe(null)} slotProps={{ paper: { sx: { width: { xs: "100%", sm: 480 } } } }}>
+            {detalhe && <Box role="dialog" aria-labelledby="caixa-detalhe-titulo" sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                <Box sx={{ px: 3, py: 2.5, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
+                    <Box>
+                        <Typography id="caixa-detalhe-titulo" variant="h6">{detalhe.descricaoCaixa}</Typography>
+                        <Typography variant="body2" color="text.secondary">Sessão #{detalhe.sessaoId}</Typography>
+                    </Box>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                        <Chip size="small" label="Fechado" variant="outlined" />
+                        <IconButton aria-label="Fechar detalhe da sessão" onClick={() => setDetalhe(null)}><CloseRoundedIcon fontSize="small" /></IconButton>
+                    </Stack>
+                </Box>
+                <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 2.5 }}>
+                    <Stack spacing={3}>
+                        {drawerErro && <Alert severity="error">{drawerErro}</Alert>}
+                        <Box component="dl" sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1.5, m: 0 }}>
+                            <Box><Typography component="dt" variant="caption" color="text.secondary">Abertura</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{data(detalhe.dataHoraAbertura)}</Typography></Box>
+                            <Box><Typography component="dt" variant="caption" color="text.secondary">Fechamento</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{data(detalhe.dataHoraFechamento)}</Typography></Box>
+                            <Box><Typography component="dt" variant="caption" color="text.secondary">Operador de abertura</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{detalhe.operadorAbertura.nome}</Typography></Box>
+                            <Box><Typography component="dt" variant="caption" color="text.secondary">Operador de fechamento</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{detalhe.operadorFechamento?.nome ?? "—"}</Typography></Box>
+                            <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo inicial</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.saldoInicial)}</Typography></Box>
+                            <Box><Typography component="dt" variant="caption" color="text.secondary">Total de vendas</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.totalVendas)}</Typography></Box>
+                            <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo esperado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.dinheiroEsperado)}</Typography></Box>
+                            <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo informado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.valorInformado)}</Typography></Box>
+                        </Box>
+                        <Box sx={{ borderLeft: 3, borderColor: !detalhe.diferenca ? "success.main" : "warning.main", bgcolor: "action.hover", px: 2, py: 1.5 }}>
+                            <Typography variant="body2" color="text.secondary">Diferença</Typography>
+                            <Typography variant="h6" sx={{ fontWeight: 750, fontVariantNumeric: "tabular-nums" }}>{dinheiro(detalhe.diferenca)}</Typography>
+                        </Box>
+
+                        <Divider />
+                        <Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>Conferência do fechamento</Typography>
+                            <Box component="dl" sx={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 1.5, m: 0 }}>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Esperado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.dinheiroEsperado)}</Typography></Box>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Informado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.valorInformado)}</Typography></Box>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Diferença</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.diferenca)}</Typography></Box>
+                            </Box>
+                            <Alert severity="info" variant="outlined" sx={{ mt: 1.5 }}>
+                                Conferência legada: este fechamento registrou apenas o dinheiro físico contado. A conferência por forma de pagamento ainda não está disponível para esta sessão.
+                            </Alert>
+                        </Box>
+
+                        <Divider />
+                        <Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>Meios de pagamento</Typography>
+                            {drawerCarregando ? <Skeleton variant="rounded" height={72} />
+                                : drawerResumo && drawerResumo.totaisPorFormaPagamento.length > 0 ? <Stack spacing={1}>
+                                    {drawerResumo.totaisPorFormaPagamento.map((forma) => <Box key={forma.formaPagamentoId} sx={{ display: "flex", justifyContent: "space-between" }}>
+                                        <Typography variant="body2">{rotuloTipoFormaPagamento[forma.tipo] ?? forma.descricao}</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{dinheiro(forma.total)}</Typography>
+                                    </Box>)}
+                                </Stack> : <Typography variant="body2" color="text.secondary">Nenhum meio de pagamento registrado nesta sessão.</Typography>}
+                        </Box>
+
+                        {!drawerCarregando && drawerMovimentos && drawerMovimentos.filter((m) => m.tipo !== "VENDA").length > 0 && <>
+                            <Divider />
+                            <Box>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>Movimentações</Typography>
+                                <Stack spacing={1.5}>
+                                    {drawerMovimentos.filter((m) => m.tipo !== "VENDA").map((movimento) => <Box key={movimento.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 2 }}>
+                                        <Box>
+                                            <Typography variant="body2">{rotuloMovimentacao[movimento.tipo] ?? movimento.tipo}</Typography>
+                                            <Typography variant="caption" color="text.secondary">{data(movimento.dataHora)}{movimento.observacao ? ` · ${movimento.observacao}` : ""}</Typography>
+                                        </Box>
+                                        <Typography variant="body2" sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>{dinheiro(movimento.valor)}</Typography>
+                                    </Box>)}
+                                </Stack>
+                            </Box>
+                        </>}
+                    </Stack>
+                </Box>
+            </Box>}
+        </Drawer>
         <Dialog open={gerenciando} fullWidth maxWidth="lg" aria-labelledby="caixa-gerenciar-titulo" onClose={() => setGerenciando(false)}><DialogTitle id="caixa-gerenciar-titulo">Gerenciar caixas</DialogTitle><DialogContent dividers><AppTable colunas={colunasCadastro} linhas={caixasFiltrados} obterChaveLinha={(caixa) => caixa.id} acoes={acoesCadastro} minWidth={600} filtros={<FormControl size="small" sx={{ minWidth: 160 }}><InputLabel id="caixa-situacao-label">Situação</InputLabel><Select labelId="caixa-situacao-label" label="Situação" value={situacaoCadastros} inputProps={{ "aria-label": "Filtrar caixas por situação", name: "situacao" }} onChange={(evento) => setSituacaoCadastros(evento.target.value)}><MenuItem value="todos">Todas</MenuItem><MenuItem value="ativos">Ativos</MenuItem><MenuItem value="inativos">Inativos</MenuItem></Select></FormControl>} vazio={{ titulo: "Nenhum caixa encontrado", descricao: situacaoCadastros !== "todos" ? "Tente ajustar o filtro de situação." : "Cadastre um caixa para habilitar a abertura de sessões." }} /></DialogContent><DialogActions><Button type="button" onClick={() => setGerenciando(false)}>Fechar</Button><Button type="button" variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setEditor({ caixa: null })}>Novo caixa</Button></DialogActions></Dialog>
         {editor && <CaixaForm caixa={editor.caixa} onFechar={() => setEditor(null)} onSalvo={salvo} />}
     </PageContainer>;
