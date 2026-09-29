@@ -60,7 +60,7 @@ export default function PageFilters({ busca, children, campoBuscaAtivo }: PageFi
                             },
                         }}
                         sx={{
-                            flex: "1 1 320px",
+                            flex: { xs: "0 1 auto", sm: "1 1 320px" },
                             minWidth: { xs: 0, sm: 280 },
                             "& .MuiOutlinedInput-root": {
                                 borderRadius: layoutTokens.radius.field,

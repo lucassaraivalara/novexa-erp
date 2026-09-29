@@ -12,9 +12,14 @@ class ContaPagarMigrationTest {
             executar(conexao, "CREATE TABLE empresas (id BIGINT PRIMARY KEY)");
             executar(conexao, "CREATE TABLE fornecedores (id BIGINT PRIMARY KEY, empresa_id BIGINT NOT NULL)");
             ScriptUtils.executeSqlScript(conexao, new ClassPathResource("db/migration/V17__cria_contas_pagar.sql"));
+            ScriptUtils.executeSqlScript(conexao, new ClassPathResource("db/migration/V18__adiciona_documento_contas_pagar.sql"));
             executar(conexao, "INSERT INTO empresas VALUES (1), (2)");
             executar(conexao, "INSERT INTO fornecedores VALUES (10, 1), (20, 2)");
-            executar(conexao, "INSERT INTO contas_pagar (empresa_id,fornecedor_id,descricao,data_vencimento,valor) VALUES (1,10,'Aluguel','2026-10-10',200)");
+            executar(conexao, "INSERT INTO contas_pagar (empresa_id,fornecedor_id,descricao,documento,data_vencimento,valor) VALUES (1,10,'Aluguel','NF-42','2026-10-10',200)");
+            try (var resultado = conexao.createStatement().executeQuery("SELECT documento FROM contas_pagar WHERE id=1")) {
+                assertThat(resultado.next()).isTrue();
+                assertThat(resultado.getString(1)).isEqualTo("NF-42");
+            }
             assertThatThrownBy(() -> executar(conexao,
                     "INSERT INTO contas_pagar (empresa_id,fornecedor_id,descricao,data_vencimento,valor) VALUES (1,20,'Outro','2026-10-10',200)"))
                     .isInstanceOf(SQLException.class);

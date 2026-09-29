@@ -13,6 +13,7 @@ public class ContaPagarEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fornecedor_id") private FornecedorEntity fornecedor;
     @Column(nullable = false, length = 200) private String descricao;
+    @Column(length = 80) private String documento;
     @Column(length = 100) private String categoria;
     private LocalDate dataEmissao;
     @Column(nullable = false) private LocalDate dataVencimento;
@@ -29,9 +30,10 @@ public class ContaPagarEntity {
         this.status = StatusContaPagar.ABERTA;
     }
 
-    public void atualizar(String descricao, FornecedorEntity fornecedor, String categoria,
+    public void atualizar(String descricao, String documento, FornecedorEntity fornecedor, String categoria,
             LocalDate dataEmissao, LocalDate dataVencimento, BigDecimal valor, String observacao) {
         this.descricao = descricao;
+        this.documento = documento;
         this.fornecedor = fornecedor;
         this.categoria = categoria;
         this.dataEmissao = dataEmissao;
@@ -57,6 +59,7 @@ public class ContaPagarEntity {
     public EmpresaEntity getEmpresa() { return empresa; }
     public FornecedorEntity getFornecedor() { return fornecedor; }
     public String getDescricao() { return descricao; }
+    public String getDocumento() { return documento; }
     public String getCategoria() { return categoria; }
     public LocalDate getDataEmissao() { return dataEmissao; }
     public LocalDate getDataVencimento() { return dataVencimento; }

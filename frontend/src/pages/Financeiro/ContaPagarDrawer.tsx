@@ -14,6 +14,7 @@ type Props = {
 export default function ContaPagarDrawer({ conta, fornecedores, onFechar, onSalvo }: Props) {
     const [form, setForm] = useState({
         descricao: conta?.descricao ?? "",
+        documento: conta?.documento ?? "",
         fornecedorId: (conta?.fornecedorId ?? "") as number | "",
         categoria: conta?.categoria ?? "",
         dataEmissao: conta?.dataEmissao ?? "",
@@ -33,7 +34,8 @@ export default function ContaPagarDrawer({ conta, fornecedores, onFechar, onSalv
             return;
         }
         const dados: ContaPagarInput = {
-            descricao: form.descricao.trim(), fornecedorId: form.fornecedorId || null,
+            descricao: form.descricao.trim(), documento: form.documento.trim() || null,
+            fornecedorId: form.fornecedorId || null,
             categoria: form.categoria.trim() || null, dataEmissao: form.dataEmissao || null,
             dataVencimento: form.dataVencimento, valor, observacao: form.observacao.trim() || null,
         };
@@ -54,6 +56,8 @@ export default function ContaPagarDrawer({ conta, fornecedores, onFechar, onSalv
                 {erro && <Alert severity="error">{erro}</Alert>}
                 <TextField autoFocus required fullWidth label="Descrição" name="descricao" value={form.descricao}
                     onChange={(e) => setForm({ ...form, descricao: e.target.value })} slotProps={{ htmlInput: { maxLength: 200 } }} />
+                <TextField fullWidth label="Número do documento" name="documento" value={form.documento}
+                    onChange={(e) => setForm({ ...form, documento: e.target.value })} slotProps={{ htmlInput: { maxLength: 80 } }} />
                 <TextField select fullWidth label="Fornecedor" name="fornecedorId" value={form.fornecedorId}
                     onChange={(e) => setForm({ ...form, fornecedorId: e.target.value ? Number(e.target.value) : "" })}>
                     <MenuItem value="">Sem fornecedor</MenuItem>

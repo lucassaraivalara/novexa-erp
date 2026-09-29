@@ -60,9 +60,11 @@ class ContaPagarHttpTest {
         long id = criar(tokenA, null);
         mvc.perform(put("/financeiro/contas-pagar/" + id).header("Authorization", tokenA)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsBytes(Map.of("descricao", "Aluguel atualizado", "dataVencimento", "2026-11-10",
-                                "valor", 230.50, "categoria", "Ocupação", "empresaId", empresaB.getId()))))
+                        .content(json.writeValueAsBytes(Map.of("descricao", "Aluguel atualizado", "documento", "NF-42",
+                                "dataVencimento", "2026-11-10", "valor", 230.50, "categoria", "Ocupação",
+                                "empresaId", empresaB.getId()))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.descricao").value("Aluguel atualizado"))
+                .andExpect(jsonPath("$.documento").value("NF-42"))
                 .andExpect(jsonPath("$.valor").value(230.50));
         assertThat(contas.findById(id).orElseThrow().getEmpresa().getId()).isEqualTo(empresaA.getId());
     }
@@ -71,10 +73,10 @@ class ContaPagarHttpTest {
         long id = criar(tokenA, null);
         mvc.perform(post("/financeiro/contas-pagar/" + id + "/pagar").header("Authorization", tokenA)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"dataPagamento\":\"2026-10-01\",\"valorPago\":198.50}"))
+                        .content("{\"dataPagamento\":\"2026-10-01\",\"valorPago\":200}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PAGA"))
                 .andExpect(jsonPath("$.dataPagamento").value("2026-10-01"))
-                .andExpect(jsonPath("$.valorPago").value(198.50));
+                .andExpect(jsonPath("$.valorPago").value(200));
         mvc.perform(put("/financeiro/contas-pagar/" + id).header("Authorization", tokenA)
                         .contentType(MediaType.APPLICATION_JSON).content(pedido(null)))
                 .andExpect(status().isConflict());
@@ -84,12 +86,25 @@ class ContaPagarHttpTest {
                 .andExpect(jsonPath("$.valorPago").doesNotExist());
     }
 
+    @Test void baixaExigeDataEValorIntegral() throws Exception {
+        long id = criar(tokenA, null);
+        mvc.perform(post("/financeiro/contas-pagar/" + id + "/pagar").header("Authorization", tokenA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dataPagamento\":\"2026-10-01\",\"valorPago\":198.50}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/financeiro/contas-pagar/" + id + "/pagar").header("Authorization", tokenA)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"valorPago\":200}"))
+                .andExpect(status().isBadRequest());
+        assertThat(contas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusContaPagar.ABERTA);
+    }
+
     @Test void cancelaAbertaEBloqueiaNovasTransicoes() throws Exception {
         long id = criar(tokenA, null);
         mvc.perform(post("/financeiro/contas-pagar/" + id + "/cancelar").header("Authorization", tokenA))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELADA"));
         mvc.perform(post("/financeiro/contas-pagar/" + id + "/pagar").header("Authorization", tokenA)
-                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dataPagamento\":\"2026-10-01\",\"valorPago\":200}"))
                 .andExpect(status().isConflict());
         mvc.perform(post("/financeiro/contas-pagar/" + id + "/estornar").header("Authorization", tokenA))
                 .andExpect(status().isConflict());
@@ -108,7 +123,8 @@ class ContaPagarHttpTest {
                 .andExpect(status().isNotFound());
         for (String acao : new String[]{"pagar", "cancelar", "estornar"})
             mvc.perform(post("/financeiro/contas-pagar/" + id + "/" + acao).header("Authorization", tokenB)
-                            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                            .contentType(MediaType.APPLICATION_JSON).content(acao.equals("pagar")
+                                    ? "{\"dataPagamento\":\"2026-10-01\",\"valorPago\":200}" : "{}"))
                     .andExpect(status().isNotFound());
         assertThat(contas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusContaPagar.ABERTA);
     }

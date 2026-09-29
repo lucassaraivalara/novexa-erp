@@ -17,6 +17,8 @@ Dashboard ...... placeholder
 - A baixa é registro operacional da conta, sem movimentação bancária ou de Caixa. Recorrência, parcelamento, conciliação e DRE não fazem parte deste MVP.
 - Validação direcionada: 7 testes backend (HTTP e migration), teste de contrato frontend e build aprovados.
 
+Evolução operacional na branch `feat/contas-pagar-operacional`: V18 adiciona documento opcional; a listagem calcula indicadores, saldo e filtros financeiros localmente. Baixa exige data e valor integral para não produzir conta PAGA com saldo residual sem suporte a pagamento parcial. A condição vencida é calculada, não persistida. Validação: 8 testes backend, 2 testes frontend, lint direcionado e build aprovados; PostgreSQL/Flyway real não foi executado nesta branch.
+
 ## Detalhe operacional de sessão fechada (branch `feat/detalhe-sessao-caixa`)
 
 - `Caixas anteriores` abre um drawer com identificação, operadores, saldos, conferência por forma e eventos operacionais da sessão, inclusive venda cancelada e estorno físico quando existente. Fechamentos legados exibem ausência de conferência por forma sem inventar valores.

@@ -3,6 +3,7 @@ export type StatusContaPagar = "ABERTA" | "PAGA" | "CANCELADA";
 export type ContaPagar = {
     id: number;
     descricao: string;
+    documento: string | null;
     fornecedorId: number | null;
     fornecedorNome: string | null;
     categoria: string | null;
@@ -15,7 +16,7 @@ export type ContaPagar = {
     observacao: string | null;
 };
 
-export type ContaPagarInput = Pick<ContaPagar, "descricao" | "fornecedorId" | "categoria" |
+export type ContaPagarInput = Pick<ContaPagar, "descricao" | "documento" | "fornecedorId" | "categoria" |
     "dataEmissao" | "dataVencimento" | "valor" | "observacao">;
 
 export type FornecedorContaPagar = { id: number; razaoSocial: string; ativo: boolean };

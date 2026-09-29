@@ -6,6 +6,7 @@ import java.time.LocalDate;
 
 public record ContaPagarRequestDTO(
         @NotBlank @Size(max = 200) String descricao,
+        @Size(max = 80) String documento,
         Long fornecedorId,
         @Size(max = 100) String categoria,
         LocalDate dataEmissao,

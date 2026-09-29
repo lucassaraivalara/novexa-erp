@@ -162,7 +162,7 @@ As configurações ficam na área gerencial. A operação comum continua rápida
 
 ## Contas a Pagar — MVP operacional
 
-Contas a Pagar usa a empresa do JWT e aceita fornecedor da mesma empresa, categoria textual e emissão opcionais. Vencimento, descrição e valor positivo são obrigatórios. Uma conta ABERTA pode ser editada, paga ou cancelada; uma conta PAGA pode ter o pagamento estornado, voltando a ABERTA. Pagamento registra data e valor pago, sem movimentar Caixa ou Conta Bancária. Não há recorrência, parcelas, conciliação ou DRE nesta etapa.
+Contas a Pagar usa a empresa do JWT e aceita fornecedor da mesma empresa, número do documento, categoria textual e emissão opcionais. Vencimento, descrição e valor positivo são obrigatórios. Uma conta ABERTA pode ser editada, paga ou cancelada; uma conta PAGA pode ter o pagamento estornado, voltando a ABERTA. Vencida é uma condição calculada pela data de vencimento, não um status persistido. Sem pagamentos parciais ou ajustes nesta etapa, a baixa exige data e valor integral da conta; o valor em aberto é derivado do valor original menos o pago, desconsiderando contas canceladas. A baixa não movimenta Caixa ou Conta Bancária. Não há recorrência, parcelas, conciliação ou DRE nesta etapa.
 
 ## Limites da evolução — FUTURO
 

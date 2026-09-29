@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -50,10 +49,12 @@ public class ContaPagarService {
     public ContaPagarResponseDTO pagar(Long id, Long empresaId, PagamentoContaPagarRequestDTO pedido) {
         var conta = buscarParaAlterar(id, empresaId);
         exigirAberta(conta);
-        BigDecimal pago = pedido.valorPago() == null ? conta.getValor() : pedido.valorPago();
+        BigDecimal pago = pedido.valorPago();
         if (pago.signum() <= 0 || pago.scale() > 2 || pago.precision() - pago.scale() > 17)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe um valor pago positivo com até duas casas decimais.");
-        conta.pagar(pedido.dataPagamento() == null ? LocalDate.now() : pedido.dataPagamento(), pago);
+        if (pago.compareTo(conta.getValor()) != 0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O pagamento deve corresponder ao valor integral da conta.");
+        conta.pagar(pedido.dataPagamento(), pago);
         return ContaPagarResponseDTO.de(contas.saveAndFlush(conta));
     }
 
@@ -80,7 +81,7 @@ public class ContaPagarService {
             fornecedor = fornecedores.findByIdAndEmpresaId(pedido.fornecedorId(), empresaId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Fornecedor não encontrado."));
         }
-        conta.atualizar(pedido.descricao().trim(), fornecedor, opcional(pedido.categoria()),
+        conta.atualizar(pedido.descricao().trim(), opcional(pedido.documento()), fornecedor, opcional(pedido.categoria()),
                 pedido.dataEmissao(), pedido.dataVencimento(), pedido.valor(), opcional(pedido.observacao()));
     }
 
