@@ -63,6 +63,8 @@ class SessaoCaixaHttpTest {
         caixaA = caixa(a, "Caixa A"); caixaB = caixa(b, "Caixa B");
         operadorA = usuario(a, "11111111111"); operadorB = usuario(b, "22222222222");
         colegaA = usuario(a, "33333333333");
+        colegaA.setPerfil(PerfilUsuario.GERENTE);
+        colegaA = usuarios.saveAndFlush(colegaA);
         principal = new UsuarioAutenticado(operadorA.getId(), operadorA.getCpf(), a.getId(), PerfilUsuario.USUARIO);
         token = token(operadorA);
     }
@@ -97,6 +99,39 @@ class SessaoCaixaHttpTest {
         assertThat(service.consultarAberta(caixaA.getId(), principal.empresaId()).id()).isEqualTo(reaberta.id());
         assertThat(sessoes.findById(id).orElseThrow().getSaldoFinal()).isEqualByComparingTo("8.50");
         assertThat(sessoes.count()).isEqualTo(2);
+    }
+
+    @Test
+    void operadorNaoFechaSessaoAbertaPorColegaDaMesmaEmpresa() throws Exception {
+        var aberta = service.abrir(caixaA.getId(), BigDecimal.ZERO, principal);
+        var colegaOperador = usuario(caixaA.getEmpresa(), "44444444444");
+
+        mvc.perform(post(url(caixaA) + "/" + aberta.id() + "/fechar")
+                        .header("Authorization", token(colegaOperador))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"saldoFinal\":0}"))
+                .andExpect(status().isForbidden());
+        assertThat(sessoes.findById(aberta.id()).orElseThrow().getStatus()).isEqualTo(StatusSessaoCaixa.ABERTO);
+
+        mvc.perform(post(url(caixaA) + "/" + aberta.id() + "/fechar")
+                        .header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"saldoFinal\":0}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void novoPerfilOperadorAbreEFechaPropriaSessao() throws Exception {
+        operadorA.setPerfil(PerfilUsuario.OPERADOR);
+        operadorA = usuarios.saveAndFlush(operadorA);
+        token = token(operadorA);
+
+        var resposta = mvc.perform(post(url(caixaA)).header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"saldoInicial\":0}"))
+                .andExpect(status().isCreated()).andReturn();
+        long id = json.readTree(resposta.getResponse().getContentAsString()).get("id").asLong();
+
+        mvc.perform(post(url(caixaA) + "/" + id + "/fechar").header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"saldoFinal\":0}"))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -219,7 +254,7 @@ class SessaoCaixaHttpTest {
     }
 
     private String url(CaixaEntity caixa) { return "/financeiro/caixas/" + caixa.getId() + "/sessoes"; }
-    private String token(UsuarioEntity usuario) { return "Bearer " + jwt.gerarToken(usuario.getId(), usuario.getCpf(), usuario.getEmpresa().getId(), PerfilUsuario.USUARIO); }
+    private String token(UsuarioEntity usuario) { return "Bearer " + jwt.gerarToken(usuario); }
     private EmpresaEntity empresa(String nome) {
         var e = new EmpresaEntity(); e.setRazaoSocial(nome); e.setAtivo(true); return empresas.saveAndFlush(e);
     }

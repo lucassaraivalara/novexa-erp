@@ -1,6 +1,6 @@
 import type { EmpresaAtiva } from "./auth";
 
-export type PerfilUsuario = "ADMIN" | "USUARIO";
+export type PerfilUsuario = "ADMIN" | "GERENTE" | "OPERADOR" | "USUARIO";
 
 export type Usuario = {
     id: number;

@@ -1,6 +1,7 @@
 package br.com.novexa.erp.service;
 
 import br.com.novexa.erp.entity.EmpresaEntity;
+import br.com.novexa.erp.entity.PerfilUsuario;
 import br.com.novexa.erp.entity.UsuarioEntity;
 import br.com.novexa.erp.exception.AutenticacaoException;
 import br.com.novexa.erp.exception.EmpresaNotFoundException;
@@ -45,6 +46,7 @@ class UsuarioServiceTest {
     @Test
     void deveSalvarSenhaCriptografada() {
         UsuarioEntity usuario = criarUsuario("senha123", true);
+        usuario.setPerfil(null);
         EmpresaEntity empresa = criarEmpresa(true);
 
         when(usuarioRepository.existsByCpf("02360684663")).thenReturn(false);
@@ -57,6 +59,7 @@ class UsuarioServiceTest {
         assertThat(usuarioSalvo.getSenha()).isNotEqualTo("senha123");
         assertThat(passwordEncoder.matches("senha123", usuarioSalvo.getSenha())).isTrue();
         assertThat(usuarioSalvo.getAtivo()).isTrue();
+        assertThat(usuarioSalvo.getPerfil()).isEqualTo(PerfilUsuario.OPERADOR);
         assertThat(usuarioSalvo.getEmpresa()).isSameAs(empresa);
     }
 

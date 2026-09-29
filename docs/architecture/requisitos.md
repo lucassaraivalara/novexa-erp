@@ -24,6 +24,8 @@ O sistema deverá permitir:
 * Definição de permissões;
 * Gerenciamento de perfis de usuários.
 
+Na fase operacional atual, `ADMIN` gerencia usuários; `GERENTE` e `ADMIN` cancelam vendas, registram sangria/suprimento e podem fechar caixas de outros operadores. `OPERADOR` abre caixa e fecha a própria sessão. `USUARIO` permanece como valor legado equivalente a operador. A matriz granular de permissões continua futura.
+
 ---
 
 ## 2.2 Módulo de Clientes

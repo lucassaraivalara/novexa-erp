@@ -33,7 +33,7 @@ public class UsuarioEntity {
     private Boolean ativo = true;
 
     @Enumerated(EnumType.STRING)
-    private PerfilUsuario perfil = PerfilUsuario.USUARIO;
+    private PerfilUsuario perfil = PerfilUsuario.OPERADOR;
 
     /*
      * Cada usuário trabalha em uma empresa. A coluna permanece nullable nesta

@@ -61,6 +61,8 @@ class VendaHttpTest {
         empresa = empresa("Empresa A", "11222333000181");
         outra = empresa("Empresa B", "12345678000190");
         operador = usuario(empresa, "02360684663");
+        operador.setPerfil(PerfilUsuario.GERENTE);
+        operador = usuarios.saveAndFlush(operador);
         segundo = usuario(empresa, "11144477735");
         produto = produto(empresa, "Produto", "10.00", "10.000");
         authorization = "Bearer " + jwt.gerarToken(operador);
@@ -163,6 +165,8 @@ class VendaHttpTest {
     void outraEmpresaNaoCancelaVendaFaturadaNemAlteraSeusEfeitos() throws Exception {
         long id = enviar(pedido());
         var operadorOutraEmpresa = usuario(outra, "52998224725");
+        operadorOutraEmpresa.setPerfil(PerfilUsuario.GERENTE);
+        operadorOutraEmpresa = usuarios.saveAndFlush(operadorOutraEmpresa);
 
         mvc.perform(post("/vendas/" + id + "/cancelar")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt.gerarToken(operadorOutraEmpresa)))

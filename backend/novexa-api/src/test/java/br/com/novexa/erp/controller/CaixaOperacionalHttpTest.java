@@ -67,7 +67,9 @@ class CaixaOperacionalHttpTest {
     @BeforeEach void preparar() {
         empresa = empresa("A");
         operador = usuario(empresa, "02360684663");
-        principal = new UsuarioAutenticado(operador.getId(), operador.getCpf(), empresa.getId(), PerfilUsuario.USUARIO);
+        operador.setPerfil(PerfilUsuario.GERENTE);
+        operador = usuarios.saveAndFlush(operador);
+        principal = new UsuarioAutenticado(operador.getId(), operador.getCpf(), empresa.getId(), PerfilUsuario.GERENTE);
         token = "Bearer " + jwt.gerarToken(operador);
         caixa = caixa(empresa);
         sessao = sessoesService.abrir(caixa.getId(), new BigDecimal("100"), principal).id();
@@ -205,6 +207,8 @@ class CaixaOperacionalHttpTest {
     void fechamentoRegistraOperadorDataESaldoECalculaSobraOuFalta(BigDecimal informado, BigDecimal diferenca) throws Exception {
         vendaService.finalizar(venda(FormaPagamento.DINHEIRO, sessao), principal);
         var colega = usuario(empresa, "22222222222");
+        colega.setPerfil(PerfilUsuario.GERENTE);
+        colega = usuarios.saveAndFlush(colega);
         var antes = LocalDateTime.now().minusSeconds(1);
         mvc.perform(post("/financeiro/caixas/" + caixa.getId() + "/sessoes/" + sessao + "/fechar")
                 .header("Authorization", "Bearer " + jwt.gerarToken(colega)).contentType(MediaType.APPLICATION_JSON)

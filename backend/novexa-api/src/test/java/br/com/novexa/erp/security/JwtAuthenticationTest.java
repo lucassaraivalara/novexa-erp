@@ -223,6 +223,29 @@ class JwtAuthenticationTest {
                 .andExpect(status().isForbidden()).andExpect(content().string("Acesso negado."));
     }
 
+    @ParameterizedTest
+    @EnumSource(value = PerfilUsuario.class, names = {"OPERADOR", "USUARIO"})
+    void operadorNaoExecutaAcoesGerenciais(PerfilUsuario perfil) throws Exception {
+        String authorization = "Bearer " + jwtService.gerarToken(1L, CPF, 10L, perfil);
+        for (String url : List.of("/vendas/1/cancelar", "/financeiro/caixas/sessoes/1/movimentacoes")) {
+            mvc.perform(post(url).header(HttpHeaders.AUTHORIZATION, authorization))
+                    .andExpect(status().isForbidden());
+        }
+        mvc.perform(get("/usuarios").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/usuarios").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void gerenteNaoGerenciaUsuarios() throws Exception {
+        String authorization = "Bearer " + jwtService.gerarToken(1L, CPF, 10L, PerfilUsuario.GERENTE);
+        mvc.perform(get("/usuarios").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/usuarios").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isForbidden());
+    }
+
     private ResultActions login(String senha) throws Exception {
         return mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsBytes(Map.of("cpf", "023.606.846-63", "senha", senha))));

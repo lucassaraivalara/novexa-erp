@@ -24,7 +24,7 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
         nomeUsuario: usuario?.nomeUsuario ?? "",
         cpf: usuario?.cpf ?? "",
         email: usuario?.email ?? "",
-        perfil: usuario?.perfil ?? "USUARIO",
+        perfil: usuario?.perfil === "USUARIO" ? "OPERADOR" : usuario?.perfil ?? "OPERADOR",
         ativo: usuario?.ativo !== false,
         senha: "",
     });
@@ -119,12 +119,19 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
                             <Divider />
                             <TextField select label="Perfil" name="perfil" required fullWidth value={form.perfil} onChange={(e) => atualizar("perfil", e.target.value as UsuarioInput["perfil"])}>
                                 <MenuItem value="ADMIN">Administrador</MenuItem>
-                                <MenuItem value="USUARIO">Usuário</MenuItem>
+                                <MenuItem value="GERENTE">Gerente</MenuItem>
+                                <MenuItem value="OPERADOR">Operador</MenuItem>
                             </TextField>
                             <Box sx={{ borderLeft: "3px solid", borderColor: "primary.main", pl: 2, py: 0.5 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{form.perfil === "ADMIN" ? "Administrador" : "Usuário"}</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {form.perfil === "ADMIN" ? "Administrador" : form.perfil === "GERENTE" ? "Gerente" : "Operador"}
+                                </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    {form.perfil === "ADMIN" ? "Identifica a função administrativa." : "Identifica a função operacional."} Nesta versão, o perfil ainda não restringe telas ou ações.
+                                    {form.perfil === "ADMIN"
+                                        ? "Gerencia usuários e pode cancelar vendas, movimentar e fechar caixas."
+                                        : form.perfil === "GERENTE"
+                                            ? "Pode cancelar vendas, registrar sangrias e suprimentos e fechar caixas."
+                                            : "Pode vender, abrir caixa e fechar a própria sessão. Ações gerenciais exigem outro perfil."}
                                 </Typography>
                             </Box>
                             <FormControlLabel control={<Switch checked={form.ativo} onChange={(e) => atualizar("ativo", e.target.checked)} />} label="Usuário ativo" />

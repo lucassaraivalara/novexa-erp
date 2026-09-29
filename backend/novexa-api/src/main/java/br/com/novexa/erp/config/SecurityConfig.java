@@ -34,6 +34,10 @@ public class SecurityConfig {
                         // Preserva o status original no despacho interno de erro do servlet.
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers("/usuarios", "/usuarios/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/vendas/{id}/cancelar").hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.POST, "/financeiro/caixas/sessoes/{sessaoId}/movimentacoes")
+                            .hasAnyRole("ADMIN", "GERENTE")
                         .anyRequest().authenticated())
                 // Registrado apenas na cadeia do Spring Security, evitando execução dupla pelo servlet container.
                 .addFilterBefore(new JwtAuthenticationFilter(jwtService, errorHandler),

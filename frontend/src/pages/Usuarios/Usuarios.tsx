@@ -76,7 +76,7 @@ export default function Usuarios() {
         { campo: "nomeUsuario", cabecalho: "Nome", largura: 240, ordenavel: true },
         { campo: "cpf", cabecalho: "CPF", largura: 155 },
         { campo: "email", cabecalho: "E-mail", largura: 260 },
-        { campo: "perfil", cabecalho: "Perfil", largura: 135, render: (_, usuario) => usuario.perfil === "ADMIN" ? "Administrador" : "Usuário" },
+        { campo: "perfil", cabecalho: "Perfil", largura: 135, render: (_, usuario) => usuario.perfil === "ADMIN" ? "Administrador" : usuario.perfil === "GERENTE" ? "Gerente" : "Operador" },
         { campo: "ativo", cabecalho: "Situação", largura: 120, render: (_, usuario) => <Chip size="small" variant="outlined" color={usuario.ativo === false ? "default" : "success"} label={usuario.ativo === false ? "Inativo" : "Ativo"} /> },
     ];
 

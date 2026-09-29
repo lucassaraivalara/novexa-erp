@@ -37,6 +37,7 @@ import {
 } from "../../services/vendaService";
 import type { Cliente } from "../../types/cliente";
 import { obterSessao } from "../../utils/auth/sessao";
+import { podeExecutarAcaoGerencial } from "../../utils/auth/perfis";
 import {
     criarParametrosVenda,
     dataHoraVenda,
@@ -55,6 +56,7 @@ type CampoOrdenacaoVenda = "id" | "dataHora" | "nomeCliente" | "total" | "status
 
 export default function CentralVendas() {
     const empresaId = obterSessao()?.empresa.id;
+    const podeCancelar = podeExecutarAcaoGerencial(obterSessao()?.perfil);
     const [vendas, setVendas] = useState<VendaResumo[]>([]);
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [filtros, setFiltros] = useState<FiltrosCentralVendas>(filtrosIniciais);
@@ -172,14 +174,14 @@ export default function CentralVendas() {
             onClick: venda => void visualizar(venda),
             desabilitado: venda => carregandoDetalhe || cancelando === venda.id,
         },
-        {
+        ...(podeCancelar ? [{
             rotulo: "Cancelar venda",
             tooltip: "Cancelar venda",
             icone: <CancelOutlinedIcon fontSize="small" />,
             onClick: solicitarCancelamento,
             desabilitado: venda => !podeCancelarVenda(venda.status) || cancelando !== null,
             cor: "error",
-        },
+        } satisfies AcaoTabela<VendaResumo>] : []),
     ];
 
     const vendasOrdenadas = useMemo(() => [...vendas].sort((a, b) => {

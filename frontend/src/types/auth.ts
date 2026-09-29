@@ -16,12 +16,14 @@ export type EmpresaAtiva = {
     logomarca?: string | null;
 };
 
+import type { PerfilUsuario } from "./usuario";
+
 export type LoginResponse = {
     id: number;
     nomeUsuario: string;
     cpf: string;
     email: string;
-    perfil: "ADMIN" | "USUARIO";
+    perfil: PerfilUsuario;
     empresa: EmpresaAtiva;
     token: string;
 };

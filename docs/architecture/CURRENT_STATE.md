@@ -10,6 +10,13 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; cadastros frontend estruturados
 Dashboard ...... placeholder
 
+## Usuários e Acessos — Fase 2 (branch `feat/perfis-operacionais`, pendente de integração)
+
+- Novos usuários recebem `OPERADOR` por padrão. `ADMIN` gerencia usuários; `ADMIN` e `GERENTE` cancelam vendas e registram sangria/suprimento. `OPERADOR` abre Caixa e fecha apenas a sessão que abriu; gerentes e administradores podem fechar sessões de outros operadores.
+- O valor persistido `USUARIO` continua aceito como operador legado, sem migration. O frontend oculta ações incompatíveis e mantém a autorização decisiva no backend. Permissões por menu não foram implementadas.
+- O perfil é carregado no JWT no login; uma alteração de perfil passa a valer para o token do usuário após novo login ou expiração do token atual (padrão de 15 minutos).
+- Validação direcionada: 223 testes backend e 75 testes frontend aprovados; build frontend aprovado. O lint direcionado das novas áreas passou, enquanto Caixa e Central de Vendas mantêm quatro erros de lint anteriores nas chamadas de efeitos.
+
 ## Usuários: lista e drawer (branch `feat/usuarios-drawer`, pendente de integração)
 
 - `/usuarios` lista usuários da empresa autenticada em `AppTable` e abre drawer para cadastro, edição e redefinição de senha, com dados, perfil e situação. A lista permite ativar/inativar com confirmação.

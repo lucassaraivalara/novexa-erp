@@ -43,7 +43,7 @@ public class UsuarioService {
         }
 
         if (usuario.getPerfil() == null) {
-            usuario.setPerfil(PerfilUsuario.USUARIO);
+            usuario.setPerfil(PerfilUsuario.OPERADOR);
         }
 
         return usuarioRepository.save(usuario);

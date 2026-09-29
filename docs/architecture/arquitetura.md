@@ -10,7 +10,7 @@ docs/
 
 ## Usuários
 
-`/usuarios` usa o tenant do JWT em listagem, cadastro e edição. O contrato de cadastro exige senha; a edição preserva o hash quando a senha não é informada e atualiza a situação `ativo` quando enviada. `UsuarioResponseDTO` expõe a situação para a lista. `ADMIN` e `USUARIO` ainda não aplicam autorização por perfil às rotas.
+`/usuarios` usa o tenant do JWT em listagem, cadastro e edição. O contrato de cadastro exige senha; a edição preserva o hash quando a senha não é informada e atualiza a situação `ativo` quando enviada. `UsuarioResponseDTO` expõe a situação para a lista. O filtro de segurança reserva `/usuarios` a `ADMIN`, cancelamento de Venda e sangria/suprimento a `ADMIN` ou `GERENTE`. No serviço de Sessão de Caixa, `OPERADOR` e o legado `USUARIO` só fecham a própria sessão; a abertura continua disponível aos perfis autenticados. O perfil no JWT é atualizado no próximo login.
 
 ## Domínio de Vendas consolidado
 

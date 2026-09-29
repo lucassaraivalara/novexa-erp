@@ -16,6 +16,8 @@ import {
 } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
 import { itemMenuAtivo, menuPrincipal, obterCaminhoDaRota, type ItemMenu } from "../../routes/navigation";
+import { podeGerenciarUsuarios } from "../../utils/auth/perfis";
+import { obterSessao } from "../../utils/auth/sessao";
 import { layoutTokens } from "./layoutTokens";
 
 function Sidebar() {
@@ -118,6 +120,7 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
         localizacao: location.key,
         aberto: grupo && (ativo || Boolean(item.abertoInicialmente)),
     });
+    if (item.id === "usuarios" && !podeGerenciarUsuarios(obterSessao()?.perfil)) return null;
     // Ao navegar para um descendente, revela sua categoria mesmo se estava fechada.
     const aberto = expansao.aberto || (ativo && expansao.localizacao !== location.key);
     const titulo = item.tipo === "rota" ? item.titulo ?? item.rota.titulo : item.titulo;

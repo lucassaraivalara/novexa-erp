@@ -67,6 +67,9 @@ public class SessaoCaixaService {
         UsuarioEntity usuario = operador(autenticado);
         SessaoCaixaEntity sessao = operacional.bloquear(sessaoId, autenticado.empresaId());
         if (!sessao.getCaixa().getId().equals(caixaId)) throw naoEncontrado();
+        if (autenticado.perfil() != PerfilUsuario.ADMIN && autenticado.perfil() != PerfilUsuario.GERENTE
+                && !sessao.getUsuarioAbertura().getId().equals(autenticado.usuarioId()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Somente quem abriu o Caixa pode fechar esta sessão.");
         var modalidade = pedido.conferencia() == null ? ModalidadeConferencia.LEGADA : ModalidadeConferencia.POR_FORMA;
         var informados = validarInformados(pedido.conferencia());
         String observacao = normalizarObservacao(pedido.conferencia());

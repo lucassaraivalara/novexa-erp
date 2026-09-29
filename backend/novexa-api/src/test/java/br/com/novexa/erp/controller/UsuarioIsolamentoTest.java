@@ -211,7 +211,7 @@ class UsuarioIsolamentoTest {
         usuario.setNomeUsuario("Usuário de teste");
         usuario.setCpf(cpf);
         usuario.setSenha(passwordEncoder.encode("senha123"));
-        usuario.setPerfil(PerfilUsuario.USUARIO);
+        usuario.setPerfil(PerfilUsuario.ADMIN);
         return usuarios.saveAndFlush(usuario);
     }
 }

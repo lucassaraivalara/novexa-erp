@@ -88,9 +88,11 @@ Caixa possui cadastro e sessões operacionais. A venda faturada vincula-se à se
 
 ## Sessões operacionais de Caixa — IMPLEMENTADO no backend
 
+Na Fase 2 de Usuários e Acessos, qualquer perfil operacional autenticado pode abrir uma sessão. `OPERADOR` e `USUARIO` legado fecham apenas a sessão que abriram; `GERENTE` e `ADMIN` podem fechar outras sessões e registrar sangria/suprimento. O saldo inicial segue o fluxo de abertura e não é um suprimento manual sujeito a autorização gerencial.
+
 - Reutiliza CaixaEntity: um Caixa possui várias SessaoCaixaEntity históricas, no máximo uma ABERTO. FECHADO é definitivo; reabrir cria outra sessão.
 - Abertura informa saldoInicial; fechamento informa saldoFinal. Ambos são valores declarados de dinheiro físico, não negativos e com até duas casas decimais. O fechamento retorna o resumo calculado descrito abaixo; não há conciliação bancária.
-- Empresa e operadores vêm da autenticação, horários do backend. São registrados usuários e datas da abertura e do fechamento; qualquer operador ativo da mesma empresa pode fechar, sem permissões por perfil nesta etapa.
+- Empresa e operadores vêm da autenticação, horários do backend. São registrados usuários e datas da abertura e do fechamento; o fechamento respeita a propriedade da sessão e o perfil conforme descrito acima.
 - Caixa inativo não abre nova sessão. A consulta e o fechamento de sessão existente continuam permitidos mesmo após inativação cadastral.
 - POST `/financeiro/caixas/{caixaId}/sessoes` abre (201, corpo `{saldoInicial}`); GET `/financeiro/caixas/{caixaId}/sessoes/aberta` consulta; POST `/financeiro/caixas/{caixaId}/sessoes/{sessaoId}/fechar` fecha (200, corpo `{saldoFinal}`). Respostas incluem ID da sessão, Caixa, status, saldos, operadores e horários.
 - Sem sessão aberta ou recurso de outra empresa: 404. Segunda abertura: 409. Repetir fechamento com o mesmo saldo retorna o resultado anterior; outro saldo retorna 409. O ID da sessão evita que um fechamento antigo atinja uma nova abertura; não há replay idempotente de abertura nesta etapa.

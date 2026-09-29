@@ -27,6 +27,8 @@ import type {
     SessaoCaixaHistorico,
 } from "../../types/caixa";
 import CaixaForm from "./CaixaForm";
+import { podeExecutarAcaoGerencial, podeFecharSessao } from "../../utils/auth/perfis";
+import { obterSessao } from "../../utils/auth/sessao";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dataHora = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -82,6 +84,8 @@ function criarTimeline(movimentos: MovimentacaoCaixa[], vendas: VendaDetalhe[]):
 }
 
 export default function Caixa() {
+    const usuarioAtual = obterSessao();
+    const podeMovimentar = podeExecutarAcaoGerencial(usuarioAtual?.perfil);
     const [aba, setAba] = useState(0);
     const [abertas, setAbertas] = useState<SessaoCaixaAberta[]>([]);
     const [sessaoId, setSessaoId] = useState<number | null>(null);
@@ -295,7 +299,7 @@ export default function Caixa() {
             acoesSecundarias={<Button variant="outlined" startIcon={<SettingsRoundedIcon />} onClick={() => setGerenciando(true)}>Gerenciar caixas</Button>} />
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregar()}>Tentar novamente</Button>}>{erro}</Alert>}
         <Paper variant="outlined"><Tabs value={aba} onChange={(_, valor) => setAba(valor)} aria-label="Visões do Caixa" variant="scrollable" scrollButtons="auto" sx={{ minHeight: 44 }}><Tab id="caixa-atual-tab" aria-controls="caixa-atual-painel" label="Caixa atual" sx={{ minHeight: 44, py: 1 }} /><Tab id="caixas-anteriores-tab" aria-controls="caixas-anteriores-painel" label="Caixas anteriores" sx={{ minHeight: 44, py: 1 }} /></Tabs></Paper>
-        {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} onSuprimento={() => { setErroModal(""); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setObservacaoFechamento(""); setValoresConferidos(Object.fromEntries((resumo?.totaisPorFormaPagamento ?? []).filter((forma) => forma.tipo !== "DINHEIRO").map((forma) => [forma.formaPagamentoId, valorEditavel(forma.total)]))); setModalFechamento(true); }} /></Box>)}
+        {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} podeMovimentar={podeMovimentar} podeFechar={podeFecharSessao(usuarioAtual?.perfil, usuarioAtual?.id, resumo.operadorAbertura.id)} onSuprimento={() => { setErroModal(""); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setObservacaoFechamento(""); setValoresConferidos(Object.fromEntries((resumo?.totaisPorFormaPagamento ?? []).filter((forma) => forma.tipo !== "DINHEIRO").map((forma) => [forma.formaPagamentoId, valorEditavel(forma.total)]))); setModalFechamento(true); }} /></Box>)}
         {aba === 1 && <Box id="caixas-anteriores-painel" role="tabpanel" aria-labelledby="caixas-anteriores-tab"><AppTable colunas={[
             { campo: "descricaoCaixa", cabecalho: "Caixa", largura: 180 }, { campo: "dataHoraAbertura", cabecalho: "Abertura", largura: 170, render: (valor) => data(valor as string) },
             { campo: "dataHoraFechamento", cabecalho: "Fechamento", largura: 170, render: (valor) => data(valor as string | null) }, { campo: "operadorAbertura.nome", cabecalho: "Operador", largura: 180 },
@@ -471,8 +475,9 @@ function Vazio({ onAbrir }: { onAbrir: () => void }) {
     </Box>;
 }
 
-function Atual({ abertas, sessaoId, onSessao, resumo, timeline, onSuprimento, onSangria, onFechar }: {
+function Atual({ abertas, sessaoId, onSessao, resumo, timeline, podeMovimentar, podeFechar, onSuprimento, onSangria, onFechar }: {
     abertas: SessaoCaixaAberta[]; sessaoId: number | null; onSessao: (id: number) => void; resumo: ResumoSessaoCaixa; timeline: ItemTimeline[];
+    podeMovimentar: boolean; podeFechar: boolean;
     onSuprimento: () => void; onSangria: () => void; onFechar: () => void;
 }) {
     return <Stack spacing={0} sx={{ minWidth: 0, fontVariantNumeric: "tabular-nums", ...focoOperacional }}>
@@ -510,18 +515,18 @@ function Atual({ abertas, sessaoId, onSessao, resumo, timeline, onSuprimento, on
                         {dinheiro(resumo.saldoEsperadoDinheiro)}
                     </Typography>
                 </Box>
-                <Stack spacing={1.5} sx={{ width: { xs: "100%", md: 292 }, minWidth: 0 }}>
-                    <Button type="button" variant="contained" size="large" onClick={onFechar}
+                {(podeFechar || podeMovimentar) && <Stack spacing={1.5} sx={{ width: { xs: "100%", md: 292 }, minWidth: 0 }}>
+                    {podeFechar && <Button type="button" variant="contained" size="large" onClick={onFechar}
                         aria-label="Fechar Caixa" startIcon={<BlockRoundedIcon />} sx={{ minHeight: 44 }}>
                         Fechar Caixa
-                    </Button>
-                    <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1 }}>
+                    </Button>}
+                    {podeMovimentar && <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1 }}>
                         <Button type="button" variant="outlined" color="inherit" startIcon={<ArrowDownwardRoundedIcon />}
                             aria-label="Registrar suprimento" onClick={onSuprimento}>Suprimento</Button>
                         <Button type="button" variant="outlined" color="inherit" startIcon={<ArrowUpwardRoundedIcon />}
                             aria-label="Registrar sangria" onClick={onSangria}>Sangria</Button>
-                    </Box>
-                </Stack>
+                    </Box>}
+                </Stack>}
             </Box>
             <Box component="dl" sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
                 m: 0, mt: 2, gap: { xs: 2, md: 3 }, py: 1.5 }}>
