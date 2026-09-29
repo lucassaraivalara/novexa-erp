@@ -79,6 +79,8 @@ submits ficam bloqueados.
 
 ## Cadastro complexo
 
+Usuários usa drawer lateral na própria lista, com seções Dados e Acesso. Mantém `form onSubmit`, ações Salvar/Cancelar e confirmação antes de descartar alterações. A seção Acesso descreve os perfis atuais sem controles de permissões granulares.
+
 Cliente, Produto e Empresa continuam usando dialogs maiores, abas ou seções.
 Eles não são reduzidos ao padrão compacto, mas preservam `form onSubmit`,
 validação próxima aos campos, loading localizado, proteção contra duplo

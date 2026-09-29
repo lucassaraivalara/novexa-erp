@@ -61,6 +61,23 @@ class UsuarioServiceTest {
     }
 
     @Test
+    void deveAtualizarSituacaoSemTrocarSenha() {
+        UsuarioEntity existente = criarUsuario(passwordEncoder.encode("senha123"), true);
+        String senhaAnterior = existente.getSenha();
+        UsuarioEntity dados = criarUsuario(null, false);
+
+        when(usuarioRepository.findByIdAndEmpresaId(1L, 1L)).thenReturn(Optional.of(existente));
+        when(usuarioRepository.save(any(UsuarioEntity.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        UsuarioEntity atualizado = usuarioService.atualizar(1L, dados, 1L);
+
+        assertThat(atualizado.getAtivo()).isFalse();
+        assertThat(atualizado.getSenha()).isEqualTo(senhaAnterior);
+        assertThat(atualizado.getEmpresa().getId()).isEqualTo(1L);
+    }
+
+    @Test
     void deveAutenticarUsuarioComCpfFormatadoESenhaCorreta() {
         UsuarioEntity usuario = criarUsuario(passwordEncoder.encode("senha123"), true);
 

@@ -9,6 +9,7 @@ public class UsuarioResponseDTO {
     private String cpf;
     private String email;
     private PerfilUsuario perfil;
+    private Boolean ativo;
     private EmpresaResponseDTO empresa;
 
     // =========================================================
@@ -61,6 +62,14 @@ public class UsuarioResponseDTO {
 
     public void setPerfil(PerfilUsuario perfil) {
         this.perfil = perfil;
+    }
+
+    public Boolean getAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(Boolean ativo) {
+        this.ativo = ativo;
     }
 
     public EmpresaResponseDTO getEmpresa() {

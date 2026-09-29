@@ -12,6 +12,14 @@ class UsuarioMapperTest {
     private final UsuarioMapper usuarioMapper = new UsuarioMapper(new EmpresaMapper());
 
     @Test
+    void deveExporSituacaoNaResposta() {
+        UsuarioEntity usuario = new UsuarioEntity();
+        usuario.setAtivo(false);
+
+        assertThat(usuarioMapper.toResponse(usuario).getAtivo()).isFalse();
+    }
+
+    @Test
     void deveIncluirEmpresaNaRespostaDeLogin() {
         EmpresaEntity empresa = new EmpresaEntity();
         empresa.setId(10L);

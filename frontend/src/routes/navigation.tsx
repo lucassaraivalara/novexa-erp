@@ -19,6 +19,7 @@ import Produtos from "../pages/Produtos/Produtos";
 import CentralVendas from "../pages/Vendas/CentralVendas";
 import DadosBancarios from "../pages/Financeiro/DadosBancarios";
 import FormasPagamento from "../pages/Financeiro/FormasPagamento";
+import Usuarios from "../pages/Usuarios/Usuarios";
 
 export type RotaInterna = {
     caminho: string;
@@ -82,6 +83,12 @@ export const rotasInternas: RotaInterna[] = [
         icone: <PaymentsRoundedIcon />,
         elemento: <FormasPagamento />,
     },
+    {
+        caminho: "usuarios",
+        titulo: "Usuários",
+        icone: <PeopleAltRoundedIcon />,
+        elemento: <Usuarios />,
+    },
 ];
 
 // A navegação pode agrupar rotas existentes ou reservar itens sem destino.
@@ -93,6 +100,7 @@ export type ItemMenu =
 
 const rotaEmpresas = rotasInternas.find(r => r.caminho === "empresa")!;
 const rotaCaixas = rotasInternas.find(r => r.caminho === "financeiro/caixas")!;
+const rotaUsuarios = rotasInternas.find(r => r.caminho === "usuarios")!;
 const rotaDadosBancarios = rotasInternas.find(r => r.caminho === "financeiro/dados-bancarios")!;
 const rotaFormasPagamento = rotasInternas.find(r => r.caminho === "financeiro/formas-pagamento")!;
 
@@ -122,7 +130,7 @@ export const menuPrincipal: ItemMenu[] = [
         abertoInicialmente: true,
         filhos: [
             { tipo: "rota", id: "empresas", titulo: "Empresas", rota: rotaEmpresas },
-            { tipo: "indisponivel", id: "usuarios", titulo: "Usuários", icone: <PeopleAltRoundedIcon /> },
+            { tipo: "rota", id: "usuarios", titulo: "Usuários", rota: rotaUsuarios },
             { tipo: "indisponivel", id: "padroes-novo-cliente", titulo: "Padrões p/ Novo Cliente", icone: <PersonAddAltRoundedIcon /> },
         ],
     },

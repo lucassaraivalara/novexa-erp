@@ -10,6 +10,13 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; cadastros frontend estruturados
 Dashboard ...... placeholder
 
+## Usuários: lista e drawer (branch `feat/usuarios-drawer`, pendente de integração)
+
+- `/usuarios` lista usuários da empresa autenticada em `AppTable` e abre drawer para cadastro, edição e redefinição de senha, com dados, perfil e situação. A lista permite ativar/inativar com confirmação.
+- `POST /usuarios` exige senha; `PUT /usuarios/{id}` aceita senha ausente ou vazia para preservá-la e permite alterar `ativo`. A resposta inclui `ativo`. A empresa continua vindo do JWT; nenhuma migration foi necessária.
+- `ADMIN` e `USUARIO` são os únicos perfis atuais. O backend ainda não restringe rotas ou ações por perfil; a seção Acesso da interface informa essa limitação. Não há permissões granulares ou módulo separado.
+- Validação direcionada: 31 testes backend de usuários/isolamento, 70 testes frontend, build frontend e lint dos arquivos de usuários aprovados. Lint global segue com seis erros fora deste escopo.
+
 ## Fechamento de Caixa: conferência por forma de pagamento — Fase 2 frontend (2026-09-24)
 
 - Aplicada na branch `feat/conferencia-fechamento-backend`, sobre `0da945a`, junto ao contrato da Fase 1. Somente os tres arquivos frontend da Fase 2 e este registro foram integrados; alteracoes locais do checkout principal preservadas.

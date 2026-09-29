@@ -74,9 +74,14 @@ public class UsuarioService {
         usuarioExistente.setNomeUsuario(dadosNovos.getNomeUsuario());
         usuarioExistente.setCpf(dadosNovos.getCpf());
         usuarioExistente.setEmail(dadosNovos.getEmail());
-        usuarioExistente.setSenha(criptografarSenha(dadosNovos.getSenha()));
+        if (dadosNovos.getSenha() != null && !dadosNovos.getSenha().isBlank()) {
+            usuarioExistente.setSenha(criptografarSenha(dadosNovos.getSenha()));
+        }
         if (dadosNovos.getPerfil() != null) {
             usuarioExistente.setPerfil(dadosNovos.getPerfil());
+        }
+        if (dadosNovos.getAtivo() != null) {
+            usuarioExistente.setAtivo(dadosNovos.getAtivo());
         }
 
         return usuarioRepository.save(usuarioExistente);

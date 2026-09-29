@@ -9,6 +9,7 @@ public class UsuarioRequestDTO {
     private String email;
     private String senha;
     private PerfilUsuario perfil;
+    private Boolean ativo;
 
     // =========================================================
     // CONSTRUTOR
@@ -62,6 +63,14 @@ public class UsuarioRequestDTO {
 
     public void setPerfil(PerfilUsuario perfil) {
         this.perfil = perfil;
+    }
+
+    public Boolean getAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(Boolean ativo) {
+        this.ativo = ativo;
     }
 
 }

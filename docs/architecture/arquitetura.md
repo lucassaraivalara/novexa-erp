@@ -8,6 +8,10 @@ docs/
 ├── AGENTES.md
 └── ROADMAP.md
 
+## Usuários
+
+`/usuarios` usa o tenant do JWT em listagem, cadastro e edição. O contrato de cadastro exige senha; a edição preserva o hash quando a senha não é informada e atualiza a situação `ativo` quando enviada. `UsuarioResponseDTO` expõe a situação para a lista. `ADMIN` e `USUARIO` ainda não aplicam autorização por perfil às rotas.
+
 ## Domínio de Vendas consolidado
 
 `VendaEntity → ItemVendaEntity (itens_venda) → Produto` é o único modelo ativo para venda aberta e faturada. O item preserva preço/nome aplicados e referência ao movimento de estoque. Faturamento reutiliza `MovimentacaoEstoqueService`, registra `PagamentoEntity` e mantém o lançamento financeiro temporário na mesma transação, com lock da Venda e dos Produtos. A fundação `Venda 1 → N Pagamento` está descrita em [financeiro.md](financeiro.md); cancelamento completo e destinos bancários permanecem futuros; a integração mínima de dinheiro com Caixa já existe.

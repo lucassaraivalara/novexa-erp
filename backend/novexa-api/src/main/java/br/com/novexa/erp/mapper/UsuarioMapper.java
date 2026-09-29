@@ -33,6 +33,9 @@ public class UsuarioMapper {
         usuario.setEmail(request.getEmail());
         usuario.setSenha(request.getSenha());
         usuario.setPerfil(request.getPerfil());
+        if (request.getAtivo() != null) {
+            usuario.setAtivo(request.getAtivo());
+        }
 
         // Retorna a Entity preenchida.
         return usuario;
@@ -55,6 +58,7 @@ public class UsuarioMapper {
         response.setCpf(usuario.getCpf());
         response.setEmail(usuario.getEmail());
         response.setPerfil(usuario.getPerfil());
+        response.setAtivo(usuario.getAtivo());
         response.setEmpresa(empresaMapper.paraResponseDTO(usuario.getEmpresa()));
 
         // A senha não é copiada para o ResponseDTO.
