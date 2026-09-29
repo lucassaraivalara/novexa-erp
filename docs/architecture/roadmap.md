@@ -145,6 +145,7 @@ Reutilizar o cadastro de Caixa existente. Entregar cada fundação em tarefa peq
 * Recebíveis de DÉBITO/CRÉDITO e posterior liquidação bancária;
 * Contas a Receber, incluindo o fluxo de BOLETO e sua baixa;
 * Integrar a baixa operacional de Contas a Pagar, já disponível no MVP, aos efeitos financeiros futuros.
+* Integrar futuramente os fluxos automáticos à base de Contas Financeiras, hoje limitada a saldos e movimentos manuais, sem confundi-la com o Caixa operacional.
 
 As integrações dependem das configurações cadastrais e dos domínios correspondentes. Substituir os efeitos temporários gradualmente, preservando rastreabilidade, atomicidade e idempotência, sem duplicar lançamentos.
 

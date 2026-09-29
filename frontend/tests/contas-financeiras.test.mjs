@@ -1,0 +1,48 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { createServer } from "vite";
+
+const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
+const { default: api } = await server.ssrLoadModule("/src/services/api.ts");
+const { salvarSessao } = await server.ssrLoadModule("/src/utils/auth/sessao.ts");
+const { listarContasFinanceiras, salvarContaFinanceira, alterarSituacaoContaFinanceira,
+    listarMovimentacoesFinanceiras, criarMovimentacaoFinanceira, estornarMovimentacaoFinanceira } =
+    await server.ssrLoadModule("/src/services/contaFinanceiraService.ts");
+await server.close();
+
+test("contas financeiras e movimentos usam o token sem enviar empresa ou usuario", async () => {
+    const armazenamento = new Map();
+    globalThis.localStorage = {
+        getItem: (chave) => armazenamento.get(chave) ?? null,
+        setItem: (chave, valor) => armazenamento.set(chave, valor),
+        removeItem: (chave) => armazenamento.delete(chave),
+    };
+    globalThis.window = { location: { assign() {} } };
+    salvarSessao({ token: "token-financeiro", empresa: { id: 7 } });
+    const chamadas = [];
+    api.defaults.adapter = async (config) => {
+        chamadas.push(config);
+        return { data: {}, status: 200, statusText: "OK", headers: {}, config };
+    };
+
+    await listarContasFinanceiras();
+    await salvarContaFinanceira({ nome: "Banco", tipo: "BANCO", saldoInicial: 100 });
+    await salvarContaFinanceira({ nome: "Banco novo", tipo: "BANCO" }, 42);
+    await alterarSituacaoContaFinanceira(42, false);
+    await listarMovimentacoesFinanceiras(42);
+    await criarMovimentacaoFinanceira({ contaFinanceiraId: 42, tipo: "ENTRADA", descricao: "Aporte",
+        valor: 20, dataMovimento: "2026-09-29", observacao: null });
+    await estornarMovimentacaoFinanceira(9, "Lançamento incorreto");
+
+    assert.deepEqual(chamadas.map(({ method, url }) => [method, url]), [
+        ["get", "/financeiro/contas-financeiras"], ["post", "/financeiro/contas-financeiras"],
+        ["put", "/financeiro/contas-financeiras/42"], ["patch", "/financeiro/contas-financeiras/42/situacao"],
+        ["get", "/financeiro/movimentacoes-financeiras"], ["post", "/financeiro/movimentacoes-financeiras"],
+        ["patch", "/financeiro/movimentacoes-financeiras/9/estorno"],
+    ]);
+    assert.equal(chamadas[4].params.contaFinanceiraId, 42);
+    assert.ok(chamadas.every(({ headers }) => headers.Authorization === "Bearer token-financeiro"));
+    assert.ok(chamadas.every(({ data }) => !data ||
+        (!Object.hasOwn(JSON.parse(data), "empresaId") && !Object.hasOwn(JSON.parse(data), "usuarioId"))));
+    assert.deepEqual(JSON.parse(chamadas[2].data), { nome: "Banco novo", tipo: "BANCO" });
+});

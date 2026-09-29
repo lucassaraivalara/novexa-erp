@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Contas Financeiras — base manual (branch `feat/contas-financeiras-base`)
+
+- `/financeiro/contas-financeiras` mostra saldos por tipo, contas da empresa, cadastro/edição, situação, movimentação manual e extrato com estorno motivado. Tipo CAIXA é gerencial e não altera o Caixa/PDV operacional.
+- V19 cria contas e movimentos financeiros com empresa do JWT, vínculos de tenant no banco e saldo não negativo. Entrada/saída e estorno atualizam saldo sob lock na mesma transação; movimentos não são excluídos. Conta inativa não aceita novo movimento, mas permite consulta e correção do histórico.
+- Nenhuma integração automática com PDV, Caixa, Contas a Pagar ou banco foi adicionada. Validação direcionada: 10 testes backend HTTP/migration, teste de service frontend, lint direcionado e build; PostgreSQL/Flyway real não executado nesta branch.
+
 ## Contas a Pagar MVP (branch `feat/contas-a-pagar-mvp`)
 
 - `/financeiro/contas-pagar` permite buscar, filtrar, paginar, cadastrar e editar contas abertas em drawer; pagamento, cancelamento e estorno têm ações próprias. Fornecedor é opcional e selecionado do cadastro existente; categoria é texto opcional.

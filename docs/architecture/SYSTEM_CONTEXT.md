@@ -55,8 +55,8 @@ Pós-MVP / não antecipar agora:
 Regra:
 antes de criar novos módulos, priorizar fechar fluxos completos já existentes.
 
-Não criar novo conceito genérico de Conta Financeira agora.
-Não misturar Caixa do PDV com Dados Bancários.
+Conta Financeira controla saldo gerencial manual nesta fase; não conectá-la automaticamente ao PDV ou a Contas a Pagar.
+Não misturar Caixa do PDV com Dados Bancários nem com o tipo CAIXA da Conta Financeira.
 
 ## Como consultar a documentação
 

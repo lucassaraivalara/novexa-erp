@@ -22,6 +22,8 @@ import FormasPagamento from "../pages/Financeiro/FormasPagamento";
 import Usuarios from "../pages/Usuarios/Usuarios";
 import ContasPagar from "../pages/Financeiro/ContasPagar";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
+import SavingsRoundedIcon from "@mui/icons-material/SavingsRounded";
+import ContasFinanceiras from "../pages/Financeiro/ContasFinanceiras";
 
 export type RotaInterna = {
     caminho: string;
@@ -74,6 +76,12 @@ export const rotasInternas: RotaInterna[] = [
         elemento: <Caixa />,
     },
     {
+        caminho: "financeiro/contas-financeiras",
+        titulo: "Contas Financeiras",
+        icone: <SavingsRoundedIcon />,
+        elemento: <ContasFinanceiras />,
+    },
+    {
         caminho: "financeiro/contas-pagar",
         titulo: "Contas a Pagar",
         icone: <ReceiptLongRoundedIcon />,
@@ -108,6 +116,7 @@ export type ItemMenu =
 
 const rotaEmpresas = rotasInternas.find(r => r.caminho === "empresa")!;
 const rotaCaixas = rotasInternas.find(r => r.caminho === "financeiro/caixas")!;
+const rotaContasFinanceiras = rotasInternas.find(r => r.caminho === "financeiro/contas-financeiras")!;
 const rotaContasPagar = rotasInternas.find(r => r.caminho === "financeiro/contas-pagar")!;
 const rotaUsuarios = rotasInternas.find(r => r.caminho === "usuarios")!;
 const rotaDadosBancarios = rotasInternas.find(r => r.caminho === "financeiro/dados-bancarios")!;
@@ -127,6 +136,7 @@ export const menuPrincipal: ItemMenu[] = [
         abertoInicialmente: true,
         filhos: [
             { tipo: "rota", id: "caixas", titulo: "Caixas", rota: rotaCaixas },
+            { tipo: "rota", id: "contas-financeiras", titulo: "Contas Financeiras", rota: rotaContasFinanceiras },
             { tipo: "rota", id: "contas-pagar", titulo: "Contas a Pagar", rota: rotaContasPagar },
             { tipo: "rota", id: "formas-pagamento", titulo: "Formas de Pagamento", rota: rotaFormasPagamento },
             { tipo: "rota", id: "dados-bancarios", titulo: "Dados Bancários", rota: rotaDadosBancarios },

@@ -32,7 +32,7 @@ O catálogo não fornece endpoints de exclusão física. API autenticada: `GET/P
 
 Quando todos os clientes migrarem para ID, retirar a entrada legada em uma tarefa de contrato coordenada. Os snapshots persistidos não são fonte cadastral e devem continuar preservados. Os formatos anteriores usados no hash de idempotência foram mantidos para não invalidar retries históricos.
 
-DestinoFinanceiro é um conceito de integração; não exige criar agora uma entidade genérica, vínculos bancários no Pagamento ou uma infraestrutura de roteamento. Configuração e efeitos serão definidos nas tarefas correspondentes, respeitando o contexto da empresa autenticada.
+DestinoFinanceiro é um conceito de integração, sem roteamento automático nesta fase. ContaFinanceira já representa saldo gerencial manual, mas ainda não é destino vinculado ao Pagamento nem substitui o cadastro bancário. Configuração e efeitos automáticos serão definidos nas tarefas correspondentes, respeitando o contexto da empresa autenticada.
 
 ## Destinos financeiros — FUTURO
 
@@ -163,6 +163,12 @@ As configurações ficam na área gerencial. A operação comum continua rápida
 ## Contas a Pagar — MVP operacional
 
 Contas a Pagar usa a empresa do JWT e aceita fornecedor da mesma empresa, número do documento, categoria textual e emissão opcionais. Vencimento, descrição e valor positivo são obrigatórios. Uma conta ABERTA pode ser editada, paga ou cancelada; uma conta PAGA pode ter o pagamento estornado, voltando a ABERTA. Vencida é uma condição calculada pela data de vencimento, não um status persistido. Sem pagamentos parciais ou ajustes nesta etapa, a baixa exige data e valor integral da conta; o valor em aberto é derivado do valor original menos o pago, desconsiderando contas canceladas. A baixa não movimenta Caixa ou Conta Bancária. Não há recorrência, parcelas, conciliação ou DRE nesta etapa.
+
+## Contas Financeiras — base gerencial manual
+
+ContaFinanceira pertence à empresa do JWT e mantém saldo inicial e atual não negativos. O saldo inicial é definido somente no cadastro; nome, tipo e situação podem ser alterados sem reescrever o histórico. Os tipos BANCO, CAIXA, COFRE, CARTEIRA_DIGITAL, ADQUIRENTE e OUTROS agrupam saldos gerenciais; tipo CAIXA não é o Caixa operacional do PDV, e tipo BANCO não é integração bancária.
+
+MovimentacaoFinanceira registra somente origem MANUAL nesta fase, operador autenticado, data do movimento, valor positivo, descrição e observação opcional. ENTRADA aumenta e SAIDA diminui saldo na mesma transação, sob lock da conta; saldo negativo é recusado. Conta inativa não recebe novos movimentos, mas seu histórico e estornos continuam disponíveis. Estorno exige motivo, marca o registro sem excluí-lo e reverte o saldo; estorno de entrada é recusado se causaria saldo negativo. Nenhum lançamento é gerado automaticamente pelo PDV, Caixa ou baixa de Contas a Pagar. Integrações e idempotência explícita de chamadas externas ficam para fase própria.
 
 ## Limites da evolução — FUTURO
 
