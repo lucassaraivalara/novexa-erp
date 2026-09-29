@@ -20,6 +20,8 @@ import CentralVendas from "../pages/Vendas/CentralVendas";
 import DadosBancarios from "../pages/Financeiro/DadosBancarios";
 import FormasPagamento from "../pages/Financeiro/FormasPagamento";
 import Usuarios from "../pages/Usuarios/Usuarios";
+import ContasPagar from "../pages/Financeiro/ContasPagar";
+import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 
 export type RotaInterna = {
     caminho: string;
@@ -72,6 +74,12 @@ export const rotasInternas: RotaInterna[] = [
         elemento: <Caixa />,
     },
     {
+        caminho: "financeiro/contas-pagar",
+        titulo: "Contas a Pagar",
+        icone: <ReceiptLongRoundedIcon />,
+        elemento: <ContasPagar />,
+    },
+    {
         caminho: "financeiro/dados-bancarios",
         titulo: "Dados Bancários",
         icone: <AccountBalanceRoundedIcon />,
@@ -100,6 +108,7 @@ export type ItemMenu =
 
 const rotaEmpresas = rotasInternas.find(r => r.caminho === "empresa")!;
 const rotaCaixas = rotasInternas.find(r => r.caminho === "financeiro/caixas")!;
+const rotaContasPagar = rotasInternas.find(r => r.caminho === "financeiro/contas-pagar")!;
 const rotaUsuarios = rotasInternas.find(r => r.caminho === "usuarios")!;
 const rotaDadosBancarios = rotasInternas.find(r => r.caminho === "financeiro/dados-bancarios")!;
 const rotaFormasPagamento = rotasInternas.find(r => r.caminho === "financeiro/formas-pagamento")!;
@@ -118,6 +127,7 @@ export const menuPrincipal: ItemMenu[] = [
         abertoInicialmente: true,
         filhos: [
             { tipo: "rota", id: "caixas", titulo: "Caixas", rota: rotaCaixas },
+            { tipo: "rota", id: "contas-pagar", titulo: "Contas a Pagar", rota: rotaContasPagar },
             { tipo: "rota", id: "formas-pagamento", titulo: "Formas de Pagamento", rota: rotaFormasPagamento },
             { tipo: "rota", id: "dados-bancarios", titulo: "Dados Bancários", rota: rotaDadosBancarios },
         ],

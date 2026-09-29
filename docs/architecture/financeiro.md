@@ -160,9 +160,13 @@ Dados Bancários seguem `Banco → Agência → Conta Bancária`. Cadastrar esse
 
 As configurações ficam na área gerencial. A operação comum continua rápida: o operador escolhe a forma; quando a integração existir, o backend determinará o destino pela configuração válida. Não pedir novamente empresa/usuário nem exigir lançamentos manuais no PDV. Condições especiais aparecem somente quando necessárias.
 
+## Contas a Pagar — MVP operacional
+
+Contas a Pagar usa a empresa do JWT e aceita fornecedor da mesma empresa, categoria textual e emissão opcionais. Vencimento, descrição e valor positivo são obrigatórios. Uma conta ABERTA pode ser editada, paga ou cancelada; uma conta PAGA pode ter o pagamento estornado, voltando a ABERTA. Pagamento registra data e valor pago, sem movimentar Caixa ou Conta Bancária. Não há recorrência, parcelas, conciliação ou DRE nesta etapa.
+
 ## Limites da evolução — FUTURO
 
-- Depois das fundações: demais destinos, MovimentacaoBancaria, Recebíveis, Contas a Receber e Contas a Pagar. MovimentacaoCaixa mínima de dinheiro já está implementada no bloco operacional. Cada fluxo exige tarefa própria; pagamento misto operacional também depende de regras explícitas, embora o modelo 1:N já o permita.
+- Depois das fundações: demais destinos, MovimentacaoBancaria, Recebíveis, Contas a Receber e integração financeira da baixa de Contas a Pagar. O cadastro e a baixa operacional de Contas a Pagar já existem no MVP, sem efeito bancário. MovimentacaoCaixa mínima de dinheiro já está implementada no bloco operacional. Cada fluxo exige tarefa própria; pagamento misto operacional também depende de regras explícitas, embora o modelo 1:N já o permita.
 - Mais tarde: Carteira de Cobrança, CNAB, boleto avançado, conciliação bancária, política de crédito, bloqueios automáticos, cobrança avançada e relatórios financeiros avançados.
 - Extensões comerciais futuras: portal B2B e força de vendas; não são dependências da próxima fundação financeira.
 

@@ -84,7 +84,8 @@ As capacidades abaixo distinguem a fundação implementada das etapas planejadas
 | PRÓXIMO | Cadastrar condições de pagamento para prazo e parcelamento, sem confundi-las com forma de pagamento |
 | PRÓXIMO | Cadastrar Banco, Agência e Conta Bancária com seus relacionamentos e escopo autorizado |
 | FUTURO | Produzir os demais efeitos de Pagamento nos destinos bancários, confirmação/baixa e reversões; a entrada de DINHEIRO no Caixa já existe no MVP |
-| FUTURO | Gerir Recebíveis, Contas a Receber e Contas a Pagar, incluindo liquidação, pagamentos e recebimentos |
+| IMPLEMENTADO no MVP | Gerir Contas a Pagar da empresa autenticada: cadastro, edição de contas abertas, pagamento operacional, cancelamento e estorno, sem movimentação financeira automática |
+| FUTURO | Gerir Recebíveis e Contas a Receber; integrar a baixa de Contas a Pagar à liquidação financeira efetiva |
 | FUTURO | Operar pagamento misto sobre a relação Venda 1:N Pagamento, com validação explícita da composição e dos valores |
 | FUTURO | Evoluir cobrança, conciliação e relatórios financeiros avançados após as fundações e integrações |
 

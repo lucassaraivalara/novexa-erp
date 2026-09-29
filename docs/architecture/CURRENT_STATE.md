@@ -7,8 +7,15 @@ Pagamento ...... fundação backend (base aeaec2e)
 Formas de Pagamento .... catálogo global backend (baseline integracao/formas-pagamento-ux)
 Caixa .......... cadastro; backend operacional integrado à Venda, suprimento/sangria e fechamento com resumo
 Dados Bancários  shell frontend com abas, sem contrato backend
-Financeiro ..... fundação parcial; cadastros frontend estruturados
+Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
+
+## Contas a Pagar MVP (branch `feat/contas-a-pagar-mvp`)
+
+- `/financeiro/contas-pagar` permite buscar, filtrar, paginar, cadastrar e editar contas abertas em drawer; pagamento, cancelamento e estorno têm ações próprias. Fornecedor é opcional e selecionado do cadastro existente; categoria é texto opcional.
+- `GET/POST /financeiro/contas-pagar`, `PUT /{id}` e `POST /{id}/pagar`, `/cancelar`, `/estornar` usam exclusivamente a empresa do JWT. V17 cria `contas_pagar` e protege o vínculo opcional com fornecedor da mesma empresa. Estados: ABERTA, PAGA e CANCELADA; o estorno reabre e limpa data/valor pagos.
+- A baixa é registro operacional da conta, sem movimentação bancária ou de Caixa. Recorrência, parcelamento, conciliação e DRE não fazem parte deste MVP.
+- Validação direcionada: 7 testes backend (HTTP e migration), teste de contrato frontend e build aprovados.
 
 ## Detalhe operacional de sessão fechada (branch `feat/detalhe-sessao-caixa`)
 

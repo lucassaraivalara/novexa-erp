@@ -144,7 +144,7 @@ Reutilizar o cadastro de Caixa existente. Entregar cada fundação em tarefa peq
 * Integração PIX/TRANSFERÊNCIA → Conta Bancária, com Movimentação Bancária;
 * Recebíveis de DÉBITO/CRÉDITO e posterior liquidação bancária;
 * Contas a Receber, incluindo o fluxo de BOLETO e sua baixa;
-* Contas a Pagar e seus efeitos financeiros.
+* Integrar a baixa operacional de Contas a Pagar, já disponível no MVP, aos efeitos financeiros futuros.
 
 As integrações dependem das configurações cadastrais e dos domínios correspondentes. Substituir os efeitos temporários gradualmente, preservando rastreabilidade, atomicidade e idempotência, sem duplicar lançamentos.
 
