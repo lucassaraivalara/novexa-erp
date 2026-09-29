@@ -6,7 +6,7 @@ import {
 } from "@mui/material";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import FormActions from "../../components/ui/FormActions";
-import { mensagemUsuario, salvarUsuario } from "../../services/usuarioService";
+import { mensagemUsuario, redefinirSenhaUsuario, salvarUsuario } from "../../services/usuarioService";
 import type { Usuario, UsuarioInput } from "../../types/usuario";
 
 type Props = {
@@ -34,6 +34,10 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
     const [erro, setErro] = useState("");
     const [erroNome, setErroNome] = useState(false);
     const [erroCpf, setErroCpf] = useState(false);
+    const [erroSenha, setErroSenha] = useState(false);
+
+    const redefinindoSenha = Boolean(usuario && focarSenha);
+    const exibirSenha = !usuario || redefinindoSenha;
 
     useEffect(() => {
         if (!focarSenha || !window.matchMedia("(min-width: 600px)").matches) return;
@@ -47,6 +51,7 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
         setErro("");
         if (campo === "nomeUsuario") setErroNome(false);
         if (campo === "cpf") setErroCpf(false);
+        if (campo === "senha") setErroSenha(false);
     }
 
     function fechar() {
@@ -58,27 +63,34 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
     async function enviar(evento: FormEvent<HTMLFormElement>) {
         evento.preventDefault();
         if (salvando) return;
-        if (!form.nomeUsuario.trim()) {
+        if (!redefinindoSenha && !form.nomeUsuario.trim()) {
             setErroNome(true);
             nomeRef.current?.focus();
             return;
         }
         const cpf = form.cpf.replace(/\D/g, "");
-        if (cpf.length !== 11) {
+        if (!redefinindoSenha && cpf.length !== 11) {
             setErroCpf(true);
             cpfRef.current?.focus();
+            return;
+        }
+        if (exibirSenha && !form.senha?.trim()) {
+            setErroSenha(true);
+            senhaRef.current?.focus();
             return;
         }
         setSalvando(true);
         setErro("");
         try {
-            const salvo = await salvarUsuario({
-                ...form,
-                nomeUsuario: form.nomeUsuario.trim(),
-                cpf,
-                email: form.email.trim(),
-                senha: form.senha?.trim() || undefined,
-            }, usuario?.id);
+            const salvo = redefinindoSenha
+                ? await redefinirSenhaUsuario(usuario!.id, { senha: form.senha!.trim() })
+                : await salvarUsuario({
+                    ...form,
+                    nomeUsuario: form.nomeUsuario.trim(),
+                    cpf,
+                    email: form.email.trim(),
+                    senha: undefined,
+                }, usuario?.id);
             onSalvo(salvo);
         } catch (e) {
             setErro(mensagemUsuario(e, "Não foi possível salvar o usuário. Confira os dados e tente novamente."));
@@ -87,7 +99,7 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
         }
     }
 
-    const titulo = usuario ? "Editar usuário" : "Novo usuário";
+    const titulo = redefinindoSenha ? "Redefinir senha" : usuario ? "Editar usuário" : "Novo usuário";
 
     return (
         <>
@@ -106,15 +118,20 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
                     </Stack>
                     <Stack spacing={3} sx={{ px: 3, py: 3, flex: 1, overflowY: "auto", overscrollBehavior: "contain" }}>
                         {erro && <Alert severity="error" aria-live="polite">{erro}</Alert>}
-                        <Stack spacing={2}>
+                        {!redefinindoSenha && <Stack spacing={2}>
                             <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>Dados</Typography>
                             <Divider />
                             <TextField inputRef={nomeRef} label="Nome" name="nomeUsuario" autoComplete="name" required fullWidth value={form.nomeUsuario} onChange={(e) => atualizar("nomeUsuario", e.target.value)} error={erroNome} helperText={erroNome ? "Informe o nome do usuário." : undefined} slotProps={{ htmlInput: { maxLength: 150 } }} />
                             <TextField inputRef={cpfRef} label="CPF" name="cpf" autoComplete="off" inputMode="numeric" required fullWidth value={form.cpf} onChange={(e) => atualizar("cpf", e.target.value)} error={erroCpf} helperText={erroCpf ? "Informe um CPF com 11 dígitos." : undefined} slotProps={{ htmlInput: { maxLength: 14 } }} />
                             <TextField label="E-mail" name="email" type="email" autoComplete="email" spellCheck={false} required fullWidth value={form.email} onChange={(e) => atualizar("email", e.target.value)} />
-                            <TextField inputRef={senhaRef} label={usuario ? "Nova senha (opcional)" : "Senha"} name="senha" type="password" autoComplete="new-password" required={!usuario} fullWidth value={form.senha} onChange={(e) => atualizar("senha", e.target.value)} helperText={usuario ? "Deixe em branco para manter a senha atual." : undefined} />
-                        </Stack>
-                        <Stack spacing={2}>
+                            {!usuario && <TextField inputRef={senhaRef} label="Senha" name="senha" type="password" autoComplete="new-password" required fullWidth value={form.senha} onChange={(e) => atualizar("senha", e.target.value)} error={erroSenha} helperText={erroSenha ? "Informe a senha." : undefined} />}
+                        </Stack>}
+                        {redefinindoSenha && <Stack spacing={2}>
+                            <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>Nova senha</Typography>
+                            <Divider />
+                            <TextField inputRef={senhaRef} label="Nova senha" name="senha" type="password" autoComplete="new-password" required fullWidth value={form.senha} onChange={(e) => atualizar("senha", e.target.value)} error={erroSenha} helperText={erroSenha ? "Informe a nova senha." : "Esta ação altera somente a senha do usuário."} />
+                        </Stack>}
+                        {!redefinindoSenha && <Stack spacing={2}>
                             <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>Acesso</Typography>
                             <Divider />
                             <TextField select label="Perfil" name="perfil" required fullWidth value={form.perfil} onChange={(e) => atualizar("perfil", e.target.value as UsuarioInput["perfil"])}>
@@ -135,7 +152,7 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
                                 </Typography>
                             </Box>
                             <FormControlLabel control={<Switch checked={form.ativo} onChange={(e) => atualizar("ativo", e.target.checked)} />} label="Usuário ativo" />
-                        </Stack>
+                        </Stack>}
                     </Stack>
                     <FormActions onCancelar={fechar} tipoSalvar="submit" salvando={salvando} sx={{ mt: 0, px: 3, py: 2, bgcolor: "background.paper" }} />
                 </Box>

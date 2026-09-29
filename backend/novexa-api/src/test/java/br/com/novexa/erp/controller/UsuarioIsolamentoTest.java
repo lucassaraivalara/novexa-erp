@@ -10,6 +10,7 @@ import br.com.novexa.erp.service.UsuarioService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -162,6 +163,98 @@ class UsuarioIsolamentoTest {
         entityManager.clear();
         assertThat(usuarios.findById(alvo.getId())).isEmpty();
         assertThat(usuarios.findById(usuarioB.getId())).isPresent();
+    }
+
+    @Test
+    void atualizarUsuarioSemSenhaPreservaSenhaAtual() throws Exception {
+        UsuarioEntity alvo = usuario(empresaA, "11144477735");
+        String senhaAnterior = alvo.getSenha();
+
+        Map<String, Object> dados = new HashMap<>();
+        dados.put("nomeUsuario", "Usuário sem troca de senha");
+        dados.put("cpf", alvo.getCpf());
+        dados.put("email", "sem-senha@novexa.com");
+        dados.put("perfil", "GERENTE");
+        dados.put("ativo", true);
+
+        mvc.perform(put("/usuarios/" + alvo.getId()).header(HttpHeaders.AUTHORIZATION, authorization)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(dados)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nomeUsuario").value("Usuário sem troca de senha"))
+                .andExpect(jsonPath("$.perfil").value("GERENTE"))
+                .andExpect(jsonPath("$.senha").doesNotExist());
+
+        entityManager.flush();
+        entityManager.clear();
+        UsuarioEntity salvo = usuarios.findById(alvo.getId()).orElseThrow();
+        assertThat(salvo.getSenha()).isEqualTo(senhaAnterior);
+    }
+
+    @Test
+    void redefinirSenhaAlteraSomenteASenha() throws Exception {
+        UsuarioEntity alvo = usuario(empresaA, "11144477735");
+        String senhaAnterior = alvo.getSenha();
+
+        mvc.perform(patch("/usuarios/" + alvo.getId() + "/senha").header(HttpHeaders.AUTHORIZATION, authorization)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("senha", "novaSenha456"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(alvo.getId()))
+                .andExpect(jsonPath("$.senha").doesNotExist());
+
+        entityManager.flush();
+        entityManager.clear();
+        UsuarioEntity salvo = usuarios.findById(alvo.getId()).orElseThrow();
+        assertThat(salvo.getSenha()).isNotEqualTo(senhaAnterior);
+        assertThat(passwordEncoder.matches("novaSenha456", salvo.getSenha())).isTrue();
+        assertThat(salvo.getNomeUsuario()).isEqualTo(alvo.getNomeUsuario());
+        assertThat(salvo.getPerfil()).isEqualTo(alvo.getPerfil());
+    }
+
+    @Test
+    void alterarSituacaoSemPayloadCompletoPreservaDadosESenha() throws Exception {
+        UsuarioEntity alvo = usuario(empresaA, "11144477735");
+        String senhaAnterior = alvo.getSenha();
+
+        mvc.perform(patch("/usuarios/" + alvo.getId() + "/situacao").header(HttpHeaders.AUTHORIZATION, authorization)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("ativo", false))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ativo").value(false))
+                .andExpect(jsonPath("$.senha").doesNotExist());
+
+        entityManager.flush();
+        entityManager.clear();
+        UsuarioEntity salvo = usuarios.findById(alvo.getId()).orElseThrow();
+        assertThat(salvo.getAtivo()).isFalse();
+        assertThat(salvo.getSenha()).isEqualTo(senhaAnterior);
+        assertThat(salvo.getCpf()).isEqualTo(alvo.getCpf());
+    }
+
+    @Test
+    void naoPermiteInativarProprioUsuarioConectado() throws Exception {
+        mvc.perform(patch("/usuarios/" + usuarioA.getId() + "/situacao").header(HttpHeaders.AUTHORIZATION, authorization)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("ativo", false))))
+                .andExpect(status().isConflict());
+
+        entityManager.flush();
+        entityManager.clear();
+        assertThat(usuarios.findById(usuarioA.getId()).orElseThrow().getAtivo()).isTrue();
+    }
+
+    @Test
+    void naoPermiteAlterarSituacaoOuSenhaDeUsuarioDaOutraEmpresa() throws Exception {
+        String senhaAnterior = usuarioB.getSenha();
+        for (String sufixo : new String[]{"/situacao", "/senha"}) {
+            Map<String, Object> dados = sufixo.equals("/situacao") ? Map.of("ativo", false) : Map.of("senha", "novaSenha456");
+            mvc.perform(patch("/usuarios/" + usuarioB.getId() + sufixo).header(HttpHeaders.AUTHORIZATION, authorization)
+                            .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(dados)))
+                    .andExpect(status().isNotFound());
+        }
+
+        entityManager.flush();
+        entityManager.clear();
+        UsuarioEntity preservado = usuarios.findById(usuarioB.getId()).orElseThrow();
+        assertThat(preservado.getAtivo()).isTrue();
+        assertThat(preservado.getSenha()).isEqualTo(senhaAnterior);
     }
 
     @ParameterizedTest

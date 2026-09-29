@@ -6,8 +6,11 @@ import br.com.novexa.erp.entity.UsuarioEntity;
 import br.com.novexa.erp.exception.AutenticacaoException;
 import br.com.novexa.erp.exception.UsuarioNotFoundException;
 import br.com.novexa.erp.repository.UsuarioRepository;
+import br.com.novexa.erp.security.UsuarioAutenticado;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -85,6 +88,27 @@ public class UsuarioService {
         }
 
         return usuarioRepository.save(usuarioExistente);
+    }
+
+    public UsuarioEntity alterarSituacao(Long id, Boolean ativo, UsuarioAutenticado autenticado) {
+        if (ativo == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe a situação do usuário.");
+        }
+
+        UsuarioEntity usuario = buscarPorId(id, autenticado.empresaId());
+
+        if (Boolean.FALSE.equals(ativo) && usuario.getId().equals(autenticado.usuarioId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Você não pode inativar o próprio usuário conectado.");
+        }
+
+        usuario.setAtivo(ativo);
+        return usuarioRepository.save(usuario);
+    }
+
+    public UsuarioEntity redefinirSenha(Long id, String senha, Long empresaId) {
+        UsuarioEntity usuario = buscarPorId(id, empresaId);
+        usuario.setSenha(criptografarSenha(senha));
+        return usuarioRepository.save(usuario);
     }
 
     public void excluir(Long id, Long empresaId) {

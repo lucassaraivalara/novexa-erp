@@ -11,8 +11,9 @@ import {
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
-import { listarUsuarios, mensagemUsuario, salvarUsuario } from "../../services/usuarioService";
+import { alterarSituacaoUsuario, listarUsuarios, mensagemUsuario } from "../../services/usuarioService";
 import type { Usuario } from "../../types/usuario";
+import { obterSessao } from "../../utils/auth/sessao";
 import UsuarioDrawer from "./UsuarioDrawer";
 
 export default function Usuarios() {
@@ -24,6 +25,7 @@ export default function Usuarios() {
     const [focarSenha, setFocarSenha] = useState(false);
     const [alterarSituacao, setAlterarSituacao] = useState<Usuario | null>(null);
     const [salvandoSituacao, setSalvandoSituacao] = useState(false);
+    const usuarioLogadoId = obterSessao()?.id;
 
     useEffect(() => {
         const controller = new AbortController();
@@ -53,13 +55,9 @@ export default function Usuarios() {
         setSalvandoSituacao(true);
         setErro("");
         try {
-            const salvo = await salvarUsuario({
-                nomeUsuario: alterarSituacao.nomeUsuario,
-                cpf: alterarSituacao.cpf,
-                email: alterarSituacao.email,
-                perfil: alterarSituacao.perfil,
+            const salvo = await alterarSituacaoUsuario(alterarSituacao.id, {
                 ativo: alterarSituacao.ativo === false,
-            }, alterarSituacao.id);
+            });
             setUsuarios((atuais) => atuais.map((usuario) => usuario.id === salvo.id ? salvo : usuario));
             setMensagem(salvo.ativo === false ? "Usuário inativado." : "Usuário ativado.");
             setAlterarSituacao(null);
@@ -87,7 +85,13 @@ export default function Usuarios() {
             rotulo: "Alterar situação",
             tooltip: "Ativar ou inativar usuário",
             icone: <PersonOffOutlinedIcon fontSize="small" />,
-            onClick: setAlterarSituacao,
+            onClick: (usuario) => {
+                if (usuario.id === usuarioLogadoId && usuario.ativo !== false) {
+                    setErro("Você não pode inativar o próprio usuário conectado.");
+                    return;
+                }
+                setAlterarSituacao(usuario);
+            },
         },
     ];
 
@@ -116,7 +120,7 @@ export default function Usuarios() {
                 minWidth={1050}
             />
 
-            {edicao !== undefined && <UsuarioDrawer key={edicao?.id ?? "novo"} usuario={edicao} focarSenha={focarSenha} onFechar={() => setEdicao(undefined)} onSalvo={usuarioSalvo} />}
+            {edicao !== undefined && <UsuarioDrawer key={`${edicao?.id ?? "novo"}-${focarSenha ? "senha" : "dados"}`} usuario={edicao} focarSenha={focarSenha} onFechar={() => setEdicao(undefined)} onSalvo={usuarioSalvo} />}
 
             <Dialog open={alterarSituacao !== null} onClose={salvandoSituacao ? undefined : () => setAlterarSituacao(null)} aria-labelledby="situacao-usuario-titulo">
                 <DialogTitle id="situacao-usuario-titulo">{alterarSituacao?.ativo === false ? "Ativar usuário?" : "Inativar usuário?"}</DialogTitle>

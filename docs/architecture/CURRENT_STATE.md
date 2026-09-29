@@ -30,6 +30,7 @@ Dashboard ...... placeholder
 - `POST /usuarios` exige senha; `PUT /usuarios/{id}` aceita senha ausente ou vazia para preservá-la e permite alterar `ativo`. A resposta inclui `ativo`. A empresa continua vindo do JWT; nenhuma migration foi necessária.
 - `ADMIN` e `USUARIO` são os únicos perfis atuais. O backend ainda não restringe rotas ou ações por perfil; a seção Acesso da interface informa essa limitação. Não há permissões granulares ou módulo separado.
 - Validação direcionada: 31 testes backend de usuários/isolamento, 70 testes frontend, build frontend e lint dos arquivos de usuários aprovados. Lint global segue com seis erros fora deste escopo.
+- Correção pendente de integração na branch atual: a edição não exibe nem envia senha; a redefinição usa `PATCH /usuarios/{id}/senha` com somente a nova senha; e a situação usa `PATCH /usuarios/{id}/situacao`. A inativação do próprio usuário é bloqueada no frontend e backend, sempre no tenant do JWT.
 
 ## Fechamento de Caixa: conferência por forma de pagamento — Fase 2 frontend (2026-09-24)
 

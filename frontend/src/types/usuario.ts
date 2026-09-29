@@ -20,3 +20,11 @@ export type UsuarioInput = {
     ativo: boolean;
     senha?: string;
 };
+
+export type UsuarioSituacaoInput = {
+    ativo: boolean;
+};
+
+export type UsuarioSenhaInput = {
+    senha: string;
+};

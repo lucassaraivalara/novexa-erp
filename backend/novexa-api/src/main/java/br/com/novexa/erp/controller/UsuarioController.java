@@ -2,6 +2,8 @@ package br.com.novexa.erp.controller;
 
 import br.com.novexa.erp.dto.UsuarioRequestDTO;
 import br.com.novexa.erp.dto.UsuarioResponseDTO;
+import br.com.novexa.erp.dto.UsuarioSituacaoRequestDTO;
+import br.com.novexa.erp.dto.UsuarioSenhaRequestDTO;
 import br.com.novexa.erp.entity.UsuarioEntity;
 import br.com.novexa.erp.mapper.UsuarioMapper;
 import br.com.novexa.erp.security.UsuarioAutenticado;
@@ -110,6 +112,30 @@ public class UsuarioController {
                 usuarioService.atualizar(id, dadosNovos, autenticado.empresaId());
 
         // Converte a Entity atualizada para ResponseDTO.
+        return usuarioMapper.toResponse(usuarioAtualizado);
+    }
+
+    @PatchMapping("/{id}/situacao")
+    public UsuarioResponseDTO alterarSituacao(
+            @PathVariable Long id,
+            @RequestBody UsuarioSituacaoRequestDTO request,
+            @AuthenticationPrincipal UsuarioAutenticado autenticado) {
+
+        UsuarioEntity usuarioAtualizado =
+                usuarioService.alterarSituacao(id, request == null ? null : request.getAtivo(), autenticado);
+
+        return usuarioMapper.toResponse(usuarioAtualizado);
+    }
+
+    @PatchMapping("/{id}/senha")
+    public UsuarioResponseDTO redefinirSenha(
+            @PathVariable Long id,
+            @RequestBody UsuarioSenhaRequestDTO request,
+            @AuthenticationPrincipal UsuarioAutenticado autenticado) {
+
+        UsuarioEntity usuarioAtualizado = usuarioService.redefinirSenha(
+                id, request == null ? null : request.getSenha(), autenticado.empresaId());
+
         return usuarioMapper.toResponse(usuarioAtualizado);
     }
 
