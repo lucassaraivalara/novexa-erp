@@ -60,6 +60,29 @@ export type SessaoCaixaHistorico = {
     diferenca: number | null;
 };
 
+export type SessaoCaixaDetalhe = {
+    sessao: SessaoCaixaHistorico;
+    resumo: ResumoSessaoCaixa;
+    modalidadeConferencia: "LEGADA" | "POR_FORMA" | null;
+    observacaoFechamento: string | null;
+    conferencias: {
+        escopo: "DINHEIRO_FISICO" | "FORMA_PAGAMENTO";
+        formaPagamentoId: number | null;
+        descricao: string;
+        tipo: string;
+        valorEsperado: number;
+        valorInformado: number;
+        diferenca: number;
+    }[];
+    movimentacoes: {
+        tipo: "ABERTURA" | "VENDA" | "VENDA_CANCELADA" | "SUPRIMENTO" | "SANGRIA" | "ESTORNO_VENDA" | "FECHAMENTO";
+        dataHora: string;
+        valor: number;
+        vendaId: number | null;
+        observacao: string | null;
+    }[];
+};
+
 export type MovimentacaoCaixa = {
     id: number;
     sessaoId: number;

@@ -124,6 +124,10 @@ Implementada na branch `feat/conferencia-fechamento-backend`, atualizada com o b
 - Empresa vem do JWT. Conferencia nao liquida PIX/cartao, nao movimenta bancos e nao ajusta caixa/estoque. Boleto/transferencia continuam bloqueados no faturamento.
 - Fora desta fase: frontend, consulta detalhada das conferencias no historico, relatorios e revisao do resumo para detectar alteracoes desde a abertura do modal. O servidor sempre recalcula sob lock e exige observacao conforme os valores atuais.
 
+### Detalhe de sessão fechada
+
+`GET /financeiro/caixas/sessoes/{sessaoId}/detalhe` agrega sessão, resumo calculado, modalidade/observação de fechamento, snapshots de conferência e eventos de abertura, vendas, suprimentos, sangrias, estornos de venda em dinheiro e fechamento. A lista `/fechadas` e as leituras de resumo/movimentações de sessões fechadas aplicam o mesmo acesso: operador (inclusive `USUARIO` legado) apenas às sessões que abriu; gerente/admin a todas as sessões da empresa. Outro tenant retorna 404. O drawer em `Caixas anteriores` usa esse contrato sem criar relatório ou alterar o fechamento. Em sessões LEGADA, formas não dinheiro não têm informado/diferença; não são preenchidas artificialmente. Vendas canceladas preservam a data original da venda, pois o contrato atual não guarda horário próprio de cancelamento para meios sem estorno físico.
+
 ### Cancelamento integral de Venda
 
 - `POST /vendas/{id}/cancelar` aceita somente Venda FATURADA da empresa autenticada. O retry de uma Venda já CANCELADA devolve o estado preservado sem repetir efeitos.

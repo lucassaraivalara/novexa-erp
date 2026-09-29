@@ -702,6 +702,83 @@ class CaixaOperacionalHttpTest {
         assertThat(resposta.resumo().totalVendas()).isEqualByComparingTo("0");
     }
 
+    @Test void detalheFechadoReuneResumoConferenciaEEventosDaSessao() throws Exception {
+        var vendaDinheiro = vendaService.finalizar(venda(FormaPagamento.DINHEIRO, sessao), principal);
+        vendaService.finalizar(venda(FormaPagamento.PIX, sessao), principal);
+        operacional.movimentar(sessao, manual(TipoMovimentacaoCaixa.SUPRIMENTO, "5"), principal);
+        operacional.movimentar(sessao, manual(TipoMovimentacaoCaixa.SANGRIA, "3"), principal);
+        sessoesService.fechar(caixa.getId(), sessao, conferencia("111", "Diferença no dinheiro", informado(2, "9")), principal);
+
+        mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + "/detalhe").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sessao.sessaoId").value(sessao))
+                .andExpect(jsonPath("$.sessao.operadorFechamento.id").value(operador.getId()))
+                .andExpect(jsonPath("$.resumo.totalVendas").value(20))
+                .andExpect(jsonPath("$.resumo.suprimentos").value(5))
+                .andExpect(jsonPath("$.resumo.sangrias").value(3))
+                .andExpect(jsonPath("$.resumo.saldoEsperadoDinheiro").value(112))
+                .andExpect(jsonPath("$.modalidadeConferencia").value("POR_FORMA"))
+                .andExpect(jsonPath("$.conferencias.length()").value(2))
+                .andExpect(jsonPath("$.conferencias[1].formaPagamentoId").value(2))
+                .andExpect(jsonPath("$.conferencias[1].valorInformado").value(9))
+                .andExpect(jsonPath("$.conferencias[1].diferenca").value(-1))
+                .andExpect(jsonPath("$.movimentacoes.length()").value(6))
+                .andExpect(jsonPath("$.movimentacoes[0].tipo").value("ABERTURA"))
+                .andExpect(jsonPath("$.movimentacoes[5].tipo").value("FECHAMENTO"))
+                .andExpect(jsonPath("$.movimentacoes[1].vendaId").value(vendaDinheiro.id()));
+    }
+
+    @Test void detalheMostraCancelamentoComEstornoDeDinheiro() throws Exception {
+        var venda = vendaService.finalizar(venda(FormaPagamento.DINHEIRO, sessao), principal);
+        cancelamento.cancelarVendaFaturada(venda.id(), principal);
+        sessoesService.fechar(caixa.getId(), sessao, new BigDecimal("100"), principal);
+
+        mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + "/detalhe").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resumo.totalVendas").value(0))
+                .andExpect(jsonPath("$.movimentacoes[1].tipo").value("VENDA_CANCELADA"))
+                .andExpect(jsonPath("$.movimentacoes[2].tipo").value("ESTORNO_VENDA"))
+                .andExpect(jsonPath("$.movimentacoes[2].vendaId").value(venda.id()));
+    }
+
+    @Test void detalheLegadoNaoInventaConferenciaERejeitaSessaoAberta() throws Exception {
+        mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + "/detalhe").header("Authorization", token))
+                .andExpect(status().isConflict());
+        vendaService.finalizar(venda(FormaPagamento.PIX, sessao), principal);
+        sessoesService.fechar(caixa.getId(), sessao, new BigDecimal("100"), principal);
+        mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + "/detalhe").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.modalidadeConferencia").value("LEGADA"))
+                .andExpect(jsonPath("$.conferencias.length()").value(0))
+                .andExpect(jsonPath("$.resumo.totaisPorFormaPagamento[0].tipo").value("PIX"))
+                .andExpect(jsonPath("$.movimentacoes[1].tipo").value("VENDA"));
+    }
+
+    @Test void operadorVeSomenteSuasSessoesFechadasInclusiveNosEndpointsAntigos() throws Exception {
+        var outro = usuario(empresa, "11144477735");
+        outro.setPerfil(PerfilUsuario.OPERADOR); outro = usuarios.saveAndFlush(outro);
+        var tokenOutro = "Bearer " + jwt.gerarToken(outro);
+        var outraSessao = sessoesService.abrir(caixa(empresa).getId(), BigDecimal.ZERO,
+                new UsuarioAutenticado(outro.getId(), outro.getCpf(), empresa.getId(), PerfilUsuario.OPERADOR));
+        sessoesService.fechar(outraSessao.caixaId(), outraSessao.id(), BigDecimal.ZERO,
+                new UsuarioAutenticado(outro.getId(), outro.getCpf(), empresa.getId(), PerfilUsuario.OPERADOR));
+        sessoesService.fechar(caixa.getId(), sessao, new BigDecimal("100"), principal);
+
+        mvc.perform(get("/financeiro/caixas/sessoes/fechadas").header("Authorization", tokenOutro))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].sessaoId").value(outraSessao.id()));
+        for (String caminho : List.of("/detalhe", "/resumo", "/movimentacoes"))
+            mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + caminho).header("Authorization", tokenOutro))
+                    .andExpect(status().isForbidden());
+        mvc.perform(get("/financeiro/caixas/sessoes/" + outraSessao.id() + "/detalhe").header("Authorization", tokenOutro))
+                .andExpect(status().isOk());
+        mvc.perform(get("/financeiro/caixas/sessoes/fechadas").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
+        var externa = usuario(empresa("B"), "22233344405");
+        mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + "/detalhe")
+                .header("Authorization", "Bearer " + jwt.gerarToken(externa))).andExpect(status().isNotFound());
+    }
+
     private FechamentoCaixaDTO conferencia(String dinheiro, String observacao, FechamentoCaixaDTO.Forma... formas) {
         return new FechamentoCaixaDTO(new BigDecimal(dinheiro), new FechamentoCaixaDTO.Conferencia(List.of(formas), observacao));
     }

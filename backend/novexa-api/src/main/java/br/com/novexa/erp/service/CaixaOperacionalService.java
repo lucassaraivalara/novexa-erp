@@ -20,12 +20,15 @@ public class CaixaOperacionalService {
     private final PagamentoRepository pagamentos;
     private final MovimentacaoCaixaRepository movimentos;
     private final UsuarioRepository usuarios;
+    private final VendaRepository vendas;
+    private final ConferenciaFechamentoCaixaRepository conferencias;
     private final EntityManager em;
 
     public CaixaOperacionalService(SessaoCaixaRepository sessoes, PagamentoRepository pagamentos,
-            MovimentacaoCaixaRepository movimentos, UsuarioRepository usuarios, EntityManager em) {
+            MovimentacaoCaixaRepository movimentos, UsuarioRepository usuarios, VendaRepository vendas,
+            ConferenciaFechamentoCaixaRepository conferencias, EntityManager em) {
         this.sessoes = sessoes; this.pagamentos = pagamentos; this.movimentos = movimentos;
-        this.usuarios = usuarios; this.em = em;
+        this.usuarios = usuarios; this.vendas = vendas; this.conferencias = conferencias; this.em = em;
     }
 
     @Transactional(readOnly = true)
@@ -35,9 +38,55 @@ public class CaixaOperacionalService {
     }
 
     @Transactional(readOnly = true)
-    public List<SessaoCaixaHistoricoDTO> fechadas(Long empresaId) {
-        return sessoes.findByEmpresaIdAndStatusOrderByDataFechamentoDescIdDesc(empresaId, StatusSessaoCaixa.FECHADO)
-                .stream().map(sessao -> SessaoCaixaHistoricoDTO.de(sessao, calcular(sessao))).toList();
+    public List<SessaoCaixaHistoricoDTO> fechadas(UsuarioAutenticado usuario) {
+        return sessoes.findByEmpresaIdAndStatusOrderByDataFechamentoDescIdDesc(usuario.empresaId(), StatusSessaoCaixa.FECHADO)
+                .stream().filter(sessao -> podeVer(sessao, usuario))
+                .map(sessao -> SessaoCaixaHistoricoDTO.de(sessao, calcular(sessao))).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public void exigirAcessoLeitura(Long sessaoId, UsuarioAutenticado usuario) {
+        var sessao = sessoes.findByIdAndEmpresaId(sessaoId, usuario.empresaId()).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão de Caixa não encontrada."));
+        if (!podeVer(sessao, usuario))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Somente quem abriu o Caixa pode ver esta sessão.");
+    }
+
+    @Transactional(readOnly = true)
+    public SessaoCaixaDetalheDTO detalhe(Long sessaoId, UsuarioAutenticado usuario) {
+        var sessao = sessoes.findByIdAndEmpresaId(sessaoId, usuario.empresaId()).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão de Caixa não encontrada."));
+        if (sessao.getStatus() != StatusSessaoCaixa.FECHADO)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Sessão de Caixa ainda aberta.");
+        if (!podeVer(sessao, usuario))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Somente quem abriu o Caixa pode ver esta sessão.");
+        var resumo = calcular(sessao);
+        var eventos = new ArrayList<SessaoCaixaDetalheDTO.Evento>();
+        eventos.add(new SessaoCaixaDetalheDTO.Evento("ABERTURA", sessao.getDataAbertura(), sessao.getSaldoInicial(), null, null));
+        for (var venda : vendas.findByEmpresaIdAndSessaoCaixaIdOrderByDataHoraAscIdAsc(usuario.empresaId(), sessaoId)) {
+            eventos.add(new SessaoCaixaDetalheDTO.Evento(venda.getStatus() == StatusVenda.CANCELADA ? "VENDA_CANCELADA" : "VENDA",
+                    venda.getDataHora(), venda.getTotal(), venda.getId(), null));
+        }
+        for (var movimento : movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessaoId, usuario.empresaId())) {
+            if (movimento.getTipo() == TipoMovimentacaoCaixa.VENDA ||
+                    (movimento.getTipo() == TipoMovimentacaoCaixa.SUPRIMENTO
+                            && "Saldo inicial / Abertura de caixa".equals(movimento.getObservacao()))) continue;
+            eventos.add(new SessaoCaixaDetalheDTO.Evento(movimento.getTipo().name(), movimento.getDataHora(),
+                    movimento.getValor(), movimento.getPagamento() == null ? null : movimento.getPagamento().getVenda().getId(),
+                    movimento.getObservacao()));
+        }
+        eventos.add(new SessaoCaixaDetalheDTO.Evento("FECHAMENTO", sessao.getDataFechamento(), sessao.getSaldoFinal(), null, null));
+        eventos.sort(Comparator.comparing(SessaoCaixaDetalheDTO.Evento::dataHora));
+        return new SessaoCaixaDetalheDTO(SessaoCaixaHistoricoDTO.de(sessao, resumo), resumo,
+                sessao.getModalidadeConferencia(), sessao.getObservacaoFechamento(),
+                conferencias.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessaoId, usuario.empresaId()).stream()
+                        .map(ConferenciaFechamentoCaixaDTO::de).toList(), eventos);
+    }
+
+    private boolean podeVer(SessaoCaixaEntity sessao, UsuarioAutenticado usuario) {
+        return sessao.getStatus() != StatusSessaoCaixa.FECHADO || usuario.perfil() == PerfilUsuario.ADMIN
+                || usuario.perfil() == PerfilUsuario.GERENTE
+                || sessao.getUsuarioAbertura().getId().equals(usuario.usuarioId());
     }
 
     // Venda, movimentação manual, resumo e fechamento compartilham o lock desta sessão.

@@ -10,6 +10,13 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; cadastros frontend estruturados
 Dashboard ...... placeholder
 
+## Detalhe operacional de sessão fechada (branch `feat/detalhe-sessao-caixa`)
+
+- `Caixas anteriores` abre um drawer com identificação, operadores, saldos, conferência por forma e eventos operacionais da sessão, inclusive venda cancelada e estorno físico quando existente. Fechamentos legados exibem ausência de conferência por forma sem inventar valores.
+- `GET /financeiro/caixas/sessoes/{id}/detalhe` reúne histórico, resumo, snapshots e eventos. `OPERADOR`/`USUARIO` legado veem apenas suas sessões fechadas; `GERENTE`/`ADMIN` veem as da empresa. O filtro também se aplica à lista e às leituras antigas de resumo/movimentações de sessões fechadas. Empresa vem do JWT.
+- O contrato atual não registra horário específico de cancelamento para vendas sem estorno de dinheiro; a linha da venda cancelada usa o horário original da venda. Sem migration ou mudança de fechamento.
+- Validação: 70 testes HTTP da classe CaixaOperacionalHttpTest, 75 testes frontend existentes, 1 teste frontend novo do contrato, build frontend aprovados. O lint direcionado mantém dois erros preexistentes em efeitos de `Caixa.tsx`.
+
 ## Usuários e Acessos — Fase 2 (branch `feat/perfis-operacionais`, pendente de integração)
 
 - Novos usuários recebem `OPERADOR` por padrão. `ADMIN` gerencia usuários; `ADMIN` e `GERENTE` cancelam vendas e registram sangria/suprimento. `OPERADOR` abre Caixa e fecha apenas a sessão que abriu; gerentes e administradores podem fechar sessões de outros operadores.

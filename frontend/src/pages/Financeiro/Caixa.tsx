@@ -17,14 +17,14 @@ import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import {
-    adicionarMovimentacao, abrirSessaoCaixa, buscarCaixa, buscarResumoSessao, fecharSessaoCaixa,
+    adicionarMovimentacao, abrirSessaoCaixa, buscarCaixa, buscarDetalheSessao, buscarResumoSessao, fecharSessaoCaixa,
     inativarCaixa, listarCaixas, listarMovimentacoes, listarSessoesAbertas, listarSessoesFechadas,
     mensagemCaixa,
 } from "../../services/caixaService";
 import { buscarVenda, listarVendas, type VendaDetalhe } from "../../services/vendaService";
 import type {
     CaixaCompleta, CaixaResumo, MovimentacaoCaixa, ResumoSessaoCaixa, SessaoCaixaAberta,
-    SessaoCaixaHistorico,
+    SessaoCaixaHistorico, SessaoCaixaDetalhe,
 } from "../../types/caixa";
 import CaixaForm from "./CaixaForm";
 import { podeExecutarAcaoGerencial, podeFecharSessao } from "../../utils/auth/perfis";
@@ -47,7 +47,10 @@ const rotuloFormaPagamento: Record<NonNullable<VendaDetalhe["formaPagamento"]>, 
 const rotuloTipoFormaPagamento: Record<string, string> = {
     DINHEIRO: "Dinheiro", PIX: "PIX", DEBITO: "Débito", CREDITO: "Crédito",
 };
-const rotuloMovimentacao: Record<string, string> = { SUPRIMENTO: "Suprimento", SANGRIA: "Sangria" };
+const rotuloMovimentacao: Record<string, string> = {
+    ABERTURA: "Abertura", VENDA: "Venda", VENDA_CANCELADA: "Venda cancelada",
+    SUPRIMENTO: "Suprimento", SANGRIA: "Sangria", ESTORNO_VENDA: "Cancelamento de venda", FECHAMENTO: "Fechamento",
+};
 
 type ModalMovimento = "SUPRIMENTO" | "SANGRIA" | null;
 type ItemTimeline = {
@@ -105,8 +108,7 @@ export default function Caixa() {
     const [valoresConferidos, setValoresConferidos] = useState<Record<number, string>>({});
     const [observacaoFechamento, setObservacaoFechamento] = useState("");
     const [detalhe, setDetalhe] = useState<SessaoCaixaHistorico | null>(null);
-    const [drawerResumo, setDrawerResumo] = useState<ResumoSessaoCaixa | null>(null);
-    const [drawerMovimentos, setDrawerMovimentos] = useState<MovimentacaoCaixa[] | null>(null);
+    const [drawerDetalhe, setDrawerDetalhe] = useState<SessaoCaixaDetalhe | null>(null);
     const [drawerCarregando, setDrawerCarregando] = useState(false);
     const [drawerErro, setDrawerErro] = useState("");
     const [gerenciando, setGerenciando] = useState(false);
@@ -167,16 +169,11 @@ export default function Caixa() {
     }, [sessaoId]);
 
     useEffect(() => {
-        if (detalhe === null) { setDrawerResumo(null); setDrawerMovimentos(null); setDrawerErro(""); return; }
+        if (detalhe === null) return;
         const controller = new AbortController();
-        setDrawerCarregando(true); setDrawerErro("");
-        Promise.all([
-            buscarResumoSessao(detalhe.sessaoId, controller.signal),
-            listarMovimentacoes(detalhe.sessaoId, controller.signal),
-        ]).then(([resumoSessao, movimentosSessao]) => {
+        buscarDetalheSessao(detalhe.sessaoId, controller.signal).then((resultado) => {
             if (controller.signal.aborted) return;
-            setDrawerResumo(resumoSessao);
-            setDrawerMovimentos(movimentosSessao);
+            setDrawerDetalhe(resultado);
         }).catch((e) => {
             if (!controller.signal.aborted) setDrawerErro(mensagemCaixa(e, "Não foi possível carregar o detalhe da sessão."));
         }).finally(() => {
@@ -184,6 +181,13 @@ export default function Caixa() {
         });
         return () => controller.abort();
     }, [detalhe]);
+
+    function abrirDetalhe(sessao: SessaoCaixaHistorico) {
+        setDrawerDetalhe(null);
+        setDrawerErro("");
+        setDrawerCarregando(true);
+        setDetalhe(sessao);
+    }
 
     async function executar(acao: () => Promise<void>, mensagem: string, atualizarSessaoId?: number | null) {
         setProcessando(true); setErroModal("");
@@ -306,8 +310,8 @@ export default function Caixa() {
             { campo: "saldoInicial", cabecalho: "Saldo inicial", alinhar: "right", render: (valor) => dinheiro(valor as number) }, { campo: "totalVendas", cabecalho: "Vendas", alinhar: "right", render: (valor) => dinheiro(valor as number) },
             { campo: "dinheiroEsperado", cabecalho: "Esperado", alinhar: "right", render: (valor) => dinheiro(valor as number) }, { campo: "valorInformado", cabecalho: "Informado", alinhar: "right", render: (valor) => dinheiro(valor as number | null) },
             { campo: "diferenca", cabecalho: "Diferença", alinhar: "right", render: (valor) => <Typography color={(valor as number | null) === 0 ? "success.main" : "error.main"} sx={{ fontWeight: 700 }}>{dinheiro(valor as number | null)}</Typography> },
-        ]} linhas={historicoPagina} carregando={carregando} obterChaveLinha={(sessao) => sessao.sessaoId} minWidth={1100} alturaCorpo={480} linhaCliqueavel onLinhaClick={setDetalhe}
-            acoes={[{ rotulo: "Ver detalhe", icone: <VisibilityRoundedIcon fontSize="small" />, onClick: setDetalhe, tooltip: "Ver detalhe da sessão" }]}
+        ]} linhas={historicoPagina} carregando={carregando} obterChaveLinha={(sessao) => sessao.sessaoId} minWidth={1100} alturaCorpo={480} linhaCliqueavel onLinhaClick={abrirDetalhe}
+            acoes={[{ rotulo: "Ver detalhes", icone: <VisibilityRoundedIcon fontSize="small" />, onClick: abrirDetalhe, tooltip: "Ver detalhes da sessão" }]}
             vazio={{ titulo: "Nenhuma sessão encerrada", descricao: "As sessões fechadas aparecerão aqui." }} paginacao={{
             pagina: paginaHistoricoAtual,
             linhasPorPagina: porPaginaHistorico,
@@ -377,7 +381,7 @@ export default function Caixa() {
                 </DialogActions>
             </form>
         </Dialog>
-        <Drawer anchor="right" open={detalhe !== null} onClose={() => setDetalhe(null)} slotProps={{ paper: { sx: { width: { xs: "100%", sm: 480 } } } }}>
+        <Drawer anchor="right" open={detalhe !== null} onClose={() => setDetalhe(null)} slotProps={{ paper: { sx: { width: { xs: "100%", sm: 540 } } } }}>
             {detalhe && <Box role="dialog" aria-labelledby="caixa-detalhe-titulo" sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
                 <Box sx={{ px: 3, py: 2.5, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
                     <Box>
@@ -392,6 +396,7 @@ export default function Caixa() {
                 <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 2.5 }}>
                     <Stack spacing={3}>
                         {drawerErro && <Alert severity="error">{drawerErro}</Alert>}
+                        {drawerCarregando && <Skeleton variant="rounded" height={120} />}
                         <Box component="dl" sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1.5, m: 0 }}>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Abertura</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{data(detalhe.dataHoraAbertura)}</Typography></Box>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Fechamento</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{data(detalhe.dataHoraFechamento)}</Typography></Box>
@@ -399,6 +404,8 @@ export default function Caixa() {
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Operador de fechamento</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{detalhe.operadorFechamento?.nome ?? "—"}</Typography></Box>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo inicial</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.saldoInicial)}</Typography></Box>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Total de vendas</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.totalVendas)}</Typography></Box>
+                            <Box><Typography component="dt" variant="caption" color="text.secondary">Suprimentos</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{drawerDetalhe ? dinheiro(drawerDetalhe.resumo.suprimentos) : "—"}</Typography></Box>
+                            <Box><Typography component="dt" variant="caption" color="text.secondary">Sangrias</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{drawerDetalhe ? dinheiro(drawerDetalhe.resumo.sangrias) : "—"}</Typography></Box>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo esperado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.dinheiroEsperado)}</Typography></Box>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo informado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.valorInformado)}</Typography></Box>
                         </Box>
@@ -415,34 +422,55 @@ export default function Caixa() {
                                 <Box><Typography component="dt" variant="caption" color="text.secondary">Informado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.valorInformado)}</Typography></Box>
                                 <Box><Typography component="dt" variant="caption" color="text.secondary">Diferença</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.diferenca)}</Typography></Box>
                             </Box>
-                            <Alert severity="info" variant="outlined" sx={{ mt: 1.5 }}>
-                                Conferência legada: este fechamento registrou apenas o dinheiro físico contado. A conferência por forma de pagamento ainda não está disponível para esta sessão.
-                            </Alert>
+                            {drawerDetalhe?.modalidadeConferencia === "LEGADA" && <Alert severity="info" variant="outlined" sx={{ mt: 1.5 }}>
+                                Fechamento legado: somente o dinheiro físico foi informado. Os demais meios não têm valores conferidos.
+                            </Alert>}
+                            {drawerDetalhe?.observacaoFechamento && <Typography variant="body2" sx={{ mt: 1.5 }}>{drawerDetalhe.observacaoFechamento}</Typography>}
                         </Box>
 
                         <Divider />
                         <Box>
                             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>Meios de pagamento</Typography>
-                            {drawerCarregando ? <Skeleton variant="rounded" height={72} />
-                                : drawerResumo && drawerResumo.totaisPorFormaPagamento.length > 0 ? <Stack spacing={1}>
-                                    {drawerResumo.totaisPorFormaPagamento.map((forma) => <Box key={forma.formaPagamentoId} sx={{ display: "flex", justifyContent: "space-between" }}>
-                                        <Typography variant="body2">{rotuloTipoFormaPagamento[forma.tipo] ?? forma.descricao}</Typography>
-                                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{dinheiro(forma.total)}</Typography>
-                                    </Box>)}
-                                </Stack> : <Typography variant="body2" color="text.secondary">Nenhum meio de pagamento registrado nesta sessão.</Typography>}
+                            {drawerCarregando ? <Skeleton variant="rounded" height={72} /> : drawerDetalhe && <Stack spacing={0} sx={{ overflowX: "auto" }}>
+                                <Box sx={{ display: "grid", minWidth: 430, gridTemplateColumns: "minmax(0, 1fr) repeat(3, 92px)", gap: 1, pb: 1, borderBottom: 1, borderColor: "divider" }}>
+                                    <Typography variant="caption">Forma</Typography><Typography variant="caption" align="right">Esperado</Typography>
+                                    <Typography variant="caption" align="right">Informado</Typography><Typography variant="caption" align="right">Diferença</Typography>
+                                </Box>
+                                {[
+                                    { formaPagamentoId: null, descricao: "Dinheiro", total: detalhe.dinheiroEsperado, tipo: "DINHEIRO" },
+                                    ...drawerDetalhe.resumo.totaisPorFormaPagamento.filter((forma) => forma.tipo !== "DINHEIRO"),
+                                ].map((forma) => {
+                                    const conferencia = drawerDetalhe.conferencias.find((linha) => forma.formaPagamentoId === null
+                                        ? linha.escopo === "DINHEIRO_FISICO" : linha.formaPagamentoId === forma.formaPagamentoId);
+                                    const informado = forma.formaPagamentoId === null ? detalhe.valorInformado : conferencia?.valorInformado;
+                                    const diferenca = forma.formaPagamentoId === null ? detalhe.diferenca : conferencia?.diferenca;
+                                    return <Box key={forma.formaPagamentoId ?? "dinheiro"} sx={{ display: "grid", minWidth: 430, gridTemplateColumns: "minmax(0, 1fr) repeat(3, 92px)", gap: 1, py: 1.25, borderBottom: 1, borderColor: "divider", fontVariantNumeric: "tabular-nums" }}>
+                                        <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{forma.formaPagamentoId === null ? "Dinheiro físico" : forma.descricao}</Typography>
+                                        <Typography variant="body2" align="right">{dinheiro(forma.total)}</Typography>
+                                        <Typography variant="body2" align="right">{informado == null ? "—" : dinheiro(informado)}</Typography>
+                                        <Typography variant="body2" align="right" color={diferenca == null ? "text.secondary" : diferenca === 0 ? "success.main" : "error.main"}>{diferenca == null ? "—" : dinheiro(diferenca)}</Typography>
+                                    </Box>;
+                                })}
+                                {drawerDetalhe.resumo.totaisPorFormaPagamento.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ pt: 1.5 }}>Nenhuma venda registrada nesta sessão.</Typography>}
+                                {drawerDetalhe.modalidadeConferencia !== "POR_FORMA" && <Typography role="status" variant="caption" color="text.secondary" sx={{ pt: 1 }}>Sem conferência por forma de pagamento.</Typography>}
+                            </Stack>}
                         </Box>
 
-                        {!drawerCarregando && drawerMovimentos && drawerMovimentos.filter((m) => m.tipo !== "VENDA").length > 0 && <>
+                        {!drawerCarregando && drawerDetalhe && <>
                             <Divider />
                             <Box>
                                 <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>Movimentações</Typography>
                                 <Stack spacing={1.5}>
-                                    {drawerMovimentos.filter((m) => m.tipo !== "VENDA").map((movimento) => <Box key={movimento.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 2 }}>
+                                    {drawerDetalhe.movimentacoes.map((movimento, indice) => <Box key={`${movimento.tipo}-${movimento.vendaId ?? indice}-${indice}`} sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 2 }}>
                                         <Box>
-                                            <Typography variant="body2">{rotuloMovimentacao[movimento.tipo] ?? movimento.tipo}</Typography>
+                                            <Typography variant="body2">{rotuloMovimentacao[movimento.tipo]}{movimento.vendaId ? ` #${movimento.vendaId}` : ""}</Typography>
                                             <Typography variant="caption" color="text.secondary">{data(movimento.dataHora)}{movimento.observacao ? ` · ${movimento.observacao}` : ""}</Typography>
                                         </Box>
-                                        <Typography variant="body2" sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>{dinheiro(movimento.valor)}</Typography>
+                                        <Typography variant="body2" color={movimento.tipo === "VENDA_CANCELADA" ? "text.secondary" : "text.primary"}
+                                            sx={{ fontWeight: 700, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums",
+                                                textDecoration: movimento.tipo === "VENDA_CANCELADA" ? "line-through" : "none" }}>
+                                            {movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? "−" : ""}{dinheiro(movimento.valor)}
+                                        </Typography>
                                     </Box>)}
                                 </Stack>
                             </Box>

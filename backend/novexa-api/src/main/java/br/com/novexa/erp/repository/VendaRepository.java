@@ -19,6 +19,7 @@ public interface VendaRepository extends JpaRepository<VendaEntity, Long> {
 
     Optional<VendaEntity> findByEmpresaIdAndUsuarioIdAndChaveRequisicao(Long empresaId, Long usuarioId, UUID chave);
     Optional<VendaEntity> findByIdAndEmpresaId(Long id, Long empresaId);
+    List<VendaEntity> findByEmpresaIdAndSessaoCaixaIdOrderByDataHoraAscIdAsc(Long empresaId, Long sessaoId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select v from VendaEntity v where v.id = :id and v.empresa.id = :empresaId")

@@ -22,14 +22,20 @@ public class CaixaOperacionalController {
     }
     @GetMapping("/fechadas")
     public List<SessaoCaixaHistoricoDTO> fechadas(@AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return service.fechadas(usuario.empresaId());
+        return service.fechadas(usuario);
+    }
+    @GetMapping("/{sessaoId}/detalhe")
+    public SessaoCaixaDetalheDTO detalhe(@PathVariable Long sessaoId, @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return service.detalhe(sessaoId, usuario);
     }
     @GetMapping("/{sessaoId}/resumo")
     public ResumoSessaoCaixaDTO resumo(@PathVariable Long sessaoId, @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        service.exigirAcessoLeitura(sessaoId, usuario);
         return service.resumo(sessaoId, usuario.empresaId());
     }
     @GetMapping("/{sessaoId}/movimentacoes")
     public List<MovimentacaoCaixaResponseDTO> movimentos(@PathVariable Long sessaoId, @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        service.exigirAcessoLeitura(sessaoId, usuario);
         return service.listarMovimentos(sessaoId, usuario.empresaId());
     }
     @PostMapping("/{sessaoId}/movimentacoes")
