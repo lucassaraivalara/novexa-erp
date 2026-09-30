@@ -10,3 +10,5 @@
 - Fechamento de Caixa é conferência operacional; não liquida banco, PIX ou cartão.
 - Empresa vem exclusivamente da autenticação/JWT. O vínculo bancário tem FK composta por empresa e unicidade no banco de dados.
 - Baixa e estorno de Contas a Pagar continuam alterando ContaFinanceira e MovimentacaoFinanceira atomicamente. Este vínculo cadastral não cria outro saldo nem uma integração com o PDV.
+- Novas ContasFinanceiras têm saldoInicialAuditado=true. Saldo inicial positivo gera exatamente uma ENTRADA/SALDO_INICIAL, com usuário autenticado e data real da criação, na mesma transação; o valor já inicializado na conta não é somado novamente. Saldo zero não gera movimento.
+- Saldo inicial permanece imutável. SALDO_INICIAL não pode ser criado pelo endpoint manual nem estornado individualmente. Contas anteriores à V22 mantêm saldoInicialAuditado=false, saldos e histórico intactos; regularização explícita fica pendente, sem inventar usuário ou data históricos.

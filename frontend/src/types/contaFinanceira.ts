@@ -3,6 +3,10 @@ import type { ContaBancariaResumo } from "./dadosBancarios";
 export type TipoContaFinanceira = "BANCO" | "CAIXA" | "COFRE" | "CARTEIRA_DIGITAL" | "ADQUIRENTE" | "OUTROS";
 export const tiposContaFinanceiraFuncionais: TipoContaFinanceira[] = ["BANCO", "COFRE", "CARTEIRA_DIGITAL", "OUTROS"];
 export type TipoMovimentacaoFinanceira = "ENTRADA" | "SAIDA";
+export type OrigemMovimentacaoFinanceira = "MANUAL" | "CONTAS_A_PAGAR" | "SALDO_INICIAL";
+export const rotulosOrigemMovimentacaoFinanceira: Record<OrigemMovimentacaoFinanceira, string> = {
+    MANUAL: "Manual", CONTAS_A_PAGAR: "Contas a Pagar", SALDO_INICIAL: "Saldo inicial",
+};
 
 export const rotulosTipoContaFinanceira: Record<TipoContaFinanceira, string> = {
     BANCO: "Banco", CAIXA: "Caixa (legado)", COFRE: "Cofre", CARTEIRA_DIGITAL: "Carteira digital",
@@ -14,6 +18,7 @@ export type ContaFinanceira = {
     nome: string;
     tipo: TipoContaFinanceira;
     saldoInicial: number;
+    saldoInicialAuditado: boolean;
     saldoAtual: number;
     ativo: boolean;
     dataCriacao: string;
@@ -28,7 +33,7 @@ export type MovimentacaoFinanceira = {
     contaFinanceiraId: number;
     contaFinanceiraNome: string;
     tipo: TipoMovimentacaoFinanceira;
-    origem: "MANUAL";
+    origem: OrigemMovimentacaoFinanceira;
     descricao: string;
     valor: number;
     dataMovimento: string;

@@ -17,6 +17,7 @@ public class ContaFinanceiraEntity {
     @Column(nullable = false, length = 150) private String nome;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private TipoContaFinanceira tipo;
     @Column(nullable = false, precision = 19, scale = 2, updatable = false) private BigDecimal saldoInicial;
+    @Column(nullable = false, updatable = false) private boolean saldoInicialAuditado;
     @Column(nullable = false, precision = 19, scale = 2) private BigDecimal saldoAtual;
     @Column(nullable = false) private boolean ativo;
     @Column(nullable = false, updatable = false) private LocalDateTime dataCriacao;
@@ -49,6 +50,8 @@ public class ContaFinanceiraEntity {
     public String getNome() { return nome; }
     public TipoContaFinanceira getTipo() { return tipo; }
     public BigDecimal getSaldoInicial() { return saldoInicial; }
+    public boolean isSaldoInicialAuditado() { return saldoInicialAuditado; }
+    public void marcarSaldoInicialAuditado() { this.saldoInicialAuditado = true; }
     public BigDecimal getSaldoAtual() { return saldoAtual; }
     public boolean isAtivo() { return ativo; }
     public LocalDateTime getDataCriacao() { return dataCriacao; }

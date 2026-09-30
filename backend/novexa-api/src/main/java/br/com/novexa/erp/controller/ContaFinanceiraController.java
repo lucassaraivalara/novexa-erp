@@ -24,7 +24,7 @@ public class ContaFinanceiraController {
     @PostMapping
     public ResponseEntity<ContaFinanceiraResponseDTO> criar(@Valid @RequestBody ContaFinanceiraCriacaoDTO pedido,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.criarConta(usuario.empresaId(), pedido));
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.criarConta(usuario.empresaId(), usuario.usuarioId(), pedido));
     }
 
     @PutMapping("/{id}")

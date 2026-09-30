@@ -6,7 +6,7 @@ import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogT
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import { estornarMovimentacaoFinanceira, listarMovimentacoesFinanceiras,
     mensagemContaFinanceira } from "../../services/contaFinanceiraService";
-import type { ContaFinanceira, MovimentacaoFinanceira } from "../../types/contaFinanceira";
+import { rotulosOrigemMovimentacaoFinanceira, type ContaFinanceira, type MovimentacaoFinanceira } from "../../types/contaFinanceira";
 
 type Props = { conta: ContaFinanceira; onFechar: () => void; onSaldoAlterado: () => void };
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -34,7 +34,7 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
 
     async function confirmarEstorno(evento: FormEvent<HTMLFormElement>) {
         evento.preventDefault();
-        if (!estorno || processando || !motivo.trim()) return;
+        if (!estorno || estorno.origem !== "MANUAL" || processando || !motivo.trim()) return;
         setProcessando(true); setErro("");
         try {
             const atualizado = await estornarMovimentacaoFinanceira(estorno.id, motivo.trim());
@@ -46,7 +46,10 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
 
     const colunas: Coluna<MovimentacaoFinanceira>[] = [
         { campo: "dataMovimento", cabecalho: "Data", largura: 100, render: (valor) => data(String(valor)) },
-        { campo: "descricao", cabecalho: "Descrição", largura: 180 },
+        { campo: "descricao", cabecalho: "Descrição", largura: 180, render: (_, item) => <Box>
+            <Typography variant="body2">{item.descricao}</Typography>
+            <Typography variant="caption" color="text.secondary">{rotulosOrigemMovimentacaoFinanceira[item.origem]}</Typography>
+        </Box> },
         { campo: "tipo", cabecalho: "Tipo", largura: 80, render: (_, item) => item.tipo === "ENTRADA" ? "Entrada" : "Saída" },
         { campo: "valor", cabecalho: "Valor", largura: 110, alinhar: "right", render: (_, item) =>
             <Typography variant="body2" color={item.estornada ? "text.disabled" : item.tipo === "ENTRADA" ? "success.main" : "text.primary"}>
@@ -59,7 +62,8 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
     ];
     const acoes: AcaoTabela<MovimentacaoFinanceira>[] = [
         { rotulo: "Estornar", tooltip: "Estornar movimentação", icone: <UndoRoundedIcon fontSize="small" />,
-            onClick: (item) => { setErro(""); setMotivo(""); setEstorno(item); }, desabilitado: (item) => item.estornada },
+            onClick: (item) => { setErro(""); setMotivo(""); setEstorno(item); },
+            desabilitado: (item) => item.estornada || item.origem !== "MANUAL" },
     ];
     const atual = Math.min(pagina, Math.max(0, Math.ceil(movimentos.length / porPagina) - 1));
 
@@ -73,11 +77,14 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
             <IconButton aria-label="Fechar extrato" onClick={onFechar} disabled={processando}><CloseRoundedIcon /></IconButton>
         </Stack>
         <Box sx={{ p: { xs: 1.5, sm: 3 }, overflowY: "auto", flex: 1 }}>
+            {conta.saldoInicialAuditado === false && conta.saldoInicial > 0 && <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Conta legada: o saldo inicial de {moeda.format(conta.saldoInicial)} não possui lançamento no extrato.
+            </Typography>}
             {erro && !estorno && <Alert severity="error" sx={{ mb: 2 }}
                 action={movimentos.length === 0 ? <Button color="inherit" onClick={() => { setCarregando(true); setTentativa((n) => n + 1); }}>Tentar novamente</Button> : undefined}>{erro}</Alert>}
             <AppTable colunas={colunas} linhas={movimentos.slice(atual * porPagina, (atual + 1) * porPagina)}
                 acoes={acoes} carregando={carregando} obterChaveLinha={(item) => item.id} minWidth={760}
-                vazio={{ titulo: "Nenhuma movimentação", descricao: "Esta conta ainda não possui lançamentos manuais." }}
+                vazio={{ titulo: "Nenhuma movimentação", descricao: "Esta conta ainda não possui lançamentos." }}
                 paginacao={{ pagina: atual, linhasPorPagina: porPagina, total: movimentos.length,
                     onPageChange: setPagina, onRowsPerPageChange: (valor) => { setPorPagina(valor); setPagina(0); },
                     opcoesLinhasPorPagina: [10, 25, 50] }} />

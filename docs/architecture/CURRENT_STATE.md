@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Financeiro Bloco 2A: saldo inicial auditável
+
+Sobre o baseline 602f1fe, novas contas recebem saldoInicialAuditado=true e uma ENTRADA/SALDO_INICIAL quando o valor inicial é positivo, sem duplicar saldoAtual; saldo zero não gera movimento. A V22 preserva contas antigas com flag false e não inventa histórico. Saldo inicial não é editável nem estornável individualmente. O extrato apresenta a origem e uma indicação discreta de legado; regularização histórica fica pendente. Alterações no working tree, sem commit automático.
+
+Validação direcionada: 27 testes backend relacionados aprovados, incluindo Contas a Pagar; teste adicional da V22 aprovado em PostgreSQL 18 temporário, aplicando V19–V22 sobre fixture com histórico existente; 3 testes frontend e 2 cenários Playwright aprovados, além de build e lint direcionado. A suíte backend completa não foi repetida neste bloco.
+
 ## Financeiro Bloco 1: identidade bancária
 
 ContaFinanceira BANCO passa a exigir ContaBancaria da mesma empresa em novos cadastros/edições; V21 protege tenant, unicidade e tipo sem invalidar legados. A identidade bancária é devolvida no DTO e exibida no formulário/listagem. CAIXA/ADQUIRENTE são restritos ao legado e permanecem no total geral. Saldo, extrato e baixa/estorno de Contas a Pagar mantêm a mesma fonte. Regras e estratégia para legado: [FINANCEIRO_RULES.md](FINANCEIRO_RULES.md). Alterações deste bloco permanecem no working tree para revisão.

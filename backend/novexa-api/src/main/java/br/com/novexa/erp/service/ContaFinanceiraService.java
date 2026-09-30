@@ -33,13 +33,21 @@ public class ContaFinanceiraService {
     }
 
     @Transactional
-    public ContaFinanceiraResponseDTO criarConta(Long empresaId, ContaFinanceiraCriacaoDTO pedido) {
+    public ContaFinanceiraResponseDTO criarConta(Long empresaId, Long usuarioId, ContaFinanceiraCriacaoDTO pedido) {
         var empresa = empresas.findById(empresaId).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Empresa não encontrada."));
         var bancaria = validarVinculo(null, pedido.tipo(), pedido.contaBancariaId(), empresaId);
+        var usuario = buscarUsuario(usuarioId, empresaId);
         var conta = new ContaFinanceiraEntity(empresa, pedido.nome().trim(), pedido.tipo(), pedido.saldoInicial());
         conta.vincularContaBancaria(bancaria);
-        return ContaFinanceiraResponseDTO.de(contas.saveAndFlush(conta));
+        conta.marcarSaldoInicialAuditado();
+        contas.saveAndFlush(conta);
+        // O construtor já define saldoAtual; o movimento registra a origem sem reaplicar o valor.
+        if (conta.getSaldoInicial().signum() > 0)
+            movimentos.saveAndFlush(new MovimentacaoFinanceiraEntity(conta, TipoMovimentacaoFinanceira.ENTRADA,
+                    OrigemMovimentacaoFinanceira.SALDO_INICIAL, "Saldo inicial", conta.getSaldoInicial(),
+                    conta.getDataCriacao().toLocalDate(), null, usuario));
+        return ContaFinanceiraResponseDTO.de(conta);
     }
 
     @Transactional
