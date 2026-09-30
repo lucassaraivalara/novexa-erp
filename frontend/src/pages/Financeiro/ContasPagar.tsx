@@ -12,7 +12,10 @@ import PageFilters from "../../components/ui/PageFilters";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import { cancelarConta, estornarConta, listarContasPagar, listarFornecedoresContaPagar,
     mensagemContaPagar, pagarConta } from "../../services/contaPagarService";
+import { listarContasFinanceiras } from "../../services/contaFinanceiraService";
 import type { ContaPagar, FornecedorContaPagar, StatusContaPagar } from "../../types/contaPagar";
+import type { ContaFinanceira } from "../../types/contaFinanceira";
+import { rotulosTipoContaFinanceira } from "../../types/contaFinanceira";
 import ContaPagarDrawer from "./ContaPagarDrawer";
 import { emAberto, filtrarContas, resumirContas } from "./contaPagarCalculos";
 
@@ -27,6 +30,7 @@ const hoje = () => {
 export default function ContasPagar() {
     const [contas, setContas] = useState<ContaPagar[]>([]);
     const [fornecedores, setFornecedores] = useState<FornecedorContaPagar[]>([]);
+    const [contasFinanceiras, setContasFinanceiras] = useState<ContaFinanceira[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
     const [sucesso, setSucesso] = useState("");
@@ -41,13 +45,25 @@ export default function ContasPagar() {
     const [pagamento, setPagamento] = useState<ContaPagar | null>(null);
     const [dataPagamento, setDataPagamento] = useState("");
     const [valorPago, setValorPago] = useState("");
+    const [contaFinanceiraId, setContaFinanceiraId] = useState<number | "" >("");
     const [confirmacao, setConfirmacao] = useState<{ conta: ContaPagar; tipo: "cancelar" | "estornar" } | null>(null);
     const [processando, setProcessando] = useState(false);
 
     useEffect(() => {
         const controller = new AbortController();
-        Promise.all([listarContasPagar(controller.signal), listarFornecedoresContaPagar(controller.signal)])
-            .then(([lista, fornecedoresLista]) => { if (!controller.signal.aborted) { setContas(lista); setFornecedores(fornecedoresLista); setErro(""); } })
+        Promise.all([
+            listarContasPagar(controller.signal),
+            listarFornecedoresContaPagar(controller.signal),
+            listarContasFinanceiras(controller.signal)
+        ])
+            .then(([lista, fornecedoresLista, contasFinanceirasLista]) => {
+                if (!controller.signal.aborted) {
+                    setContas(lista);
+                    setFornecedores(fornecedoresLista);
+                    setContasFinanceiras(contasFinanceirasLista);
+                    setErro("");
+                }
+            })
             .catch((e) => { if (!controller.signal.aborted) setErro(mensagemContaPagar(e, "Não foi possível carregar as contas.")); })
             .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
         return () => controller.abort();
@@ -81,6 +97,7 @@ export default function ContasPagar() {
         setPagamento(conta);
         setDataPagamento(hoje());
         setValorPago(String(conta.valor).replace(".", ","));
+        setContaFinanceiraId("");
         setErro("");
     }
 
@@ -101,10 +118,24 @@ export default function ContasPagar() {
             setErro("O pagamento deve corresponder ao valor integral da conta.");
             return;
         }
+        if (!contaFinanceiraId) {
+            setErro("Selecione uma conta financeira.");
+            return;
+        }
+        const contaSelecionada = contasFinanceiras.find((c) => c.id === contaFinanceiraId);
+        if (!contaSelecionada) {
+            setErro("Conta financeira selecionada não encontrada.");
+            return;
+        }
+        if (Number(contaSelecionada.saldoAtual) < valor) {
+            setErro("Saldo insuficiente na conta financeira selecionada.");
+            return;
+        }
         setProcessando(true); setErro("");
         try {
-            atualizar(await pagarConta(pagamento.id, { dataPagamento, valorPago: valor }));
+            atualizar(await pagarConta(pagamento.id, { contaFinanceiraId, dataPagamento, valorPago: valor }));
             setPagamento(null); setSucesso("Conta marcada como paga.");
+            setTentativa((n) => n + 1);
         } catch (e) { setErro(mensagemContaPagar(e, "Não foi possível registrar o pagamento.")); }
         finally { setProcessando(false); }
     }
@@ -117,6 +148,9 @@ export default function ContasPagar() {
                 ? await cancelarConta(confirmacao.conta.id) : await estornarConta(confirmacao.conta.id));
             setSucesso(confirmacao.tipo === "cancelar" ? "Conta cancelada." : "Pagamento estornado.");
             setConfirmacao(null);
+            if (confirmacao.tipo === "estornar") {
+                setTentativa((n) => n + 1);
+            }
         } catch (e) { setErro(mensagemContaPagar(e, "Não foi possível concluir a ação.")); }
         finally { setProcessando(false); }
     }
@@ -145,6 +179,13 @@ export default function ContasPagar() {
         { rotulo: "Estornar", icone: <UndoRoundedIcon fontSize="small" />, onClick: (conta) => abrirConfirmacao(conta, "estornar"),
             desabilitado: (conta) => conta.status !== "PAGA", tooltip: "Estornar pagamento" },
     ];
+
+    const contaFinanceiraSelecionada = contasFinanceiras.find((c) => c.id === contaFinanceiraId);
+    const saldoInsuficiente = Boolean(
+        pagamento &&
+        contaFinanceiraSelecionada &&
+        Number(contaFinanceiraSelecionada.saldoAtual) < Number(pagamento.valor)
+    );
 
     return <PageContainer>
         <PageHeader titulo="Contas a Pagar" descricao="Acompanhe vencimentos e pagamentos da empresa."
@@ -201,12 +242,25 @@ export default function ContasPagar() {
                     <Typography variant="body2" color="text.secondary">{pagamento?.descricao}</Typography>
                     <TextField required fullWidth type="date" label="Data do pagamento" value={dataPagamento}
                         onChange={(e) => setDataPagamento(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+                    <TextField select required fullWidth label="Conta financeira" value={contaFinanceiraId}
+                        onChange={(e) => setContaFinanceiraId(e.target.value ? Number(e.target.value) : "")}>
+                        <MenuItem value="">Selecione uma conta financeira</MenuItem>
+                        {contasFinanceiras
+                            .filter((c) => c.ativo)
+                            .map((conta) => (
+                                <MenuItem key={conta.id} value={conta.id}>
+                                    {conta.nome} — {rotulosTipoContaFinanceira[conta.tipo]} — {moeda.format(Number(conta.saldoAtual))}
+                                </MenuItem>
+                            ))}
+                    </TextField>
                     <TextField required fullWidth label="Valor pago (R$)" value={valorPago} helperText="Pagamento integral nesta versão" slotProps={{ htmlInput: { inputMode: "decimal" } }}
                         onChange={(e) => setValorPago(e.target.value)} />
                     {erro && <Alert severity="error">{erro}</Alert>}
                 </Stack></DialogContent>
                 <DialogActions><Button onClick={() => setPagamento(null)} disabled={processando}>Cancelar</Button>
-                    <Button type="submit" variant="contained" disabled={processando}>{processando ? "Salvando…" : "Confirmar pagamento"}</Button></DialogActions>
+                    <Button type="submit" variant="contained" disabled={!!processando || !contaFinanceiraId || saldoInsuficiente}>
+                        {processando ? "Salvando…" : "Confirmar pagamento"}
+                    </Button></DialogActions>
             </form>
         </Dialog>
         <Dialog open={confirmacao !== null} onClose={processando ? undefined : () => setConfirmacao(null)} aria-labelledby="acao-conta-titulo">

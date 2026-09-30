@@ -1,6 +1,6 @@
 import axios from "axios";
 import api from "./api";
-import type { ContaPagar, ContaPagarInput, FornecedorContaPagar } from "../types/contaPagar";
+import type { ContaPagar, ContaPagarInput, FornecedorContaPagar, PagamentoContaPagarInput } from "../types/contaPagar";
 
 const base = "/financeiro/contas-pagar";
 
@@ -13,7 +13,7 @@ export const listarFornecedoresContaPagar = async (signal?: AbortSignal) =>
 export const salvarContaPagar = async (dados: ContaPagarInput, id?: number) =>
     (await api.request<ContaPagar>({ method: id ? "PUT" : "POST", url: id ? `${base}/${id}` : base, data: dados })).data;
 
-export const pagarConta = async (id: number, dados: { dataPagamento: string; valorPago: number }) =>
+export const pagarConta = async (id: number, dados: PagamentoContaPagarInput) =>
     (await api.post<ContaPagar>(`${base}/${id}/pagar`, dados)).data;
 
 export const cancelarConta = async (id: number) =>

@@ -19,4 +19,10 @@ export type ContaPagar = {
 export type ContaPagarInput = Pick<ContaPagar, "descricao" | "documento" | "fornecedorId" | "categoria" |
     "dataEmissao" | "dataVencimento" | "valor" | "observacao">;
 
+export type PagamentoContaPagarInput = {
+    contaFinanceiraId: number;
+    dataPagamento: string;
+    valorPago: number;
+};
+
 export type FornecedorContaPagar = { id: number; razaoSocial: string; ativo: boolean };
