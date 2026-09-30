@@ -33,10 +33,15 @@ public class MovimentacaoFinanceiraEntity {
     protected MovimentacaoFinanceiraEntity() { }
     public MovimentacaoFinanceiraEntity(ContaFinanceiraEntity conta, TipoMovimentacaoFinanceira tipo,
             String descricao, BigDecimal valor, LocalDate dataMovimento, String observacao, UsuarioEntity usuario) {
+        this(conta, tipo, OrigemMovimentacaoFinanceira.MANUAL, descricao, valor, dataMovimento, observacao, usuario);
+    }
+    public MovimentacaoFinanceiraEntity(ContaFinanceiraEntity conta, TipoMovimentacaoFinanceira tipo,
+            OrigemMovimentacaoFinanceira origem, String descricao, BigDecimal valor, LocalDate dataMovimento,
+            String observacao, UsuarioEntity usuario) {
         this.empresa = conta.getEmpresa();
         this.contaFinanceira = conta;
         this.tipo = tipo;
-        this.origem = OrigemMovimentacaoFinanceira.MANUAL;
+        this.origem = origem;
         this.descricao = descricao;
         this.valor = valor;
         this.dataMovimento = dataMovimento;

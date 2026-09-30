@@ -11,6 +11,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -31,6 +33,8 @@ class ContaPagarHttpTest {
     @Autowired UsuarioRepository usuarios;
     @Autowired FornecedorRepository fornecedores;
     @Autowired ContaPagarRepository contas;
+    @Autowired ContaFinanceiraRepository contasFinanceiras;
+    @Autowired MovimentacaoFinanceiraRepository movimentos;
     @Autowired JwtService jwt;
     EmpresaEntity empresaA, empresaB;
     FornecedorEntity fornecedorA, fornecedorB;
@@ -71,40 +75,94 @@ class ContaPagarHttpTest {
 
     @Test void pagamentoEEstornoLimpamOsDadosDaBaixa() throws Exception {
         long id = criar(tokenA, null);
+        var financeira = contaFinanceira(empresaA, 300);
         mvc.perform(post("/financeiro/contas-pagar/" + id + "/pagar").header("Authorization", tokenA)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"dataPagamento\":\"2026-10-01\",\"valorPago\":200}"))
+                        .content(baixa(financeira.getId(), 200)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PAGA"))
                 .andExpect(jsonPath("$.dataPagamento").value("2026-10-01"))
-                .andExpect(jsonPath("$.valorPago").value(200));
+                .andExpect(jsonPath("$.valorPago").value(200))
+                .andExpect(jsonPath("$.movimentacaoFinanceiraId").isNumber());
+        var movimento = movimentos.findByEmpresaIdOrderByDataMovimentoDescIdDesc(empresaA.getId()).getFirst();
+        assertThat(movimento.getTipo()).isEqualTo(TipoMovimentacaoFinanceira.SAIDA);
+        assertThat(movimento.getOrigem()).isEqualTo(OrigemMovimentacaoFinanceira.CONTAS_A_PAGAR);
+        assertThat(movimento.getValor()).isEqualByComparingTo("200");
+        assertThat(movimento.getDataMovimento()).isEqualTo(LocalDate.of(2026, 10, 1));
+        assertThat(movimento.getUsuario().getEmpresa().getId()).isEqualTo(empresaA.getId());
+        assertThat(contasFinanceiras.findById(financeira.getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("100");
+        mvc.perform(patch("/financeiro/movimentacoes-financeiras/" + movimento.getId() + "/estorno")
+                        .header("Authorization", tokenA).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"motivoEstorno\":\"Atalho indevido\"}"))
+                .andExpect(status().isConflict());
         mvc.perform(put("/financeiro/contas-pagar/" + id).header("Authorization", tokenA)
                         .contentType(MediaType.APPLICATION_JSON).content(pedido(null)))
                 .andExpect(status().isConflict());
         mvc.perform(post("/financeiro/contas-pagar/" + id + "/estornar").header("Authorization", tokenA))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ABERTA"))
                 .andExpect(jsonPath("$.dataPagamento").doesNotExist())
-                .andExpect(jsonPath("$.valorPago").doesNotExist());
+                .andExpect(jsonPath("$.valorPago").doesNotExist())
+                .andExpect(jsonPath("$.movimentacaoFinanceiraId").value(movimento.getId()));
+        assertThat(movimentos.findById(movimento.getId()).orElseThrow().isEstornada()).isTrue();
+        assertThat(contasFinanceiras.findById(financeira.getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("300");
     }
 
     @Test void baixaExigeDataEValorIntegral() throws Exception {
         long id = criar(tokenA, null);
+        var financeira = contaFinanceira(empresaA, 300);
         mvc.perform(post("/financeiro/contas-pagar/" + id + "/pagar").header("Authorization", tokenA)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"dataPagamento\":\"2026-10-01\",\"valorPago\":198.50}"))
+                        .content(baixa(financeira.getId(), 198.50)))
                 .andExpect(status().isBadRequest());
         mvc.perform(post("/financeiro/contas-pagar/" + id + "/pagar").header("Authorization", tokenA)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"valorPago\":200}"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("contaFinanceiraId", financeira.getId(), "valorPago", 200))))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/financeiro/contas-pagar/" + id + "/pagar").header("Authorization", tokenA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dataPagamento\":\"2026-10-01\",\"valorPago\":200}"))
                 .andExpect(status().isBadRequest());
         assertThat(contas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusContaPagar.ABERTA);
     }
 
+    @Test void baixaRejeitaSaldoInsuficienteContaInativaEEmpresaDiferente() throws Exception {
+        long id = criar(tokenA, null);
+        var semSaldo = contaFinanceira(empresaA, 100);
+        var inativa = contaFinanceira(empresaA, 300);
+        inativa.situacao(false);
+        contasFinanceiras.saveAndFlush(inativa);
+        var outraEmpresa = contaFinanceira(empresaB, 300);
+        for (var financeira : new ContaFinanceiraEntity[]{semSaldo, inativa, outraEmpresa}) {
+            var esperado = financeira == outraEmpresa ? status().isNotFound() : status().isConflict();
+            mvc.perform(post("/financeiro/contas-pagar/" + id + "/pagar").header("Authorization", tokenA)
+                            .contentType(MediaType.APPLICATION_JSON).content(baixa(financeira.getId(), 200)))
+                    .andExpect(esperado);
+        }
+        assertThat(contas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusContaPagar.ABERTA);
+        assertThat(movimentos.count()).isZero();
+        assertThat(contasFinanceiras.findById(semSaldo.getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("100");
+    }
+
+    @Test void estornoDeBaixaAntigaSemMovimentacaoMantemCompatibilidade() throws Exception {
+        long id = criar(tokenA, null);
+        var conta = contas.findById(id).orElseThrow();
+        conta.pagar(LocalDate.of(2026, 10, 1), new BigDecimal("200"), null);
+        contas.saveAndFlush(conta);
+        mvc.perform(get("/financeiro/contas-pagar").header("Authorization", tokenA))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value("PAGA"))
+                .andExpect(jsonPath("$[0].movimentacaoFinanceiraId").doesNotExist());
+        mvc.perform(post("/financeiro/contas-pagar/" + id + "/estornar").header("Authorization", tokenA))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ABERTA"));
+        assertThat(movimentos.count()).isZero();
+    }
+
     @Test void cancelaAbertaEBloqueiaNovasTransicoes() throws Exception {
         long id = criar(tokenA, null);
+        var financeira = contaFinanceira(empresaA, 300);
         mvc.perform(post("/financeiro/contas-pagar/" + id + "/cancelar").header("Authorization", tokenA))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELADA"));
         mvc.perform(post("/financeiro/contas-pagar/" + id + "/pagar").header("Authorization", tokenA)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"dataPagamento\":\"2026-10-01\",\"valorPago\":200}"))
+                        .content(baixa(financeira.getId(), 200)))
                 .andExpect(status().isConflict());
         mvc.perform(post("/financeiro/contas-pagar/" + id + "/estornar").header("Authorization", tokenA))
                 .andExpect(status().isConflict());
@@ -112,6 +170,7 @@ class ContaPagarHttpTest {
 
     @Test void bloqueiaContaEFornecedorDaOutraEmpresa() throws Exception {
         long id = criar(tokenA, fornecedorA.getId());
+        var financeiraB = contaFinanceira(empresaB, 300);
         mvc.perform(post("/financeiro/contas-pagar").header("Authorization", tokenA)
                         .contentType(MediaType.APPLICATION_JSON).content(pedido(fornecedorB.getId())))
                 .andExpect(status().isNotFound());
@@ -124,7 +183,7 @@ class ContaPagarHttpTest {
         for (String acao : new String[]{"pagar", "cancelar", "estornar"})
             mvc.perform(post("/financeiro/contas-pagar/" + id + "/" + acao).header("Authorization", tokenB)
                             .contentType(MediaType.APPLICATION_JSON).content(acao.equals("pagar")
-                                    ? "{\"dataPagamento\":\"2026-10-01\",\"valorPago\":200}" : "{}"))
+                                    ? baixa(financeiraB.getId(), 200) : "{}"))
                     .andExpect(status().isNotFound());
         assertThat(contas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusContaPagar.ABERTA);
     }
@@ -150,6 +209,16 @@ class ContaPagarHttpTest {
         dados.put("empresaId", empresaB.getId());
         if (fornecedorId != null) dados.put("fornecedorId", fornecedorId);
         return json.writeValueAsString(dados);
+    }
+
+    private String baixa(Long contaFinanceiraId, double valor) throws Exception {
+        return json.writeValueAsString(Map.of("contaFinanceiraId", contaFinanceiraId,
+                "dataPagamento", "2026-10-01", "valorPago", valor));
+    }
+
+    private ContaFinanceiraEntity contaFinanceira(EmpresaEntity empresa, int saldo) {
+        return contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(empresa, "Banco",
+                TipoContaFinanceira.BANCO, BigDecimal.valueOf(saldo)));
     }
 
     private EmpresaEntity empresa(String nome) {

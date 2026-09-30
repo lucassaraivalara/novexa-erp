@@ -22,6 +22,8 @@ public class ContaPagarEntity {
     private LocalDate dataPagamento;
     @Column(precision = 19, scale = 2) private BigDecimal valorPago;
     @Column(length = 1000) private String observacao;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "movimentacao_financeira_id") private MovimentacaoFinanceiraEntity movimentacaoFinanceira;
 
     protected ContaPagarEntity() { }
 
@@ -42,10 +44,11 @@ public class ContaPagarEntity {
         this.observacao = observacao;
     }
 
-    public void pagar(LocalDate data, BigDecimal valor) {
+    public void pagar(LocalDate data, BigDecimal valor, MovimentacaoFinanceiraEntity movimentacao) {
         status = StatusContaPagar.PAGA;
         dataPagamento = data;
         valorPago = valor;
+        movimentacaoFinanceira = movimentacao;
     }
 
     public void abrir() {
@@ -68,4 +71,5 @@ public class ContaPagarEntity {
     public LocalDate getDataPagamento() { return dataPagamento; }
     public BigDecimal getValorPago() { return valorPago; }
     public String getObservacao() { return observacao; }
+    public MovimentacaoFinanceiraEntity getMovimentacaoFinanceira() { return movimentacaoFinanceira; }
 }

@@ -55,7 +55,7 @@ Pós-MVP / não antecipar agora:
 Regra:
 antes de criar novos módulos, priorizar fechar fluxos completos já existentes.
 
-Conta Financeira controla saldo gerencial manual nesta fase; não conectá-la automaticamente ao PDV ou a Contas a Pagar.
+Conta Financeira controla saldo gerencial; a Fase 3A backend conecta a baixa integral de Contas a Pagar por SAIDA vinculada e estornável. O frontend dessa baixa ainda não envia `contaFinanceiraId`. Não conectar automaticamente ao PDV/Caixa.
 Não misturar Caixa do PDV com Dados Bancários nem com o tipo CAIXA da Conta Financeira.
 
 ## Como consultar a documentação

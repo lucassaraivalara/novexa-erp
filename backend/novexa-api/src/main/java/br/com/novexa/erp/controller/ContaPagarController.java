@@ -37,7 +37,7 @@ public class ContaPagarController {
     @PostMapping("/{id}/pagar")
     public ContaPagarResponseDTO pagar(@PathVariable Long id, @Valid @RequestBody PagamentoContaPagarRequestDTO pedido,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return service.pagar(id, usuario.empresaId(), pedido);
+        return service.pagar(id, usuario.empresaId(), usuario.usuarioId(), pedido);
     }
 
     @PostMapping("/{id}/cancelar")
@@ -47,7 +47,7 @@ public class ContaPagarController {
 
     @PostMapping("/{id}/estornar")
     public ContaPagarResponseDTO estornar(@PathVariable Long id, @AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return service.estornar(id, usuario.empresaId());
+        return service.estornar(id, usuario.empresaId(), usuario.usuarioId());
     }
 
     @ExceptionHandler(ResponseStatusException.class)

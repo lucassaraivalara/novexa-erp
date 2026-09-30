@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Contas a Pagar + Contas Financeiras (Fase 3A backend)
+
+- V20 vincula a Conta a Pagar à movimentação financeira da baixa, preservando contas pagas antigas sem vínculo. `POST /financeiro/contas-pagar/{id}/pagar` exige `contaFinanceiraId`, data e valor integral; a conta financeira ativa deve ser da empresa do JWT e ter saldo suficiente. A baixa cria SAIDA de origem CONTAS_A_PAGAR e reduz o saldo na mesma transação.
+- O estorno da baixa estorna a movimentação vinculada, restaura o saldo e reabre a conta; baixas legadas sem movimentação continuam estornáveis. A movimentação automática não aceita estorno pela API manual. O vínculo com a última movimentação é mantido para consulta após estorno e substituído em nova baixa.
+- Frontend não alterado nesta fase: a ação de pagamento da tela atual ainda não envia `contaFinanceiraId` e receberá 400 até a integração da interface. Caixa/PDV e banco não são movimentados. PostgreSQL/Flyway real ainda não validado nesta branch.
+
 ## Contas Financeiras — base manual (branch `feat/contas-financeiras-base`)
 
 - `/financeiro/contas-financeiras` mostra saldos por tipo, contas da empresa, cadastro/edição, situação, movimentação manual e extrato com estorno motivado. Tipo CAIXA é gerencial e não altera o Caixa/PDV operacional.

@@ -16,11 +16,14 @@ public class ContaPagarService {
     private final ContaPagarRepository contas;
     private final EmpresaRepository empresas;
     private final FornecedorRepository fornecedores;
+    private final ContaFinanceiraService financeiro;
 
-    public ContaPagarService(ContaPagarRepository contas, EmpresaRepository empresas, FornecedorRepository fornecedores) {
+    public ContaPagarService(ContaPagarRepository contas, EmpresaRepository empresas,
+            FornecedorRepository fornecedores, ContaFinanceiraService financeiro) {
         this.contas = contas;
         this.empresas = empresas;
         this.fornecedores = fornecedores;
+        this.financeiro = financeiro;
     }
 
     public List<ContaPagarResponseDTO> listar(Long empresaId) {
@@ -46,7 +49,7 @@ public class ContaPagarService {
     }
 
     @Transactional
-    public ContaPagarResponseDTO pagar(Long id, Long empresaId, PagamentoContaPagarRequestDTO pedido) {
+    public ContaPagarResponseDTO pagar(Long id, Long empresaId, Long usuarioId, PagamentoContaPagarRequestDTO pedido) {
         var conta = buscarParaAlterar(id, empresaId);
         exigirAberta(conta);
         BigDecimal pago = pedido.valorPago();
@@ -54,7 +57,9 @@ public class ContaPagarService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe um valor pago positivo com até duas casas decimais.");
         if (pago.compareTo(conta.getValor()) != 0)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O pagamento deve corresponder ao valor integral da conta.");
-        conta.pagar(pedido.dataPagamento(), pago);
+        var movimento = financeiro.registrarSaidaContaPagar(empresaId, usuarioId, pedido.contaFinanceiraId(),
+                "Pagamento conta a pagar #" + conta.getId(), pago, pedido.dataPagamento());
+        conta.pagar(pedido.dataPagamento(), pago, movimento);
         return ContaPagarResponseDTO.de(contas.saveAndFlush(conta));
     }
 
@@ -67,10 +72,13 @@ public class ContaPagarService {
     }
 
     @Transactional
-    public ContaPagarResponseDTO estornar(Long id, Long empresaId) {
+    public ContaPagarResponseDTO estornar(Long id, Long empresaId, Long usuarioId) {
         var conta = buscarParaAlterar(id, empresaId);
         if (conta.getStatus() != StatusContaPagar.PAGA)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Somente contas pagas podem ser estornadas.");
+        if (conta.getMovimentacaoFinanceira() != null)
+            financeiro.estornarSaidaContaPagar(conta.getMovimentacaoFinanceira().getId(), empresaId, usuarioId,
+                    "Estorno da baixa da conta a pagar #" + conta.getId());
         conta.abrir();
         return ContaPagarResponseDTO.de(contas.saveAndFlush(conta));
     }

@@ -7,6 +7,28 @@ import java.sql.*;
 import static org.assertj.core.api.Assertions.*;
 
 class ContaPagarMigrationTest {
+    @Test void vinculoDaBaixaPermiteLegadoEMantemTenant() throws Exception {
+        try (var conexao = DriverManager.getConnection("jdbc:h2:mem:conta-pagar-integracao;MODE=PostgreSQL", "sa", "")) {
+            executar(conexao, "CREATE TABLE empresas (id BIGINT PRIMARY KEY)");
+            executar(conexao, "CREATE TABLE fornecedores (id BIGINT PRIMARY KEY, empresa_id BIGINT NOT NULL)");
+            ScriptUtils.executeSqlScript(conexao, new ClassPathResource("db/migration/V17__cria_contas_pagar.sql"));
+            ScriptUtils.executeSqlScript(conexao, new ClassPathResource("db/migration/V18__adiciona_documento_contas_pagar.sql"));
+            executar(conexao, "CREATE TABLE movimentacoes_financeiras (id BIGINT PRIMARY KEY, empresa_id BIGINT NOT NULL, origem VARCHAR(20) NOT NULL, CONSTRAINT movimentacoes_financeiras_origem_check CHECK (origem='MANUAL'))");
+            ScriptUtils.executeSqlScript(conexao, new ClassPathResource("db/migration/V20__integra_baixa_conta_pagar_movimentacao_financeira.sql"));
+            executar(conexao, "INSERT INTO empresas VALUES (1), (2)");
+            executar(conexao, "INSERT INTO contas_pagar (empresa_id,descricao,data_vencimento,valor,status,data_pagamento,valor_pago) VALUES (1,'Legada','2026-10-10',100,'PAGA','2026-10-01',100)");
+            executar(conexao, "INSERT INTO movimentacoes_financeiras VALUES (10,1,'CONTAS_A_PAGAR'), (20,2,'CONTAS_A_PAGAR')");
+            executar(conexao, "UPDATE contas_pagar SET movimentacao_financeira_id=10 WHERE id=1");
+            assertThatThrownBy(() -> executar(conexao, "UPDATE contas_pagar SET movimentacao_financeira_id=20 WHERE id=1"))
+                    .isInstanceOf(SQLException.class);
+            executar(conexao, "UPDATE contas_pagar SET movimentacao_financeira_id=NULL WHERE id=1");
+            try (var resultado = conexao.createStatement().executeQuery("SELECT status FROM contas_pagar WHERE id=1")) {
+                assertThat(resultado.next()).isTrue();
+                assertThat(resultado.getString(1)).isEqualTo("PAGA");
+            }
+        }
+    }
+
     @Test void schemaProtegeFornecedorTenantEEstadoDePagamento() throws Exception {
         try (var conexao = DriverManager.getConnection("jdbc:h2:mem:conta-pagar-migration;MODE=PostgreSQL", "sa", "")) {
             executar(conexao, "CREATE TABLE empresas (id BIGINT PRIMARY KEY)");

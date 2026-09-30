@@ -78,22 +78,50 @@ public class ContaFinanceiraService {
     }
 
     @Transactional
+    public MovimentacaoFinanceiraEntity registrarSaidaContaPagar(Long empresaId, Long usuarioId,
+            Long contaFinanceiraId, String descricao, BigDecimal valor, java.time.LocalDate dataPagamento) {
+        var conta = buscarConta(contaFinanceiraId, empresaId);
+        if (!conta.isAtivo())
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Conta financeira inativa não aceita movimentações.");
+        validarSaldo(conta.getSaldoAtual().subtract(valor));
+        var usuario = buscarUsuario(usuarioId, empresaId);
+        conta.aplicar(valor.negate());
+        var movimento = new MovimentacaoFinanceiraEntity(conta, TipoMovimentacaoFinanceira.SAIDA,
+                OrigemMovimentacaoFinanceira.CONTAS_A_PAGAR, descricao, valor, dataPagamento, null, usuario);
+        contas.saveAndFlush(conta);
+        return movimentos.saveAndFlush(movimento);
+    }
+
+    @Transactional
     public MovimentacaoFinanceiraResponseDTO estornar(Long id, Long empresaId, Long usuarioId,
             MovimentacaoFinanceiraEstornoDTO pedido) {
+        return MovimentacaoFinanceiraResponseDTO.de(estornarMovimento(id, empresaId, usuarioId,
+                pedido.motivoEstorno().trim(), OrigemMovimentacaoFinanceira.MANUAL));
+    }
+
+    @Transactional
+    public void estornarSaidaContaPagar(Long id, Long empresaId, Long usuarioId, String motivo) {
+        estornarMovimento(id, empresaId, usuarioId, motivo, OrigemMovimentacaoFinanceira.CONTAS_A_PAGAR);
+    }
+
+    private MovimentacaoFinanceiraEntity estornarMovimento(Long id, Long empresaId, Long usuarioId,
+            String motivo, OrigemMovimentacaoFinanceira origemEsperada) {
         Long contaId = movimentos.buscarContaId(id, empresaId).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Movimentação financeira não encontrada."));
         var conta = buscarConta(contaId, empresaId);
         var movimento = movimentos.buscarParaEstornar(id, empresaId).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Movimentação financeira não encontrada."));
+        if (movimento.getOrigem() != origemEsperada)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Movimentação deve ser estornada pela sua origem.");
         if (movimento.isEstornada())
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Movimentação já estornada.");
         var diferenca = movimento.getTipo() == TipoMovimentacaoFinanceira.ENTRADA
                 ? movimento.getValor().negate() : movimento.getValor();
         validarSaldo(conta.getSaldoAtual().add(diferenca));
         conta.aplicar(diferenca);
-        movimento.estornar(buscarUsuario(usuarioId, empresaId), pedido.motivoEstorno().trim());
+        movimento.estornar(buscarUsuario(usuarioId, empresaId), motivo);
         contas.saveAndFlush(conta);
-        return MovimentacaoFinanceiraResponseDTO.de(movimentos.saveAndFlush(movimento));
+        return movimentos.saveAndFlush(movimento);
     }
 
     private ContaFinanceiraEntity buscarConta(Long id, Long empresaId) {
