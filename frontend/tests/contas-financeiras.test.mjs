@@ -26,8 +26,8 @@ test("contas financeiras e movimentos usam o token sem enviar empresa ou usuario
     };
 
     await listarContasFinanceiras();
-    await salvarContaFinanceira({ nome: "Banco", tipo: "BANCO", saldoInicial: 100 });
-    await salvarContaFinanceira({ nome: "Banco novo", tipo: "BANCO" }, 42);
+    await salvarContaFinanceira({ nome: "Banco", tipo: "BANCO", saldoInicial: 100, contaBancariaId: 7 });
+    await salvarContaFinanceira({ nome: "Banco novo", tipo: "BANCO", contaBancariaId: 7 }, 42);
     await alterarSituacaoContaFinanceira(42, false);
     await listarMovimentacoesFinanceiras(42);
     await criarMovimentacaoFinanceira({ contaFinanceiraId: 42, tipo: "ENTRADA", descricao: "Aporte",
@@ -44,5 +44,6 @@ test("contas financeiras e movimentos usam o token sem enviar empresa ou usuario
     assert.ok(chamadas.every(({ headers }) => headers.Authorization === "Bearer token-financeiro"));
     assert.ok(chamadas.every(({ data }) => !data ||
         (!Object.hasOwn(JSON.parse(data), "empresaId") && !Object.hasOwn(JSON.parse(data), "usuarioId"))));
-    assert.deepEqual(JSON.parse(chamadas[2].data), { nome: "Banco novo", tipo: "BANCO" });
+    assert.deepEqual(JSON.parse(chamadas[1].data), { nome: "Banco", tipo: "BANCO", saldoInicial: 100, contaBancariaId: 7 });
+    assert.deepEqual(JSON.parse(chamadas[2].data), { nome: "Banco novo", tipo: "BANCO", contaBancariaId: 7 });
 });

@@ -63,14 +63,19 @@ export default function ContasFinanceiras() {
     const grupos: { titulo: string; tipos: TipoContaFinanceira[]; cor: string }[] = [
         { titulo: "Saldo total", tipos: Object.keys(rotulosTipoContaFinanceira) as TipoContaFinanceira[], cor: "primary.main" },
         { titulo: "Bancos", tipos: ["BANCO"], cor: "info.main" },
-        { titulo: "Caixa / Cofre", tipos: ["CAIXA", "COFRE"], cor: "warning.main" },
+        { titulo: "Cofre", tipos: ["COFRE"], cor: "warning.main" },
         { titulo: "Carteiras digitais", tipos: ["CARTEIRA_DIGITAL"], cor: "success.main" },
-        { titulo: "Adquirentes / Outros", tipos: ["ADQUIRENTE", "OUTROS"], cor: "secondary.main" },
+        { titulo: "Outros", tipos: ["OUTROS"], cor: "secondary.main" },
     ];
     const filtradas = contas.filter((conta) => normalizar(`${conta.nome} ${rotulosTipoContaFinanceira[conta.tipo]}`).includes(normalizar(busca.trim())));
     const atual = Math.min(pagina, Math.max(0, Math.ceil(filtradas.length / porPagina) - 1));
     const colunas: Coluna<ContaFinanceira>[] = [
-        { campo: "nome", cabecalho: "Nome", largura: 260 },
+        { campo: "nome", cabecalho: "Nome", largura: 260, render: (_, conta) => <Box>
+            <Typography variant="body2">{conta.nome}</Typography>
+            {conta.tipo === "BANCO" && <Typography variant="caption" color="text.secondary">
+                {conta.contaBancaria ? `${conta.contaBancaria.bancoNome} · ${conta.contaBancaria.numero}${conta.contaBancaria.digito ? `-${conta.contaBancaria.digito}` : ""}` : "Legado: vínculo bancário pendente"}
+            </Typography>}
+        </Box> },
         { campo: "tipo", cabecalho: "Tipo", largura: 180, render: (_, conta) => rotulosTipoContaFinanceira[conta.tipo] },
         { campo: "saldoAtual", cabecalho: "Saldo atual", largura: 170, alinhar: "right", render: (valor) =>
             <Typography variant="body2" sx={{ fontWeight: 700 }}>{moeda.format(Number(valor))}</Typography> },

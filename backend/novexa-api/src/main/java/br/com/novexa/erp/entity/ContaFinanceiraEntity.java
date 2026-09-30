@@ -11,6 +11,9 @@ public class ContaFinanceiraEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(optional = false) @JoinColumn(name = "empresa_id", nullable = false, updatable = false)
     private EmpresaEntity empresa;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conta_bancaria_id", unique = true)
+    private ContaBancariaEntity contaBancaria;
     @Column(nullable = false, length = 150) private String nome;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private TipoContaFinanceira tipo;
     @Column(nullable = false, precision = 19, scale = 2, updatable = false) private BigDecimal saldoInicial;
@@ -40,6 +43,8 @@ public class ContaFinanceiraEntity {
     public void aplicar(BigDecimal diferenca) { this.saldoAtual = saldoAtual.add(diferenca); atualizarData(); }
     private void atualizarData() { dataAtualizacao = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS); }
     public Long getId() { return id; }
+    public ContaBancariaEntity getContaBancaria() { return contaBancaria; }
+    public void vincularContaBancaria(ContaBancariaEntity conta) { this.contaBancaria = conta; }
     public EmpresaEntity getEmpresa() { return empresa; }
     public String getNome() { return nome; }
     public TipoContaFinanceira getTipo() { return tipo; }

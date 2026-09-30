@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ContaBancariaRepository extends JpaRepository<ContaBancariaEntity, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from ContaBancariaEntity c where c.id = :id and c.empresa.id = :empresaId")
+    Optional<ContaBancariaEntity> buscarParaVincular(Long id, Long empresaId);
 
     @Query("""
             select conta from ContaBancariaEntity conta

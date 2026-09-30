@@ -32,11 +32,17 @@ class ContaFinanceiraHttpTest {
     @Autowired ContaFinanceiraRepository contas;
     @Autowired MovimentacaoFinanceiraRepository movimentos;
     @Autowired JwtService jwt;
+    @Autowired BancoRepository bancos;
+    @Autowired AgenciaRepository agencias;
+    @Autowired ContaBancariaRepository bancarias;
+    AgenciaEntity agencia;
     EmpresaEntity empresaA, empresaB;
     String tokenA, tokenB;
 
     @BeforeEach void preparar() {
         empresaA = empresa("A"); empresaB = empresa("B");
+        agencia = agencias.saveAndFlush(new AgenciaEntity(bancos.saveAndFlush(
+                new BancoEntity("748", "Sicredi", null, true)), "1234", null, null, null, null, true));
         tokenA = "Bearer " + jwt.gerarToken(usuario(empresaA, "02360684663"));
         tokenB = "Bearer " + jwt.gerarToken(usuario(empresaB, "52998224725"));
     }
@@ -180,12 +186,79 @@ class ContaFinanceiraHttpTest {
     }
 
     private long criarConta(String token, Number saldo) throws Exception {
+        var bancaria = bancaria(token.equals(tokenA) ? empresaA : empresaB, true);
         var resposta = mvc.perform(post("/financeiro/contas-financeiras").header("Authorization", token)
                         .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of(
                                 "nome", "Conta principal", "tipo", "BANCO", "saldoInicial", saldo,
-                                "empresaId", empresaB.getId()))))
+                                "empresaId", empresaB.getId(), "contaBancariaId", bancaria.getId()))))
                 .andExpect(status().isCreated()).andReturn();
         return json.readTree(resposta.getResponse().getContentAsString()).get("id").asLong();
+    }
+
+    private ContaBancariaEntity bancaria(EmpresaEntity empresa, boolean ativo) {
+        return bancarias.saveAndFlush(new ContaBancariaEntity(empresa, agencia,
+                String.valueOf(bancarias.count() + 1), "0", "Titular", TipoContaBancaria.CORRENTE, ativo));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions criarVinculada(String tipo, Long bancariaId) throws Exception {
+        var dados = new java.util.HashMap<String, Object>();
+        dados.put("nome", "Conta"); dados.put("tipo", tipo); dados.put("saldoInicial", 100);
+        dados.put("contaBancariaId", bancariaId);
+        return mvc.perform(post("/financeiro/contas-financeiras").header("Authorization", tokenA)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(dados)));
+    }
+
+    @Test void validaVinculoBancarioETiposFuncionais() throws Exception {
+        criarVinculada("BANCO", null).andExpect(status().isBadRequest());
+        criarVinculada("BANCO", bancaria(empresaB, true).getId()).andExpect(status().isNotFound());
+        criarVinculada("BANCO", bancaria(empresaA, false).getId()).andExpect(status().isConflict());
+        var bancaria = bancaria(empresaA, true);
+        criarVinculada("BANCO", bancaria.getId()).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.contaBancaria.id").value(bancaria.getId()))
+                .andExpect(jsonPath("$.contaBancaria.bancoNome").value("Sicredi"))
+                .andExpect(jsonPath("$.contaBancaria.agenciaNumero").value("1234"))
+                .andExpect(jsonPath("$.contaBancaria.numero").value(bancaria.getNumero()))
+                .andExpect(jsonPath("$.contaBancaria.tipo").value("CORRENTE"));
+        criarVinculada("BANCO", bancaria.getId()).andExpect(status().isConflict());
+        for (String tipo : new String[]{"COFRE", "CARTEIRA_DIGITAL", "OUTROS"})
+            criarVinculada(tipo, bancaria.getId()).andExpect(status().isBadRequest());
+        for (String tipo : new String[]{"CAIXA", "ADQUIRENTE"})
+            criarVinculada(tipo, null).andExpect(status().isBadRequest());
+    }
+
+    @Test void edicaoPreservaVinculoInativoERemoveAoTrocarTipo() throws Exception {
+        long id = criarConta(tokenA, 100);
+        var bancaria = contas.findById(id).orElseThrow().getContaBancaria();
+        bancaria.atualizar(agencia, bancaria.getNumero(), "0", "Titular", TipoContaBancaria.CORRENTE, false);
+        bancarias.saveAndFlush(bancaria);
+        mvc.perform(put("/financeiro/contas-financeiras/" + id).header("Authorization", tokenA)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of(
+                        "nome", "Novo nome", "tipo", "BANCO", "contaBancariaId", bancaria.getId()))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.contaBancaria.ativo").value(false));
+        for (String tipo : new String[]{"CAIXA", "ADQUIRENTE"})
+            mvc.perform(put("/financeiro/contas-financeiras/" + id).header("Authorization", tokenA)
+                    .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("nome", "Conta", "tipo", tipo))))
+                    .andExpect(status().isBadRequest());
+        mvc.perform(put("/financeiro/contas-financeiras/" + id).header("Authorization", tokenA)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"Cofre\",\"tipo\":\"COFRE\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.contaBancaria").doesNotExist());
+        mvc.perform(put("/financeiro/contas-financeiras/" + id).header("Authorization", tokenA)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"Banco\",\"tipo\":\"BANCO\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test void legadosContinuamLegiveisEInativaveis() throws Exception {
+        for (var tipo : new TipoContaFinanceira[]{TipoContaFinanceira.BANCO, TipoContaFinanceira.CAIXA, TipoContaFinanceira.ADQUIRENTE}) {
+            var conta = contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Legada", tipo, java.math.BigDecimal.TEN));
+            mvc.perform(put("/financeiro/contas-financeiras/" + conta.getId()).header("Authorization", tokenA)
+                    .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("nome", "Renomeada", "tipo", tipo))))
+                    .andExpect(tipo == TipoContaFinanceira.BANCO ? status().isBadRequest() : status().isOk());
+            mvc.perform(patch("/financeiro/contas-financeiras/" + conta.getId() + "/situacao").header("Authorization", tokenA)
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"ativo\":false}"))
+                    .andExpect(status().isOk());
+        }
+        mvc.perform(get("/financeiro/contas-financeiras").header("Authorization", tokenA))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(3));
     }
 
     private long movimentar(String token, long contaId, String tipo, Number valor) throws Exception {

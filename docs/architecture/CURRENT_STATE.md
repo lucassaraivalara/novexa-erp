@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Financeiro Bloco 1: identidade bancária
+
+ContaFinanceira BANCO passa a exigir ContaBancaria da mesma empresa em novos cadastros/edições; V21 protege tenant, unicidade e tipo sem invalidar legados. A identidade bancária é devolvida no DTO e exibida no formulário/listagem. CAIXA/ADQUIRENTE são restritos ao legado e permanecem no total geral. Saldo, extrato e baixa/estorno de Contas a Pagar mantêm a mesma fonte. Regras e estratégia para legado: [FINANCEIRO_RULES.md](FINANCEIRO_RULES.md). Alterações deste bloco permanecem no working tree para revisão.
+
+Validação: 25 testes backend relacionados aprovados, V21 testada em H2 e PostgreSQL 18 temporário sobre schema anterior com dados legados; 3 testes de service/cálculos frontend, 3 cenários Playwright, build e lint direcionado aprovados. A suíte backend completa executou 585 testes, com 16 erros em Estoque (15 por bean ArquivoStorageService ausente no contexto e um por SKU duplicado) e 3 ignorados; esses módulos não foram alterados.
+
 ## Contas a Pagar + Contas Financeiras (Fase 3A backend)
 
 - V20 vincula a Conta a Pagar à movimentação financeira da baixa, preservando contas pagas antigas sem vínculo. `POST /financeiro/contas-pagar/{id}/pagar` exige `contaFinanceiraId`, data e valor integral; a conta financeira ativa deve ser da empresa do JWT e ter saldo suficiente. A baixa cria SAIDA de origem CONTAS_A_PAGAR e reduz o saldo na mesma transação.

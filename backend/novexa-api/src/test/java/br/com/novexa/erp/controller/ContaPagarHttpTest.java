@@ -35,6 +35,10 @@ class ContaPagarHttpTest {
     @Autowired ContaPagarRepository contas;
     @Autowired ContaFinanceiraRepository contasFinanceiras;
     @Autowired MovimentacaoFinanceiraRepository movimentos;
+    @Autowired BancoRepository bancos;
+    @Autowired AgenciaRepository agencias;
+    @Autowired ContaBancariaRepository bancarias;
+    AgenciaEntity agencia;
     @Autowired JwtService jwt;
     EmpresaEntity empresaA, empresaB;
     FornecedorEntity fornecedorA, fornecedorB;
@@ -42,6 +46,8 @@ class ContaPagarHttpTest {
 
     @BeforeEach void preparar() {
         empresaA = empresa("A"); empresaB = empresa("B");
+        agencia = agencias.saveAndFlush(new AgenciaEntity(bancos.saveAndFlush(
+                new BancoEntity("748", "Sicredi", null, true)), "1234", null, null, null, null, true));
         fornecedorA = fornecedor(empresaA); fornecedorB = fornecedor(empresaB);
         tokenA = "Bearer " + jwt.gerarToken(usuario(empresaA, "02360684663"));
         tokenB = "Bearer " + jwt.gerarToken(usuario(empresaB, "52998224725"));
@@ -217,8 +223,10 @@ class ContaPagarHttpTest {
     }
 
     private ContaFinanceiraEntity contaFinanceira(EmpresaEntity empresa, int saldo) {
-        return contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(empresa, "Banco",
-                TipoContaFinanceira.BANCO, BigDecimal.valueOf(saldo)));
+        var conta = new ContaFinanceiraEntity(empresa, "Banco", TipoContaFinanceira.BANCO, BigDecimal.valueOf(saldo));
+        conta.vincularContaBancaria(bancarias.saveAndFlush(new ContaBancariaEntity(empresa, agencia,
+                String.valueOf(bancarias.count() + 1), "0", "Titular", TipoContaBancaria.CORRENTE, true)));
+        return contasFinanceiras.saveAndFlush(conta);
     }
 
     private EmpresaEntity empresa(String nome) {

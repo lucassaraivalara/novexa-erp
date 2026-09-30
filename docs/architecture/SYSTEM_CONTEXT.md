@@ -60,6 +60,8 @@ Não misturar Caixa do PDV com Dados Bancários nem com o tipo CAIXA da Conta Fi
 
 ## Como consultar a documentação
 
+Regras vinculantes do saldo e da identidade bancária: [FINANCEIRO_RULES.md](FINANCEIRO_RULES.md).
+
 Comece pelas regras de [AGENTS.md](../../AGENTS.md).
 Leia somente os documentos necessários ao escopo da tarefa.
 

@@ -5,4 +5,4 @@ import jakarta.validation.constraints.*;
 
 public record ContaFinanceiraEdicaoDTO(
         @NotBlank @Size(max = 150) String nome,
-        @NotNull TipoContaFinanceira tipo) { }
+        @NotNull TipoContaFinanceira tipo, Long contaBancariaId) { }

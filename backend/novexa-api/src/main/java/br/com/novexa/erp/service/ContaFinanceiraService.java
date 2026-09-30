@@ -17,13 +17,15 @@ public class ContaFinanceiraService {
     private final MovimentacaoFinanceiraRepository movimentos;
     private final EmpresaRepository empresas;
     private final UsuarioRepository usuarios;
+    private final ContaBancariaRepository bancarias;
 
     public ContaFinanceiraService(ContaFinanceiraRepository contas, MovimentacaoFinanceiraRepository movimentos,
-            EmpresaRepository empresas, UsuarioRepository usuarios) {
+            EmpresaRepository empresas, UsuarioRepository usuarios, ContaBancariaRepository bancarias) {
         this.contas = contas;
         this.movimentos = movimentos;
         this.empresas = empresas;
         this.usuarios = usuarios;
+        this.bancarias = bancarias;
     }
 
     public List<ContaFinanceiraResponseDTO> listarContas(Long empresaId) {
@@ -34,14 +36,18 @@ public class ContaFinanceiraService {
     public ContaFinanceiraResponseDTO criarConta(Long empresaId, ContaFinanceiraCriacaoDTO pedido) {
         var empresa = empresas.findById(empresaId).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Empresa não encontrada."));
-        return ContaFinanceiraResponseDTO.de(contas.saveAndFlush(new ContaFinanceiraEntity(
-                empresa, pedido.nome().trim(), pedido.tipo(), pedido.saldoInicial())));
+        var bancaria = validarVinculo(null, pedido.tipo(), pedido.contaBancariaId(), empresaId);
+        var conta = new ContaFinanceiraEntity(empresa, pedido.nome().trim(), pedido.tipo(), pedido.saldoInicial());
+        conta.vincularContaBancaria(bancaria);
+        return ContaFinanceiraResponseDTO.de(contas.saveAndFlush(conta));
     }
 
     @Transactional
     public ContaFinanceiraResponseDTO editarConta(Long id, Long empresaId, ContaFinanceiraEdicaoDTO pedido) {
         var conta = buscarConta(id, empresaId);
+        var bancaria = validarVinculo(conta, pedido.tipo(), pedido.contaBancariaId(), empresaId);
         conta.editar(pedido.nome().trim(), pedido.tipo());
+        conta.vincularContaBancaria(bancaria);
         return ContaFinanceiraResponseDTO.de(contas.saveAndFlush(conta));
     }
 
@@ -122,6 +128,29 @@ public class ContaFinanceiraService {
         movimento.estornar(buscarUsuario(usuarioId, empresaId), motivo);
         contas.saveAndFlush(conta);
         return movimentos.saveAndFlush(movimento);
+    }
+
+    private ContaBancariaEntity validarVinculo(ContaFinanceiraEntity atual, TipoContaFinanceira tipo,
+            Long bancariaId, Long empresaId) {
+        if ((tipo == TipoContaFinanceira.CAIXA || tipo == TipoContaFinanceira.ADQUIRENTE)
+                && (atual == null || atual.getTipo() != tipo))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tipo legado indisponível para novos usos.");
+        if (tipo != TipoContaFinanceira.BANCO) {
+            if (bancariaId != null)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Somente Banco pode ter conta bancária vinculada.");
+            return null;
+        }
+        if (bancariaId == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vincule uma conta bancária para salvar uma conta do tipo Banco.");
+        var bancaria = bancarias.buscarParaVincular(bancariaId, empresaId).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta bancária não encontrada."));
+        boolean mesmoVinculo = atual != null && atual.getContaBancaria() != null
+                && atual.getContaBancaria().getId().equals(bancariaId);
+        if (!mesmoVinculo && !bancaria.isAtivo())
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Conta bancária inativa não aceita novo vínculo.");
+        if (contas.existeVinculoBancario(bancariaId, atual == null ? null : atual.getId()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Conta bancária já vinculada a outra conta financeira.");
+        return bancaria;
     }
 
     private ContaFinanceiraEntity buscarConta(Long id, Long empresaId) {
