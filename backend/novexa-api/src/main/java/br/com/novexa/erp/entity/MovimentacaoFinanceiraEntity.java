@@ -18,6 +18,8 @@ public class MovimentacaoFinanceiraEntity {
     private TipoMovimentacaoFinanceira tipo;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20, updatable = false)
     private OrigemMovimentacaoFinanceira origem;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "transferencia_id", updatable = false)
+    private TransferenciaFinanceiraEntity transferencia;
     @Column(nullable = false, length = 200, updatable = false) private String descricao;
     @Column(nullable = false, precision = 19, scale = 2, updatable = false) private BigDecimal valor;
     @Column(nullable = false, updatable = false) private LocalDate dataMovimento;
@@ -49,6 +51,28 @@ public class MovimentacaoFinanceiraEntity {
         this.usuario = usuario;
         this.dataCriacao = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
     }
+    public static MovimentacaoFinanceiraEntity daTransferencia(TransferenciaFinanceiraEntity transferencia,
+            TipoMovimentacaoFinanceira tipo) {
+        var conta = tipo == TipoMovimentacaoFinanceira.SAIDA
+                ? transferencia.getContaOrigem() : transferencia.getContaDestino();
+        var movimento = new MovimentacaoFinanceiraEntity(conta, tipo, OrigemMovimentacaoFinanceira.TRANSFERENCIA,
+                tipo == TipoMovimentacaoFinanceira.SAIDA ? "Transferência enviada" : "Transferência recebida",
+                transferencia.getValor(), transferencia.getDataMovimento(), transferencia.getObservacao(),
+                transferencia.getUsuario());
+        movimento.transferencia = transferencia;
+        return movimento;
+    }
+    @PrePersist @PreUpdate
+    private void validarTransferencia() {
+        if ((origem == OrigemMovimentacaoFinanceira.TRANSFERENCIA) != (transferencia != null))
+            throw new IllegalStateException("Origem e vínculo de transferência incompatíveis.");
+        if (transferencia != null && (!empresa.getId().equals(transferencia.getEmpresa().getId())
+                || !contaFinanceira.getId().equals((tipo == TipoMovimentacaoFinanceira.SAIDA
+                    ? transferencia.getContaOrigem() : transferencia.getContaDestino()).getId())
+                || valor.compareTo(transferencia.getValor()) != 0))
+            throw new IllegalStateException("Movimentação incompatível com a transferência.");
+    }
+    public TransferenciaFinanceiraEntity getTransferencia() { return transferencia; }
     public void estornar(UsuarioEntity usuario, String motivo) {
         this.estornada = true;
         this.dataEstorno = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);

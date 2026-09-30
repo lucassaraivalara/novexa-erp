@@ -3,9 +3,9 @@ import type { ContaBancariaResumo } from "./dadosBancarios";
 export type TipoContaFinanceira = "BANCO" | "CAIXA" | "COFRE" | "CARTEIRA_DIGITAL" | "ADQUIRENTE" | "OUTROS";
 export const tiposContaFinanceiraFuncionais: TipoContaFinanceira[] = ["BANCO", "COFRE", "CARTEIRA_DIGITAL", "OUTROS"];
 export type TipoMovimentacaoFinanceira = "ENTRADA" | "SAIDA";
-export type OrigemMovimentacaoFinanceira = "MANUAL" | "CONTAS_A_PAGAR" | "SALDO_INICIAL";
+export type OrigemMovimentacaoFinanceira = "MANUAL" | "CONTAS_A_PAGAR" | "SALDO_INICIAL" | "TRANSFERENCIA";
 export const rotulosOrigemMovimentacaoFinanceira: Record<OrigemMovimentacaoFinanceira, string> = {
-    MANUAL: "Manual", CONTAS_A_PAGAR: "Contas a Pagar", SALDO_INICIAL: "Saldo inicial",
+    MANUAL: "Manual", CONTAS_A_PAGAR: "Contas a Pagar", SALDO_INICIAL: "Saldo inicial", TRANSFERENCIA: "Transferência",
 };
 
 export const rotulosTipoContaFinanceira: Record<TipoContaFinanceira, string> = {
@@ -29,6 +29,8 @@ export type ContaFinanceira = {
 export type ContaFinanceiraInput = { nome: string; tipo: TipoContaFinanceira; saldoInicial?: number; contaBancariaId: number | null };
 
 export type MovimentacaoFinanceira = {
+    transferenciaId: number | null;
+    contaContraparteNome: string | null;
     id: number;
     contaFinanceiraId: number;
     contaFinanceiraNome: string;
@@ -56,3 +58,34 @@ export type MovimentacaoFinanceiraInput = {
     dataMovimento: string;
     observacao: string | null;
 };
+
+export type TransferenciaFinanceiraInput = {
+    chaveRequisicao: string;
+    contaOrigemId: number;
+    contaDestinoId: number;
+    valor: number;
+    dataMovimento: string;
+    observacao: string | null;
+};
+
+export type TransferenciaFinanceira = TransferenciaFinanceiraInput & {
+    id: number;
+    contaOrigemNome: string;
+    contaDestinoNome: string;
+    status: "CONCLUIDA" | "ESTORNADA";
+    usuarioId: number;
+    usuarioNome: string;
+    dataCriacao: string;
+    dataEstorno: string | null;
+    usuarioEstornoId: number | null;
+    usuarioEstornoNome: string | null;
+    motivoEstorno: string | null;
+};
+
+export function descricaoMovimentacaoFinanceira(item: MovimentacaoFinanceira): string {
+    if (item.origem !== "TRANSFERENCIA") return item.descricao;
+    const enviada = item.tipo === "SAIDA";
+    const rotulo = enviada ? "Transferência enviada" : "Transferência recebida";
+    return item.contaContraparteNome
+        ? `${rotulo} ${enviada ? "para" : "de"} ${item.contaContraparteNome}` : rotulo;
+}

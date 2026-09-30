@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SwapHorizRoundedIcon from "@mui/icons-material/SwapHorizRounded";
+import CompareArrowsRoundedIcon from "@mui/icons-material/CompareArrowsRounded";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import PowerSettingsNewRoundedIcon from "@mui/icons-material/PowerSettingsNewRounded";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
@@ -12,10 +13,11 @@ import PageFilters from "../../components/ui/PageFilters";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import { alterarSituacaoContaFinanceira, listarContasFinanceiras,
     mensagemContaFinanceira } from "../../services/contaFinanceiraService";
-import { rotulosTipoContaFinanceira, type ContaFinanceira, type TipoContaFinanceira } from "../../types/contaFinanceira";
+import { rotulosTipoContaFinanceira, tiposContaFinanceiraFuncionais, type ContaFinanceira, type TipoContaFinanceira } from "../../types/contaFinanceira";
 import ContaFinanceiraDrawer from "./ContaFinanceiraDrawer";
 import MovimentacaoFinanceiraDrawer from "./MovimentacaoFinanceiraDrawer";
 import ExtratoFinanceiroDrawer from "./ExtratoFinanceiroDrawer";
+import TransferenciaFinanceiraDrawer from "./TransferenciaFinanceiraDrawer";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const normalizar = (texto: string) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -32,6 +34,7 @@ export default function ContasFinanceiras() {
     const [editor, setEditor] = useState<ContaFinanceira | null | undefined>(undefined);
     const [movimentarId, setMovimentarId] = useState<number | null>(null);
     const [extratoId, setExtratoId] = useState<number | null>(null);
+    const [transferirId, setTransferirId] = useState<number | null>(null);
     const [situacao, setSituacao] = useState<ContaFinanceira | null>(null);
     const [processando, setProcessando] = useState(false);
 
@@ -84,6 +87,8 @@ export default function ContasFinanceiras() {
                 color={conta.ativo ? "success" : "default"} /> },
     ];
     const acoes: AcaoTabela<ContaFinanceira>[] = [
+        { rotulo: "Transferir", icone: <CompareArrowsRoundedIcon fontSize="small" />, onClick: (conta) => setTransferirId(conta.id),
+            desabilitado: (conta) => !conta.ativo || !tiposContaFinanceiraFuncionais.includes(conta.tipo), tooltip: "Transferir" },
         { rotulo: "Editar", icone: <EditOutlinedIcon fontSize="small" />, onClick: setEditor, tooltip: "Editar conta" },
         { rotulo: "Movimentar", icone: <SwapHorizRoundedIcon fontSize="small" />, onClick: (conta) => setMovimentarId(conta.id),
             desabilitado: (conta) => !conta.ativo, tooltip: "Registrar entrada ou saída" },
@@ -124,6 +129,8 @@ export default function ContasFinanceiras() {
             onFechar={() => setEditor(undefined)} onSalvo={(conta) => { atualizar(conta); setEditor(undefined); setSucesso("Conta salva."); }} />}
         {contaMovimentar && <MovimentacaoFinanceiraDrawer key={contaMovimentar.id} conta={contaMovimentar}
             onFechar={() => setMovimentarId(null)} onSalvo={() => { setMovimentarId(null); setTentativa((n) => n + 1); setSucesso("Movimentação registrada."); }} />}
+        {transferirId !== null && <TransferenciaFinanceiraDrawer contas={contas} origemId={transferirId}
+            onFechar={() => setTransferirId(null)} onSalvo={() => { setTransferirId(null); setTentativa((n) => n + 1); setSucesso("Transferência concluída."); }} />}
         {contaExtrato && <ExtratoFinanceiroDrawer key={contaExtrato.id} conta={contaExtrato}
             onFechar={() => setExtratoId(null)} onSaldoAlterado={() => { setTentativa((n) => n + 1); setSucesso("Movimentação estornada."); }} />}
         <Dialog open={situacao !== null} onClose={processando ? undefined : () => setSituacao(null)} aria-labelledby="situacao-conta-titulo">

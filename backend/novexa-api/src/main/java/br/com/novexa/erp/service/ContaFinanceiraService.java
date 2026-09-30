@@ -125,6 +125,9 @@ public class ContaFinanceiraService {
         var conta = buscarConta(contaId, empresaId);
         var movimento = movimentos.buscarParaEstornar(id, empresaId).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Movimentação financeira não encontrada."));
+        if (movimento.getOrigem() == OrigemMovimentacaoFinanceira.TRANSFERENCIA)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Estorne a transferência pelo endpoint /financeiro/transferencias/{id}/estornar.");
         if (movimento.getOrigem() != origemEsperada)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Movimentação deve ser estornada pela sua origem.");
         if (movimento.isEstornada())

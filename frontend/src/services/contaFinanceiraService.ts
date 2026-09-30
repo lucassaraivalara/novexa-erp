@@ -1,10 +1,20 @@
 import axios from "axios";
 import api from "./api";
 import type { ContaFinanceira, ContaFinanceiraInput, MovimentacaoFinanceira,
-    MovimentacaoFinanceiraInput } from "../types/contaFinanceira";
+    MovimentacaoFinanceiraInput, TransferenciaFinanceira, TransferenciaFinanceiraInput } from "../types/contaFinanceira";
 
 const contasUrl = "/financeiro/contas-financeiras";
 const movimentosUrl = "/financeiro/movimentacoes-financeiras";
+const transferenciasUrl = "/financeiro/transferencias";
+
+export const criarTransferenciaFinanceira = async (dados: TransferenciaFinanceiraInput) =>
+    (await api.post<TransferenciaFinanceira>(transferenciasUrl, dados)).data;
+
+export const listarTransferenciasFinanceiras = async (signal?: AbortSignal) =>
+    (await api.get<TransferenciaFinanceira[]>(transferenciasUrl, { signal })).data;
+
+export const estornarTransferenciaFinanceira = async (id: number, motivoEstorno: string) =>
+    (await api.post<TransferenciaFinanceira>(`${transferenciasUrl}/${id}/estornar`, { motivoEstorno })).data;
 
 export const listarContasFinanceiras = async (signal?: AbortSignal) =>
     (await api.get<ContaFinanceira[]>(contasUrl, { signal })).data;

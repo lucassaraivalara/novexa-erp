@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MovimentacaoFinanceiraRepository extends JpaRepository<MovimentacaoFinanceiraEntity, Long> {
+    List<MovimentacaoFinanceiraEntity> findByEmpresaIdAndTransferenciaIdOrderByIdAsc(Long empresaId, Long transferenciaId);
     @EntityGraph(attributePaths = {"contaFinanceira", "usuario", "usuarioEstorno"})
     List<MovimentacaoFinanceiraEntity> findByEmpresaIdOrderByDataMovimentoDescIdDesc(Long empresaId);
 

@@ -10,6 +10,16 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Financeiro Bloco 2B: transferências entre Contas Financeiras
+
+Implementado no working tree de `feat/contas-pagar-integracao-backend`, sobre o Bloco 2A commitado em `18ddea8`; sem commit/push deste bloco. TransferenciaFinanceira é uma operação atômica e idempotente, com exatamente dois movimentos TRANSFERENCIA vinculados, locks de contas por ID crescente e isolamento por empresa no serviço e nas FKs da V23. Estorno próprio restaura saldos e marca agregado/dois movimentos com auditoria, sem novas movimentações; permite contas inativadas e recusa destino sem saldo, repetição e estorno individual. CAIXA/ADQUIRENTE não são aceitos. Contrato e regras: [financeiro.md](financeiro.md) e [FINANCEIRO_RULES.md](FINANCEIRO_RULES.md).
+
+Frontend: ação Transferir na linha, drawer com origem pré-selecionada, destinos ativos funcionais, saldo disponível, UUID preservado em retry e bloqueio durante envio. Sucesso recarrega o backend; extrato mostra direção/contraparte e estorna a transferência inteira pelo endpoint próprio.
+
+Validação: 29 cenários backend de transferência aprovados em H2 e PostgreSQL 18.6, incluindo concorrência em direções opostas, retries concorrentes e rollback por falha intermediária. Flyway V1–V23 e Hibernate validate aprovados no banco temporário, com os mesmos 29 cenários; testes específicos V23 e regressão V22 aprovados sobre fixture com histórico anterior. Regressões de Conta Financeira, vínculo bancário e Contas a Pagar aprovadas. Frontend: 80 testes, build, lint direcionado e 10 cenários Playwright (5 novos e 5 regressões) aprovados, incluindo viewport móvel.
+
+A suíte backend completa executou 618 testes, sem falhas de asserção, com 15 erros em EstoqueConcorrenciaTest por ausência do bean ArquivoStorageService e 5 testes ignorados. A falha de contexto de Estoque já constava no estado anterior; não foi alterada neste bloco. Os testes PostgreSQL condicionais de V22/V23 foram executados separadamente e passaram. Sem integração com PIX, Recebíveis, PDV/Caixa ou Pagamento.
+
 ## Financeiro Bloco 2A: saldo inicial auditável
 
 Sobre o baseline 602f1fe, novas contas recebem saldoInicialAuditado=true e uma ENTRADA/SALDO_INICIAL quando o valor inicial é positivo, sem duplicar saldoAtual; saldo zero não gera movimento. A V22 preserva contas antigas com flag false e não inventa histórico. Saldo inicial não é editável nem estornável individualmente. O extrato apresenta a origem e uma indicação discreta de legado; regularização histórica fica pendente. Alterações no working tree, sem commit automático.

@@ -4,9 +4,9 @@ import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
     Drawer, IconButton, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
-import { estornarMovimentacaoFinanceira, listarMovimentacoesFinanceiras,
+import { estornarMovimentacaoFinanceira, estornarTransferenciaFinanceira, listarMovimentacoesFinanceiras,
     mensagemContaFinanceira } from "../../services/contaFinanceiraService";
-import { rotulosOrigemMovimentacaoFinanceira, type ContaFinanceira, type MovimentacaoFinanceira } from "../../types/contaFinanceira";
+import { descricaoMovimentacaoFinanceira, rotulosOrigemMovimentacaoFinanceira, type ContaFinanceira, type MovimentacaoFinanceira } from "../../types/contaFinanceira";
 
 type Props = { conta: ContaFinanceira; onFechar: () => void; onSaldoAlterado: () => void };
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -34,11 +34,16 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
 
     async function confirmarEstorno(evento: FormEvent<HTMLFormElement>) {
         evento.preventDefault();
-        if (!estorno || estorno.origem !== "MANUAL" || processando || !motivo.trim()) return;
+        if (!estorno || !["MANUAL", "TRANSFERENCIA"].includes(estorno.origem) || processando || !motivo.trim()) return;
         setProcessando(true); setErro("");
         try {
-            const atualizado = await estornarMovimentacaoFinanceira(estorno.id, motivo.trim());
-            setMovimentos((atuais) => atuais.map((item) => item.id === atualizado.id ? atualizado : item));
+            if (estorno.origem === "TRANSFERENCIA" && estorno.transferenciaId) {
+                await estornarTransferenciaFinanceira(estorno.transferenciaId, motivo.trim());
+                setCarregando(true); setTentativa((n) => n + 1);
+            } else if (estorno.origem === "MANUAL") {
+                const atualizado = await estornarMovimentacaoFinanceira(estorno.id, motivo.trim());
+                setMovimentos((atuais) => atuais.map((item) => item.id === atualizado.id ? atualizado : item));
+            } else { return; }
             setEstorno(null); setMotivo(""); onSaldoAlterado();
         } catch (e) { setErro(mensagemContaFinanceira(e, "Não foi possível estornar a movimentação.")); }
         finally { setProcessando(false); }
@@ -47,7 +52,7 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
     const colunas: Coluna<MovimentacaoFinanceira>[] = [
         { campo: "dataMovimento", cabecalho: "Data", largura: 100, render: (valor) => data(String(valor)) },
         { campo: "descricao", cabecalho: "Descrição", largura: 180, render: (_, item) => <Box>
-            <Typography variant="body2">{item.descricao}</Typography>
+            <Typography variant="body2">{descricaoMovimentacaoFinanceira(item)}</Typography>
             <Typography variant="caption" color="text.secondary">{rotulosOrigemMovimentacaoFinanceira[item.origem]}</Typography>
         </Box> },
         { campo: "tipo", cabecalho: "Tipo", largura: 80, render: (_, item) => item.tipo === "ENTRADA" ? "Entrada" : "Saída" },
@@ -63,7 +68,8 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
     const acoes: AcaoTabela<MovimentacaoFinanceira>[] = [
         { rotulo: "Estornar", tooltip: "Estornar movimentação", icone: <UndoRoundedIcon fontSize="small" />,
             onClick: (item) => { setErro(""); setMotivo(""); setEstorno(item); },
-            desabilitado: (item) => item.estornada || item.origem !== "MANUAL" },
+            desabilitado: (item) => item.estornada || (item.origem !== "MANUAL"
+                && !(item.origem === "TRANSFERENCIA" && item.transferenciaId)) },
     ];
     const atual = Math.min(pagina, Math.max(0, Math.ceil(movimentos.length / porPagina) - 1));
 
@@ -91,9 +97,9 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
         </Box>
         <Dialog open={estorno !== null} onClose={processando ? undefined : () => setEstorno(null)} fullWidth maxWidth="xs" aria-labelledby="estorno-financeiro-titulo">
             <Box component="form" onSubmit={(e) => void confirmarEstorno(e)}>
-                <DialogTitle id="estorno-financeiro-titulo">Estornar movimentação?</DialogTitle>
+                <DialogTitle id="estorno-financeiro-titulo">{estorno?.origem === "TRANSFERENCIA" ? "Estornar transferência?" : "Estornar movimentação?"}</DialogTitle>
                 <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
-                    <Typography variant="body2">{estorno?.descricao} · {estorno && moeda.format(estorno.valor)}</Typography>
+                    <Typography variant="body2">{estorno && descricaoMovimentacaoFinanceira(estorno)} · {estorno && moeda.format(estorno.valor)}</Typography>
                     <TextField autoFocus required fullWidth multiline minRows={2} label="Motivo do estorno" value={motivo}
                         onChange={(e) => setMotivo(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} />
                     {erro && <Alert severity="error">{erro}</Alert>}
