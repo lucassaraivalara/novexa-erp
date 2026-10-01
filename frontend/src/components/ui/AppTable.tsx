@@ -17,6 +17,7 @@ import {
     IconButton,
     TextField,
     Stack,
+    Box,
 } from "@mui/material";
 import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
@@ -24,6 +25,7 @@ import SwapVertRoundedIcon from "@mui/icons-material/SwapVertRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { layoutTokens } from "../layout/layoutTokens";
+import { visualTokens } from "../../theme/theme";
 import EmptyState from "./EmptyState";
 import LoadingState from "./LoadingState";
 import type { SxProps } from "@mui/system";
@@ -98,7 +100,7 @@ interface AppTableProps<T> {
     sx?: SxProps;
     minWidth?: number | string;
     compacta?: boolean;
-    /** Altura reservada para o corpo rolável em desktop. */
+    /** Altura minima reservada em desktop, sem limitar a rolagem da pagina. */
     alturaCorpo?: number | string;
 }
 
@@ -170,7 +172,7 @@ export default function AppTable<T extends Record<string, unknown>>({
     }
 
     return (
-        <Paper variant="outlined" sx={{ overflow: "hidden", ...sx }}>
+        <Paper variant="outlined" sx={{ minWidth: 0, maxWidth: "100%", overflow: "hidden", bgcolor: "background.paper", borderRadius: `${visualTokens.radius.surface}px`, boxShadow: visualTokens.shadow.surface, ...sx }}>
             {/* Compatibilidade temporária para páginas ainda não migradas para PageFilters. */}
             {(busca || filtros) && (
                 <Toolbar
@@ -211,9 +213,9 @@ export default function AppTable<T extends Record<string, unknown>>({
                                 }}
                                 sx={{
                                     flex: 1,
-                                    minWidth: 280,
+                                    minWidth: { xs: 0, sm: 280 },
                                     "& .MuiOutlinedInput-root": {
-                                        borderRadius: layoutTokens.radius.field,
+                                        borderRadius: `${visualTokens.radius.control}px`,
                                     },
                                 }}
                             />
@@ -225,15 +227,13 @@ export default function AppTable<T extends Record<string, unknown>>({
 
             <TableContainer
                 sx={{
-                    height: alturaCorpo ? { xs: "auto", md: alturaCorpo } : undefined,
-                    maxHeight: alturaCorpo ? { xs: 480, md: alturaCorpo } : { xs: 480, md: 600 },
+                    minHeight: alturaCorpo ? { md: alturaCorpo } : undefined,
+                    maxWidth: "100%",
                     overflowX: "auto",
-                    overflowY: "auto",
-                    overscrollBehavior: "contain",
+                    containerType: "inline-size",
                 }}
             >
                 <Table
-                    stickyHeader
                     aria-label="Tabela de resultados"
                     size="medium"
                     sx={{
@@ -248,15 +248,18 @@ export default function AppTable<T extends Record<string, unknown>>({
                                     key={String(coluna.campo)}
                                     align={coluna.alinhar ?? "left"}
                                     style={{ width: coluna.largura }}
-                                    sortDirection={controlesCabecalhoSeparados && ordenacaoAtiva?.campo === String(coluna.campo) ? ordenacaoAtiva.direcao : false}
+                                    sortDirection={coluna.ordenavel && ordenacaoAtiva?.campo === String(coluna.campo) ? ordenacaoAtiva.direcao : false}
                                     sx={{
-                                        fontWeight: 700,
-                                        color: "text.primary",
+                                        height: 44,
+                                        py: 0.75,
+                                        fontWeight: 600,
+                                        color: "text.secondary",
                                         backgroundColor: layoutTokens.table.headerBg,
                                         textTransform: "none",
-                                        letterSpacing: "0.01em",
-                                        fontSize: layoutTokens.typography.body,
-                                        borderBottom: `2px solid ${layoutTokens.table.borderColor}`,
+                                        letterSpacing: 0,
+                                        fontSize: "13px",
+                                        borderBottom: "1px solid",
+                                        borderColor: "divider",
                                         whiteSpace: "nowrap",
                                         overflow: "hidden",
                                         textOverflow: "ellipsis",
@@ -289,7 +292,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                         aria-label={`Ordenar por ${coluna.cabecalho}: ${ordenacaoAtiva?.campo === String(coluna.campo) && ordenacaoAtiva.direcao === "asc" ? "decrescente" : "crescente"}`}
                                                         onClick={() => handleOrdenar(String(coluna.campo))}
                                                         color={ordenacaoAtiva?.campo === String(coluna.campo) ? "primary" : "default"}
-                                                        sx={{ flexShrink: 0, "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }}
+                                                        sx={{ width: 32, height: 32, flexShrink: 0, "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }}
                                                     >
                                                         {ordenacaoAtiva?.campo !== String(coluna.campo) ? <SwapVertRoundedIcon fontSize="small" />
                                                             : ordenacaoAtiva.direcao === "asc" ? <ArrowUpwardRoundedIcon fontSize="small" /> : <ArrowDownwardRoundedIcon fontSize="small" />}
@@ -314,13 +317,16 @@ export default function AppTable<T extends Record<string, unknown>>({
                                 <TableCell
                                     align="center"
                                     sx={{
-                                        fontWeight: 700,
-                                        color: "text.primary",
+                                        height: 44,
+                                        py: 0.75,
+                                        fontWeight: 600,
+                                        color: "text.secondary",
                                         backgroundColor: layoutTokens.table.headerBg,
                                         textTransform: "none",
-                                        letterSpacing: "0.01em",
-                                        fontSize: layoutTokens.typography.body,
-                                        borderBottom: `2px solid ${layoutTokens.table.borderColor}`,
+                                        letterSpacing: 0,
+                                        fontSize: "13px",
+                                        borderBottom: "1px solid",
+                                        borderColor: "divider",
                                         whiteSpace: "nowrap",
                                         width: acoes.length * 44 + 16,
                                     }}
@@ -334,12 +340,15 @@ export default function AppTable<T extends Record<string, unknown>>({
                         {carregando ? (
                             <TableRow>
                                 <TableCell colSpan={colunas.length + (acoes && acoes.length > 0 ? 1 : 0)} align="center">
-                                    <LoadingState tamanho="pequeno" mensagem="Carregando dados…" />
+                                    <Box sx={{ width: "calc(100cqw - 32px)", position: "sticky", left: 16 }}>
+                                        <LoadingState tamanho="pequeno" mensagem="Carregando dados…" />
+                                    </Box>
                                 </TableCell>
                             </TableRow>
                         ) : linhasOrdenadas.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={colunas.length + (acoes && acoes.length > 0 ? 1 : 0)} align="center">
+                                    <Box sx={{ width: "calc(100cqw - 32px)", position: "sticky", left: 16 }}>
                                     {vazio ? (
                                         <EmptyState
                                             titulo={vazio.titulo}
@@ -353,6 +362,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                             descricao="Tente ajustar os filtros ou cadastre um novo item."
                                         />
                                     )}
+                                    </Box>
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -361,12 +371,13 @@ export default function AppTable<T extends Record<string, unknown>>({
                                     key={obterChaveLinha(linha)}
                                     hover
                                     sx={{
+                                        height: compacta ? 40 : 48,
+                                        bgcolor: "background.paper",
                                         cursor: linhaCliqueavel || onLinhaClick ? "pointer" : "default",
                                         "&:hover": {
-                                            backgroundColor: linhaCliqueavel || onLinhaClick
-                                                ? "rgba(15, 23, 42, 0.03)"
-                                                : "rgba(15, 23, 42, 0.02)",
+                                            backgroundColor: "action.hover",
                                         },
+                                        "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: -2 },
                                     }}
                                     onClick={linhaCliqueavel || onLinhaClick ? () => onLinhaClick?.(linha) : undefined}
                                     onKeyDown={linhaCliqueavel || onLinhaClick ? (evento) => {
@@ -387,6 +398,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                     padding: layoutTokens.table.cellPadding,
                                                     ...(compacta ? { padding: layoutTokens.table.cellPaddingCompact } : {}),
                                                     fontSize: layoutTokens.typography.body,
+                                                    ...visualTokens.numeric,
                                                     lineHeight: 1.4,
                                                     borderBottom: `1px solid ${layoutTokens.table.borderColor}`,
                                                     whiteSpace: "nowrap",
@@ -420,14 +432,17 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                                 disabled={acao.desabilitado?.(linha)}
                                                                 aria-label={acao.tooltip ?? acao.rotulo}
                                                                 sx={{
-                                                                    borderRadius: 8,
+                                                                    width: 32,
+                                                                    height: 32,
+                                                                    borderRadius: `${visualTokens.radius.control}px`,
+                                                                    ...(!acao.cor || acao.cor === "inherit" ? { color: "text.secondary" } : {}),
                                                                     "&:hover": {
                                                                         backgroundColor: "action.hover",
-                                                                        color: "primary.main",
+                                                                        ...(acao.cor === "error" ? { color: "error.main", backgroundColor: "error.light" } : {}),
                                                                     },
                                                                     "&.Mui-focusVisible": {
                                                                         outline: "2px solid",
-                                                                        outlineColor: "primary.main",
+                                                                        outlineColor: acao.cor === "error" ? "error.main" : "primary.main",
                                                                         outlineOffset: 2,
                                                                     },
                                                                 }}
@@ -456,14 +471,14 @@ export default function AppTable<T extends Record<string, unknown>>({
                         py: 1,
                         borderTop: "1px solid",
                         borderColor: "divider",
-                        backgroundColor: "background.default",
+                        backgroundColor: "background.paper",
                         justifyContent: "space-between",
                         flexWrap: "wrap",
                         gap: 1,
                         flexShrink: 0,
                     }}
                 >
-                    <Typography variant="body2" color="text.secondary" aria-live="polite" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                    <Typography variant="body2" color="text.secondary" aria-live="polite" sx={visualTokens.numeric}>
                         {`${contagemExibida.inicio}–${contagemExibida.fim} de ${contagemExibida.total}`}
                     </Typography>
                     {paginacao && <TablePagination
@@ -478,7 +493,11 @@ export default function AppTable<T extends Record<string, unknown>>({
                         labelRowsPerPage="Itens por página"
                         getItemAriaLabel={(tipo) => tipo === "next" ? "Próxima página" : "Página anterior"}
                         sx={{
-                            "& .MuiSelect-root": { minWidth: 80 },
+                            minWidth: 0,
+                            "& .MuiTablePagination-toolbar": { px: 0, minHeight: 40, flexWrap: "wrap", rowGap: 0.5 },
+                            "& .MuiTablePagination-selectLabel": { fontSize: "13px" },
+                            "& .MuiTablePagination-select": { ...visualTokens.numeric },
+                            "& .MuiTablePagination-actions": { ml: 1 },
                             "& .MuiIconButton-root:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 },
                         }}
                     />}

@@ -22,7 +22,7 @@ test("AppTable preserva cabecalho legado sem adesao ao piloto", () => {
     assert.match(html, /Teste/);
 });
 
-test("AppTable reserva corpo rolavel e mantem contagem no rodape", () => {
+test("AppTable reserva altura minima sem scroll vertical interno e mantem contagem", () => {
     const html = renderToStaticMarkup(createElement(AppTable, {
         ...props,
         alturaCorpo: 480,
@@ -34,7 +34,8 @@ test("AppTable reserva corpo rolavel e mantem contagem no rodape", () => {
             onRowsPerPageChange() {},
         },
     }));
-    assert.match(html, /height:480px/);
+    assert.match(html, /min-height:480px/);
+    assert.doesNotMatch(html, /max-height:|overflow-y:auto/);
     assert.match(html, /1\u201310 de 35/);
     assert.match(html, /aria-label="Pr\u00f3xima p\u00e1gina"/);
     assert.match(html, /aria-label="P\u00e1gina anterior"/);
