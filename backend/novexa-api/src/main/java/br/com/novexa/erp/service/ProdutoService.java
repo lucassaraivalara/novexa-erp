@@ -45,6 +45,23 @@ public class ProdutoService {
         return produtoRepository.save(produto);
     }
 
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ProdutoEntity> listarPagina(Long empresaId, String busca,
+            String campoBusca, String situacao, String situacaoEstoque, int page, int size, String sort) {
+        var pageable = br.com.novexa.erp.util.Paginacao.criar(page, size, sort,
+                java.util.Set.of("id", "codigoInterno", "nome", "precoVenda", "estoqueAtual", "estoqueMinimo", "ativo"),
+                org.springframework.data.domain.Sort.Direction.ASC);
+        if (campoBusca != null && !java.util.Set.of("nome", "codigoInterno", "codigoBarras").contains(campoBusca))
+            throw br.com.novexa.erp.util.Paginacao.invalida("Campo de busca invalido.");
+        if (situacao != null && !java.util.Set.of("ativos", "inativos", "todos").contains(situacao))
+            throw br.com.novexa.erp.util.Paginacao.invalida("Situacao invalida.");
+        if (situacaoEstoque != null && !java.util.Set.of("baixo", "zerado", "normal", "semControle").contains(situacaoEstoque))
+            throw br.com.novexa.erp.util.Paginacao.invalida("Situacao de estoque invalida.");
+        Boolean ativo = "ativos".equals(situacao) ? Boolean.TRUE : "inativos".equals(situacao) ? Boolean.FALSE : null;
+        return produtoRepository.listarPagina(empresaId, ativo,
+                busca == null ? "" : busca.trim(), campoBusca, situacaoEstoque, pageable);
+    }
+
     public List<ProdutoEntity> listar(Long empresaId) {
         buscarEmpresa(empresaId);
         return produtoRepository.findAllByEmpresaIdOrderByNomeAsc(empresaId);

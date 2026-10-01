@@ -54,15 +54,17 @@ public class ProdutoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProdutoResponseDTO>> listar(
+    public br.com.novexa.erp.dto.PaginaResponseDTO<ProdutoResponseDTO> listar(
+            @RequestParam(required = false) String busca,
+            @RequestParam(required = false) String campoBusca,
+            @RequestParam(required = false) String situacao,
+            @RequestParam(required = false) String situacaoEstoque,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "nome,asc") String sort,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
-
-        List<ProdutoResponseDTO> produtos = produtoService.listar(usuario.empresaId())
-                .stream()
-                .map(produtoMapper::toResponse)
-                .toList();
-
-        return ResponseEntity.ok(produtos);
+        return br.com.novexa.erp.dto.PaginaResponseDTO.de(produtoService.listarPagina(usuario.empresaId(),
+                busca, campoBusca, situacao, situacaoEstoque, page, size, sort), produtoMapper::toResponse);
     }
 
     @GetMapping("/buscar")

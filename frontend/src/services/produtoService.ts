@@ -1,9 +1,18 @@
 import axios from "axios";
 import type { Produto, ProdutoInput } from "../types/produto";
 import api from "./api";
+import type { PaginaResponse } from "../types/paginacao";
+
+export type FiltrosProduto = {
+    busca?: string; campoBusca?: string; situacao?: string; situacaoEstoque?: string;
+    page?: number; size?: number; sort?: string;
+};
+export async function listarProdutosPaginado(params: FiltrosProduto, signal?: AbortSignal) {
+    return (await api.get<PaginaResponse<Produto>>("/produtos", { params, signal })).data;
+}
 
 export async function listarProdutos(signal?: AbortSignal): Promise<Produto[]> {
-    const resposta = await api.get<Produto[]>("/produtos", { signal });
+    const resposta = await api.get<Produto[]>("/produtos/buscar", { params: { termo: "" }, signal });
 
     return resposta.data;
 }

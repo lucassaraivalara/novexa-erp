@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useEffect, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -14,22 +14,20 @@ import PageFilters from "../../components/ui/PageFilters";
 import {
     atualizarProduto, buscarProdutoPorId, cadastrarProduto, excluirProduto,
     enviarImagemProduto, removerImagemProduto,
-    listarProdutos, obterMensagemDaApi, pesquisarProdutos,
+    listarProdutosPaginado, obterMensagemDaApi,
 } from "../../services/produtoService";
 import type { Produto, ProdutoInput } from "../../types/produto";
 import { obterEmpresaAtiva } from "../../utils/auth/sessao";
-import { useRemoteSearch } from "../../hooks/useRemoteSearch";
 import ProdutoForm from "./ProdutoForm";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const quantidade = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
-type CampoBuscaProduto = "codigoInterno" | "nome" | "ativo";
+type CampoBuscaProduto = "codigoInterno" | "nome" | "codigoBarras";
 const camposBusca = {
-    codigoInterno: { rotulo: "Código interno", placeholder: "Pesquisar por código interno ou código de barras…" },
+    codigoInterno: { rotulo: "Código interno", placeholder: "Pesquisar por código interno…" },
     nome: { rotulo: "Produto", placeholder: "Pesquisar por produto…" },
-    ativo: { rotulo: "Situação", placeholder: "Pesquisar por situação…" },
+    codigoBarras: { rotulo: "Código de barras", placeholder: "Pesquisar por código de barras…" },
 };
-const normalizarBusca = (texto: string) => texto.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
 
 type Notificacao = { mensagem: string; tipo: "success" | "error" };
 
@@ -51,32 +49,36 @@ function Produtos() {
     const [pagina, setPagina] = useState(0);
     const [porPagina, setPorPagina] = useState(25);
 
-    const carregarProdutos = useCallback((busca: string, signal: AbortSignal) => {
-        if (!empresaId) return Promise.resolve([]);
-        return busca ? pesquisarProdutos(busca, signal) : listarProdutos(signal);
-    }, [empresaId]);
-    const buscaRemota = useRemoteSearch({
-        enabled: Boolean(empresaId),
-        search: carregarProdutos,
-        onResults: (dados) => { setProdutos(dados); setErroCarregamento(""); },
-        onError: (erro) => setErroCarregamento(obterMensagemDaApi(erro, "Não foi possível carregar os produtos.")),
-        onInvalidTerm: () => { setProdutos([]); setErroCarregamento(""); },
-    });
+    const [totalItems, setTotalItems] = useState(0);
+    const [carregando, setCarregando] = useState(false);
+    const [revisao, setRevisao] = useState(0);
+    const [ordenacao, setOrdenacao] = useState({ campo: "nome", direcao: "asc" as "asc" | "desc" });
+    const termoBusca = termoLocal;
+    const recarregar = () => setRevisao(v => v + 1);
+    useEffect(() => {
+        const controller = new AbortController();
+        if (!empresaId) return;
+        const timer = setTimeout(() => {
+            setCarregando(true);
+            listarProdutosPaginado({ busca: termoLocal, campoBusca: campoBusca ?? undefined,
+                situacao: situacao === "ativas" ? "ativos" : situacao === "inativas" ? "inativos" : "todos",
+                page: pagina, size: porPagina, sort: `${ordenacao.campo},${ordenacao.direcao}` }, controller.signal)
+                .then(resposta => {
+                    if (controller.signal.aborted) return;
+                    setProdutos(resposta.items); setTotalItems(resposta.totalItems); setErroCarregamento("");
+                    if (pagina > 0 && !resposta.items.length) setPagina(Math.max(0, resposta.totalPages - 1));
+                })
+                .catch(e => { if (!controller.signal.aborted) setErroCarregamento(obterMensagemDaApi(e, "Não foi possível carregar os produtos.")); })
+                .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
+        }, termoLocal.trim() ? 350 : 0);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [empresaId, termoLocal, campoBusca, situacao, pagina, porPagina, ordenacao, revisao]);
 
     function selecionarCampoBusca(campo: string) {
         if (!(campo in camposBusca)) return;
-        buscaRemota.cancel();
-        if (campoBusca === null) setTermoLocal(buscaRemota.term);
-        setCampoBusca(campo as CampoBuscaProduto);
+        setCampoBusca(campo as CampoBuscaProduto); setPagina(0);
     }
-
-    function removerCampoBusca() {
-        setCampoBusca(null);
-        if (termoLocal === buscaRemota.term) buscaRemota.executeNow();
-        else buscaRemota.setTerm(termoLocal);
-    }
-
-    const termoBusca = campoBusca === null ? buscaRemota.term : termoLocal;
+    function removerCampoBusca() { setCampoBusca(null); setPagina(0); }
 
     function abrirCadastro() {
         setProdutoEmEdicao(null);
@@ -128,7 +130,7 @@ function Produtos() {
             }
             setFormularioAberto(false);
             setProdutoEmEdicao(null);
-            await buscaRemota.refresh();
+            recarregar();
         } catch (erro) {
             setErroFormulario(`${etapa}: ${obterMensagemDaApi(erro, "não foi possível concluir a operação.")}`);
         } finally {
@@ -143,7 +145,7 @@ function Produtos() {
             await excluirProduto(produtoParaExcluir.id);
             setProdutoParaExcluir(null);
             setNotificacao({ mensagem: "Produto inativado com sucesso.", tipo: "success" });
-            await buscaRemota.refresh();
+            recarregar();
         } catch (erro) {
             setNotificacao({ mensagem: obterMensagemDaApi(erro, "Não foi possível inativar o produto."), tipo: "error" });
         } finally {
@@ -185,10 +187,10 @@ function Produtos() {
     const colunas: Coluna<Produto>[] = [
         { campo: "codigoInterno", cabecalho: "Código interno", largura: 180, pesquisavel: true, ordenavel: true, render: renderCodigo },
         { campo: "nome", cabecalho: "Produto", largura: 300, pesquisavel: true, ordenavel: true, render: renderNome },
-        { campo: "unidadeMedida", cabecalho: "Unidade", largura: 110, ordenavel: true },
+        { campo: "unidadeMedida", cabecalho: "Unidade", largura: 110 },
         { campo: "precoVenda", cabecalho: "Preço de venda", largura: 160, ordenavel: true, alinhar: "right", render: renderPreco },
         { campo: "estoqueAtual", cabecalho: "Estoque", largura: 120, ordenavel: true, alinhar: "right", render: renderEstoque },
-        { campo: "ativo", cabecalho: "Situação", largura: 140, pesquisavel: true, ordenavel: true, render: renderSituacao },
+        { campo: "ativo", cabecalho: "Situação", largura: 140, ordenavel: true, render: renderSituacao },
     ];
 
     const acoes: AcaoTabela<Produto>[] = [
@@ -207,19 +209,6 @@ function Produtos() {
             tooltip: "Inativar produto",
         },
     ];
-    const termoNormalizado = normalizarBusca(termoLocal);
-    const produtosFiltrados = produtos.filter((produto) => {
-        if (situacao !== "todas" && produto.ativo !== (situacao === "ativas")) return false;
-        if (campoBusca === null || !termoNormalizado) return true;
-        if (campoBusca === "codigoInterno") {
-            return [produto.codigoInterno, produto.codigoBarras].some((codigo) =>
-                normalizarBusca(codigo ?? "").includes(termoNormalizado));
-        }
-        if (campoBusca === "nome") return normalizarBusca(produto.nome).includes(termoNormalizado);
-        return (produto.ativo ? "ativo" : "inativo").startsWith(termoNormalizado);
-    });
-    const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(produtosFiltrados.length / porPagina) - 1));
-    const linhasPagina = produtosFiltrados.slice(paginaAtual * porPagina, paginaAtual * porPagina + porPagina);
 
     return (
         <PageContainer>
@@ -230,7 +219,7 @@ function Produtos() {
             />
 
             {erroCarregamento && (
-                <Alert severity="error" action={<Button color="inherit" size="small" onClick={() => buscaRemota.refresh()}>Tentar novamente</Button>}>
+                <Alert severity="error" action={<Button color="inherit" size="small" onClick={() => recarregar()}>Tentar novamente</Button>}>
                     {erroCarregamento}
                 </Alert>
             )}
@@ -240,10 +229,10 @@ function Produtos() {
                     campoBuscaAtivo={campoBusca === null ? undefined : { rotulo: camposBusca[campoBusca].rotulo, onRemover: removerCampoBusca }}
                     busca={{
                         placeholder: campoBusca === null ? "Pesquisar por nome, código interno ou código de barras…" : camposBusca[campoBusca].placeholder,
-                        onChange: (valor) => { setErroCarregamento(""); if (campoBusca === null) buscaRemota.setTerm(valor); else setTermoLocal(valor); },
-                        onKeyDown: (evento) => { if (evento.key === "Enter") { evento.preventDefault(); if (campoBusca === null) buscaRemota.executeNow(); } },
+                        onChange: (valor) => { setErroCarregamento(""); setTermoLocal(valor); setPagina(0); },
+                        onKeyDown: (evento) => { if (evento.key === "Enter") { evento.preventDefault(); recarregar(); } },
                         valor: termoBusca,
-                        carregando: buscaRemota.loading,
+                        carregando: carregando,
                     }}
                 >
                     <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 160 }, flex: "0 0 auto" }}>
@@ -253,7 +242,7 @@ function Produtos() {
                             label="Situação"
                             value={situacao}
                             inputProps={{ "aria-label": "Filtrar produtos por situação", name: "situacao" }}
-                            onChange={(e) => setSituacao(e.target.value)}
+                            onChange={(e) => { setSituacao(e.target.value); setPagina(0); }}
                         >
                             <MenuItem value="todas">Todas</MenuItem>
                             <MenuItem value="ativas">Ativas</MenuItem>
@@ -265,8 +254,8 @@ function Produtos() {
                 <AppTable
                     colunas={colunas}
                     buscaPorColuna={{ campo: campoBusca, onSelecionar: selecionarCampoBusca }}
-                    linhas={linhasPagina}
-                    carregando={buscaRemota.loading && !produtos.length}
+                    linhas={produtos}
+                    carregando={carregando && !produtos.length}
                     obterChaveLinha={(p) => p.id}
                     vazio={{
                         titulo: termoBusca.trim() || situacao !== "todas" ? "Nenhum produto encontrado" : "Nenhum produto cadastrado",
@@ -278,10 +267,15 @@ function Produtos() {
                     sx={{ "& .MuiTableCell-root": { py: 0.75 } }}
                     alturaCorpo={480}
                     minWidth={1214}
+                    ordenacaoRemota
+                    ordenacao={{ ...ordenacao, onSort: campo => {
+                        setPagina(0);
+                        setOrdenacao(atual => ({ campo, direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc" }));
+                    } }}
                     paginacao={{
-                        pagina: paginaAtual,
+                        pagina,
                         linhasPorPagina: porPagina,
-                        total: produtosFiltrados.length,
+                        total: totalItems,
                         onPageChange: setPagina,
                         onRowsPerPageChange: (valor) => { setPorPagina(valor); setPagina(0); },
                         opcoesLinhasPorPagina: [10, 25, 50],
