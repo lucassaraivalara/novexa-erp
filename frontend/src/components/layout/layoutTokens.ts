@@ -1,3 +1,5 @@
+import theme, { visualTokens } from "../../theme/theme";
+
 export const layoutTokens = {
     sidebar: {
         largura: { xs: 60, sm: 216 },
@@ -14,11 +16,11 @@ export const layoutTokens = {
         maxWidth: 1440,
     },
     radius: {
-        card: 12,
-        button: 10,
-        field: 10,
-        dialog: 16,
-        badge: 6,
+        card: visualTokens.radius.surface,
+        button: visualTokens.radius.control,
+        field: visualTokens.radius.control,
+        dialog: visualTokens.radius.dialog,
+        badge: visualTokens.radius.pill,
     },
     spacing: {
         xs: 0.5,
@@ -29,25 +31,25 @@ export const layoutTokens = {
         xxl: 3,
     },
     shadows: {
-        card: "0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04)",
-        cardHover: "0 2px 4px rgba(15, 23, 42, 0.05), 0 8px 20px rgba(15, 23, 42, 0.06)",
-        elevated: "0 4px 12px rgba(15, 23, 42, 0.08), 0 12px 28px rgba(15, 23, 42, 0.08)",
-        dialog: "0 20px 50px rgba(15, 23, 42, 0.16)",
-        button: "0 2px 8px rgba(15, 110, 110, 0.25)",
+        card: visualTokens.shadow.surface,
+        cardHover: visualTokens.shadow.surface,
+        elevated: visualTokens.shadow.elevated,
+        dialog: visualTokens.shadow.elevated,
+        button: "none",
     },
     typography: {
-        pageTitle: { xs: "1.5rem", md: "1.625rem" },
-        pageSubtitle: "0.875rem",
-        sectionTitle: "1rem",
-        body: "0.875rem",
-        caption: "0.75rem",
+        pageTitle: { xs: theme.typography.h4.fontSize, md: theme.typography.h4.fontSize },
+        pageSubtitle: theme.typography.body2.fontSize,
+        sectionTitle: theme.typography.h6.fontSize,
+        body: theme.typography.body2.fontSize,
+        caption: theme.typography.caption.fontSize,
     },
     table: {
-        headerBg: "#F8FAFC",
+        headerBg: theme.palette.background.default,
         rowHeight: 48,
         cellPadding: "10px 16px",
         cellPaddingCompact: "6px 12px",
-        borderColor: "#E2E8F0",
+        borderColor: theme.palette.divider,
     },
     form: {
         fieldGap: 1.5,

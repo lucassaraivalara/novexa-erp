@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Design Foundation Novexa: Theme e Tokens (2026-10-01)
+
+Fundacao visual frontend na branch `feat/contas-pagar-integracao-backend`, sobre `dd46ca7`. Theme concentra palette neutra/verde funcional, tipografia Inter fixa, raios/sombras e overrides MUI; layoutTokens referencia o theme sem mudar suas chaves. Sem alteracoes de paginas, componentes compartilhados, backend, services/types/hooks, rotas, PDV ou Login. Sidebar escura permanece para onda posterior, sem promover seus hardcodes a tokens. Detalhes em frontend.md.
+
+TypeScript/build, lint dos dois arquivos alterados e 86 testes frontend aprovados. Screenshots Playwright de Dashboard, Central de Vendas e Clientes em 1440px/390px, com dados simulados, sem erros JS ou overflow horizontal da pagina. Validacao visual nao substitui integracao autenticada real. Avisos nao bloqueantes de chunk Vite >500kB e colisao da porta WebSocket dos testes existentes; sem lint global ou mudanca de dependencias.
+
 ## Aposentadoria do LancamentoFinanceiro operacional (2026-10-01)
 
 Alteracao backend consolidada na branch `feat/contas-pagar-integracao-backend` sobre `bff555f`. LancamentoFinanceiroEntity passa a LEGADO / READ-ONLY HISTORICO: novas vendas nao criam lancamentos e cancelamento nao depende nem altera os registros antigos. Entidade, repository, tabela e migrations preservados; sem DELETE/backfill/migration. Fontes atuais: Venda/Pagamento + MovimentacaoCaixa + MovimentacaoFinanceira + Recebivel, conforme pagamento. Cancelamento de Recebivel LIQUIDADO continua com reversao transacional do 5B. Detalhes em financeiro.md e FINANCEIRO_RULES.md.
