@@ -18,8 +18,31 @@ public class ContaPagarController {
     public ContaPagarController(ContaPagarService service) { this.service = service; }
 
     @GetMapping
-    public List<ContaPagarResponseDTO> listar(@AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return service.listar(usuario.empresaId());
+    public PaginaResponseDTO<ContaPagarResponseDTO> listar(
+            @RequestParam(required = false) String busca,
+            @RequestParam(required = false) br.com.novexa.erp.entity.StatusContaPagar status,
+            @RequestParam(required = false) Long fornecedor,
+            @RequestParam(required = false) String categoria,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate vencimentoDe,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate vencimentoAte,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate emissaoDe,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate emissaoAte,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "dataVencimento,asc") String sort,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return service.listarPagina(usuario.empresaId(), busca, status, fornecedor, categoria,
+                vencimentoDe, vencimentoAte, emissaoDe, emissaoAte, page, size, sort);
+    }
+
+    @GetMapping("/resumo")
+    public ResumoContasPagarDTO resumo(@AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return service.resumo(usuario.empresaId());
+    }
+
+    @GetMapping("/categorias")
+    public List<String> categorias(@AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return service.categorias(usuario.empresaId());
     }
 
     @PostMapping

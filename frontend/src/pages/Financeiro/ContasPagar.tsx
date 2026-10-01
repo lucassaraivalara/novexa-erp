@@ -11,13 +11,14 @@ import PageHeader from "../../components/ui/PageHeader";
 import PageFilters from "../../components/ui/PageFilters";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import { cancelarConta, estornarConta, listarContasPagar, listarFornecedoresContaPagar,
-    mensagemContaPagar, pagarConta } from "../../services/contaPagarService";
+    mensagemContaPagar, pagarConta, listarCategoriasContasPagar, resumirContasPagar,
+    type ResumoContasPagar } from "../../services/contaPagarService";
 import { listarContasFinanceiras } from "../../services/contaFinanceiraService";
 import type { ContaPagar, FornecedorContaPagar, StatusContaPagar } from "../../types/contaPagar";
 import type { ContaFinanceira } from "../../types/contaFinanceira";
 import { rotulosTipoContaFinanceira } from "../../types/contaFinanceira";
 import ContaPagarDrawer from "./ContaPagarDrawer";
-import { emAberto, filtrarContas, resumirContas } from "./contaPagarCalculos";
+import { emAberto } from "./contaPagarCalculos";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const data = (valor: string | null) => valor ? new Date(`${valor}T12:00:00`).toLocaleDateString("pt-BR") : "—";
@@ -40,7 +41,14 @@ export default function ContasPagar() {
     const [filtros, setFiltros] = useState({ fornecedor: "", categoria: "", vencimentoDe: "",
         vencimentoAte: "", emissaoDe: "", emissaoAte: "" });
     const [pagina, setPagina] = useState(0);
-    const [porPagina, setPorPagina] = useState(10);
+    const [porPagina, setPorPagina] = useState(25);
+    const [totalItems, setTotalItems] = useState(0);
+    const [categorias, setCategorias] = useState<string[]>([]);
+    const [resumo, setResumo] = useState<ResumoContasPagar>({
+        vencidas: { total: 0, quantidade: 0 }, seteDias: { total: 0, quantidade: 0 },
+        trintaDias: { total: 0, quantidade: 0 }, emAberto: { total: 0, quantidade: 0 }, pagasMes: { total: 0, quantidade: 0 },
+    });
+    const [ordenacao, setOrdenacao] = useState({ campo: "dataVencimento", direcao: "asc" as "asc" | "desc" });
     const [editor, setEditor] = useState<{ conta: ContaPagar | null } | null>(null);
     const [pagamento, setPagamento] = useState<ContaPagar | null>(null);
     const [dataPagamento, setDataPagamento] = useState("");
@@ -52,36 +60,50 @@ export default function ContasPagar() {
     useEffect(() => {
         const controller = new AbortController();
         Promise.all([
-            listarContasPagar(controller.signal),
             listarFornecedoresContaPagar(controller.signal),
-            listarContasFinanceiras(controller.signal)
+            listarContasFinanceiras(controller.signal),
+            listarCategoriasContasPagar(controller.signal),
+            resumirContasPagar(controller.signal)
         ])
-            .then(([lista, fornecedoresLista, contasFinanceirasLista]) => {
+            .then(([fornecedoresLista, contasFinanceirasLista, categoriasLista, resumoAtual]) => {
                 if (!controller.signal.aborted) {
-                    setContas(lista);
+                    setCategorias(categoriasLista); setResumo(resumoAtual);
                     setFornecedores(fornecedoresLista);
                     setContasFinanceiras(contasFinanceirasLista);
                     setErro("");
                 }
             })
-            .catch((e) => { if (!controller.signal.aborted) setErro(mensagemContaPagar(e, "Não foi possível carregar as contas.")); })
-            .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
+            .catch((e) => { if (!controller.signal.aborted) setErro(mensagemContaPagar(e, "Não foi possível carregar as contas.")); });
         return () => controller.abort();
     }, [tentativa]);
 
-    function atualizar(conta: ContaPagar) {
-        setContas((atuais) => atuais.some((item) => item.id === conta.id)
-            ? atuais.map((item) => item.id === conta.id ? conta : item) : [...atuais, conta]);
-    }
+    useEffect(() => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => {
+            setCarregando(true);
+            listarContasPagar({ page: pagina, size: porPagina, sort: `${ordenacao.campo},${ordenacao.direcao}`,
+                busca: busca || undefined, status: status === "todas" ? undefined : status,
+                fornecedor: filtros.fornecedor ? Number(filtros.fornecedor) : undefined,
+                categoria: filtros.categoria || undefined, vencimentoDe: filtros.vencimentoDe || undefined,
+                vencimentoAte: filtros.vencimentoAte || undefined, emissaoDe: filtros.emissaoDe || undefined,
+                emissaoAte: filtros.emissaoAte || undefined }, controller.signal)
+                .then(resposta => {
+                    if (controller.signal.aborted) return;
+                    setContas(resposta.items); setTotalItems(resposta.totalItems); setErro("");
+                    if (pagina > 0 && !resposta.items.length) setPagina(Math.max(0, resposta.totalPages - 1));
+                })
+                .catch(e => { if (!controller.signal.aborted) setErro(mensagemContaPagar(e, "Não foi possível carregar as contas.")); })
+                .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
+        }, busca.trim() ? 350 : 0);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [pagina, porPagina, ordenacao, busca, status, filtros, tentativa]);
 
     function alterarFiltro(campo: keyof typeof filtros, valor: string) {
         setFiltros((atuais) => ({ ...atuais, [campo]: valor }));
         setPagina(0);
     }
 
-    const categorias = [...new Set(contas.map((conta) => conta.categoria).filter((valor): valor is string => Boolean(valor)))].sort();
     const hojeLocal = hoje();
-    const resumo = resumirContas(contas, hojeLocal);
     const resumos = [
         { titulo: "Vencidas", valor: resumo.vencidas, cor: "error.main" },
         { titulo: "A vencer em 7 dias", valor: resumo.seteDias, cor: "warning.main" },
@@ -89,9 +111,6 @@ export default function ContasPagar() {
         { titulo: "Total em aberto", valor: resumo.emAberto, cor: "primary.main" },
         { titulo: "Pago neste mês", valor: resumo.pagasMes, cor: "success.main" },
     ];
-    const filtradas = filtrarContas(contas, { ...filtros, busca, status });
-    const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(filtradas.length / porPagina) - 1));
-    const visiveis = filtradas.slice(paginaAtual * porPagina, (paginaAtual + 1) * porPagina);
 
     function abrirPagamento(conta: ContaPagar) {
         setPagamento(conta);
@@ -133,7 +152,7 @@ export default function ContasPagar() {
         }
         setProcessando(true); setErro("");
         try {
-            atualizar(await pagarConta(pagamento.id, { contaFinanceiraId, dataPagamento, valorPago: valor }));
+            await pagarConta(pagamento.id, { contaFinanceiraId, dataPagamento, valorPago: valor });
             setPagamento(null); setSucesso("Conta marcada como paga.");
             setTentativa((n) => n + 1);
         } catch (e) { setErro(mensagemContaPagar(e, "Não foi possível registrar o pagamento.")); }
@@ -144,13 +163,11 @@ export default function ContasPagar() {
         if (!confirmacao || processando) return;
         setProcessando(true); setErro("");
         try {
-            atualizar(confirmacao.tipo === "cancelar"
-                ? await cancelarConta(confirmacao.conta.id) : await estornarConta(confirmacao.conta.id));
+            if (confirmacao.tipo === "cancelar") await cancelarConta(confirmacao.conta.id);
+            else await estornarConta(confirmacao.conta.id);
             setSucesso(confirmacao.tipo === "cancelar" ? "Conta cancelada." : "Pagamento estornado.");
             setConfirmacao(null);
-            if (confirmacao.tipo === "estornar") {
-                setTentativa((n) => n + 1);
-            }
+            setTentativa((n) => n + 1);
         } catch (e) { setErro(mensagemContaPagar(e, "Não foi possível concluir a ação.")); }
         finally { setProcessando(false); }
     }
@@ -227,14 +244,20 @@ export default function ContasPagar() {
                 Limpar filtros
             </Button>
         </PageFilters>
-        <AppTable colunas={colunas} linhas={visiveis} acoes={acoes} carregando={carregando}
+        <AppTable colunas={colunas.map(coluna => ({ ...coluna,
+            ordenavel: ["categoria", "dataEmissao", "dataVencimento", "valor", "status"].includes(coluna.campo) }))}
+            linhas={contas} acoes={acoes} carregando={carregando}
+            ordenacaoRemota
+            ordenacao={{ ...ordenacao, onSort: campo => {
+                setPagina(0); setOrdenacao(atual => ({ campo, direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc" }));
+            } }}
             obterChaveLinha={(conta) => conta.id} minWidth={1540}
             vazio={{ titulo: "Nenhuma conta encontrada", descricao: busca || status !== "todas" || Object.values(filtros).some(Boolean) ? "Ajuste os filtros para consultar outras contas." : "Cadastre a primeira conta a pagar." }}
-            paginacao={{ pagina: paginaAtual, linhasPorPagina: porPagina, total: filtradas.length,
+            paginacao={{ pagina, linhasPorPagina: porPagina, total: totalItems,
                 onPageChange: setPagina, onRowsPerPageChange: (valor) => { setPorPagina(valor); setPagina(0); },
                 opcoesLinhasPorPagina: [10, 25, 50] }} />
         {editor && <ContaPagarDrawer key={editor.conta?.id ?? "nova"} conta={editor.conta} fornecedores={fornecedores}
-            onFechar={() => setEditor(null)} onSalvo={(conta) => { atualizar(conta); setEditor(null); setSucesso("Conta salva."); }} />}
+            onFechar={() => setEditor(null)} onSalvo={() => { setTentativa(n => n + 1); setEditor(null); setSucesso("Conta salva."); }} />}
         <Dialog open={pagamento !== null} onClose={processando ? undefined : () => setPagamento(null)} fullWidth maxWidth="xs" aria-labelledby="pagar-conta-titulo">
             <form onSubmit={(e) => void confirmarPagamento(e)}>
                 <DialogTitle id="pagar-conta-titulo">Marcar como paga</DialogTitle>

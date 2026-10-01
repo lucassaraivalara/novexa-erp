@@ -56,13 +56,13 @@ class ContaPagarHttpTest {
     @Test void criaEListaSomenteDaEmpresaDoJwt() throws Exception {
         long id = criar(tokenA, fornecedorA.getId());
         mvc.perform(get("/financeiro/contas-pagar").header("Authorization", tokenA))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(id))
-                .andExpect(jsonPath("$[0].fornecedorNome").value("Fornecedor"))
-                .andExpect(jsonPath("$[0].status").value("ABERTA"))
-                .andExpect(jsonPath("$[0].dataPagamento").doesNotExist());
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(id))
+                .andExpect(jsonPath("$.items[0].fornecedorNome").value("Fornecedor"))
+                .andExpect(jsonPath("$.items[0].status").value("ABERTA"))
+                .andExpect(jsonPath("$.items[0].dataPagamento").doesNotExist());
         mvc.perform(get("/financeiro/contas-pagar").header("Authorization", tokenB))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0));
         assertThat(contas.findById(id).orElseThrow().getEmpresa().getId()).isEqualTo(empresaA.getId());
     }
 
@@ -154,8 +154,8 @@ class ContaPagarHttpTest {
         conta.pagar(LocalDate.of(2026, 10, 1), new BigDecimal("200"), null);
         contas.saveAndFlush(conta);
         mvc.perform(get("/financeiro/contas-pagar").header("Authorization", tokenA))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value("PAGA"))
-                .andExpect(jsonPath("$[0].movimentacaoFinanceiraId").doesNotExist());
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].status").value("PAGA"))
+                .andExpect(jsonPath("$.items[0].movimentacaoFinanceiraId").doesNotExist());
         mvc.perform(post("/financeiro/contas-pagar/" + id + "/estornar").header("Authorization", tokenA))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ABERTA"));
         assertThat(movimentos.count()).isZero();

@@ -26,9 +26,38 @@ public class ContaPagarService {
         this.financeiro = financeiro;
     }
 
+    public PaginaResponseDTO<ContaPagarResponseDTO> listarPagina(Long empresaId, String busca, StatusContaPagar status,
+            Long fornecedor, String categoria, java.time.LocalDate vencimentoDe, java.time.LocalDate vencimentoAte,
+            java.time.LocalDate emissaoDe, java.time.LocalDate emissaoAte, int page, int size, String sort) {
+        var pageable = br.com.novexa.erp.util.Paginacao.criar(page, size, sort,
+                java.util.Set.of("id", "dataVencimento", "dataEmissao", "valor", "status", "categoria"), org.springframework.data.domain.Sort.Direction.ASC);
+        if ((vencimentoDe != null && vencimentoAte != null && vencimentoDe.isAfter(vencimentoAte))
+                || (emissaoDe != null && emissaoAte != null && emissaoDe.isAfter(emissaoAte)))
+            throw br.com.novexa.erp.util.Paginacao.invalida("Periodo invalido.");
+        return PaginaResponseDTO.de(contas.listarPagina(empresaId, busca == null ? "" : busca.trim(),
+                status, fornecedor, categoria == null || categoria.isBlank() ? null : categoria,
+                vencimentoDe, vencimentoAte, emissaoDe, emissaoAte, pageable), ContaPagarResponseDTO::de);
+    }
+
     public List<ContaPagarResponseDTO> listar(Long empresaId) {
         return contas.findByEmpresaIdOrderByDataVencimentoAscIdAsc(empresaId).stream()
                 .map(ContaPagarResponseDTO::de).toList();
+    }
+
+    public List<String> categorias(Long empresaId) { return contas.categorias(empresaId); }
+
+    public ResumoContasPagarDTO resumo(Long empresaId) {
+        var hoje = java.time.LocalDate.now();
+        return new ResumoContasPagarDTO(total(empresaId, StatusContaPagar.ABERTA, null, hoje.minusDays(1)),
+                total(empresaId, StatusContaPagar.ABERTA, hoje, hoje.plusDays(7)),
+                total(empresaId, StatusContaPagar.ABERTA, hoje, hoje.plusDays(30)),
+                total(empresaId, StatusContaPagar.ABERTA, null, null),
+                total(empresaId, StatusContaPagar.PAGA, hoje.withDayOfMonth(1), hoje.withDayOfMonth(1).plusMonths(1).minusDays(1)));
+    }
+
+    private ResumoContasPagarDTO.Total total(Long empresaId, StatusContaPagar status, java.time.LocalDate inicio, java.time.LocalDate fim) {
+        var total = contas.totalizar(empresaId, status, inicio, fim);
+        return new ResumoContasPagarDTO.Total(total.getTotal(), total.getQuantidade());
     }
 
     @Transactional

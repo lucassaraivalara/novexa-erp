@@ -1,11 +1,23 @@
 import axios from "axios";
 import api from "./api";
+import type { PaginaResponse } from "../types/paginacao";
 import type { ContaPagar, ContaPagarInput, FornecedorContaPagar, PagamentoContaPagarInput } from "../types/contaPagar";
 
 const base = "/financeiro/contas-pagar";
 
-export const listarContasPagar = async (signal?: AbortSignal) =>
-    (await api.get<ContaPagar[]>(base, { signal })).data;
+export type FiltrosContaPagar = {
+    page?: number; size?: number; sort?: string; busca?: string; status?: string;
+    fornecedor?: number; categoria?: string; vencimentoDe?: string; vencimentoAte?: string;
+    emissaoDe?: string; emissaoAte?: string;
+};
+export type ResumoContasPagar = Record<"vencidas" | "seteDias" | "trintaDias" | "emAberto" | "pagasMes",
+    { total: number; quantidade: number }>;
+export const listarContasPagar = async (params: FiltrosContaPagar = {}, signal?: AbortSignal) =>
+    (await api.get<PaginaResponse<ContaPagar>>(base, { params, signal })).data;
+export const resumirContasPagar = async (signal?: AbortSignal) =>
+    (await api.get<ResumoContasPagar>(`${base}/resumo`, { signal })).data;
+export const listarCategoriasContasPagar = async (signal?: AbortSignal) =>
+    (await api.get<string[]>(`${base}/categorias`, { signal })).data;
 
 export const listarFornecedoresContaPagar = async (signal?: AbortSignal) =>
     (await api.get<FornecedorContaPagar[]>("/fornecedores", { signal })).data;
