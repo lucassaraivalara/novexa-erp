@@ -2,6 +2,8 @@ package br.com.novexa.erp.repository;
 
 import br.com.novexa.erp.entity.*;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ public interface VendaRepository extends JpaRepository<VendaEntity, Long> {
     Optional<VendaEntity> findByEmpresaIdAndUsuarioIdAndChaveRequisicao(Long empresaId, Long usuarioId, UUID chave);
     Optional<VendaEntity> findByIdAndEmpresaId(Long id, Long empresaId);
     List<VendaEntity> findByEmpresaIdAndSessaoCaixaIdOrderByDataHoraAscIdAsc(Long empresaId, Long sessaoId);
+    List<VendaEntity> findByEmpresaIdAndSessaoCaixaIdAndStatusOrderByDataHoraAscIdAsc(Long empresaId, Long sessaoId, StatusVenda status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select v from VendaEntity v where v.id = :id and v.empresa.id = :empresaId")
@@ -41,6 +44,23 @@ public interface VendaRepository extends JpaRepository<VendaEntity, Long> {
                                    @Param("inicio") LocalDateTime inicio,
                                    @Param("fimExclusivo") LocalDateTime fimExclusivo,
                                    @Param("clienteId") Long clienteId);
+
+    @Query("""
+            select v from VendaEntity v
+            left join fetch v.cliente
+            left join fetch v.sessaoCaixa
+            where v.empresa.id = :empresaId
+              and (:status is null or v.status = :status)
+              and (cast(:inicio as timestamp) is null or v.dataHora >= :inicio)
+              and (cast(:fimExclusivo as timestamp) is null or v.dataHora < :fimExclusivo)
+              and (:clienteId is null or v.cliente.id = :clienteId)
+            """)
+    Page<VendaEntity> listarResumoPaginado(@Param("empresaId") Long empresaId,
+                                           @Param("status") StatusVenda status,
+                                           @Param("inicio") LocalDateTime inicio,
+                                           @Param("fimExclusivo") LocalDateTime fimExclusivo,
+                                           @Param("clienteId") Long clienteId,
+                                           Pageable pageable);
 
     @Query("""
             select coalesce(sum(v.total), 0) as faturamento, count(v) as quantidade

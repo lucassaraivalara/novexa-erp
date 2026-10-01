@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import AddShoppingCartRoundedIcon from "@mui/icons-material/AddShoppingCartRounded";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
@@ -30,11 +30,12 @@ import { listarClientes } from "../../services/clienteService";
 import {
     buscarVenda,
     cancelarVenda,
-    listarVendas,
+    listarVendasPaginado,
     mensagemVenda,
     type VendaDetalhe,
     type VendaResumo,
 } from "../../services/vendaService";
+import type { PaginaResponse } from "../../types/paginacao";
 import type { Cliente } from "../../types/cliente";
 import { obterSessao } from "../../utils/auth/sessao";
 import { podeExecutarAcaoGerencial } from "../../utils/auth/perfis";
@@ -52,7 +53,7 @@ import {
 const corStatus = (status: VendaResumo["status"]) =>
     status === "FATURADA" ? "success" : status === "CANCELADA" ? "default" : "warning";
 
-type CampoOrdenacaoVenda = "id" | "dataHora" | "nomeCliente" | "total" | "status" | "sessaoCaixaId";
+type CampoOrdenacaoVenda = "id" | "dataHora" | "total" | "status";
 
 export default function CentralVendas() {
     const empresaId = obterSessao()?.empresa.id;
@@ -74,24 +75,35 @@ export default function CentralVendas() {
     const [vendaParaCancelar, setVendaParaCancelar] = useState<VendaResumo | null>(null);
     const [erroCancelamento, setErroCancelamento] = useState("");
     const [cancelando, setCancelando] = useState<number | null>(null);
+    const [totalItems, setTotalItems] = useState(0);
     const [sucesso, setSucesso] = useState(false);
 
     const carregarVendas = useCallback(async (signal?: AbortSignal) => {
         setCarregando(true);
         setErro("");
         try {
-            setVendas(await listarVendas(criarParametrosVenda(filtros), signal));
+            const response: PaginaResponse<VendaResumo> = await listarVendasPaginado(
+                criarParametrosVenda(filtros),
+                pagina,
+                porPagina,
+                `${ordenacao.campo},${ordenacao.direcao}`,
+                signal
+            );
+            if (signal?.aborted) return;
+            setVendas(response.items);
+            setTotalItems(response.totalItems);
+            if (pagina > 0 && !response.items.length) setPagina(Math.max(0, response.totalPages - 1));
         } catch (e) {
             if (!signal?.aborted) setErro(mensagemVenda(e, "Não foi possível carregar as vendas."));
         } finally {
             if (!signal?.aborted) setCarregando(false);
         }
-    }, [filtros]);
+    }, [filtros, pagina, porPagina, ordenacao]);
 
     useEffect(() => {
         const controller = new AbortController();
-        void carregarVendas(controller.signal);
-        return () => controller.abort();
+        const timer = setTimeout(() => void carregarVendas(controller.signal), 0);
+        return () => { clearTimeout(timer); controller.abort(); };
     }, [carregarVendas]);
 
     useEffect(() => {
@@ -156,13 +168,13 @@ export default function CentralVendas() {
     const colunas: Coluna<VendaResumo>[] = [
         { campo: "id", cabecalho: "Venda", largura: 90, ordenavel: true, render: valor => `#${valor}` },
         { campo: "dataHora", cabecalho: "Data / hora", largura: 155, ordenavel: true, render: valor => dataHoraVenda(String(valor)) },
-        { campo: "nomeCliente", cabecalho: "Cliente", largura: 240, ordenavel: true, render: valor => String(valor || "Consumidor final") },
+        { campo: "nomeCliente", cabecalho: "Cliente", largura: 240, render: valor => String(valor || "Consumidor final") },
         { campo: "total", cabecalho: "Total", largura: 130, alinhar: "right", ordenavel: true, render: valor => moedaVenda(Number(valor)) },
         { campo: "status", cabecalho: "Status", largura: 120, ordenavel: true, render: valor => {
             const status = valor as VendaResumo["status"];
             return <Chip size="small" variant="outlined" color={corStatus(status)} label={rotulosStatus[status]} />;
         } },
-        { campo: "sessaoCaixaId", cabecalho: "Caixa / sessão", largura: 140, ordenavel: true,
+        { campo: "sessaoCaixaId", cabecalho: "Caixa / sessão", largura: 140,
             render: valor => valor ? `Sessão #${valor}` : "—" },
     ];
 
@@ -184,20 +196,6 @@ export default function CentralVendas() {
         } satisfies AcaoTabela<VendaResumo>] : []),
     ];
 
-    const vendasOrdenadas = useMemo(() => [...vendas].sort((a, b) => {
-        const valorA = ordenacao.campo === "nomeCliente" ? a.nomeCliente ?? "Consumidor final" : a[ordenacao.campo];
-        const valorB = ordenacao.campo === "nomeCliente" ? b.nomeCliente ?? "Consumidor final" : b[ordenacao.campo];
-        if (valorA === valorB) return 0;
-        if (valorA === null || valorA === undefined) return 1;
-        if (valorB === null || valorB === undefined) return -1;
-        const comparacao = typeof valorA === "string"
-            ? valorA.localeCompare(String(valorB), "pt-BR", { numeric: true })
-            : Number(valorA) - Number(valorB);
-        return ordenacao.direcao === "asc" ? comparacao : -comparacao;
-    }), [ordenacao, vendas]);
-    const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(vendasOrdenadas.length / porPagina) - 1));
-    const linhas = vendasOrdenadas.slice(paginaAtual * porPagina, paginaAtual * porPagina + porPagina);
-
     return <PageContainer>
         <PageHeader titulo="Central de Vendas" descricao="Consulte vendas, confira detalhes e execute cancelamentos."
             acaoPrincipal={<Button component={Link} to="/pdv" variant="contained"
@@ -205,15 +203,16 @@ export default function CentralVendas() {
 
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregarVendas()}>Tentar novamente</Button>}>{erro}</Alert>}
 
-        <AppTable colunas={colunas} linhas={linhas} carregando={carregando} compacta ordenacaoComIcone
+        <AppTable colunas={colunas} linhas={vendas} carregando={carregando} compacta ordenacaoComIcone
             obterChaveLinha={venda => venda.id} minWidth={940} acoes={acoes}
+            ordenacaoRemota
             ordenacao={{
                 campo: ordenacao.campo,
                 direcao: ordenacao.direcao,
-                onSort: campo => setOrdenacao(atual => ({
+                onSort: campo => { setPagina(0); setOrdenacao(atual => ({
                     campo: campo as CampoOrdenacaoVenda,
                     direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc",
-                })),
+                })); },
             }}
             filtros={<Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap" }}>
                 <TextField select size="small" label="Status" value={filtros.status} sx={{ minWidth: 150 }}
@@ -236,7 +235,7 @@ export default function CentralVendas() {
                 </TextField>
             </Stack>}
             vazio={{ titulo: "Nenhuma venda encontrada", descricao: "Ajuste os filtros ou inicie uma nova venda." }}
-            paginacao={{ pagina: paginaAtual, linhasPorPagina: porPagina, total: vendasOrdenadas.length,
+            paginacao={{ pagina, linhasPorPagina: porPagina, total: totalItems,
                 onPageChange: setPagina,
                 onRowsPerPageChange: linhasPorPagina => { setPorPagina(linhasPorPagina); setPagina(0); },
                 opcoesLinhasPorPagina: [10, 25, 50] }}

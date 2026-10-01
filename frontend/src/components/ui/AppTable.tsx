@@ -91,6 +91,7 @@ interface AppTableProps<T> {
         onSelecionar: (campo: string) => void;
     };
     ordenacaoComIcone?: boolean;
+    ordenacaoRemota?: boolean;
     linhaCliqueavel?: boolean;
     onLinhaClick?: (linha: T) => void;
     obterChaveLinha: (linha: T) => string | number;
@@ -114,6 +115,7 @@ export default function AppTable<T extends Record<string, unknown>>({
     ordenacao,
     buscaPorColuna,
     ordenacaoComIcone = false,
+    ordenacaoRemota = false,
     linhaCliqueavel = false,
     onLinhaClick,
     obterChaveLinha,
@@ -128,7 +130,7 @@ export default function AppTable<T extends Record<string, unknown>>({
     const controlesCabecalhoSeparados = Boolean(buscaPorColuna || ordenacaoComIcone);
 
     const linhasOrdenadas = useMemo(() => {
-        if (!ordenacaoAtiva) return linhas;
+        if (ordenacaoRemota || !ordenacaoAtiva) return linhas;
         const { campo, direcao } = ordenacaoAtiva;
         return [...linhas].sort((a, b) => {
             const va = a[campo] as string | number | boolean | null | undefined;
@@ -139,7 +141,7 @@ export default function AppTable<T extends Record<string, unknown>>({
             const cmp = va > vb ? 1 : -1;
             return direcao === "asc" ? cmp : -cmp;
         });
-    }, [linhas, ordenacaoAtiva]);
+    }, [linhas, ordenacaoAtiva, ordenacaoRemota]);
 
     const contagemExibida = useMemo(() => {
         const total = paginacao?.total ?? contagem?.total;

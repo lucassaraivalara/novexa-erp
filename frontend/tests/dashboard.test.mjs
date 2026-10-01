@@ -30,6 +30,6 @@ test("dashboard exibe indicadores reais, caixa e no máximo cinco vendas", async
     const fonte = await readFile(new URL("../src/pages/Dashboard/Dashboard.tsx", import.meta.url), "utf8");
     for (const texto of ["Faturamento hoje", "Vendas hoje", "Ticket médio hoje", "Estoque baixo", "Clientes ativos",
         "Nenhum caixa aberto", "Últimas vendas", "Ver todas"]) assert.match(fonte, new RegExp(texto));
-    assert.match(fonte, /vendas\.slice\(0, 5\)/);
+    assert.match(fonte, /listarVendasPaginado\([^\n]*0, 5/);
     assert.doesNotMatch(fonte, /será implementado|Top produtos|Contas a receber \/ pagar|Faturamento por período/);
 });

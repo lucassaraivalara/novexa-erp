@@ -82,15 +82,15 @@ class VendaListagemHttpTest {
 
         mvc.perform(get("/vendas").header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].id").value(recente))
-                .andExpect(jsonPath("$[0].clienteId").value(cliente.getId()))
-                .andExpect(jsonPath("$[0].nomeCliente").value("Cliente A"))
-                .andExpect(jsonPath("$[0].total").value(30.00))
-                .andExpect(jsonPath("$[0].status").value("FATURADA"))
-                .andExpect(jsonPath("$[0].sessaoCaixaId").value(sessao.getId()))
-                .andExpect(jsonPath("$[0].itens").doesNotExist())
-                .andExpect(jsonPath("$[1].id").value(antiga));
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].id").value(recente))
+                .andExpect(jsonPath("$.items[0].clienteId").value(cliente.getId()))
+                .andExpect(jsonPath("$.items[0].nomeCliente").value("Cliente A"))
+                .andExpect(jsonPath("$.items[0].total").value(30.00))
+                .andExpect(jsonPath("$.items[0].status").value("FATURADA"))
+                .andExpect(jsonPath("$.items[0].sessaoCaixaId").value(sessao.getId()))
+                .andExpect(jsonPath("$.items[0].itens").doesNotExist())
+                .andExpect(jsonPath("$.items[1].id").value(antiga));
     }
 
     @Test
@@ -114,9 +114,9 @@ class VendaListagemHttpTest {
                         .param("dataFinal", hoje.toString())
                         .param("clienteId", cliente.getId().toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(esperado))
-                .andExpect(jsonPath("$[0].nomeCliente").value("Cliente filtro"));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(esperado))
+                .andExpect(jsonPath("$.items[0].nomeCliente").value("Cliente filtro"));
     }
 
     @Test
@@ -132,16 +132,16 @@ class VendaListagemHttpTest {
         mvc.perform(get("/vendas").header(HttpHeaders.AUTHORIZATION, authorization)
                         .param("dataInicial", hoje.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].id").value(amanha))
-                .andExpect(jsonPath("$[1].id").value(hojeId));
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].id").value(amanha))
+                .andExpect(jsonPath("$.items[1].id").value(hojeId));
 
         mvc.perform(get("/vendas").header(HttpHeaders.AUTHORIZATION, authorization)
                         .param("dataFinal", hoje.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].id").value(hojeId))
-                .andExpect(jsonPath("$[1].id").value(ontem));
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].id").value(hojeId))
+                .andExpect(jsonPath("$.items[1].id").value(ontem));
     }
 
     @Test

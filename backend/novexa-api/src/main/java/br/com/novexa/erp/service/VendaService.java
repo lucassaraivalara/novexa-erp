@@ -6,6 +6,7 @@ import br.com.novexa.erp.repository.*;
 import br.com.novexa.erp.security.UsuarioAutenticado;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -159,6 +160,32 @@ public class VendaService {
         LocalDateTime fimExclusivo = dataFinal == null ? null : dataFinal.plusDays(1).atStartOfDay();
         return vendas.listarResumo(empresaId, status, inicio, fimExclusivo, clienteId)
                 .stream().map(VendaResumoDTO::de).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PaginaResponseDTO<VendaResumoDTO> listarPaginado(Long empresaId, StatusVenda status,
+                                                            LocalDate dataInicial, LocalDate dataFinal,
+                                                            Long clienteId, int page, int size, String sort) {
+        if (dataInicial != null && dataFinal != null && dataInicial.isAfter(dataFinal)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dataInicial não pode ser posterior a dataFinal.");
+        }
+        if (page < 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page deve ser >= 0");
+        if (size < 1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "size deve ser >= 1");
+        if (size > 100) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "size máximo é 100");
+
+        LocalDateTime inicio = dataInicial == null ? null : dataInicial.atStartOfDay();
+        LocalDateTime fimExclusivo = dataFinal == null ? null : dataFinal.plusDays(1).atStartOfDay();
+
+        Pageable pageable = br.com.novexa.erp.util.Paginacao.criar(page, size, sort,
+                java.util.Set.of("id", "dataHora", "total", "status"), org.springframework.data.domain.Sort.Direction.DESC);
+        var pageResult = vendas.listarResumoPaginado(empresaId, status, inicio, fimExclusivo, clienteId, pageable);
+        return PaginaResponseDTO.de(pageResult, VendaResumoDTO::de);
+    }
+
+    @Transactional(readOnly = true)
+    public List<VendaResponseDTO> listarPorSessao(Long empresaId, Long sessaoId) {
+        return vendas.findByEmpresaIdAndSessaoCaixaIdAndStatusOrderByDataHoraAscIdAsc(empresaId, sessaoId, StatusVenda.FATURADA)
+                .stream().map(VendaResponseDTO::de).toList();
     }
 
     public VendaResponseDTO finalizar(VendaRequestDTO pedido, UsuarioAutenticado autenticado) {

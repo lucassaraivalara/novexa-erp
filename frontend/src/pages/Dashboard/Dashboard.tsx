@@ -23,7 +23,7 @@ import PageHeader from "../../components/ui/PageHeader";
 import StatCard from "../../components/ui/StatCard";
 import LoadingState from "../../components/ui/LoadingState";
 import { buscarResumoDashboard, mensagemDashboard, type DashboardResumo } from "../../services/dashboardService";
-import { listarVendas, type VendaResumo } from "../../services/vendaService";
+import { listarVendasPaginado, type VendaResumo } from "../../services/vendaService";
 import { dataHoraVenda, moedaVenda, rotulosStatus } from "../Vendas/centralVendasUtils";
 
 const corStatus = (status: VendaResumo["status"]) =>
@@ -52,8 +52,8 @@ export default function Dashboard() {
         }
 
         try {
-            const vendas = await listarVendas({}, signal);
-            setUltimasVendas(vendas.slice(0, 5));
+            const vendas = await listarVendasPaginado({}, 0, 5, "dataHora,desc", signal);
+            setUltimasVendas(vendas.items);
         } catch {
             if (!signal?.aborted) setErroVendas("Não foi possível carregar as últimas vendas.");
         }

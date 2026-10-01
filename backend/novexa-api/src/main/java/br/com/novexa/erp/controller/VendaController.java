@@ -34,13 +34,22 @@ public class VendaController {
     }
 
     @GetMapping
-    public List<VendaResumoDTO> listar(
+    public PaginaResponseDTO<VendaResumoDTO> listar(
             @RequestParam(required = false) StatusVenda status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicial,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFinal,
             @RequestParam(required = false) Long clienteId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "dataHora,desc") String sort,
             @AuthenticationPrincipal UsuarioAutenticado autenticado) {
-        return service.listar(autenticado.empresaId(), status, dataInicial, dataFinal, clienteId);
+        return service.listarPaginado(autenticado.empresaId(), status, dataInicial, dataFinal, clienteId, page, size, sort);
+    }
+
+    @GetMapping("/por-sessao/{sessaoId}")
+    public List<VendaResponseDTO> listarPorSessao(@PathVariable Long sessaoId,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return service.listarPorSessao(usuario.empresaId(), sessaoId);
     }
 
     @PostMapping("/abertas")

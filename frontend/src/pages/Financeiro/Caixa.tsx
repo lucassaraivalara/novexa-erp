@@ -21,7 +21,7 @@ import {
     inativarCaixa, listarCaixas, listarMovimentacoes, listarSessoesAbertas, listarSessoesFechadas,
     mensagemCaixa,
 } from "../../services/caixaService";
-import { buscarVenda, listarVendas, type VendaDetalhe } from "../../services/vendaService";
+import { listarVendasSessao, type VendaDetalhe } from "../../services/vendaService";
 import type {
     CaixaCompleta, CaixaResumo, MovimentacaoCaixa, ResumoSessaoCaixa, SessaoCaixaAberta,
     SessaoCaixaHistorico, SessaoCaixaDetalhe,
@@ -142,13 +142,11 @@ export default function Caixa() {
 
     async function carregarSessao(id: number, signal?: AbortSignal) {
         const [novoResumo, movimentos, vendas] = await Promise.all([
-            buscarResumoSessao(id, signal), listarMovimentacoes(id, signal), listarVendas({ status: "FATURADA" }, signal),
+            buscarResumoSessao(id, signal), listarMovimentacoes(id, signal), listarVendasSessao(id, signal),
         ]);
-        const vendasDaSessao = vendas.filter((venda) => venda.sessaoCaixaId === id);
-        const detalhes = await Promise.all(vendasDaSessao.map((venda) => buscarVenda(venda.id, signal)));
         if (signal?.aborted) return;
         setResumo(novoResumo);
-        setTimeline(criarTimeline(movimentos, detalhes));
+        setTimeline(criarTimeline(movimentos, vendas));
     }
 
     useEffect(() => {

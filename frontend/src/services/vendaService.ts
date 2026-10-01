@@ -1,5 +1,6 @@
 import api from "./api";
 import axios from "axios";
+import type { PaginaResponse } from "../types/paginacao";
 
 export type FormaPagamento = "DINHEIRO" | "PIX" | "CARTAO_DEBITO" | "CARTAO_CREDITO";
 export type StatusVenda = "ABERTA" | "FATURADA" | "CANCELADA";
@@ -58,8 +59,13 @@ export async function finalizarVenda(pedido: VendaInput): Promise<Venda> {
     return (await api.post<Venda>("/vendas", pedido, { timeout: 15000 })).data;
 }
 
-export async function listarVendas(filtros: FiltrosVenda, signal?: AbortSignal): Promise<VendaResumo[]> {
-    return (await api.get<VendaResumo[]>("/vendas", { params: filtros, signal })).data;
+export async function listarVendasSessao(sessaoId: number, signal?: AbortSignal): Promise<VendaDetalhe[]> {
+    return (await api.get<VendaDetalhe[]>(`/vendas/por-sessao/${sessaoId}`, { signal })).data;
+}
+
+export async function listarVendasPaginado(filtros: FiltrosVenda, page: number, size: number, sort: string, signal?: AbortSignal): Promise<PaginaResponse<VendaResumo>> {
+    const params = { ...filtros, page, size, sort };
+    return (await api.get<PaginaResponse<VendaResumo>>("/vendas", { params, signal })).data;
 }
 
 export async function buscarVenda(id: number, signal?: AbortSignal): Promise<VendaDetalhe> {
