@@ -1,9 +1,21 @@
 import axios from "axios";
 import api from "./api";
 import type { Cliente, ClienteInput } from "../types/cliente";
+import type { PaginaResponse } from "../types/paginacao";
+
+export type FiltrosCliente = {
+    busca?: string;
+    campoBusca?: "id" | "nome" | "nomeFantasia" | "cpfCnpj" | "cidadeUf" | "telefone";
+    situacao?: "ativos" | "inativos" | "todos";
+};
 
 export async function listarClientes(signal?: AbortSignal) {
-    return (await api.get<Cliente[]>("/clientes", { signal })).data;
+    return (await api.get<Cliente[]>("/clientes/opcoes", { signal })).data;
+}
+
+export async function listarClientesPaginado(filtros: FiltrosCliente, page: number, size: number, sort: string, signal?: AbortSignal) {
+    const params = { ...filtros, page, size, sort };
+    return (await api.get<PaginaResponse<Cliente>>("/clientes", { params, signal })).data;
 }
 
 export async function buscarCliente(id: number) {

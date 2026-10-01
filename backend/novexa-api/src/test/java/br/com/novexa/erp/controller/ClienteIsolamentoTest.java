@@ -73,9 +73,9 @@ class ClienteIsolamentoTest {
         if (informarOutraEmpresa) request.param("empresaId", empresaB.getId().toString());
 
         mvc.perform(request).andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(clienteA.getId()))
-                .andExpect(jsonPath("$[0].empresaId").value(empresaA.getId()));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(clienteA.getId()))
+                .andExpect(jsonPath("$.items[0].empresaId").value(empresaA.getId()));
     }
 
     @ParameterizedTest

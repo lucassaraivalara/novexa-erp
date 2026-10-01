@@ -2,6 +2,7 @@ package br.com.novexa.erp.controller;
 
 import br.com.novexa.erp.dto.ClienteRequestDTO;
 import br.com.novexa.erp.dto.ClienteResponseDTO;
+import br.com.novexa.erp.dto.PaginaResponseDTO;
 import br.com.novexa.erp.entity.ClienteEntity;
 import br.com.novexa.erp.mapper.ClienteMapper;
 import br.com.novexa.erp.security.UsuarioAutenticado;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -51,15 +53,29 @@ public class ClienteController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ClienteResponseDTO>> listar(
+    public PaginaResponseDTO<ClienteResponseDTO> listar(
+            @RequestParam(required = false) String situacao,
+            @RequestParam(required = false) String busca,
+            @RequestParam(required = false) String campoBusca,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "nome,asc") String sort,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
-        List<ClienteResponseDTO> clientes = clienteService.listar(usuario.empresaId())
-                .stream()
-                .map(clienteMapper::toResponse)
-                .toList();
+        return clienteService.listarPaginado(
+                usuario.empresaId(),
+                situacao,
+                busca,
+                campoBusca,
+                sort,
+                page,
+                size
+        );
+    }
 
-        return ResponseEntity.ok(clientes);
+    @GetMapping("/opcoes")
+    public List<ClienteResponseDTO> opcoes(@AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return clienteService.listar(usuario.empresaId()).stream().map(clienteMapper::toResponse).toList();
     }
 
     @GetMapping("/{id}")

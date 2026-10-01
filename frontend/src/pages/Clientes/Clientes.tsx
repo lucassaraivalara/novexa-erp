@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
@@ -9,7 +9,7 @@ import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type Coluna, type AcaoTabela } from "../../components/ui/AppTable";
 import PageFilters from "../../components/ui/PageFilters";
-import { buscarCliente, listarClientes, mensagemCliente } from "../../services/clienteService";
+import { buscarCliente, listarClientesPaginado, mensagemCliente } from "../../services/clienteService";
 import type { Cliente } from "../../types/cliente";
 import { obterEmpresaAtiva } from "../../utils/auth/sessao";
 import ClienteForm from "./ClienteForm";
@@ -26,7 +26,6 @@ const camposBusca: Record<CampoBuscaCliente, { rotulo: string; placeholder: stri
     telefone: { rotulo: "Telefone", placeholder: "Pesquisar por telefone…" },
 };
 
-const normalizar = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
 const obterCidadeUf = (cliente: Cliente) => {
     const endereco = cliente.enderecos?.find((item) => item.principal) ?? cliente.enderecos?.[0];
     return endereco ? `${endereco.cidade} / ${endereco.uf}` : "";
@@ -37,57 +36,41 @@ export default function Clientes() {
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [busca, setBusca] = useState("");
     const [campoBusca, setCampoBusca] = useState<CampoBuscaCliente | null>(null);
-    const [situacao, setSituacao] = useState("ativos");
+    const [situacao, setSituacao] = useState<"ativos" | "inativos" | "todos">("ativos");
     const [pagina, setPagina] = useState(0);
     const [porPagina, setPorPagina] = useState(25);
-    const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: "asc" | "desc" }>({ campo: "", direcao: "asc" });
+    const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: "asc" | "desc" }>({ campo: "nome", direcao: "asc" });
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
     const [mensagem, setMensagem] = useState("");
     const [edicao, setEdicao] = useState<Cliente | null | undefined>(undefined);
     const [abrindo, setAbrindo] = useState<number | null>(null);
     const [revisao, setRevisao] = useState(0);
+    const [totalItems, setTotalItems] = useState(0);
 
     useEffect(() => {
         const controller = new AbortController();
         if (!empresaId) return;
-        listarClientes(controller.signal)
-            .then(setClientes)
-            .catch((e) => {
-                if (!controller.signal.aborted) setErro(mensagemCliente(e, "Não foi possível carregar os clientes."));
-            })
-            .finally(() => {
-                if (!controller.signal.aborted) setCarregando(false);
-            });
-        return () => controller.abort();
-    }, [empresaId, revisao]);
+        const timer = setTimeout(() => {
+            setCarregando(true);
+            setErro("");
+            listarClientesPaginado({ busca, campoBusca: campoBusca ?? undefined, situacao },
+                pagina, porPagina, `${ordenacao.campo},${ordenacao.direcao}`, controller.signal)
+                .then((resposta) => {
+                    if (controller.signal.aborted) return;
+                    setClientes(resposta.items);
+                    setTotalItems(resposta.totalItems);
+                    if (pagina > 0 && resposta.items.length === 0) setPagina(Math.max(0, resposta.totalPages - 1));
+                })
+                .catch((e) => {
+                    if (!controller.signal.aborted) setErro(mensagemCliente(e, "Não foi possível carregar os clientes."));
+                })
+                .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
+        }, busca.trim() ? 350 : 0);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [empresaId, revisao, busca, campoBusca, situacao, pagina, porPagina, ordenacao]);
 
-    const filtrados = useMemo(() => clientes.map<ClienteTabela>((cliente) => ({
-        ...cliente,
-        cidadeUf: obterCidadeUf(cliente),
-    })).filter((c) => {
-        const termo = normalizar(busca.trim());
-        const documento = busca.replace(/\D/g, "");
-        let bate = !termo;
-        if (termo && campoBusca === null) {
-            bate = normalizar([c.id, c.nome, c.nomeFantasia, c.cpfCnpj].join(" ")).includes(termo)
-                || (documento.length > 0 && (c.cpfCnpj ?? "").includes(documento));
-        } else if (termo && campoBusca !== null) {
-            const valor = String(c[campoBusca] ?? "");
-            bate = normalizar(valor).includes(termo)
-                || ((campoBusca === "cpfCnpj" || campoBusca === "telefone") && documento.length > 0 && valor.replace(/\D/g, "").includes(documento));
-        }
-        return (situacao === "todos" || c.ativo === (situacao === "ativos")) && bate;
-    }).sort((a, b) => {
-        if (!ordenacao.campo) return 0;
-        const valorA = a[ordenacao.campo as keyof ClienteTabela];
-        const valorB = b[ordenacao.campo as keyof ClienteTabela];
-        if (valorA === valorB) return 0;
-        if (valorA === null || valorA === undefined) return 1;
-        if (valorB === null || valorB === undefined) return -1;
-        const comparacao = valorA > valorB ? 1 : -1;
-        return ordenacao.direcao === "asc" ? comparacao : -comparacao;
-    }), [clientes, busca, campoBusca, ordenacao, situacao]);
+    const linhasPagina: ClienteTabela[] = clientes.map(cliente => ({ ...cliente, cidadeUf: obterCidadeUf(cliente) }));
 
     function selecionarCampoBusca(campo: string) {
         if (!(campo in camposBusca)) return;
@@ -155,8 +138,6 @@ export default function Clientes() {
         },
     ];
 
-    const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(filtrados.length / porPagina) - 1));
-    const linhasPagina = filtrados.slice(paginaAtual * porPagina, paginaAtual * porPagina + porPagina);
 
     return (
         <PageContainer>
@@ -188,7 +169,7 @@ export default function Clientes() {
                             label="Situação"
                             value={situacao}
                             inputProps={{ "aria-label": "Filtrar clientes por situação", name: "situacao" }}
-                            onChange={(e) => { setSituacao(e.target.value); setPagina(0); }}
+                            onChange={(e) => { setSituacao(e.target.value as "ativos" | "inativos" | "todos"); setPagina(0); }}
                         >
                             <MenuItem value="todos">Todas</MenuItem>
                             <MenuItem value="ativos">Ativos</MenuItem>
@@ -208,18 +189,19 @@ export default function Clientes() {
                         descricao: busca || situacao !== "todos" ? "Tente ajustar os filtros." : "Comece em Novo Cliente.",
                     }}
                     acoes={acoes}
+                    ordenacaoRemota
                     ordenacao={{
                         campo: ordenacao.campo,
                         direcao: ordenacao.direcao,
-                        onSort: (campo) => setOrdenacao((atual) => ({
+                        onSort: (campo) => { setPagina(0); setOrdenacao((atual) => ({
                             campo,
                             direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc",
-                        })),
+                        })); },
                     }}
                     paginacao={{
-                        pagina: paginaAtual,
+                        pagina,
                         linhasPorPagina: porPagina,
-                        total: filtrados.length,
+                        total: totalItems,
                         onPageChange: setPagina,
                         onRowsPerPageChange: (valor) => { setPorPagina(valor); setPagina(0); },
                         opcoesLinhasPorPagina: [10, 25, 50],
@@ -234,8 +216,8 @@ export default function Clientes() {
                     key={edicao?.id ?? "novo"}
                     cliente={edicao}
                     onFechar={() => setEdicao(undefined)}
-                    onSalvo={(c) => {
-                        setClientes((lista) => [...lista.filter((x) => x.id !== c.id), c].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));
+                    onSalvo={() => {
+                        setRevisao(v => v + 1);
                         setEdicao(undefined);
                         setMensagem("Cliente salvo com sucesso.");
                     }}

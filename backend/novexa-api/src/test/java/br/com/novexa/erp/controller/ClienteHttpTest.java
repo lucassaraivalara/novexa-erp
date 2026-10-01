@@ -68,7 +68,7 @@ class ClienteHttpTest {
 
         var lista = chamar(HttpMethod.GET, "/clientes", null);
         assertThat(lista.getStatusCode()).isEqualTo(HttpStatus.OK);
-        validarColecoes(json.readTree(lista.getBody()).get(0));
+        validarColecoes(json.readTree(lista.getBody()).get("items").get(0));
         var detalhe = chamar(HttpMethod.GET, "/clientes/" + id, null);
         assertThat(detalhe.getStatusCode()).isEqualTo(HttpStatus.OK);
         validarColecoes(json.readTree(detalhe.getBody()));
