@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -326,8 +327,9 @@ class MovimentacaoEstoqueHttpTest {
         ProdutoEntity produto = new ProdutoEntity();
         produto.setEmpresa(empresa);
         produto.setNome(nome);
-        produto.setCodigoInterno("SKU-" + System.currentTimeMillis());
-        produto.setCodigoBarras("789" + System.currentTimeMillis());
+        String codigo = UUID.randomUUID().toString();
+        produto.setCodigoInterno("SKU-" + codigo);
+        produto.setCodigoBarras("789" + codigo);
         produto.setUnidadeMedida("UN");
         produto.setPrecoVenda(new BigDecimal("19.90"));
         produto.setEstoqueAtual(estoqueInicial);

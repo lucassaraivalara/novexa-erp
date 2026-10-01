@@ -24,6 +24,8 @@ A suite completa apos o ajuste PIX executou 687 casos, sem falhas de assercao, c
 
 Os blocos abaixo registram validacoes historicas anteriores a esta consolidacao, nao substituindo os resultados acima.
 
+Validacao global final apos UUID: 687 casos, 0 falhas de assercao, 15 erros de inicializacao e 22 ignorados. Todos os erros restantes pertencem a EstoqueConcorrenciaTest, com ArquivoStorageService ausente, identicos aos 15 reproduzidos na baseline 4d84785. VendaServiceTest (23), MovimentacaoEstoqueHttpTest (17) e demais testes afetados aprovados; nao declarar suite completa verde. Testes PostgreSQL condicionais foram executados separadamente e aprovados. Commits consolidados: `3070e0a` snapshot V27, `29387db` PDV e `99876cc` ciclo PIX V28; ajuste de fixture e esta validacao em commit proprio. Segredos reais nao encontrados nos diffs revisados; apenas valores ficticios de fixtures de autenticacao.
+
 ## Paginação server-side (2026-10-01)
 
 Implementada na branch `feat/contas-pagar-integracao-backend` sobre `4d84785`, ainda não integrada à main. Vendas, Clientes, Produtos, Contas a Pagar, Movimentações Financeiras, Histórico de Estoque e Transferências usam Page/Pageable, filtros e ordenação permitida no banco, sempre com empresa do JWT e desempate por id. Contratos, limites, exceções List e índices em [paginacao.md](paginacao.md).
