@@ -31,7 +31,7 @@ test("contas financeiras e movimentos usam o token sem enviar empresa ou usuario
     await salvarContaFinanceira({ nome: "Banco", tipo: "BANCO", saldoInicial: 100, contaBancariaId: 7 });
     await salvarContaFinanceira({ nome: "Banco novo", tipo: "BANCO", contaBancariaId: 7 }, 42);
     await alterarSituacaoContaFinanceira(42, false);
-    await listarMovimentacoesFinanceiras(42);
+    await listarMovimentacoesFinanceiras({ contaFinanceiraId: 42, page: 1, size: 25, sort: "valor,desc" });
     await criarMovimentacaoFinanceira({ contaFinanceiraId: 42, tipo: "ENTRADA", descricao: "Aporte",
         valor: 20, dataMovimento: "2026-09-29", observacao: null });
     await estornarMovimentacaoFinanceira(9, "Lançamento incorreto");
@@ -50,6 +50,8 @@ test("contas financeiras e movimentos usam o token sem enviar empresa ou usuario
         ["post", "/financeiro/transferencias/10/estornar"],
     ]);
     assert.equal(chamadas[4].params.contaFinanceiraId, 42);
+    assert.equal(chamadas[4].params.page, 1);
+    assert.equal(chamadas[4].params.sort, "valor,desc");
     assert.ok(chamadas.every(({ headers }) => headers.Authorization === "Bearer token-financeiro"));
     assert.ok(chamadas.every(({ data }) => !data ||
         (!Object.hasOwn(JSON.parse(data), "empresaId") && !Object.hasOwn(JSON.parse(data), "usuarioId"))));

@@ -19,6 +19,18 @@ public class ContaFinanceiraService {
     private final UsuarioRepository usuarios;
     private final ContaBancariaRepository bancarias;
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public br.com.novexa.erp.dto.PaginaResponseDTO<MovimentacaoFinanceiraResponseDTO> listarMovimentosPagina(Long empresaId, Long contaFinanceiraId, br.com.novexa.erp.entity.TipoMovimentacaoFinanceira tipo, br.com.novexa.erp.entity.OrigemMovimentacaoFinanceira origem, java.time.LocalDate dataInicial, java.time.LocalDate dataFinal, Boolean estornada, int page, int size, String sort) {
+        var pageable = br.com.novexa.erp.util.Paginacao.criar(page, size, sort,
+                java.util.Set.of("id", "dataMovimento", "tipo", "origem", "valor"), org.springframework.data.domain.Sort.Direction.DESC);
+        if (dataInicial != null && dataFinal != null && dataInicial.isAfter(dataFinal))
+            throw br.com.novexa.erp.util.Paginacao.invalida("Periodo invalido.");
+        if (contaFinanceiraId != null && !contas.existsByIdAndEmpresaId(contaFinanceiraId, empresaId))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Conta financeira nao encontrada.");
+        return br.com.novexa.erp.dto.PaginaResponseDTO.de(movimentos.listarPagina(empresaId, contaFinanceiraId, tipo, origem, dataInicial, dataFinal, estornada, pageable), MovimentacaoFinanceiraResponseDTO::de);
+    }
+
+
     public ContaFinanceiraService(ContaFinanceiraRepository contas, MovimentacaoFinanceiraRepository movimentos,
             EmpresaRepository empresas, UsuarioRepository usuarios, ContaBancariaRepository bancarias) {
         this.contas = contas;

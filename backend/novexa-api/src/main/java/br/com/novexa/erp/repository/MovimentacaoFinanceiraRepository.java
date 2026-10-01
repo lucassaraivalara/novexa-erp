@@ -7,6 +7,17 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MovimentacaoFinanceiraRepository extends JpaRepository<MovimentacaoFinanceiraEntity, Long> {
+    @org.springframework.data.jpa.repository.Query("""
+        select m from MovimentacaoFinanceiraEntity m where m.empresa.id = :empresaId
+         and (:contaFinanceiraId is null or m.contaFinanceira.id = :contaFinanceiraId)
+         and (:tipo is null or m.tipo = :tipo) and (:origem is null or m.origem = :origem)
+         and (cast(:dataInicial as date) is null or m.dataMovimento >= :dataInicial)
+         and (cast(:dataFinal as date) is null or m.dataMovimento <= :dataFinal)
+         and (:estornada is null or m.estornada = :estornada)
+        """)
+    org.springframework.data.domain.Page<MovimentacaoFinanceiraEntity> listarPagina(Long empresaId, Long contaFinanceiraId, br.com.novexa.erp.entity.TipoMovimentacaoFinanceira tipo, br.com.novexa.erp.entity.OrigemMovimentacaoFinanceira origem, java.time.LocalDate dataInicial, java.time.LocalDate dataFinal, Boolean estornada,
+            org.springframework.data.domain.Pageable pageable);
+
     List<MovimentacaoFinanceiraEntity> findByEmpresaIdAndTransferenciaIdOrderByIdAsc(Long empresaId, Long transferenciaId);
     @EntityGraph(attributePaths = {"contaFinanceira", "usuario", "usuarioEstorno"})
     List<MovimentacaoFinanceiraEntity> findByEmpresaIdOrderByDataMovimentoDescIdDesc(Long empresaId);

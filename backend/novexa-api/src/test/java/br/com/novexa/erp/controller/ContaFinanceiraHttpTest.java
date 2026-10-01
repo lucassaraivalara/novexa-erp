@@ -86,10 +86,10 @@ class ContaFinanceiraHttpTest {
         assertThat(contas.findById(id).orElseThrow().getSaldoAtual()).isEqualByComparingTo("120.00");
         mvc.perform(get("/financeiro/movimentacoes-financeiras").header("Authorization", tokenA)
                         .param("contaFinanceiraId", String.valueOf(id)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[?(@.id == " + saida + ")].origem").value("MANUAL"))
-                .andExpect(jsonPath("$[?(@.id == " + entrada + ")].usuarioNome").value("Admin"))
-                .andExpect(jsonPath("$[?(@.origem == 'SALDO_INICIAL')].valor").value(100));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(3))
+                .andExpect(jsonPath("$.items[?(@.id == " + saida + ")].origem").value("MANUAL"))
+                .andExpect(jsonPath("$.items[?(@.id == " + entrada + ")].usuarioNome").value("Admin"))
+                .andExpect(jsonPath("$.items[?(@.origem == 'SALDO_INICIAL')].valor").value(100));
     }
 
     @Test void saidaSemSaldoFalhaSemPersistirMovimento() throws Exception {
@@ -168,7 +168,7 @@ class ContaFinanceiraHttpTest {
                         .param("contaFinanceiraId", String.valueOf(id)))
                 .andExpect(status().isNotFound());
         mvc.perform(get("/financeiro/movimentacoes-financeiras").header("Authorization", tokenB))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0));
         mvc.perform(patch("/financeiro/movimentacoes-financeiras/" + movimento + "/estorno")
                         .header("Authorization", tokenB).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"motivoEstorno\":\"Teste\"}"))

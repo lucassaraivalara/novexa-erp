@@ -17,9 +17,18 @@ public class MovimentacaoFinanceiraController {
     public MovimentacaoFinanceiraController(ContaFinanceiraService service) { this.service = service; }
 
     @GetMapping
-    public List<MovimentacaoFinanceiraResponseDTO> listar(@RequestParam(required = false) Long contaFinanceiraId,
+    public br.com.novexa.erp.dto.PaginaResponseDTO<MovimentacaoFinanceiraResponseDTO> listar(
+            @RequestParam(required = false) Long contaFinanceiraId,
+            @RequestParam(required = false) br.com.novexa.erp.entity.TipoMovimentacaoFinanceira tipo,
+            @RequestParam(required = false) br.com.novexa.erp.entity.OrigemMovimentacaoFinanceira origem,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataInicial,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataFinal,
+            @RequestParam(required = false) Boolean estornada,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "dataMovimento,desc") String sort,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return service.listarMovimentos(usuario.empresaId(), contaFinanceiraId);
+        return service.listarMovimentosPagina(usuario.empresaId(), contaFinanceiraId, tipo, origem, dataInicial, dataFinal, estornada, page, size, sort);
     }
 
     @PostMapping

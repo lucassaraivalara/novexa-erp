@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-    Drawer, IconButton, Stack, TextField, Tooltip, Typography } from "@mui/material";
+    Drawer, IconButton, MenuItem, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import { estornarMovimentacaoFinanceira, estornarTransferenciaFinanceira, listarMovimentacoesFinanceiras,
     mensagemContaFinanceira } from "../../services/contaFinanceiraService";
@@ -19,18 +19,30 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
     const [tentativa, setTentativa] = useState(0);
     const [pagina, setPagina] = useState(0);
     const [porPagina, setPorPagina] = useState(10);
+    const [totalItems, setTotalItems] = useState(0);
+    const [ordenacao, setOrdenacao] = useState({ campo: "dataMovimento", direcao: "desc" as "asc" | "desc" });
+    const [filtros, setFiltros] = useState({ tipo: "", origem: "", estornada: "", dataInicial: "", dataFinal: "" });
     const [estorno, setEstorno] = useState<MovimentacaoFinanceira | null>(null);
     const [motivo, setMotivo] = useState("");
     const [processando, setProcessando] = useState(false);
 
     useEffect(() => {
         const controller = new AbortController();
-        listarMovimentacoesFinanceiras(conta.id, controller.signal)
-            .then((lista) => { if (!controller.signal.aborted) { setMovimentos(lista); setErro(""); } })
+        const timer = setTimeout(() => {
+        setCarregando(true);
+        listarMovimentacoesFinanceiras({ contaFinanceiraId: conta.id, page: pagina, size: porPagina,
+            sort: `${ordenacao.campo},${ordenacao.direcao}`, tipo: filtros.tipo || undefined,
+            origem: filtros.origem || undefined, estornada: filtros.estornada === "" ? undefined : filtros.estornada === "true",
+            dataInicial: filtros.dataInicial || undefined, dataFinal: filtros.dataFinal || undefined }, controller.signal)
+            .then((resposta) => { if (!controller.signal.aborted) {
+                setMovimentos(resposta.items); setTotalItems(resposta.totalItems); setErro("");
+                if (pagina > 0 && !resposta.items.length) setPagina(Math.max(0, resposta.totalPages - 1));
+            } })
             .catch((e) => { if (!controller.signal.aborted) setErro(mensagemContaFinanceira(e, "Não foi possível carregar o extrato.")); })
             .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
-        return () => controller.abort();
-    }, [conta.id, tentativa]);
+        }, 0);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [conta.id, tentativa, pagina, porPagina, ordenacao, filtros]);
 
     async function confirmarEstorno(evento: FormEvent<HTMLFormElement>) {
         evento.preventDefault();
@@ -41,8 +53,8 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
                 await estornarTransferenciaFinanceira(estorno.transferenciaId, motivo.trim());
                 setCarregando(true); setTentativa((n) => n + 1);
             } else if (estorno.origem === "MANUAL") {
-                const atualizado = await estornarMovimentacaoFinanceira(estorno.id, motivo.trim());
-                setMovimentos((atuais) => atuais.map((item) => item.id === atualizado.id ? atualizado : item));
+                await estornarMovimentacaoFinanceira(estorno.id, motivo.trim());
+                setTentativa(n => n + 1);
             } else { return; }
             setEstorno(null); setMotivo(""); onSaldoAlterado();
         } catch (e) { setErro(mensagemContaFinanceira(e, "Não foi possível estornar a movimentação.")); }
@@ -71,7 +83,6 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
             desabilitado: (item) => item.estornada || (item.origem !== "MANUAL"
                 && !(item.origem === "TRANSFERENCIA" && item.transferenciaId)) },
     ];
-    const atual = Math.min(pagina, Math.max(0, Math.ceil(movimentos.length / porPagina) - 1));
 
     return <Drawer anchor="right" open onClose={processando ? undefined : onFechar}
         slotProps={{ paper: { "aria-labelledby": "extrato-financeiro-titulo", sx: { width: { xs: "100%", md: 900 }, maxWidth: "100vw" } } }}>
@@ -88,10 +99,28 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
             </Typography>}
             {erro && !estorno && <Alert severity="error" sx={{ mb: 2 }}
                 action={movimentos.length === 0 ? <Button color="inherit" onClick={() => { setCarregando(true); setTentativa((n) => n + 1); }}>Tentar novamente</Button> : undefined}>{erro}</Alert>}
-            <AppTable colunas={colunas} linhas={movimentos.slice(atual * porPagina, (atual + 1) * porPagina)}
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1, mb: 2 }}>
+                {([ ["tipo", "Tipo", { ENTRADA: "Entrada", SAIDA: "Saída" }],
+                    ["origem", "Origem", { ...rotulosOrigemMovimentacaoFinanceira, PAGAMENTO_PIX: "PIX" }],
+                    ["estornada", "Situação", { false: "Efetivada", true: "Estornada" }] ] as const).map(([campo, label, opcoes]) =>
+                    <TextField key={campo} select size="small" label={label} value={filtros[campo]} sx={{ minWidth: 145 }}
+                        onChange={e => { setPagina(0); setFiltros(atual => ({ ...atual, [campo]: e.target.value })); }}>
+                        <MenuItem value="">Todas</MenuItem>
+                        {Object.entries(opcoes).map(([valor, rotulo]) => <MenuItem key={valor} value={valor}>{rotulo}</MenuItem>)}
+                    </TextField>)}
+                {([ ["dataInicial", "Data inicial"], ["dataFinal", "Data final"] ] as const).map(([campo, label]) =>
+                    <TextField key={campo} size="small" type="date" label={label} value={filtros[campo]}
+                        slotProps={{ inputLabel: { shrink: true } }}
+                        onChange={e => { setPagina(0); setFiltros(atual => ({ ...atual, [campo]: e.target.value })); }} />)}
+            </Stack>
+            <AppTable colunas={colunas.map(coluna => ({ ...coluna, ordenavel: ["dataMovimento", "tipo", "valor"].includes(coluna.campo) }))}
+                linhas={movimentos}
+                ordenacaoRemota
+                ordenacao={{ ...ordenacao, onSort: campo => { setPagina(0);
+                    setOrdenacao(atual => ({ campo, direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc" })); } }}
                 acoes={acoes} carregando={carregando} obterChaveLinha={(item) => item.id} minWidth={760}
                 vazio={{ titulo: "Nenhuma movimentação", descricao: "Esta conta ainda não possui lançamentos." }}
-                paginacao={{ pagina: atual, linhasPorPagina: porPagina, total: movimentos.length,
+                paginacao={{ pagina, linhasPorPagina: porPagina, total: totalItems,
                     onPageChange: setPagina, onRowsPerPageChange: (valor) => { setPorPagina(valor); setPagina(0); },
                     opcoesLinhasPorPagina: [10, 25, 50] }} />
         </Box>
