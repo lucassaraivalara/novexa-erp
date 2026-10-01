@@ -72,7 +72,6 @@ class PagamentoPixPostgresTest {
         properties.add("spring.flyway.enabled", () -> "true");
         properties.add("spring.flyway.default-schema", () -> SCHEMA);
         properties.add("spring.flyway.schemas", () -> SCHEMA);
-        properties.add("spring.flyway.target", () -> "28");
     }
 
     @AfterAll

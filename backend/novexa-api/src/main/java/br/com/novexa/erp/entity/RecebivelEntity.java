@@ -1,0 +1,73 @@
+package br.com.novexa.erp.entity;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "recebiveis", uniqueConstraints = @UniqueConstraint(name = "uk_recebivel_parcela",
+        columnNames = {"empresa_id", "pagamento_id", "numero_parcela"}))
+public class RecebivelEntity {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(nullable = false, updatable = false) private EmpresaEntity empresa;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(nullable = false, updatable = false) private PagamentoEntity pagamento;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(nullable = false, updatable = false) private VendaEntity venda;
+    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20, updatable = false) private TipoFormaPagamento tipo;
+    @Column(nullable = false, updatable = false) private int numeroParcela;
+    @Column(nullable = false, updatable = false) private int totalParcelas;
+    @Column(nullable = false, precision = 19, scale = 2, updatable = false) private BigDecimal valorBruto;
+    @Column(precision = 19, scale = 2, updatable = false) private BigDecimal valorLiquidoPrevisto;
+    @Column(nullable = false, updatable = false) private LocalDateTime dataVenda;
+    private LocalDate dataPrevistaRecebimento;
+    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private StatusRecebivel status;
+    @Column(nullable = false, updatable = false) private LocalDateTime criadoEm;
+    @Column(updatable = false) private Long configuracaoFormaPagamentoId;
+    @Column(length = 150, updatable = false) private String configuracaoNomeExibicao;
+    @Enumerated(EnumType.STRING) @Column(length = 20, updatable = false) private TipoFormaPagamento configuracaoTipo;
+
+    protected RecebivelEntity() { }
+
+    public RecebivelEntity(PagamentoEntity pagamento) {
+        this.tipo = pagamento.getFormaPagamento() == FormaPagamento.CARTAO_DEBITO ? TipoFormaPagamento.DEBITO
+                : pagamento.getFormaPagamento() == FormaPagamento.CARTAO_CREDITO ? TipoFormaPagamento.CREDITO : null;
+        if (tipo == null || pagamento.getStatus() != StatusPagamento.REGISTRADO || pagamento.getValor().signum() <= 0)
+            throw new IllegalArgumentException("Recebivel exige pagamento de cartao registrado com valor positivo.");
+        this.empresa = pagamento.getEmpresa();
+        this.pagamento = pagamento;
+        this.venda = pagamento.getVenda();
+        this.numeroParcela = 1;
+        this.totalParcelas = 1;
+        this.valorBruto = pagamento.getValor();
+        this.valorLiquidoPrevisto = valorBruto;
+        // Momento do faturamento, nao da abertura da venda.
+        this.dataVenda = pagamento.getDataHora();
+        this.status = StatusRecebivel.PENDENTE;
+        this.criadoEm = LocalDateTime.now();
+        var configuracao = pagamento.getConfiguracaoFormaPagamento();
+        this.configuracaoFormaPagamentoId = configuracao == null ? null : configuracao.getId();
+        this.configuracaoNomeExibicao = pagamento.getConfiguracaoNomeExibicao();
+        this.configuracaoTipo = pagamento.getConfiguracaoTipo();
+    }
+
+    public void cancelar() {
+        if (status == StatusRecebivel.LIQUIDADO) throw new IllegalStateException("Recebivel liquidado exige reversao da liquidacao.");
+        status = StatusRecebivel.CANCELADO;
+    }
+    public Long getId() { return id; }
+    public EmpresaEntity getEmpresa() { return empresa; }
+    public PagamentoEntity getPagamento() { return pagamento; }
+    public VendaEntity getVenda() { return venda; }
+    public TipoFormaPagamento getTipo() { return tipo; }
+    public int getNumeroParcela() { return numeroParcela; }
+    public int getTotalParcelas() { return totalParcelas; }
+    public BigDecimal getValorBruto() { return valorBruto; }
+    public BigDecimal getValorLiquidoPrevisto() { return valorLiquidoPrevisto; }
+    public LocalDateTime getDataVenda() { return dataVenda; }
+    public LocalDate getDataPrevistaRecebimento() { return dataPrevistaRecebimento; }
+    public StatusRecebivel getStatus() { return status; }
+    public LocalDateTime getCriadoEm() { return criadoEm; }
+    public Long getConfiguracaoFormaPagamentoId() { return configuracaoFormaPagamentoId; }
+    public String getConfiguracaoNomeExibicao() { return configuracaoNomeExibicao; }
+    public TipoFormaPagamento getConfiguracaoTipo() { return configuracaoTipo; }
+}

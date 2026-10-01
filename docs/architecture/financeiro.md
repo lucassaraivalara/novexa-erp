@@ -1,5 +1,15 @@
 FINANCEIRO NOVEXA
 
+## Bloco 5A: nucleo backend de Recebiveis
+
+Consolidado na branch sobre `9815b40`, sem push ou integracao a main: CARTAO -> Pagamento -> Recebivel -> futura Liquidacao -> ContaFinanceira. Venda com cartao NAO movimenta ContaFinanceira diretamente. O LancamentoFinanceiro legado A_RECEBER continua preservado e nao representa saldo disponivel.
+
+Somente DEBITO/CREDITO geram uma parcela PENDENTE na mesma transacao do faturamento, apos o Pagamento, inclusive no contrato legado sem configuracao. Nenhum backfill de vendas anteriores. O modelo guarda empresa, pagamento/venda, tipo, numero/total de parcelas, valores bruto/liquido previsto, momento do faturamento (dataVenda = dataHora do Pagamento), data prevista nullable, status, criacao e snapshot ID/nome/tipo da configuracao copiado do Pagamento. Sem taxas reais, liquido previsto = bruto; sem prazo real, data prevista = NULL. Parcelamento, taxas e adquirentes pertencem a blocos posteriores.
+
+V29 cria recebiveis com FKs tenant-safe e vinculo composto pagamento/venda/empresa, UNIQUE(empresa_id,pagamento_id,numero_parcela) e CHECKs de tipo/status/parcelas/valores. Retry usa a idempotencia e locks existentes de Venda; falha na geracao reverte toda a operacao. Cancelamento sob lock da Venda preserva os registros e altera PENDENTE para CANCELADO; retry nao repete efeitos. LIQUIDADO nao pode ser produzido pela API atual, mas bloqueia cancelamento com 409 e rollback, ate existir reversao de liquidacao. O Bloco 5B devera coordenar os locks com Venda, definir destino, baixa/estorno e impedir liquidacao de cancelados.
+
+GET /financeiro/recebiveis retorna PaginaResponseDTO<RecebivelResponseDTO>, empresa exclusivamente do JWT. Filtros: status, tipo (DEBITO/CREDITO), dataInicial/dataFinal (datas ISO, inclusivas sobre dataVenda) e vendaId. Defaults page=0, size=25, sort=dataVenda,desc com id,desc; size 1..100. Allowlist sort: id, dataVenda, tipo, status, valorBruto, dataPrevistaRecebimento; parametros invalidos retornam 400. Consulta, filtros, ordenacao, count e pagina executados no banco. DTO: id, vendaId, pagamentoId, tipo, numeroParcela, totalParcelas, valorBruto, valorLiquidoPrevisto, dataVenda, dataPrevistaRecebimento, status, configuracaoNomeExibicao. Nenhum endpoint de criacao manual, liquidacao ou frontend.
+
 ## Consultas paginadas
 
 Contas a Pagar, Movimentações Financeiras e Transferências usam filtros, ordenação e paginação no banco. Totais de Contas a Pagar são agregados por empresa, independentes da página. Contratos em [paginacao.md](paginacao.md). Esta alteração de consultas não modifica criação, confirmação PIX, cancelamento, estorno, locks ou saldo.

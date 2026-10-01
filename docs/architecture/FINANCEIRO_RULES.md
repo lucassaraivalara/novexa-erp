@@ -1,12 +1,24 @@
 # Regras oficiais do Financeiro
 
+## Recebiveis de cartao - Bloco 5A
+
+- CARTAO -> Pagamento -> Recebivel -> futura Liquidacao -> ContaFinanceira. Venda com cartao NAO credita ContaFinanceira; o recebivel e um direito de receber, nao dinheiro disponivel.
+- DEBITO/CREDITO geram uma parcela PENDENTE na transacao do faturamento; DINHEIRO/PIX/TRANSFERENCIA/BOLETO nao geram recebiveis. Nao reconstruir pagamentos historicos.
+- Snapshot ID/nome/tipo vem do Pagamento e nao e reinterpretado pelo cadastro atual. Contrato legado sem configuracao mantem snapshot NULL.
+- Sem taxas ou prazo reais: valorLiquidoPrevisto = valorBruto e dataPrevistaRecebimento = NULL. Parcelas futuras sao identificadas por numeroParcela/totalParcelas; nesta fase ambos valem 1.
+- Idempotencia de Venda e UNIQUE da parcela impedem duplicidade; falha na criacao causa rollback integral. V29 garante vinculos pagamento/venda/empresa no banco.
+- Cancelamento da Venda preserva o historico e altera PENDENTE para CANCELADO, sem efeito no saldo. LIQUIDADO exige reversao ainda nao implementada: bloquear com 409, nunca cancelar silenciosamente. Liquidacao futura deve coordenar locks com a Venda.
+- Consulta GET /financeiro/recebiveis e paginada, filtrada e ordenada no banco por empresa do JWT. Contrato detalhado em financeiro.md. Nao ha liquidacao, taxas, adquirentes, antecipacao ou frontend neste bloco.
+
+## Regras das fundacoes anteriores
+
 - O mesmo dinheiro tem uma única fonte de saldo. CaixaEntity, SessaoCaixa e MovimentacaoCaixa representam dinheiro físico operacional do PDV; ContaFinanceira não substitui esse Caixa.
 - ContaFinanceira representa dinheiro disponível. Tipos funcionais: BANCO, COFRE, CARTEIRA_DIGITAL e OUTROS.
 - ContaFinanceira BANCO vincula uma ContaBancaria da mesma empresa em relação 1:1. ContaBancaria guarda somente identidade (banco, agência, número, dígito, titular e tipo); saldo e extrato pertencem exclusivamente à ContaFinanceira.
 - Novos vínculos exigem conta bancária ativa. A inativação posterior não rompe o vínculo nem impede renomear a ContaFinanceira.
 - BANCO legado sem vínculo continua legível e inativável; salvar uma edição exige regularização explícita, sem associação automática por nome.
 - CAIXA e ADQUIRENTE são tipos legados: leitura, renomeação e inativação são preservadas, sem novos usos ou conversões automáticas. Seus saldos permanecem no total geral.
-- Cartões serão tratados por Recebíveis; ADQUIRENTE não é um novo destino de dinheiro disponível.
+- Cartões são tratados por Recebíveis no Bloco 5A, sem liquidação ainda; ADQUIRENTE não é um novo destino de dinheiro disponível.
 - ConfiguracaoFormaPagamentoEmpresa pertence à empresa do JWT, não ao catálogo global. Uma empresa pode ter N configurações da mesma forma/tipo; somente o nome é único dentro da empresa, ignorando caixa e espaços externos. FormaPagamento/tipo não mudam após a criação da configuração.
 - No Bloco 3A, PIX/TRANSFERENCIA exigem destino cadastral BANCO ou CARTEIRA_DIGITAL da mesma empresa. DINHEIRO, DEBITO, CREDITO e BOLETO exigem destino nulo. Dinheiro continua exclusivamente no Caixa operacional; cartão ainda não movimenta ContaFinanceira.
 - Criar ou trocar destino exige conta ativa e permitida. Inativação posterior da conta preserva vínculo e permite leitura/edição de nome e situação da configuração; uso financeiro futuro deverá revalidar o destino. Não há exclusão física da configuração.

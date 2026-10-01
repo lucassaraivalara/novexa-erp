@@ -10,6 +10,16 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Bloco 5A: Recebiveis de cartao (2026-10-01)
+
+Nucleo backend consolidado na branch `feat/contas-pagar-integracao-backend`, baseline `9815b40`, sem push ou integracao a main. Recebivel com snapshot historico e suporte estrutural a parcelas; DEBITO/CREDITO geram uma parcela PENDENTE na transacao da Venda/Pagamento. Liquido previsto igual ao bruto e data prevista NULL, sem taxas/prazos ficticios. Nenhum backfill. V29 adiciona FKs tenant-safe, unicidade de parcela e CHECKs; V27/V28 intactas.
+
+CARTAO -> Pagamento -> Recebivel -> futura Liquidacao -> ContaFinanceira. Venda com cartao NAO movimenta ContaFinanceira. Cancelamento preserva historico (PENDENTE -> CANCELADO), retry usa locks/idempotencia existentes e LIQUIDADO bloqueia cancelamento com rollback. GET /financeiro/recebiveis possui DTO e consulta paginada por tenant com filtros status/tipo/periodo/venda e allowlist de sort. Detalhes em financeiro.md. Sem frontend, liquidacao, adquirentes, taxas ou parcelamento operacional; Bloco 5B pendente.
+
+Validacao final direcionada: 189 testes aprovados, sem falhas/erros/ignorados: Recebivel HTTP H2 (18), Recebivel PostgreSQL (19), PIX PostgreSQL (15), paginacao PostgreSQL (10), Venda HTTP (95), VendaService (23) e CancelamentoVendaService (9). Os tres contextos PostgreSQL 18.6 usam schemas descartaveis com Flyway V1..V29 e Hibernate validate; constraints de duplicidade/tenant/valores, retry, snapshot, filtros/paginacao/sort e rollback apos persistencia real cobertos. Maven package e git diff --check aprovados, sem suite global. Contextos de Venda atualizados apenas para a nova dependencia e limpeza de recebiveis. Frontend, regras PIX, Caixa, Contas a Pagar, implementacao de paginacao e EstoqueConcorrenciaTest nao alterados.
+
+Compatibilidade dos contextos PostgreSQL corrigida: PagamentoPixPostgresTest e PaginacaoPostgresTest validam o estado atual completo da aplicacao, nao uma migration isolada. Removido somente o alvo fixo V28 para aplicar todas as migrations disponiveis (atualmente V29), mantendo Hibernate validate e assertions. O erro anterior missing table [recebiveis] era causado pela nova entidade com schema incompleto; nao era preexistente nem falha de regra PIX. Testes especificos de migrations V27/V28 permanecem intactos.
+
 ## Consolidacao PIX/PDV e validacao da branch (2026-10-01)
 
 Consolidacao sobre `7ab7f7d` na branch `feat/contas-pagar-integracao-backend`, sem integracao a main. Os nove commits de paginacao permanecem inalterados. Snapshot V27 e PDV possuem commits separados; o ciclo PIX V28 conserva confirmacao explicita, conta historica, idempotencia, cancelamento, locks, rollback e auditoria. Nenhuma V29 ou nova regra financeira.

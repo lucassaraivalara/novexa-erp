@@ -82,6 +82,7 @@ class VendaHttpTest {
         reset(financeiro, pagamentos, movimentosFinanceiros);
         jdbc.update("delete from movimentacoes_caixa");
         jdbc.update("delete from movimentacoes_financeiras");
+        jdbc.update("delete from recebiveis");
         jdbc.update("delete from pagamentos");
         jdbc.update("delete from lancamentos_financeiros");
         jdbc.update("delete from itens_venda");

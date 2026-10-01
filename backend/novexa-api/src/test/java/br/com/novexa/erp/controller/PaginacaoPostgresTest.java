@@ -23,7 +23,6 @@ class PaginacaoPostgresTest extends PaginacaoHttpTest {
         properties.add("spring.flyway.enabled", () -> "true");
         properties.add("spring.flyway.default-schema", () -> SCHEMA);
         properties.add("spring.flyway.schemas", () -> SCHEMA);
-        properties.add("spring.flyway.target", () -> "28");
     }
 
     @AfterAll static void removerSchemaDescartavel() throws Exception {
