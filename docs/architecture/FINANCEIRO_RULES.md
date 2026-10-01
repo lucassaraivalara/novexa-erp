@@ -1,5 +1,12 @@
 # Regras oficiais do Financeiro
 
+## Lancamento financeiro legado
+
+- LancamentoFinanceiroEntity e LEGADO / READ-ONLY HISTORICO: entidade, repository, tabela lancamentos_financeiros e dados antigos permanecem intactos.
+- Novas vendas NAO geram LancamentoFinanceiro. Faturamento e cancelamento nao consultam, validam nem alteram o legado, inclusive sua situacao.
+- Fontes operacionais: Venda/Pagamento + MovimentacaoCaixa (dinheiro), MovimentacaoFinanceira (PIX confirmado e liquidacao de cartao) e Recebivel (cartao), conforme a forma de pagamento.
+- Cancelamento de cartao LIQUIDADO continua coordenado pelo 5B, com reversao de saldo/movimento e Recebivel CANCELADO na mesma transacao. Sem DELETE, backfill ou migration para aposentar o fluxo legado.
+
 ## Liquidacao de cartao - Bloco 5B
 
 - CARTAO -> Pagamento -> Recebivel PENDENTE -> liquidacao explicita -> MovimentacaoFinanceira ENTRADA/RECEBIVEL_LIQUIDACAO -> ContaFinanceira -> Recebivel LIQUIDADO. A venda nao credita ContaFinanceira.

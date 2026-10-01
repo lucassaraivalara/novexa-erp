@@ -27,7 +27,6 @@ import java.util.UUID;
 })
 class PagamentoPixPostgresTest {
     @Autowired AutowireCapableBeanFactory beans;
-    @MockitoSpyBean LancamentoFinanceiroRepository financeiro;
     @MockitoSpyBean PagamentoRepository pagamentos;
     @MockitoSpyBean MovimentacaoFinanceiraRepository movimentosFinanceiros;
     private VendaHttpTest fluxo;
@@ -37,7 +36,7 @@ class PagamentoPixPostgresTest {
         // Reutiliza fixtures e verificacoes HTTP sem herdar toda a suite de Venda.
         fluxo = new VendaHttpTest();
         beans.autowireBean(fluxo);
-        fluxo.financeiro = financeiro; fluxo.pagamentos = pagamentos; fluxo.movimentosFinanceiros = movimentosFinanceiros;
+        fluxo.pagamentos = pagamentos; fluxo.movimentosFinanceiros = movimentosFinanceiros;
         fluxo.preparar();
     }
     @AfterEach void limpar() { fluxo.limpar(); }

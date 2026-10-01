@@ -107,7 +107,7 @@ class CaixaOperacionalHttpTest {
     }
 
     @AfterEach void limpar() {
-        for (String tabela : List.of("conferencias_fechamento_caixa", "movimentacoes_caixa", "pagamentos", "lancamentos_financeiros", "itens_venda",
+        for (String tabela : List.of("conferencias_fechamento_caixa", "movimentacoes_caixa", "recebiveis", "pagamentos", "lancamentos_financeiros", "itens_venda",
                 "vendas", "movimentacoes_estoque", "produtos", "sessoes_caixa", "caixas", "usuario", "empresas", "formas_pagamento"))
             jdbc.update("delete from " + tabela);
     }
@@ -469,7 +469,7 @@ class CaixaOperacionalHttpTest {
         assertThat(vendaService.faturar(aberta.id(), pedido, principal).id()).isEqualTo(aberta.id());
         assertThat(movimentos.count()).isEqualTo(2);
         assertThat(jdbc.queryForObject("select count(*) from pagamentos", Long.class)).isEqualTo(1);
-        assertThat(jdbc.queryForObject("select count(*) from lancamentos_financeiros", Long.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from lancamentos_financeiros", Long.class)).isZero();
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("19");
     }
 

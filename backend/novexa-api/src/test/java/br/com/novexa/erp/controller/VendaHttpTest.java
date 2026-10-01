@@ -50,7 +50,7 @@ class VendaHttpTest {
     @Autowired SessaoCaixaRepository sessoes;
     @Autowired MovimentacaoEstoqueRepository movimentos;
     @Autowired MovimentacaoCaixaRepository movimentosCaixa;
-    @MockitoSpyBean LancamentoFinanceiroRepository financeiro;
+    @Autowired LancamentoFinanceiroRepository financeiro;
     @MockitoSpyBean PagamentoRepository pagamentos;
     @MockitoSpyBean MovimentacaoFinanceiraRepository movimentosFinanceiros;
     @Autowired JwtService jwt;
@@ -79,7 +79,7 @@ class VendaHttpTest {
 
     @AfterEach
     void limpar() {
-        reset(financeiro, pagamentos, movimentosFinanceiros);
+        reset(pagamentos, movimentosFinanceiros);
         jdbc.update("delete from movimentacoes_caixa");
         jdbc.update("delete from movimentacoes_financeiras");
         jdbc.update("delete from recebiveis");
@@ -124,10 +124,8 @@ class VendaHttpTest {
         assertThat(movimento.getSaldoAnterior()).isEqualByComparingTo("10");
         assertThat(movimento.getSaldoPosterior()).isEqualByComparingTo("8");
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
-        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isZero();
         assertThat(pagamentos.count()).isEqualTo(1);
-        assertThat(financeiro.findAll().getFirst().getValor()).isEqualByComparingTo("19");
-        assertThat(financeiro.findAll().getFirst().getSituacao()).isEqualTo(LancamentoFinanceiroEntity.Situacao.RECEBIDO);
         var pagamento = pagamentos.findAll().getFirst();
         assertThat(pagamento.getVenda().getId()).isEqualTo(id);
         assertThat(pagamento.getEmpresa().getId()).isEqualTo(empresa.getId());
@@ -165,8 +163,6 @@ class VendaHttpTest {
                 .containsExactlyInAnyOrder(OrigemMovimentacaoEstoque.VENDA, OrigemMovimentacaoEstoque.CANCELAMENTO);
         assertThat(pagamentos.findAll()).singleElement()
                 .extracting(PagamentoEntity::getStatus).isEqualTo(StatusPagamento.CANCELADO);
-        assertThat(financeiro.findAll()).singleElement()
-                .extracting(LancamentoFinanceiroEntity::getSituacao).isEqualTo(LancamentoFinanceiroEntity.Situacao.CANCELADO);
         assertThat(movimentosCaixa.findAll()).hasSize(2)
                 .extracting(MovimentacaoCaixaEntity::getTipo)
                 .containsExactlyInAnyOrder(TipoMovimentacaoCaixa.VENDA, TipoMovimentacaoCaixa.ESTORNO_VENDA);
@@ -189,10 +185,28 @@ class VendaHttpTest {
                 .extracting(MovimentacaoEstoqueEntity::getOrigem).isEqualTo(OrigemMovimentacaoEstoque.VENDA);
         assertThat(pagamentos.findAll()).singleElement()
                 .extracting(PagamentoEntity::getStatus).isEqualTo(StatusPagamento.REGISTRADO);
-        assertThat(financeiro.findAll()).singleElement()
-                .extracting(LancamentoFinanceiroEntity::getSituacao).isEqualTo(LancamentoFinanceiroEntity.Situacao.RECEBIDO);
         assertThat(movimentosCaixa.findAll()).singleElement()
                 .extracting(MovimentacaoCaixaEntity::getTipo).isEqualTo(TipoMovimentacaoCaixa.VENDA);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void cancelamentoPreservaLancamentoHistoricoSemConsultarSuaSituacao(boolean legadoCancelado) throws Exception {
+        long id = enviar(pedido());
+        assertThat(financeiro.count()).isZero();
+        var historico = new LancamentoFinanceiroEntity(vendas.findById(id).orElseThrow());
+        if (legadoCancelado) historico.cancelar();
+        historico = financeiro.saveAndFlush(historico);
+        var situacao = historico.getSituacao();
+        for (int tentativa = 0; tentativa < 2; tentativa++)
+            mvc.perform(post("/vendas/" + id + "/cancelar").header(HttpHeaders.AUTHORIZATION, authorization))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELADA"));
+        var preservado = financeiro.findByVendaIdAndEmpresaId(id, empresa.getId()).orElseThrow();
+        assertThat(preservado.getId()).isEqualTo(historico.getId());
+        assertThat(preservado.getSituacao()).isEqualTo(situacao);
+        assertThat(preservado.getValor()).isEqualByComparingTo("20");
+        assertThat(pagamentos.findAll().getFirst().getStatus()).isEqualTo(StatusPagamento.CANCELADO);
+        assertThat(movimentosCaixa.count()).isEqualTo(2);
     }
 
     @Test
@@ -212,19 +226,16 @@ class VendaHttpTest {
                 .extracting(MovimentacaoEstoqueEntity::getOrigem).isEqualTo(OrigemMovimentacaoEstoque.VENDA);
         assertThat(pagamentos.findAll()).singleElement()
                 .extracting(PagamentoEntity::getStatus).isEqualTo(StatusPagamento.REGISTRADO);
-        assertThat(financeiro.findAll()).singleElement()
-                .extracting(LancamentoFinanceiroEntity::getSituacao).isEqualTo(LancamentoFinanceiroEntity.Situacao.RECEBIDO);
         assertThat(movimentosCaixa.findAll()).singleElement()
                 .extracting(MovimentacaoCaixaEntity::getTipo).isEqualTo(TipoMovimentacaoCaixa.VENDA);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"PIX", "CARTAO_DEBITO", "CARTAO_CREDITO"})
-    void registraFormaESituacaoFinanceira(String forma) throws Exception {
+    void registraFormaEPagamentoSemLancamentoLegado(String forma) throws Exception {
         var pedido = pedido(); pedido.put("formaPagamento", forma);
         enviar(pedido);
-        assertThat(financeiro.findAll().getFirst().getSituacao()).isEqualTo(
-                forma.equals("PIX") ? LancamentoFinanceiroEntity.Situacao.RECEBIDO : LancamentoFinanceiroEntity.Situacao.A_RECEBER);
+        assertThat(financeiro.count()).isZero();
         assertThat(pagamentos.findAll()).singleElement().satisfies(pagamento -> {
             assertThat(pagamento.getFormaPagamento()).isEqualTo(FormaPagamento.valueOf(forma));
             assertThat(pagamento.getValor()).isEqualByComparingTo("20");
@@ -266,9 +277,10 @@ class VendaHttpTest {
     @Test
     void falhaFinanceiraReverteVendaMovimentoESaldo() {
         doAnswer(invocation -> {
+            pagamentos.saveAndFlush(invocation.getArgument(0));
             assertThat(pagamentos.count()).isEqualTo(1);
             throw new IllegalStateException("falha simulada");
-        }).when(financeiro).save(any());
+        }).when(pagamentos).save(any(PagamentoEntity.class));
         assertThatThrownBy(() -> enviar(pedido())).hasRootCauseMessage("falha simulada");
         assertThat(vendas.count()).isZero();
         assertThat(financeiro.count()).isZero();
@@ -285,7 +297,7 @@ class VendaHttpTest {
         pedido.put("totalEsperado", 0.01); pedido.put("valorRecebido", 0.01);
         enviar(pedido);
         assertThat(movimentos.count()).isZero();
-        assertThat(financeiro.findAll().getFirst().getValor()).isEqualByComparingTo("0.01");
+        assertThat(pagamentos.findAll().getFirst().getValor()).isEqualByComparingTo("0.01");
     }
 
     @Test
@@ -328,7 +340,7 @@ class VendaHttpTest {
         }
         assertThat(vendas.count()).isEqualTo(1);
         assertThat(movimentos.count()).isEqualTo(1);
-        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isZero();
         assertThat(pagamentos.count()).isEqualTo(1);
     }
 
@@ -402,7 +414,7 @@ class VendaHttpTest {
         mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pagamento)))
                 .andExpect(status().isConflict());
-        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isZero();
         assertThat(pagamentos.count()).isEqualTo(1);
         assertThat(movimentos.count()).isEqualTo(1);
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
@@ -424,7 +436,7 @@ class VendaHttpTest {
                 .andExpect(jsonPath("$.itens[0].quantidade").value(2))
                 .andExpect(jsonPath("$.desconto").value(0)).andExpect(jsonPath("$.clienteId").isEmpty());
         assertThat(movimentos.count()).isEqualTo(1);
-        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isZero();
         assertThat(pagamentos.count()).isEqualTo(1);
     }
 
@@ -471,9 +483,10 @@ class VendaHttpTest {
         long id = abrir();
         adicionar(id, produto.getId(), 2);
         doAnswer(invocation -> {
+            pagamentos.saveAndFlush(invocation.getArgument(0));
             assertThat(pagamentos.count()).isEqualTo(1);
             throw new IllegalStateException("falha simulada");
-        }).when(financeiro).save(any());
+        }).when(pagamentos).save(any(PagamentoEntity.class));
         var pagamento = pagamento();
         assertThatThrownBy(() -> mvc.perform(post("/vendas/" + id + "/faturar")
                 .header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
@@ -484,12 +497,12 @@ class VendaHttpTest {
         assertThat(pagamentos.count()).isZero();
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
         assertThat(jdbc.queryForObject("select count(*) from itens_venda where movimentacao_estoque_id is not null", Long.class)).isZero();
-        reset(financeiro);
+        reset(pagamentos);
         mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pagamento)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("FATURADA"));
         assertThat(movimentos.count()).isEqualTo(1);
-        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isZero();
         assertThat(pagamentos.count()).isEqualTo(1);
     }
 
@@ -497,20 +510,20 @@ class VendaHttpTest {
     void doisOperadoresFaturandoMesmaVendaGeramUmUnicoEfeito() throws Exception {
         long id = abrir();
         adicionar(id, produto.getId(), 2);
-        var primeiroPreparouLancamento = new CountDownLatch(1);
+        var primeiroGravouPagamento = new CountDownLatch(1);
         var liberarPrimeiro = new CountDownLatch(1);
         var segundoIniciou = new CountDownLatch(1);
         doAnswer(invocation -> {
-            LancamentoFinanceiroEntity salvo = financeiro.saveAndFlush(invocation.getArgument(0));
-            primeiroPreparouLancamento.countDown();
+            PagamentoEntity salvo = pagamentos.saveAndFlush(invocation.getArgument(0));
+            primeiroGravouPagamento.countDown();
             assertThat(liberarPrimeiro.await(10, TimeUnit.SECONDS)).isTrue();
             return salvo;
-        }).when(financeiro).save(any(LancamentoFinanceiroEntity.class));
+        }).when(pagamentos).save(any(PagamentoEntity.class));
         try (var workers = Executors.newFixedThreadPool(2)) {
             var a = workers.submit(() -> faturarStatus(id, authorization));
             Future<Integer> b;
             try {
-                assertThat(primeiroPreparouLancamento.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThat(primeiroGravouPagamento.await(10, TimeUnit.SECONDS)).isTrue();
                 b = workers.submit(() -> {
                     segundoIniciou.countDown();
                     return faturarStatus(id, "Bearer " + jwt.gerarToken(segundo));
@@ -526,7 +539,7 @@ class VendaHttpTest {
         assertThat(vendas.count()).isEqualTo(1);
         assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
         assertThat(movimentos.count()).isEqualTo(1);
-        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isZero();
         assertThat(pagamentos.count()).isEqualTo(1);
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
     }
@@ -652,7 +665,7 @@ class VendaHttpTest {
         mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].formaPagamentoId").value(formaId))
                 .andExpect(jsonPath("$[0].formaPagamento").value(pagamento.getFormaPagamento().name()));
-        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isZero();
         assertThat(movimentos.count()).isEqualTo(1);
     }
 
@@ -672,7 +685,7 @@ class VendaHttpTest {
         assertThat(statusVenda(pedido, authorization)).isEqualTo(409);
         assertThat(pagamentos.count()).isEqualTo(1);
         assertThat(vendas.count()).isEqualTo(1);
-        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isZero();
         assertThat(movimentos.count()).isEqualTo(1);
     }
 
@@ -729,11 +742,11 @@ class VendaHttpTest {
         var liberar = new CountDownLatch(1);
         var inativacaoIniciou = new CountDownLatch(1);
         doAnswer(invocation -> {
-            var salvo = financeiro.saveAndFlush(invocation.getArgument(0));
+            var salvo = pagamentos.saveAndFlush(invocation.getArgument(0));
             pagamentoGravado.countDown();
             assertThat(liberar.await(10, TimeUnit.SECONDS)).isTrue();
             return salvo;
-        }).when(financeiro).save(any(LancamentoFinanceiroEntity.class));
+        }).when(pagamentos).save(any(PagamentoEntity.class));
         try (var workers = Executors.newFixedThreadPool(2)) {
             var venda = workers.submit(() -> enviar(pedido()));
             Future<Integer> inativacao;
@@ -769,7 +782,7 @@ class VendaHttpTest {
                 .andExpect(jsonPath("$[0].configuracaoTipo").value(config.getTipo().name()));
         assertThat(pagamentos.findAll().getFirst().getConfiguracaoFormaPagamento().getId()).isEqualTo(config.getId());
         assertThat(jdbc.queryForObject("select count(*) from movimentacoes_financeiras", Long.class)).isZero();
-        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isZero();
         assertThat(movimentosCaixa.count()).isEqualTo(forma == 1 ? 1 : 0);
         for (var conta : contasFinanceiras.findAll()) assertThat(conta.getSaldoAtual()).isEqualByComparingTo("100");
         jdbc.update("update configuracoes_formas_pagamento_empresa set ativo=false, nome_exibicao='Renomeada' where id=?", config.getId());
@@ -829,7 +842,6 @@ class VendaHttpTest {
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
         assertThat(movimentosCaixa.count()).isEqualTo(2);
         assertThat(pagamentos.count()).isEqualTo(1);
-        assertThat(financeiro.findAll().getFirst().getSituacao()).isEqualTo(LancamentoFinanceiroEntity.Situacao.CANCELADO);
         String outroToken = "Bearer " + jwt.gerarToken(1L, "02360684663", outra.getId(), PerfilUsuario.USUARIO);
         mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, outroToken)).andExpect(status().isNotFound());
         mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, outroToken)).andExpect(status().isNotFound());
@@ -919,7 +931,7 @@ class VendaHttpTest {
                 .andExpect(jsonPath("$[0].movimentacaoFinanceiraId").value(movimento.getId()))
                 .andExpect(jsonPath("$[0].confirmadoFinanceiramente").value(true));
         assertThat(movimentosCaixa.count()).isZero();
-        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(financeiro.count()).isZero();
     }
 
     @ParameterizedTest @ValueSource(longs = {1, 3, 4})
@@ -1020,7 +1032,6 @@ class VendaHttpTest {
         assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("120");
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
         assertThat(movimentos.count()).isEqualTo(1);
-        assertThat(financeiro.findAll().getFirst().getSituacao()).isEqualTo(LancamentoFinanceiroEntity.Situacao.RECEBIDO);
         reset(movimentosFinanceiros);
         cancelarPix(venda).andExpect(status().isOk());
     }

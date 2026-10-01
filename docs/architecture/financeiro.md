@@ -1,5 +1,11 @@
 FINANCEIRO NOVEXA
 
+## LancamentoFinanceiro: LEGADO / READ-ONLY HISTORICO
+
+Novas vendas NAO geram LancamentoFinanceiroEntity. VendaService nao injeta o repository legado; PagamentoService.cancelarFaturamento valida os Pagamentos e reverte Caixa/PIX, sem buscar ou alterar lancamentos_financeiros. CancelamentoVendaService/LiquidacaoRecebivelService continuam responsaveis pelos Recebiveis, inclusive pela reversao de LIQUIDADO no 5B.
+
+Fonte de verdade atual: Venda/Pagamento + MovimentacaoCaixa + MovimentacaoFinanceira + Recebivel, conforme a forma de pagamento. Entidade, repository, tabela e historico legado permanecem intactos e legiveis; sua situacao nao acompanha novos cancelamentos e nao deve ser interpretada como estado operacional. Nenhuma migration, exclusao ou backfill.
+
 ## Bloco 5B: liquidacao backend de cartao
 
 Backend consolidado sobre `ae4df35` (Bloco 5A). Fluxo: Venda -> Pagamento -> Recebivel PENDENTE -> liquidacao explicita -> entrada RECEBIVEL_LIQUIDACAO -> ContaFinanceira -> LIQUIDADO. Venda de cartao continua sem efeito no saldo. POST /financeiro/recebiveis/{id}/liquidar sem body deriva valor do previsto (igual ao bruto, sem taxas) e destino somente do snapshot do Pagamento. Cadastro atual nao reinterpreta historico; conta historica inativa e permitida; destino ausente/invalido retorna 409, recebivel externo ao tenant retorna 404.

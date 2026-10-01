@@ -35,14 +35,13 @@ public class VendaService {
     private final RecebivelService recebiveis;
     private final CaixaOperacionalService caixaOperacional;
     @PersistenceContext private EntityManager entityManager;
-    private final LancamentoFinanceiroRepository financeiro;
 
     public VendaService(VendaRepository vendas, ClienteRepository clientes,
                         ItemVendaRepository itensVenda, ProdutoRepository produtos,
                         MovimentacaoEstoqueService estoque,
-                        LancamentoFinanceiroRepository financeiro, PagamentoService pagamentos, CaixaOperacionalService caixaOperacional, RecebivelService recebiveis) {
+                        PagamentoService pagamentos, CaixaOperacionalService caixaOperacional, RecebivelService recebiveis) {
         this.vendas = vendas; this.clientes = clientes; this.itensVenda = itensVenda;
-        this.produtos = produtos; this.estoque = estoque; this.financeiro = financeiro;
+        this.produtos = produtos; this.estoque = estoque;
         this.pagamentos = pagamentos;
         this.recebiveis = recebiveis;
         this.caixaOperacional = caixaOperacional;
@@ -320,7 +319,6 @@ public class VendaService {
         var pagamento = pagamentos.registrarFaturamento(venda, operador, forma);
         recebiveis.gerar(pagamento);
         caixaOperacional.registrarVenda(pagamento);
-        financeiro.save(new LancamentoFinanceiroEntity(venda));
         return VendaResponseDTO.de(venda);
     }
 

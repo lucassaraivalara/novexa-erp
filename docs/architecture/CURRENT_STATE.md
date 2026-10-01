@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Aposentadoria do LancamentoFinanceiro operacional (2026-10-01)
+
+Alteracao backend consolidada na branch `feat/contas-pagar-integracao-backend` sobre `bff555f`. LancamentoFinanceiroEntity passa a LEGADO / READ-ONLY HISTORICO: novas vendas nao criam lancamentos e cancelamento nao depende nem altera os registros antigos. Entidade, repository, tabela e migrations preservados; sem DELETE/backfill/migration. Fontes atuais: Venda/Pagamento + MovimentacaoCaixa + MovimentacaoFinanceira + Recebivel, conforme pagamento. Cancelamento de Recebivel LIQUIDADO continua com reversao transacional do 5B. Detalhes em financeiro.md e FINANCEIRO_RULES.md.
+
+Validacao direcionada: 348 testes aprovados, sem falhas/erros/ignorados (Venda HTTP/service, cancelamento, Caixa operacional/sessoes, compatibilidade de pagamento, Recebiveis e liquidacao H2/PostgreSQL, PIX PostgreSQL). PostgreSQL 18.6 com Flyway V1..V30 e Hibernate validate, incluindo concorrencia/rollback do 5B. Testes comprovam ausencia de lancamentos novos e preservacao do historico no cancelamento/retry, independentemente da situacao legada. Falhas de faturamento agora injetadas apos persistencia real de Pagamento, preservando cobertura transacional. CaixaOperacionalHttpTest atualizado somente na expectativa legada e limpeza de fixtures (Recebiveis antes de Pagamentos). Package backend e git diff --check aprovados; sem suite completa ou frontend.
+
 ## Bloco 5B: Liquidacao de Recebiveis (2026-10-01)
 
 Implementacao backend consolidada sobre `ae4df35` (Bloco 5A). V30 concentra auditoria de liquidacao/cancelamento, entrada unica RECEBIVEL_LIQUIDACAO tenant-safe e compatibilidade cadastral de DEBITO/CREDITO; V24 a V29 intactas, sem V31 ou backfill.

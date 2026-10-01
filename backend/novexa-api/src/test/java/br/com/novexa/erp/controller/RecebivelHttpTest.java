@@ -31,7 +31,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class RecebivelHttpTest {
     @Autowired AutowireCapableBeanFactory beans;
     @MockitoSpyBean RecebivelRepository recebiveis;
-    @MockitoSpyBean LancamentoFinanceiroRepository financeiro;
     @MockitoSpyBean PagamentoRepository pagamentos;
     @MockitoSpyBean MovimentacaoFinanceiraRepository movimentosFinanceiros;
     VendaHttpTest fluxo;
