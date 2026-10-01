@@ -97,13 +97,13 @@ test("listar, criar, buscar e editar clientes enviam o mesmo Bearer e preservam 
         chamadas.push(`${config.method} ${config.url}`);
         const dados = config.data ? JSON.parse(config.data) : {};
         return { config, status: config.method === "post" ? 201 : 200, statusText: "OK", headers: {},
-            data: config.url === "/clientes" && config.method === "get" ? [] : { id: 1, ...dados } };
+            data: config.url === "/clientes/opcoes" && config.method === "get" ? [] : { id: 1, ...dados } };
     };
-    assert.deepEqual(await listarClientes(7), []);
+    assert.deepEqual(await listarClientes(), []);
     const novo = await salvarCliente({ nome: "Cliente", tipoPessoa: "FISICA" });
     await buscarCliente(novo.id, 7);
     assert.equal((await salvarCliente({ nome: "Cliente editado" }, novo.id)).nome, "Cliente editado");
-    assert.deepEqual(chamadas, ["get /clientes", "post /clientes", "get /clientes/1", "put /clientes/1"]);
+    assert.deepEqual(chamadas, ["get /clientes/opcoes", "post /clientes", "get /clientes/1", "put /clientes/1"]);
     assert.equal(obterToken(), "token-atual");
     assert.deepEqual(redirecionamentos, []);
 });
@@ -233,7 +233,9 @@ test("busca remota preserva o padrão oficial e cancela respostas antigas", asyn
     assert.match(hook, /requestId/);
     assert.match(hook, /normalized\.length < minLength/);
     assert.match(hook, /executeNow/);
-    assert.match(produtos, /useRemoteSearch/);
+    assert.match(produtos, /listarProdutosPaginado/);
+    assert.match(produtos, /new AbortController/);
+    assert.match(produtos, /350/);
     assert.match(produtos, /onKeyDown:/);
     assert.match(service, /signal\?: AbortSignal/);
     assert.match(tabela, /onKeyDown=\{busca\.onKeyDown\}/);
