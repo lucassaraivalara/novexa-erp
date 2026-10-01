@@ -11,6 +11,7 @@ export type VendaInput = {
     valorRecebido: number; entrega: string; observacoes: string;
     formaPagamentoId?: number;
     sessaoCaixaId?: number;
+    configuracaoFormaPagamentoId?: number;
 };
 export type Venda = { id: number; total: number; troco: number; dataHora: string };
 export type VendaResumo = {

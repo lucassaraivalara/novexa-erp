@@ -5,7 +5,7 @@ import { createServer } from "vite";
 const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
 const { default: api } = await server.ssrLoadModule("/src/services/api.ts");
 const { salvarSessao } = await server.ssrLoadModule("/src/utils/auth/sessao.ts");
-const { listarConfiguracoesFormasPagamento, salvarConfiguracaoFormaPagamento } =
+const { listarConfiguracoesFormasPagamento, salvarConfiguracaoFormaPagamento, listarConfiguracoesParaPDV } =
     await server.ssrLoadModule("/src/services/configuracaoFormaPagamentoService.ts");
 await server.close();
 
@@ -19,6 +19,19 @@ function configurarSessao() {
     globalThis.window = { location: { assign() {} } };
     salvarSessao({ token: "token-financeiro", empresa: { id: 7 } });
 }
+
+test("PDV consulta ativas e preserva multiplas configuracoes dos tipos suportados", async () => {
+    configurarSessao();
+    const configs = ["DINHEIRO", "PIX", "PIX", "DEBITO", "DEBITO", "CREDITO", "CREDITO", "BOLETO", "TRANSFERENCIA"]
+        .map((tipo, i) => ({ id: i + 1, tipo, nomeExibicao: `${tipo} ${i}`, ativo: true }));
+    api.defaults.adapter = async config => {
+        assert.equal(config.params.situacao, "ativas");
+        assert.equal(config.params.empresaId, undefined);
+        assert.equal(config.headers.Authorization, "Bearer token-financeiro");
+        return { data: configs, status: 200, statusText: "OK", headers: {}, config };
+    };
+    assert.deepEqual((await listarConfiguracoesParaPDV()).map(c => c.id), [1, 2, 3, 4, 5, 6, 7]);
+});
 
 test("service de configuração de pagamento envia payload correto e trata resposta do backend", async () => {
     configurarSessao();

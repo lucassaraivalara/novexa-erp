@@ -11,6 +11,17 @@ const fonteFinalizacao = await readFile(new URL("../src/pages/Vendas/VendaFinali
 const produto = { id: 1, nome: "Café", precoVenda: 10.10, ativo: true, codigoBarras: "7890001", codigoInterno: "CAFE" };
 const venda = () => ({ ...novoRascunho(), itens: [{ produto, quantidade: "2" }], recebido: "30" });
 
+test("pedido envia configuracao empresarial e conserva enum legado e troco", () => {
+    for (const formaPagamento of ["DINHEIRO", "PIX", "CARTAO_DEBITO", "CARTAO_CREDITO"]) {
+        const r = { ...venda(), formaPagamento, configuracaoFormaPagamentoId: 42 };
+        const pedido = criarPedido(r, "chave");
+        assert.equal(pedido.configuracaoFormaPagamentoId, 42);
+        assert.equal(pedido.formaPagamento, formaPagamento);
+        assert.equal(pedido.valorRecebido, formaPagamento === "DINHEIRO" ? 30 : 20.2);
+        assert.equal(totais(r).troco, formaPagamento === "DINHEIRO" ? 980 : 0);
+    }
+});
+
 test("scanner prioriza código exato; nome ignora acentos; inativos não aparecem", () => {
     const outro = { ...produto, id: 2, nome: "7890001 oferta", codigoBarras: "outra", codigoInterno: "outro" };
     assert.equal(buscarProdutosPDV([outro, produto], "7890001")[0].id, 1);

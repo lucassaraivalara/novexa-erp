@@ -7,6 +7,13 @@ const base = "/financeiro/configuracoes-formas-pagamento";
 export const listarConfiguracoesFormasPagamento = async (situacao: "ativas" | "inativas" | "todas" = "todas", signal?: AbortSignal) =>
     (await api.get<ConfiguracaoFormaPagamento[]>(base, { params: { situacao }, signal })).data;
 
+export const listarConfiguracoesParaPDV = async (signal?: AbortSignal) => {
+    const todas = await listarConfiguracoesFormasPagamento("ativas", signal);
+    // Filtrar apenas tipos suportados operacionalmente no PDV
+    const tiposSuportados: ConfiguracaoFormaPagamento["tipo"][] = ["DINHEIRO", "PIX", "DEBITO", "CREDITO"];
+    return todas.filter(c => tiposSuportados.includes(c.tipo));
+};
+
 export const buscarConfiguracaoFormaPagamento = async (id: number, signal?: AbortSignal) =>
     (await api.get<ConfiguracaoFormaPagamento>(`${base}/${id}`, { signal })).data;
 

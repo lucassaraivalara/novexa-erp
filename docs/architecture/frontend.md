@@ -60,6 +60,12 @@ Estoque aplica busca por coluna somente a Produto e Código, mantendo a busca ge
 remota. Estoque atual e Estoque mínimo permitem ordenação no banco; Situação é
 filtro global no backend. O histórico tem paginação e filtros próprios.
 
+## Configuracoes empresariais no PDV
+
+PDV consulta configuracoes ativas da empresa autenticada e permite multiplas opcoes de DINHEIRO, PIX, DEBITO e CREDITO, mostrando nomeExibicao. BOLETO e TRANSFERENCIA nao aparecem. O pedido envia configuracaoFormaPagamentoId junto do enum legado (DINHEIRO/PIX/CARTAO_DEBITO/CARTAO_CREDITO). Dinheiro conserva valor recebido e troco; selecionar PIX nao confirma recebimento financeiro automaticamente.
+
+Select nativo e listener de teclado com estado atual preservam selecao e F2. Dialog de finalizacao mostra nomeExibicao. Testes unitarios e quatro cenarios Playwright com HTTP simulado cobrem opcoes, payload, teclado e troco; a validacao financeira real usa PostgreSQL.
+
 # Padrão de Formulários
 
 ## Cadastro simples

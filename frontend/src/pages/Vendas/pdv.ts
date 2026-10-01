@@ -2,16 +2,21 @@ import type { Produto } from "../../types/produto";
 import type { Cliente } from "../../types/cliente";
 import type { FormaPagamento, VendaInput } from "../../services/vendaService";
 import type { SessaoCaixaAberta } from "../../types/caixa";
+import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
 
 export type ItemPDV = { produto: Produto; quantidade: string };
 export type RascunhoPDV = {
     itens: ItemPDV[]; desconto: string; cliente: Cliente | null; entrega: string; observacoes: string;
     formaPagamento: FormaPagamento; recebido: string; pendente: VendaInput | null;
     sessaoCaixaId: number | null;
+    configuracaoFormaPagamentoId: number | null;
+    configuracaoNomeExibicao: string | null;
+    configuracaoTipo: ConfiguracaoFormaPagamento["tipo"] | null;
 };
 export function novoRascunho(sessaoCaixaId: number | null = null): RascunhoPDV {
     return { itens: [], desconto: "0", cliente: null, entrega: "", observacoes: "",
-        formaPagamento: "DINHEIRO", recebido: "", pendente: null, sessaoCaixaId };
+        formaPagamento: "DINHEIRO", recebido: "", pendente: null, sessaoCaixaId,
+        configuracaoFormaPagamentoId: null, configuracaoNomeExibicao: null, configuracaoTipo: null };
 }
 
 export type DecisaoSessaoCaixa =
@@ -58,7 +63,8 @@ export function criarPedido(r: RascunhoPDV, chave: string): VendaInput {
         clienteId: r.cliente?.id ?? null, desconto: t.desconto! / 100, totalEsperado: t.total / 100,
         formaPagamento: r.formaPagamento, valorRecebido: t.recebido / 100,
         entrega: r.entrega.trim(), observacoes: r.observacoes.trim(),
-        sessaoCaixaId: r.sessaoCaixaId ?? undefined };
+        sessaoCaixaId: r.sessaoCaixaId ?? undefined,
+        configuracaoFormaPagamentoId: r.configuracaoFormaPagamentoId ?? undefined };
 }
 const normalizar = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 export function buscarProdutosPDV(produtos: Produto[], termo: string, listarSemTermo = false): Produto[] {

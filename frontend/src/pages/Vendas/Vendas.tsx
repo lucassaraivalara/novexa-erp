@@ -8,9 +8,11 @@ import { Alert, Autocomplete, Box, Button, Divider, IconButton, InputAdornment, 
 import { listarProdutos, obterMensagemDaApi } from "../../services/produtoService";
 import { listarClientes } from "../../services/clienteService";
 import { finalizarVenda, type FormaPagamento } from "../../services/vendaService";
+import { listarConfiguracoesParaPDV } from "../../services/configuracaoFormaPagamentoService";
 import { obterSessao } from "../../utils/auth/sessao";
 import type { Produto } from "../../types/produto";
 import type { Cliente } from "../../types/cliente";
+import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
 import { buscarProdutosPDV, criarPedido, moeda, moverIndiceProduto, novoRascunho, subtotalItem, totais, type RascunhoPDV } from "./pdv";
 import SessaoCaixaPDVDialog from "./SessaoCaixaPDVDialog";
 import VendaFinalizacaoDialog, { type EstadoFinalizacao } from "./VendaFinalizacaoDialog";
@@ -33,6 +35,15 @@ const rotulosPagamento: Record<FormaPagamento, string> = {
     CARTAO_CREDITO: "Cartão de crédito",
 };
 
+const tipoConfigParaLegado: Record<ConfiguracaoFormaPagamento["tipo"], FormaPagamento> = {
+    DINHEIRO: "DINHEIRO",
+    PIX: "PIX",
+    DEBITO: "CARTAO_DEBITO",
+    CREDITO: "CARTAO_CREDITO",
+    BOLETO: "DINHEIRO",
+    TRANSFERENCIA: "DINHEIRO",
+};
+
 export default function Vendas() {
     const navigate = useNavigate();
     const sessao = obterSessao();
@@ -46,6 +57,9 @@ export default function Vendas() {
     });
     const [produtos, setProdutos] = useState<Produto[]>([]);
     const [clientes, setClientes] = useState<Cliente[]>([]);
+    const [configuracoes, setConfiguracoes] = useState<ConfiguracaoFormaPagamento[]>([]);
+    const [carregandoConfig, setCarregandoConfig] = useState(true);
+    const [erroConfig, setErroConfig] = useState("");
     const [busca, setBusca] = useState("");
     const [listaAberta, setListaAberta] = useState(false);
     const [indice, setIndice] = useState(0);
@@ -66,6 +80,10 @@ export default function Vendas() {
     const resultados = buscarProdutosPDV(produtos, busca, listaAberta && !busca.trim());
     const t = totais(rascunho);
     const bloqueado = !sessaoCaixaResolvida || salvando || !!rascunho.pendente;
+
+    const configuracaoSelecionada = configuracoes.find(c => c.id === rascunho.configuracaoFormaPagamentoId);
+    const tipoLegadoSelecionado = configuracaoSelecionada ? tipoConfigParaLegado[configuracaoSelecionada.tipo] : rascunho.formaPagamento;
+    const ehDinheiro = tipoLegadoSelecionado === "DINHEIRO";
 
     const definirSessaoCaixa = useCallback((sessaoCaixaId: number) => {
         setRascunho(atual => ({ ...atual, sessaoCaixaId }));
@@ -90,6 +108,15 @@ export default function Vendas() {
             .catch(e => { if (ativo) setErroCatalogo(obterMensagemDaApi(e, "Não foi possível carregar os produtos.")); })
             .finally(() => { if (ativo) setCarregando(false); });
         return () => { ativo = false; };
+    }, [empresaId]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        listarConfiguracoesParaPDV(controller.signal)
+            .then(list => { if (!controller.signal.aborted) { setConfiguracoes(list); setErroConfig(""); } })
+            .catch(e => { if (!controller.signal.aborted) setErroConfig(obterMensagemDaApi(e, "Não foi possível carregar as configurações de pagamento.")); })
+            .finally(() => { if (!controller.signal.aborted) setCarregandoConfig(false); });
+        return () => controller.abort();
     }, [empresaId]);
 
     useEffect(() => {
@@ -141,14 +168,17 @@ export default function Vendas() {
             setErro("Aguarde a definição do Caixa antes de finalizar a venda.");
             return;
         }
+        if (!rascunho.configuracaoFormaPagamentoId) {
+            setErro("Selecione uma forma de pagamento válida.");
+            return;
+        }
         let pedido = rascunho.pendente;
         try { pedido ??= criarPedido(rascunho, crypto.randomUUID()); }
         catch (e) {
             setErro((e as Error).message);
-            if (rascunho.formaPagamento === "DINHEIRO" && t.valido) recebidoRef.current?.focus();
+            if (tipoLegadoSelecionado === "DINHEIRO" && t.valido) recebidoRef.current?.focus();
             return;
         }
-        // Persiste a mesma requisição antes do envio para retomar após timeout ou recarga.
         const pendente = { ...rascunho, pendente: pedido };
         try { sessionStorage.setItem(chaveRascunho, JSON.stringify(pendente)); }
         catch { setErro("Não foi possível guardar a finalização neste navegador. Libere espaço e tente novamente."); return; }
@@ -157,7 +187,7 @@ export default function Vendas() {
             estado: "processing",
             quantidadeItens: rascunho.itens.length,
             total: t.total,
-            formaPagamento: rotulosPagamento[rascunho.formaPagamento],
+            formaPagamento: configuracaoSelecionada?.nomeExibicao ?? rotulosPagamento[tipoLegadoSelecionado],
             troco: t.troco,
         });
         emEnvio.current = true; setSalvando(true); setRascunho(pendente); setErro("");
@@ -210,7 +240,6 @@ export default function Vendas() {
         if (e.key in paineis) { e.preventDefault(); setOpcional(paineis[e.key]); requestAnimationFrame(() => opcionalRef.current?.focus()); }
     }
 
-    // Listener no window (não apenas no Box) para os atalhos funcionarem mesmo quando o foco cai para document.body após fechar dialogs/autocomplete.
     useEffect(() => {
         window.addEventListener("keydown", atalhos);
         return () => window.removeEventListener("keydown", atalhos);
@@ -234,6 +263,7 @@ export default function Vendas() {
             <Button component={Link} to="/dashboard" size="small" disabled={salvando}>Voltar ao ERP</Button>
         </Stack>
         {erro && <Alert severity="error" role="alert">{erro}</Alert>}
+        {erroConfig && <Alert severity="error" role="alert">{erroConfig}</Alert>}
         {rascunho.pendente && !salvando && !erro && <Alert severity="info">Finalização pendente de confirmação. F2 retoma sem duplicar a venda.</Alert>}
         <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 350px", gap: 2, flex: 1, minHeight: 0, minWidth: 760 }}>
             <Stack spacing={1.5} sx={{ minHeight: 0, minWidth: 0 }}>
@@ -298,16 +328,52 @@ export default function Vendas() {
                 <Box><Typography variant="body2">Total a pagar</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 38, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
                 <Divider />
                 <Typography variant="overline" sx={{ letterSpacing: "0.08em" }}>Pagamento</Typography>
-                <TextField select label="Forma de pagamento" value={rascunho.formaPagamento} disabled={bloqueado}
-                    slotProps={{ select: { native: true } }} onChange={e => alterar({ formaPagamento: e.target.value as FormaPagamento })}>
-                    <option value="DINHEIRO">Dinheiro</option><option value="PIX">PIX</option><option value="CARTAO_DEBITO">Cartão de débito</option><option value="CARTAO_CREDITO">Cartão de crédito</option>
-                </TextField>
-                {rascunho.formaPagamento === "DINHEIRO" ? <>
-                    <TextField inputRef={recebidoRef} label="Valor recebido (R$)" value={rascunho.recebido} disabled={bloqueado}
-                        slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()} onChange={e => alterar({ recebido: e.target.value })} />
-                    <Stack direction="row" sx={{ justifyContent: "space-between" }}><Typography>Troco</Typography><Typography sx={{ fontSize: 24, fontWeight: 700 }}>{moeda(t.troco)}</Typography></Stack>
-                </> : <Typography variant="caption" color="text.secondary">Finalize após confirmar o PIX ou a aprovação na maquininha. Registro de {moeda(Math.max(0, t.total))}.</Typography>}
-                <Button size="large" variant="contained" disableElevation disabled={!sessaoCaixaResolvida || salvando || (!rascunho.itens.length && !rascunho.pendente)} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
+                {carregandoConfig ? (
+                    <Typography variant="body2" color="text.secondary">Carregando formas de pagamento…</Typography>
+                ) : erroConfig ? (
+                    <Alert severity="error">{erroConfig}</Alert>
+                ) : (
+                    <>
+                        <TextField select label="Forma de pagamento" value={rascunho.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
+                            slotProps={{ select: { native: true } }}
+                            onChange={e => {
+                                const configId = e.target.value ? Number(e.target.value) : null;
+                                const config = configuracoes.find(c => c.id === configId);
+                                if (config) {
+                                    alterar({
+                                        configuracaoFormaPagamentoId: config.id,
+                                        configuracaoNomeExibicao: config.nomeExibicao,
+                                        configuracaoTipo: config.tipo,
+                                        formaPagamento: tipoConfigParaLegado[config.tipo],
+                                    });
+                                } else {
+                                    alterar({
+                                        configuracaoFormaPagamentoId: null,
+                                        configuracaoNomeExibicao: null,
+                                        configuracaoTipo: null,
+                                        formaPagamento: "DINHEIRO",
+                                    });
+                                }
+                            }}>
+                            <option value="">Selecione uma forma de pagamento</option>
+                            {configuracoes.map(config => (
+                                <option key={config.id} value={config.id}>
+                                    {config.nomeExibicao}
+                                </option>
+                            ))}
+                        </TextField>
+                        {ehDinheiro ? (
+                            <>
+                                <TextField inputRef={recebidoRef} label="Valor recebido (R$)" value={rascunho.recebido} disabled={bloqueado}
+                                    slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()} onChange={e => alterar({ recebido: e.target.value })} />
+                                <Stack direction="row" sx={{ justifyContent: "space-between" }}><Typography>Troco</Typography><Typography sx={{ fontSize: 24, fontWeight: 700 }}>{moeda(t.troco)}</Typography></Stack>
+                            </>
+                        ) : (
+                            <Typography variant="caption" color="text.secondary">Finalize após confirmar o {configuracaoSelecionada?.nomeExibicao ?? tipoLegadoSelecionado} ou a aprovação na maquininha. Registro de {moeda(Math.max(0, t.total))}.</Typography>
+                        )}
+                    </>
+                )}
+                <Button size="large" variant="contained" disableElevation disabled={!sessaoCaixaResolvida || salvando || (!rascunho.itens.length && !rascunho.pendente) || !rascunho.configuracaoFormaPagamentoId || carregandoConfig} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
                     {salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado · F2" : "Pagar · F2"}
                 </Button>
                 <Divider />
