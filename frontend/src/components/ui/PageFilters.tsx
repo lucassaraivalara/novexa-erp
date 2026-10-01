@@ -32,7 +32,7 @@ export default function PageFilters({ busca, children, campoBuscaAtivo }: PageFi
                 sx={{
                     flexDirection: { xs: "column", sm: "row" },
                     alignItems: { xs: "stretch", sm: "center" },
-                    gap: 1.5,
+                    gap: layoutTokens.spacing.md,
                     flexWrap: "wrap",
                 }}
             >

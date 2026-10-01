@@ -22,22 +22,20 @@ export default function PageHeader({
     return (
         <Stack
             sx={{
-                flexDirection: { xs: "column", sm: "row" },
+                flexDirection: { xs: "column", md: "row" },
                 justifyContent: "space-between",
-                alignItems: { xs: "flex-start", sm: "center" },
-                gap: 2,
+                alignItems: { xs: "flex-start", md: "center" },
+                gap: layoutTokens.spacing.lg,
                 flexWrap: "wrap",
                 ...sx,
             }}
         >
-            <Stack sx={{ gap: 0.5 }}>
+            <Stack sx={{ gap: layoutTokens.spacing.xs, minWidth: 0 }}>
                 <Typography
-                    variant="h5"
+                    variant="h4"
                     component="h1"
                     sx={{
                         fontSize: layoutTokens.typography.pageTitle,
-                        fontWeight: 800,
-                        letterSpacing: "-0.02em",
                         color: "text.primary",
                         lineHeight: 1.2,
                     }}
@@ -58,7 +56,7 @@ export default function PageHeader({
                 )}
             </Stack>
 
-            <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center" }}>
+            <Box sx={{ display: "flex", gap: layoutTokens.spacing.md, flexWrap: "wrap", alignItems: "center" }}>
                 {acoesSecundarias}
                 {acaoPrincipal}
             </Box>
