@@ -18,17 +18,28 @@ export default function EmptyState({ titulo, descricao, acao, icone, sx }: Empty
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                py: 6,
-                px: 3,
+                width: "100%",
+                maxWidth: 480,
+                minWidth: 0,
+                boxSizing: "border-box",
+                mx: "auto",
+                py: { xs: layoutTokens.spacing.xl, sm: layoutTokens.spacing.xxl },
+                px: { xs: layoutTokens.spacing.lg, sm: layoutTokens.spacing.xxl },
                 textAlign: "center",
                 ...sx,
             }}
         >
             {icone && (
                 <Box
+                    aria-hidden="true"
                     sx={{
-                        mb: 2,
-                        opacity: 0.4,
+                        display: "grid",
+                        placeItems: "center",
+                        width: 48,
+                        height: 48,
+                        mb: layoutTokens.spacing.md,
+                        borderRadius: "50%",
+                        bgcolor: "action.hover",
                         color: "text.secondary",
                     }}
                 >
@@ -40,7 +51,7 @@ export default function EmptyState({ titulo, descricao, acao, icone, sx }: Empty
                 sx={{
                     fontWeight: 700,
                     color: "text.primary",
-                    mb: 1,
+                    mb: layoutTokens.spacing.xs,
                 }}
             >
                 {titulo}
@@ -51,13 +62,14 @@ export default function EmptyState({ titulo, descricao, acao, icone, sx }: Empty
                     sx={{
                         fontSize: layoutTokens.typography.body,
                         lineHeight: 1.5,
-                        maxWidth: 360,
+                        maxWidth: 400,
+                        overflowWrap: "anywhere",
                     }}
                 >
                     {descricao}
                 </Typography>
             )}
-            {acao && <Box sx={{ mt: 3 }}>{acao}</Box>}
+            {acao && <Box sx={{ mt: layoutTokens.spacing.md }}>{acao}</Box>}
         </Box>
     );
 }

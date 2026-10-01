@@ -13,6 +13,7 @@ import {
     useMediaQuery,
     useTheme,
 } from "@mui/material";
+import { layoutTokens } from "../layout/layoutTokens";
 
 type CadastroDialogProps = {
     aberto: boolean;
@@ -63,19 +64,19 @@ export default function CadastroDialog({
                     maxHeight: { xs: "100%", sm: "84vh" },
                     border: { sm: 1 },
                     borderColor: "divider",
-                    borderRadius: { xs: 0, sm: 2 },
+                    borderRadius: { xs: 0, sm: layoutTokens.radius.dialog },
                     overflow: "hidden",
-                    boxShadow: "0 18px 50px rgba(15, 23, 42, 0.16)",
+                    boxShadow: layoutTokens.shadows.elevated,
                 },
             },
         }}>
         <Box component="form" onSubmit={onSubmit} noValidate
             sx={{ display: "flex", flexDirection: "column", minHeight: 0, maxHeight: "inherit", overflow: "hidden" }}>
-            <DialogTitle component="div" sx={{ flex: "0 0 auto", px: { xs: 2, sm: 3 }, py: 2, pr: 7, position: "relative" }}>
-                <Typography id={tituloId} variant="h5" sx={{ fontWeight: 750 }}>{titulo}</Typography>
-                {descricao && <Typography color="text.secondary" variant="body2" sx={{ mt: 0.375 }}>{descricao}</Typography>}
+            <DialogTitle component="div" sx={{ flex: "0 0 auto", px: { xs: layoutTokens.spacing.lg, sm: layoutTokens.spacing.xxl }, py: layoutTokens.spacing.lg, pr: 7, position: "relative" }}>
+                <Typography id={tituloId} variant="h5" sx={{ fontWeight: 700, color: "text.primary" }}>{titulo}</Typography>
+                {descricao && <Typography color="text.secondary" variant="body2" sx={{ mt: layoutTokens.spacing.xs }}>{descricao}</Typography>}
                 <IconButton aria-label="Fechar" onClick={onFechar} disabled={salvando}
-                    sx={{ position: "absolute", top: 12, right: 16 }}>
+                    sx={{ position: "absolute", top: layoutTokens.spacing.md, right: layoutTokens.spacing.lg }}>
                     <CloseRoundedIcon />
                 </IconButton>
             </DialogTitle>
@@ -86,8 +87,8 @@ export default function CadastroDialog({
                 flex: "1 1 auto",
                 minHeight: 0,
                 overflowY: "auto",
-                px: { xs: 2, sm: 3 },
-                py: 2,
+                px: { xs: layoutTokens.spacing.lg, sm: layoutTokens.spacing.xxl },
+                py: layoutTokens.spacing.lg,
                 "& .MuiOutlinedInput-root:not(.MuiInputBase-multiline)": { minHeight: 44 },
                 "& .MuiOutlinedInput-input:not(textarea), & .MuiSelect-select": { py: 1.25 },
                 "& .MuiInputLabel-root:not(.MuiInputLabel-shrink)": { transform: "translate(14px, 11px) scale(1)" },
@@ -95,9 +96,9 @@ export default function CadastroDialog({
                 {children}
             </DialogContent>
 
-            <DialogActions sx={{ flex: "0 0 auto", px: { xs: 2, sm: 3 }, py: 1.5, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
+            <DialogActions sx={{ flex: "0 0 auto", gap: layoutTokens.spacing.sm, px: { xs: layoutTokens.spacing.lg, sm: layoutTokens.spacing.xxl }, py: layoutTokens.spacing.md, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
                 <Button onClick={onFechar} disabled={salvando}>{textoCancelar}</Button>
-                <Button type="submit" variant="contained" disableElevation disabled={salvando || desabilitarSalvar}
+                <Button type="submit" variant="contained" disableElevation disabled={salvando || desabilitarSalvar} aria-busy={salvando}
                     startIcon={salvando ? <CircularProgress size={16} color="inherit" /> : undefined}>
                     {salvando ? "Salvando…" : textoSalvar}
                 </Button>

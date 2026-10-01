@@ -32,7 +32,7 @@ export default function FormActions({
         <Stack
             sx={{
                 flexDirection: "row",
-                gap: 2,
+                gap: layoutTokens.spacing.md,
                 justifyContent: "flex-end",
                 pt: 1,
                 borderTop: "1px solid",
@@ -61,6 +61,7 @@ export default function FormActions({
                 type={tipoSalvar}
                 onClick={tipoSalvar === "submit" ? undefined : onSalvar}
                 disabled={salvando || desabilitado}
+                aria-busy={salvando}
                 startIcon={iconeSalvar}
                 sx={{
                     minHeight: 42,
@@ -69,6 +70,7 @@ export default function FormActions({
                     px: 2.5,
                     textTransform: "none",
                 }}
+                disableElevation
             >
                 {salvando ? "Salvando..." : textoSalvar}
             </Button>
