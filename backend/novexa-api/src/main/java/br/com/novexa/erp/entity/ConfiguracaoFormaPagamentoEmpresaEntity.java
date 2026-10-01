@@ -16,6 +16,9 @@ public class ConfiguracaoFormaPagamentoEmpresaEntity {
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20, updatable = false)
     private TipoFormaPagamento tipo;
     @Column(nullable = false, length = 150) private String nomeExibicao;
+    @org.hibernate.annotations.GeneratedColumn("lower(trim(nome_exibicao))")
+    @Column(nullable = false, length = 150, insertable = false, updatable = false)
+    private String nomeNormalizado;
     @Column(nullable = false) private boolean ativo;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conta_financeira_destino_id") private ContaFinanceiraEntity contaFinanceiraDestino;
@@ -42,6 +45,7 @@ public class ConfiguracaoFormaPagamentoEmpresaEntity {
     public FormaPagamentoEntity getFormaPagamento() { return formaPagamento; }
     public TipoFormaPagamento getTipo() { return tipo; }
     public String getNomeExibicao() { return nomeExibicao; }
+    public String getNomeNormalizado() { return nomeNormalizado; }
     public boolean isAtivo() { return ativo; }
     public ContaFinanceiraEntity getContaFinanceiraDestino() { return contaFinanceiraDestino; }
     public LocalDateTime getDataCriacao() { return dataCriacao; }

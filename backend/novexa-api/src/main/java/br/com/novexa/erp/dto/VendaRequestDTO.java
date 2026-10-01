@@ -18,8 +18,15 @@ public record VendaRequestDTO(
         @Size(max = 500) String entrega,
         @Size(max = 2000) String observacoes,
         @Positive Long formaPagamentoId,
-        @Positive Long sessaoCaixaId
+        @Positive Long sessaoCaixaId,
+        @Positive Long configuracaoFormaPagamentoId
 ) {
+    public VendaRequestDTO(UUID chaveRequisicao, List<Item> itens, Long clienteId, BigDecimal desconto,
+            BigDecimal totalEsperado, FormaPagamento formaPagamento, BigDecimal valorRecebido,
+            String entrega, String observacoes, Long formaPagamentoId, Long sessaoCaixaId) {
+        this(chaveRequisicao, itens, clienteId, desconto, totalEsperado, formaPagamento, valorRecebido,
+                entrega, observacoes, formaPagamentoId, sessaoCaixaId, null);
+    }
     public VendaRequestDTO(UUID chaveRequisicao, List<Item> itens, Long clienteId, BigDecimal desconto,
             BigDecimal totalEsperado, FormaPagamento formaPagamento, BigDecimal valorRecebido,
             String entrega, String observacoes, Long formaPagamentoId) {
@@ -42,7 +49,8 @@ public record VendaRequestDTO(
                 + ", clienteId=" + clienteId + ", desconto=" + desconto + ", totalEsperado=" + totalEsperado
                 + ", formaPagamento=" + formaPagamento + ", valorRecebido=" + valorRecebido
                 + ", entrega=" + entrega + ", observacoes=" + observacoes
-                + (formaPagamentoId == null ? "" : ", formaPagamentoId=" + formaPagamentoId) + (sessaoCaixaId == null ? "" : ", sessaoCaixaId=" + sessaoCaixaId) + "]";
+                + (formaPagamentoId == null ? "" : ", formaPagamentoId=" + formaPagamentoId) + (sessaoCaixaId == null ? "" : ", sessaoCaixaId=" + sessaoCaixaId)
+                + (configuracaoFormaPagamentoId == null ? "" : ", configuracaoFormaPagamentoId=" + configuracaoFormaPagamentoId) + "]";
     }
 
     public record Item(

@@ -43,6 +43,9 @@ public class VendaEntity {
     @Column(precision = 19, scale = 2) private BigDecimal desconto;
     @Column(precision = 19, scale = 2) private BigDecimal total;
     @Enumerated(EnumType.STRING) @Column(length = 20) private FormaPagamento formaPagamento;
+    @ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
+    @JoinColumn(name = "configuracao_forma_pagamento_id")
+    private ConfiguracaoFormaPagamentoEmpresaEntity configuracaoFormaPagamento;
     @Column(precision = 19, scale = 2) private BigDecimal valorRecebido;
     @Column(precision = 19, scale = 2) private BigDecimal troco;
     @Column(length = 500) private String entrega;
@@ -80,6 +83,12 @@ public class VendaEntity {
     public BigDecimal getDesconto() { return desconto; }
     public BigDecimal getTotal() { return total; }
     public FormaPagamento getFormaPagamento() { return formaPagamento; }
+    public ConfiguracaoFormaPagamentoEmpresaEntity getConfiguracaoFormaPagamento() { return configuracaoFormaPagamento; }
+    public void vincularConfiguracaoFormaPagamento(ConfiguracaoFormaPagamentoEmpresaEntity configuracao) {
+        if (status != StatusVenda.ABERTA || (configuracao != null && !empresa.getId().equals(configuracao.getEmpresa().getId())))
+            throw new IllegalStateException("Configuracao incompativel com a venda.");
+        this.configuracaoFormaPagamento = configuracao;
+    }
     public BigDecimal getValorRecebido() { return valorRecebido; }
     public BigDecimal getTroco() { return troco; }
     public List<ItemVendaEntity> getItens() { return itemVendas; }

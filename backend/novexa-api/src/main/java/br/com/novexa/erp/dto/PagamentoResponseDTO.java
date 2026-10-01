@@ -11,12 +11,14 @@ import java.util.UUID;
 public record PagamentoResponseDTO(Long id, Long empresaId, Long vendaId, Long usuarioId,
         int sequencia, UUID chaveRequisicao, FormaPagamento formaPagamento, BigDecimal valor,
         StatusPagamento status, LocalDateTime dataHora, BigDecimal valorRecebido, BigDecimal troco,
-        Long formaPagamentoId, String descricaoFormaPagamento, TipoFormaPagamento tipoFormaPagamento) {
+        Long formaPagamentoId, String descricaoFormaPagamento, TipoFormaPagamento tipoFormaPagamento,
+        Long configuracaoFormaPagamentoId) {
     public static PagamentoResponseDTO de(PagamentoEntity pagamento) {
         return new PagamentoResponseDTO(pagamento.getId(), pagamento.getEmpresa().getId(),
                 pagamento.getVenda().getId(), pagamento.getUsuario().getId(), pagamento.getSequencia(),
                 pagamento.getChaveRequisicao(), pagamento.getFormaPagamento(), pagamento.getValor(),
                 pagamento.getStatus(), pagamento.getDataHora(), pagamento.getValorRecebido(), pagamento.getTroco(),
-                pagamento.getForma().getId(), pagamento.getForma().getDescricao(), pagamento.getForma().getTipo());
+                pagamento.getForma().getId(), pagamento.getForma().getDescricao(), pagamento.getForma().getTipo(),
+                pagamento.getConfiguracaoFormaPagamento() == null ? null : pagamento.getConfiguracaoFormaPagamento().getId());
     }
 }

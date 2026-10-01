@@ -3,6 +3,8 @@ package br.com.novexa.erp.controller;
 import br.com.novexa.erp.entity.*;
 import br.com.novexa.erp.repository.*;
 import br.com.novexa.erp.service.JwtService;
+import br.com.novexa.erp.service.FormaPagamentoService;
+import br.com.novexa.erp.dto.FormaPagamentoRequestDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -51,6 +53,10 @@ class VendaHttpTest {
     @MockitoSpyBean LancamentoFinanceiroRepository financeiro;
     @MockitoSpyBean PagamentoRepository pagamentos;
     @Autowired JwtService jwt;
+    @Autowired FormaPagamentoService formas;
+    @Autowired FormaPagamentoRepository catalogo;
+    @Autowired ConfiguracaoFormaPagamentoEmpresaRepository configuracoes;
+    @Autowired ContaFinanceiraRepository contasFinanceiras;
     EmpresaEntity empresa, outra;
     UsuarioEntity operador, segundo;
     ProdutoEntity produto;
@@ -75,10 +81,12 @@ class VendaHttpTest {
         reset(financeiro, pagamentos);
         jdbc.update("delete from movimentacoes_caixa");
         jdbc.update("delete from pagamentos");
-        jdbc.update("delete from formas_pagamento");
         jdbc.update("delete from lancamentos_financeiros");
         jdbc.update("delete from itens_venda");
         jdbc.update("delete from vendas");
+        configuracoes.deleteAllInBatch();
+        contasFinanceiras.deleteAllInBatch();
+        jdbc.update("delete from formas_pagamento");
         movimentos.deleteAll();
         produtos.deleteAll();
         clientes.deleteAll();
@@ -647,16 +655,10 @@ class VendaHttpTest {
 
     @Test
     void formaCriadaPodeSerUsadaEHistoricoRetrySobrevivemAInativacao() throws Exception {
-        var result = mvc.perform(post("/financeiro/formas-pagamento").header(HttpHeaders.AUTHORIZATION, authorization)
-                .contentType(MediaType.APPLICATION_JSON).content("{\"descricao\":\"PIX Alternativo\",\"tipo\":\"PIX\"}"))
-                .andExpect(status().isCreated()).andReturn();
-        long formaId = json.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+        long formaId = formas.criar(new FormaPagamentoRequestDTO("PIX Alternativo", TipoFormaPagamento.PIX, true)).id();
         var pedido = pedido(); pedido.remove("formaPagamento"); pedido.put("formaPagamentoId", formaId);
         long id = enviar(pedido);
-        mvc.perform(put("/financeiro/formas-pagamento/" + formaId).header(HttpHeaders.AUTHORIZATION, authorization)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"descricao\":\"PIX renomeado\",\"tipo\":\"PIX\",\"ativo\":false}"))
-                .andExpect(status().isOk());
+        formas.atualizar(formaId, new FormaPagamentoRequestDTO("PIX renomeado", TipoFormaPagamento.PIX, false));
         assertThat(enviar(pedido)).isEqualTo(id);
         mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].formaPagamentoId").value(formaId))
@@ -673,10 +675,7 @@ class VendaHttpTest {
 
     @Test
     void inativacaoTambemBloqueiaCodigoLegadoEVendaAbertaSemEfeitos() throws Exception {
-        mvc.perform(put("/financeiro/formas-pagamento/1").header(HttpHeaders.AUTHORIZATION, authorization)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"descricao\":\"Dinheiro\",\"tipo\":\"DINHEIRO\",\"ativo\":false}"))
-                .andExpect(status().isOk());
+        formas.atualizar(1L, new FormaPagamentoRequestDTO("Dinheiro", TipoFormaPagamento.DINHEIRO, false));
         assertThat(statusVenda(pedido(), authorization)).isEqualTo(409);
         long id = abrir(); adicionar(id, produto.getId(), 2);
         assertThat(faturarStatus(id, authorization)).isEqualTo(409);
@@ -739,10 +738,8 @@ class VendaHttpTest {
                 assertThat(pagamentoGravado.await(10, TimeUnit.SECONDS)).isTrue();
                 inativacao = workers.submit(() -> {
                     inativacaoIniciou.countDown();
-                    return mvc.perform(put("/financeiro/formas-pagamento/1").header(HttpHeaders.AUTHORIZATION, authorization)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"descricao\":\"Dinheiro\",\"tipo\":\"DINHEIRO\",\"ativo\":false}"))
-                            .andReturn().getResponse().getStatus();
+                    formas.atualizar(1L, new FormaPagamentoRequestDTO("Dinheiro", TipoFormaPagamento.DINHEIRO, false));
+                    return 200;
                 });
                 assertThat(inativacaoIniciou.await(10, TimeUnit.SECONDS)).isTrue();
                 assertThatThrownBy(() -> inativacao.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
@@ -752,6 +749,98 @@ class VendaHttpTest {
         }
         assertThat(pagamentos.count()).isEqualTo(1);
         assertThat(pagamentos.findAll().getFirst().getForma().isAtivo()).isFalse();
+    }
+
+    @ParameterizedTest @ValueSource(longs = {1, 2, 3, 4})
+    void configuracaoValidaVinculaVendaEPagamentoSemNovoEfeitoFinanceiro(long forma) throws Exception {
+        var config = configuracao(empresa, forma, true);
+        var p = pedido(); p.remove("formaPagamento"); p.put("formaPagamentoId", forma);
+        p.put("configuracaoFormaPagamentoId", config.getId());
+        long id = enviar(p);
+        assertThat(vendas.findById(id).orElseThrow().getConfiguracaoFormaPagamento().getId()).isEqualTo(config.getId());
+        mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.configuracaoFormaPagamentoId").value(config.getId()));
+        mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].configuracaoFormaPagamentoId").value(config.getId()));
+        assertThat(pagamentos.findAll().getFirst().getConfiguracaoFormaPagamento().getId()).isEqualTo(config.getId());
+        assertThat(jdbc.queryForObject("select count(*) from movimentacoes_financeiras", Long.class)).isZero();
+        assertThat(financeiro.count()).isEqualTo(1);
+        assertThat(movimentosCaixa.count()).isEqualTo(forma == 1 ? 1 : 0);
+        for (var conta : contasFinanceiras.findAll()) assertThat(conta.getSaldoAtual()).isEqualByComparingTo("100");
+        jdbc.update("update configuracoes_formas_pagamento_empresa set ativo=false, nome_exibicao='Renomeada' where id=?", config.getId());
+        assertThat(enviar(p)).isEqualTo(id);
+        p.put("configuracaoFormaPagamentoId", configuracao(empresa, forma, true).getId());
+        assertThat(statusVenda(p, authorization)).isEqualTo(409);
+        assertThat(pagamentos.count()).isEqualTo(1);
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void configuracaoInvalidaRejeitadaSemEfeitosNosDoisFluxos(boolean aberta) throws Exception {
+        long id = aberta ? abrir() : 0;
+        if (aberta) adicionar(id, produto.getId(), 2);
+        String url = aberta ? "/vendas/" + id + "/faturar" : "/vendas";
+        var p = aberta ? pagamento() : pedido();
+        var externa = configuracao(outra, 1, true);
+        var inativa = configuracao(empresa, 1, false);
+        var diferente = configuracao(empresa, 4, true);
+        for (var config : List.of(externa, inativa, diferente)) {
+            p.put("configuracaoFormaPagamentoId", config.getId());
+            mvc.perform(post(url).header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsBytes(p)))
+                    .andExpect(status().is(config == externa ? 404 : 409));
+        }
+        assertThat(pagamentos.count()).isZero(); assertThat(financeiro.count()).isZero();
+        assertThat(movimentos.count()).isZero(); assertThat(movimentosCaixa.count()).isZero();
+        assertThat(vendas.count()).isEqualTo(aberta ? 1 : 0);
+        if (aberta) assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.ABERTA);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+    }
+
+    @Test void faturamentoAbertoAceitaMesmoTipoDeOutroRegistroGlobalEPreservaNoCancelamento() throws Exception {
+        var forma = catalogo.saveAndFlush(new FormaPagamentoEntity("Dinheiro alternativo", TipoFormaPagamento.DINHEIRO, true));
+        var config = configuracao(empresa, forma.getId(), true);
+        long id = abrir(); adicionar(id, produto.getId(), 2);
+        var p = pagamento(); p.put("configuracaoFormaPagamentoId", config.getId());
+        for (int tentativa = 0; tentativa < 2; tentativa++) {
+            mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                            .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(p)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.configuracaoFormaPagamentoId").value(config.getId()));
+        }
+        p.put("configuracaoFormaPagamentoId", configuracao(empresa, 1, true).getId());
+        mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(p)))
+                .andExpect(status().isConflict());
+        jdbc.update("update configuracoes_formas_pagamento_empresa set ativo=false where id=?", config.getId());
+        for (int tentativa = 0; tentativa < 2; tentativa++)
+            mvc.perform(post("/vendas/" + id + "/cancelar").header(HttpHeaders.AUTHORIZATION, authorization))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.configuracaoFormaPagamentoId").value(config.getId()));
+        mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value("CANCELADO"))
+                .andExpect(jsonPath("$[0].configuracaoFormaPagamentoId").value(config.getId()));
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+        assertThat(movimentosCaixa.count()).isEqualTo(2);
+        assertThat(pagamentos.count()).isEqualTo(1);
+        assertThat(financeiro.findAll().getFirst().getSituacao()).isEqualTo(LancamentoFinanceiroEntity.Situacao.CANCELADO);
+        String outroToken = "Bearer " + jwt.gerarToken(1L, "02360684663", outra.getId(), PerfilUsuario.USUARIO);
+        mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, outroToken)).andExpect(status().isNotFound());
+        mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, outroToken)).andExpect(status().isNotFound());
+    }
+
+    @Test void vendaGlobalSemConfiguracaoContinuaLegivel() throws Exception {
+        var p = pedido(); p.remove("formaPagamento"); p.put("formaPagamentoId", 2L);
+        long id = enviar(p);
+        mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.configuracaoFormaPagamentoId").doesNotExist());
+        mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].configuracaoFormaPagamentoId").doesNotExist())
+                .andExpect(jsonPath("$[0].formaPagamentoId").value(2));
+    }
+
+    private ConfiguracaoFormaPagamentoEmpresaEntity configuracao(EmpresaEntity e, long formaId, boolean ativo) {
+        var forma = catalogo.findById(formaId).orElseThrow();
+        var destino = forma.getTipo() == TipoFormaPagamento.PIX
+                ? contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(e, "Banco", TipoContaFinanceira.BANCO, new BigDecimal("100"))) : null;
+        return configuracoes.saveAndFlush(new ConfiguracaoFormaPagamentoEmpresaEntity(e, forma, "Forma " + UUID.randomUUID(), ativo, destino));
     }
 
     private long abrir() throws Exception {

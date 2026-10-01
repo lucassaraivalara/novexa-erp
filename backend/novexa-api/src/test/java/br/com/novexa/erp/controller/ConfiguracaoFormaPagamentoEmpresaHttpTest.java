@@ -148,13 +148,25 @@ class ConfiguracaoFormaPagamentoEmpresaHttpTest {
         assertThat(configuracoes.count()).isEqualTo(1);
     }
 
-    @Test void reativacaoExigeDestinoAtivo() throws Exception {
+    @Test void edicaoDeSituacaoPreservaDestinoInativado() throws Exception {
         long id = id(criar(token, pedido(2, "PIX", banco.getId())).andExpect(status().isCreated()));
         banco.situacao(false); contas.saveAndFlush(banco);
         var p = pedido(2, "PIX", banco.getId()); p.put("ativo", false);
         atualizar(token, id, p).andExpect(status().isOk());
         p.put("ativo", true);
-        atualizar(token, id, p).andExpect(status().isConflict());
+        atualizar(token, id, p).andExpect(status().isOk())
+                .andExpect(jsonPath("$.ativo").value(true))
+                .andExpect(jsonPath("$.contaFinanceiraDestino.id").value(banco.getId()))
+                .andExpect(jsonPath("$.contaFinanceiraDestino.ativo").value(false));
+    }
+
+    @Test void nomeNormalizadoPersistidoEAtualizadoSemAutoridadeDoPayload() throws Exception {
+        var p = pedido(1, "  Dinheiro Loja  ", null); p.put("nomeNormalizado", "adulterado");
+        long id = id(criar(token, p).andExpect(status().isCreated()));
+        assertThat(configuracoes.findById(id).orElseThrow().getNomeNormalizado()).isEqualTo("dinheiro loja");
+        atualizar(token, id, pedido(1, "  DINHEIRO MATRIZ  ", null)).andExpect(status().isOk());
+        assertThat(configuracoes.findById(id).orElseThrow().getNomeNormalizado()).isEqualTo("dinheiro matriz");
+        criar(token, pedido(1, "dinheiro matriz", null)).andExpect(status().isConflict());
     }
 
     @Test void validaCamposFormaGlobalEAutenticacao() throws Exception {

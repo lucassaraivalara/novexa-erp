@@ -8,6 +8,8 @@ import br.com.novexa.erp.entity.UsuarioEntity;
 import br.com.novexa.erp.entity.VendaEntity;
 import br.com.novexa.erp.repository.PagamentoRepository;
 import br.com.novexa.erp.repository.VendaRepository;
+import br.com.novexa.erp.repository.ConfiguracaoFormaPagamentoEmpresaRepository;
+import br.com.novexa.erp.entity.ConfiguracaoFormaPagamentoEmpresaEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -22,13 +24,16 @@ public class PagamentoService {
     private final VendaRepository vendas;
     private final FormaPagamentoService formas;
     private final CaixaOperacionalService caixa;
+    private final ConfiguracaoFormaPagamentoEmpresaRepository configuracoes;
     private final br.com.novexa.erp.repository.LancamentoFinanceiroRepository financeiro;
 
     public PagamentoService(PagamentoRepository pagamentos, VendaRepository vendas, FormaPagamentoService formas, CaixaOperacionalService caixa,
-            br.com.novexa.erp.repository.LancamentoFinanceiroRepository financeiro) {
+            br.com.novexa.erp.repository.LancamentoFinanceiroRepository financeiro,
+            ConfiguracaoFormaPagamentoEmpresaRepository configuracoes) {
         this.pagamentos = pagamentos;
         this.vendas = vendas;
         this.formas = formas; this.caixa = caixa; this.financeiro = financeiro;
+        this.configuracoes = configuracoes;
     }
 
     // Uso interno do faturamento, sob o lock da Venda e na mesma transação dos demais efeitos.
@@ -40,6 +45,19 @@ public class PagamentoService {
     @Transactional(propagation = Propagation.MANDATORY)
     FormaPagamentoEntity resolverForma(FormaPagamento legado, Long id) {
         return formas.resolverParaFaturamento(legado, id);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    ConfiguracaoFormaPagamentoEmpresaEntity resolverConfiguracao(Long id, Long empresaId, FormaPagamentoEntity forma) {
+        if (id == null) return null;
+        // Mantem a configuracao estavel ate o commit, inclusive diante de inativacao concorrente.
+        var configuracao = configuracoes.buscarParaAtualizar(id, empresaId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Configuracao de pagamento nao encontrada."));
+        if (!configuracao.isAtivo())
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Configuracao de pagamento inativa.");
+        if (configuracao.getTipo() != forma.getTipo())
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Configuracao incompativel com o tipo da forma de pagamento.");
+        return configuracao;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

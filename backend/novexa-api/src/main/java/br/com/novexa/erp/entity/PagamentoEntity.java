@@ -21,6 +21,9 @@ public class PagamentoEntity {
     @ManyToOne(optional = false)
     @JoinColumn(name = "forma_pagamento_id", nullable = false, updatable = false)
     private FormaPagamentoEntity forma;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "configuracao_forma_pagamento_id", updatable = false)
+    private ConfiguracaoFormaPagamentoEmpresaEntity configuracaoFormaPagamento;
     @Column(nullable = false, precision = 19, scale = 2) private BigDecimal valor;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private StatusPagamento status;
     @Column(nullable = false) private LocalDateTime dataHora;
@@ -47,6 +50,11 @@ public class PagamentoEntity {
             throw new IllegalArgumentException("Forma de pagamento indisponível ou incompatível com o fechamento.");
         }
         this.forma = forma;
+        this.configuracaoFormaPagamento = venda.getConfiguracaoFormaPagamento();
+        if (configuracaoFormaPagamento != null && (!empresa.getId().equals(configuracaoFormaPagamento.getEmpresa().getId())
+                || configuracaoFormaPagamento.getTipo() != forma.getTipo() || !configuracaoFormaPagamento.isAtivo())) {
+            throw new IllegalArgumentException("Configuracao de pagamento indisponivel ou incompativel.");
+        }
         this.valor = venda.getTotal();
         this.status = StatusPagamento.REGISTRADO;
         this.dataHora = LocalDateTime.now();
@@ -66,6 +74,7 @@ public class PagamentoEntity {
     public UUID getChaveRequisicao() { return chaveRequisicao; }
     public FormaPagamento getFormaPagamento() { return formaPagamento; }
     public FormaPagamentoEntity getForma() { return forma; }
+    public ConfiguracaoFormaPagamentoEmpresaEntity getConfiguracaoFormaPagamento() { return configuracaoFormaPagamento; }
     public BigDecimal getValor() { return valor; }
     public StatusPagamento getStatus() { return status; }
     public LocalDateTime getDataHora() { return dataHora; }

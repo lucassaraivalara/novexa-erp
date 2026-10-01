@@ -34,6 +34,8 @@ public class SecurityConfig {
                         // Preserva o status original no despacho interno de erro do servlet.
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/financeiro/formas-pagamento", "/financeiro/formas-pagamento/**").denyAll()
+                        .requestMatchers(HttpMethod.PUT, "/financeiro/formas-pagamento", "/financeiro/formas-pagamento/**").denyAll()
                         .requestMatchers("/usuarios", "/usuarios/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/vendas/{id}/cancelar").hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.POST, "/financeiro/caixas/sessoes/{sessaoId}/movimentacoes")

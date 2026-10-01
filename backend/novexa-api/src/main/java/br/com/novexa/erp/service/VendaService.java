@@ -204,7 +204,8 @@ public class VendaService {
             venda.getItens().add(novo);
         }
         return faturar(venda, new FaturamentoVendaDTO(pedido.chaveRequisicao(), pedido.totalEsperado(),
-                pedido.formaPagamento(), pedido.valorRecebido(), pedido.formaPagamentoId(), pedido.sessaoCaixaId()), autenticado, operador, resumo, produtosMap);
+                pedido.formaPagamento(), pedido.valorRecebido(), pedido.formaPagamentoId(), pedido.sessaoCaixaId(),
+                pedido.configuracaoFormaPagamentoId()), autenticado, operador, resumo, produtosMap);
     }
 
     public VendaResponseDTO faturar(Long vendaId, FaturamentoVendaDTO pedido, UsuarioAutenticado autenticado) {
@@ -269,6 +270,7 @@ public class VendaService {
         if (subtotal.compareTo(venda.getSubtotal()) != 0 || total.compareTo(venda.getTotal()) != 0
                 || total.compareTo(pedido.totalEsperado()) != 0) throw conflito("O total mudou. Revise os itens antes de finalizar.");
         var forma = pagamentos.resolverForma(pedido.formaPagamento(), pedido.formaPagamentoId());
+        var configuracao = pagamentos.resolverConfiguracao(pedido.configuracaoFormaPagamentoId(), autenticado.empresaId(), forma);
         FormaPagamento codigoFechamento = forma.getTipo().contratoVenda();
         BigDecimal recebido = pedido.valorRecebido();
         if (recebido.compareTo(total) < 0) throw conflito("O valor recebido é menor que o total.");
@@ -284,6 +286,7 @@ public class VendaService {
                 item.setMovimentacaoEstoqueId(movimento.getId());
             }
         }
+        venda.vincularConfiguracaoFormaPagamento(configuracao);
         venda.registrarFaturamento(pedido.chaveRequisicao(), resumo, codigoFechamento, recebido);
         var pagamento = pagamentos.registrarFaturamento(venda, operador, forma);
         caixaOperacional.registrarVenda(pagamento);

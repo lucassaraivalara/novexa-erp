@@ -2,10 +2,9 @@ package br.com.novexa.erp.controller;
 
 import br.com.novexa.erp.entity.PerfilUsuario;
 import br.com.novexa.erp.service.JwtService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,7 +12,6 @@ import org.springframework.http.*;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.Map;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -30,79 +28,36 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class FormaPagamentoHttpTest {
     private static final String URL = "/financeiro/formas-pagamento";
     @Autowired MockMvc mvc;
-    @Autowired ObjectMapper json;
     @Autowired JwtService jwt;
-    String tokenA, tokenB;
-
-    @BeforeEach
-    void preparar() {
-        tokenA = "Bearer " + jwt.gerarToken(1L, "02360684663", 1L, PerfilUsuario.USUARIO);
-        tokenB = "Bearer " + jwt.gerarToken(2L, "11144477735", 2L, PerfilUsuario.USUARIO);
-    }
 
     @Test
-    void catalogoGlobalCompartilhadoSemEmpresaInclusiveAoCriar() throws Exception {
-        mvc.perform(get(URL).header(HttpHeaders.AUTHORIZATION, tokenA)).andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(6));
-        var resultado = mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokenA)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsBytes(Map.of("descricao", "  PIX Alternativo  ", "tipo", "PIX", "empresaId", 999))))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.descricao").value("PIX Alternativo"))
-                .andExpect(jsonPath("$.ativo").value(true)).andExpect(jsonPath("$.empresaId").doesNotExist()).andReturn();
-        long id = json.readTree(resultado.getResponse().getContentAsString()).get("id").asLong();
-        mvc.perform(get(URL + "/" + id).header(HttpHeaders.AUTHORIZATION, tokenB)).andExpect(status().isOk())
-                .andExpect(jsonPath("$.descricao").value("PIX Alternativo"));
-        mvc.perform(get(URL).header(HttpHeaders.AUTHORIZATION, tokenB)).andExpect(jsonPath("$.length()").value(7));
-    }
-
-    @Test
-    void atualizarInativarEReativarSemExcluir() throws Exception {
-        for (boolean ativo : new boolean[]{false, true}) {
-            mvc.perform(put(URL + "/1").header(HttpHeaders.AUTHORIZATION, tokenA)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(json.writeValueAsBytes(Map.of("descricao", "Dinheiro atualizado", "tipo", "DINHEIRO", "ativo", ativo))))
-                    .andExpect(status().isOk()).andExpect(jsonPath("$.ativo").value(ativo));
-            mvc.perform(get(URL + "/1").header(HttpHeaders.AUTHORIZATION, tokenB))
-                    .andExpect(status().isOk()).andExpect(jsonPath("$.ativo").value(ativo));
+    void leituraDoCatalogoContinuaGlobalECompativel() throws Exception {
+        for (long empresa : new long[]{1L, 2L}) {
+            String token = "Bearer " + jwt.gerarToken(empresa, "02360684663", empresa, PerfilUsuario.USUARIO);
+            mvc.perform(get(URL).header(HttpHeaders.AUTHORIZATION, token)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(6));
+            mvc.perform(get(URL + "/2").header(HttpHeaders.AUTHORIZATION, token)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.tipo").value("PIX")).andExpect(jsonPath("$.empresaId").doesNotExist());
+            mvc.perform(get(URL + "/999").header(HttpHeaders.AUTHORIZATION, token)).andExpect(status().isNotFound());
         }
-        mvc.perform(delete(URL + "/1").header(HttpHeaders.AUTHORIZATION, tokenA))
-                .andExpect(status().isMethodNotAllowed());
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"DINHEIRO", "PIX", "DEBITO", "CREDITO", "BOLETO", "TRANSFERENCIA"})
-    void criaTodosOsTiposValidos(String tipo) throws Exception {
-        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokenA).contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsBytes(Map.of("descricao", "Forma " + tipo, "tipo", tipo))))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.tipo").value(tipo));
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"{}", "{\"descricao\":\"  \",\"tipo\":\"PIX\"}",
-            "{\"descricao\":\"Teste\"}", "{\"descricao\":\"Teste\",\"tipo\":\"INVALIDO\"}"})
-    void rejeitaDescricaoOuTipoInvalido(String pedido) throws Exception {
-        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokenA).contentType(MediaType.APPLICATION_JSON)
-                .content(pedido)).andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void rejeitaDescricaoLongaDuplicidadeETrocaDeTipo() throws Exception {
-        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokenA).contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsBytes(Map.of("descricao", "x".repeat(151), "tipo", "PIX"))))
-                .andExpect(status().isBadRequest());
-        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokenA).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"descricao\":\" pix \",\"tipo\":\"PIX\"}")).andExpect(status().isConflict());
-        mvc.perform(put(URL + "/1").header(HttpHeaders.AUTHORIZATION, tokenA).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"descricao\":\"PIX\",\"tipo\":\"DINHEIRO\"}")).andExpect(status().isConflict());
-        mvc.perform(put(URL + "/1").header(HttpHeaders.AUTHORIZATION, tokenA).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"descricao\":\"Dinheiro\",\"tipo\":\"PIX\"}")).andExpect(status().isConflict());
+    @EnumSource(PerfilUsuario.class)
+    void perfisEmpresariaisNaoAlteramCatalogoGlobal(PerfilUsuario perfil) throws Exception {
+        String token = "Bearer " + jwt.gerarToken(1L, "02360684663", 1L, perfil);
+        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, token).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"descricao\":\"PIX Alternativo\",\"tipo\":\"PIX\"}")).andExpect(status().isForbidden());
+        mvc.perform(put(URL + "/2").header(HttpHeaders.AUTHORIZATION, token).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"descricao\":\"PIX Alterado\",\"tipo\":\"PIX\",\"ativo\":false}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get(URL).header(HttpHeaders.AUTHORIZATION, token)).andExpect(jsonPath("$.length()").value(6));
+        mvc.perform(get(URL + "/2").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(jsonPath("$.descricao").value("PIX")).andExpect(jsonPath("$.ativo").value(true));
     }
 
     @Test
-    void inexistenteRetorna404EEndpointsExigemAutenticacao() throws Exception {
-        mvc.perform(get(URL + "/999").header(HttpHeaders.AUTHORIZATION, tokenA)).andExpect(status().isNotFound());
-        mvc.perform(put(URL + "/999").header(HttpHeaders.AUTHORIZATION, tokenA).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"descricao\":\"Teste\",\"tipo\":\"PIX\"}")).andExpect(status().isNotFound());
+    void endpointsExigemAutenticacao() throws Exception {
         mvc.perform(get(URL)).andExpect(status().isUnauthorized());
         mvc.perform(get(URL + "/1")).andExpect(status().isUnauthorized());
         mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content("{}"))

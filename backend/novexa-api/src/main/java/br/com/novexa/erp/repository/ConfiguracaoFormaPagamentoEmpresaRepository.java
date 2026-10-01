@@ -18,6 +18,6 @@ public interface ConfiguracaoFormaPagamentoEmpresaRepository extends JpaReposito
     @Query("select c from ConfiguracaoFormaPagamentoEmpresaEntity c where c.id = :id and c.empresa.id = :empresaId")
     Optional<ConfiguracaoFormaPagamentoEmpresaEntity> buscarParaAtualizar(Long id, Long empresaId);
 
-    @Query("select count(c) > 0 from ConfiguracaoFormaPagamentoEmpresaEntity c where c.empresa.id = :empresaId and lower(trim(c.nomeExibicao)) = lower(trim(:nome)) and (:id is null or c.id <> :id)")
+    @Query("select count(c) > 0 from ConfiguracaoFormaPagamentoEmpresaEntity c where c.empresa.id = :empresaId and c.nomeNormalizado = lower(trim(:nome)) and (:id is null or c.id <> :id)")
     boolean existeNome(Long empresaId, String nome, Long id);
 }

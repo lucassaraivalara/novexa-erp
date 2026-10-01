@@ -31,7 +31,7 @@ test("contas a pagar usam o token e enviam somente os dados do título", async (
     await listarContasPagar();
     await salvarContaPagar(dados);
     await salvarContaPagar(dados, 42);
-    await pagarConta(42, { dataPagamento: "2026-10-01", valorPago: 200 });
+    await pagarConta(42, { contaFinanceiraId: 1, dataPagamento: "2026-10-01", valorPago: 200 });
     await cancelarConta(42);
     await estornarConta(42);
 
@@ -42,6 +42,7 @@ test("contas a pagar usam o token e enviam somente os dados do título", async (
     ]);
     assert.ok(chamadas.every(({ headers }) => headers.Authorization === "Bearer token-financeiro"));
     assert.deepEqual(JSON.parse(chamadas[1].data), dados);
+    assert.deepEqual(JSON.parse(chamadas[3].data), { contaFinanceiraId: 1, dataPagamento: "2026-10-01", valorPago: 200 });
     assert.ok(chamadas.every(({ data }) => !data || !Object.hasOwn(JSON.parse(data), "empresaId")));
 });
 

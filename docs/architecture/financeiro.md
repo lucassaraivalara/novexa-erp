@@ -12,6 +12,7 @@ FINANCEIRO NOVEXA
 |---|---|---|
 | TipoFormaPagamento | Classificar o comportamento: DINHEIRO, PIX, TRANSFERENCIA, DEBITO, CREDITO ou BOLETO | IMPLEMENTADO: enum técnico, não é cadastro administrado pelo usuário |
 | FormaPagamento | Cadastro global compartilhado, associado a um tipo comportamental | IMPLEMENTADO no backend: descrição, tipo e ativo; sem empresaId |
+| ConfiguracaoFormaPagamentoEmpresa | Nome e destino cadastral próprios da empresa, com N configurações por forma/tipo | IMPLEMENTADO no backend; vínculo opcional de identificação em Venda/Pagamento, sem roteamento financeiro |
 | Pagamento | Registro ligado à Venda, indicando forma e valor aplicado, com status e rastreabilidade | IMPLEMENTADO: fundação descrita abaixo |
 | DestinoFinanceiro | Determinar onde o efeito financeiro deverá ocorrer, conforme o tipo e a configuração válida | FUTURO: Caixa, Conta Bancária ou títulos intermediários, conforme o fluxo |
 | CondiçãoPagamento | Definir prazo e distribuição dos vencimentos/parcelas | PRÓXIMO: conceito planejado, sem domínio cadastral próprio implementado |
@@ -28,11 +29,33 @@ O catálogo oficial é `FormaPagamentoEntity`, global e sem vínculo com Empresa
 
 O tipo é imutável após o cadastro: para outro comportamento, criar outra forma. Descrição e ativo podem ser atualizados; pagamentos antigos continuam consultáveis. Descrições são únicas globalmente ignorando caixa e espaços nas extremidades. A descrição exibida na consulta é a atual do catálogo; o código legado do fechamento permanece preservado no Pagamento.
 
-O catálogo não fornece endpoints de exclusão física. API autenticada: `GET/POST /financeiro/formas-pagamento` e `GET/PUT /financeiro/formas-pagamento/{id}`. Payload: `descricao` obrigatória (até 150 caracteres), `tipo` obrigatório e `ativo` opcional; criação assume ativo e atualização preserva o estado quando omitido. Ativação/inativação usam o mesmo PUT. As operações são globais para usuários autenticados; não foi criada uma matriz de permissões nesta fundação.
+O catálogo não fornece endpoints de exclusão física. A leitura autenticada por `GET /financeiro/formas-pagamento` e `GET /financeiro/formas-pagamento/{id}` continua disponível por compatibilidade. Desde o Bloco 3A, POST/PUT desse catálogo retornam 403 para os perfis empresariais, inclusive ADMIN; não existe papel de administrador de plataforma. Serviços internos e registros históricos foram preservados, sem migração automática do catálogo para configurações.
 
 Quando todos os clientes migrarem para ID, retirar a entrada legada em uma tarefa de contrato coordenada. Os snapshots persistidos não são fonte cadastral e devem continuar preservados. Os formatos anteriores usados no hash de idempotência foram mantidos para não invalidar retries históricos.
 
-DestinoFinanceiro é um conceito de integração, sem roteamento automático nesta fase. ContaFinanceira já representa saldo gerencial manual, mas ainda não é destino vinculado ao Pagamento nem substitui o cadastro bancário. Configuração e efeitos automáticos serão definidos nas tarefas correspondentes, respeitando o contexto da empresa autenticada.
+DestinoFinanceiro é um conceito de integração, sem roteamento automático nesta fase. ContaFinanceira já representa saldo gerencial e pode ser destino cadastral da configuração empresarial, mas ainda não é destino vinculado ao Pagamento nem substitui o cadastro bancário. Efeitos automáticos serão definidos nas tarefas correspondentes, respeitando o contexto da empresa autenticada.
+
+### Bloco 3A: configuração empresarial (somente backend)
+
+`ConfiguracaoFormaPagamentoEmpresaEntity` liga empresa autenticada, forma global imutável, nomeExibicao, nomeNormalizado, ativo, destino opcional e timestamps. Permite múltiplos PIX, débitos, créditos e boletos na mesma empresa, inclusive com a mesma formaPagamentoId. nomeNormalizado é persistido como coluna gerada pelo banco com `lower(trim(nome_exibicao))`, sem autoridade do payload, e único por empresa; tipo é derivado exclusivamente do catálogo.
+
+API: `GET/POST /financeiro/configuracoes-formas-pagamento` e `GET/PUT /financeiro/configuracoes-formas-pagamento/{id}`. Listagem aceita `situacao=ativas|inativas|todas` (padrão todas). Payload: formaPagamentoId, nomeExibicao (até 150 caracteres), ativo opcional e contaFinanceiraDestinoId opcional; sem empresaId/tipo como autoridade externa. Criação assume ativo; PUT preserva ativo quando omitido, exige a mesma forma e o destino atual ou novo. Resposta inclui tipo, resumo do destino (id/nome/tipo/ativo) e timestamps. IDs de outro tenant retornam 404.
+
+PIX/TRANSFERENCIA exigem destino BANCO ou CARTEIRA_DIGITAL; DINHEIRO/DEBITO/CREDITO/BOLETO exigem destino nulo. DINHEIRO representa Caixa operacional, cartão aguarda Recebíveis e boleto aguarda Conta a Receber. Criar/trocar destino exige conta ativa; inativação posterior não apaga vínculo nem bloqueia edição de nome/situação, inclusive reativação da configuração mantendo o mesmo destino. Uso financeiro futuro deverá revalidar conta e configuração. Forma global inativa não aceita novas configurações.
+
+A V24 cria tabela, UNIQUE(id, empresa_id), FK composta de destino/empresa, índice único de nome normalizado e índices de consulta. O tipo derivado possui FK (forma_pagamento_id, tipo) para o catálogo, permitindo CHECK de presença/ausência de destino. Tipo permitido/atividade da conta são validados no serviço, com lock na conta ao vincular. Dados anteriores permanecem intactos.
+
+A V25 adiciona nome_normalizado gerado e armazenado, preenchendo automaticamente configurações existentes, e substitui o índice por expressão da V24 por UNIQUE(empresa_id, nome_normalizado). V24 e migrations anteriores permanecem inalteradas.
+
+Nenhum destino cadastrado gera lançamento financeiro neste bloco. Venda, Pagamento, Caixa, transferências entre contas e snapshots não mudam. Frontend e uso das configurações no PDV ficam pendentes; a tela antiga não poderá gravar no catálogo global até sua adaptação.
+
+### Vínculo operacional em Venda/Pagamento (backend)
+
+`POST /vendas` e `POST /vendas/{id}/faturar` aceitam `configuracaoFormaPagamentoId` opcional, além de exatamente uma forma global (`formaPagamentoId` ou código legado `formaPagamento`). Não substitui a forma global: a configuração deve estar ativa, ser da empresa autenticada e ter o mesmo tipo técnico, embora possa referenciar outro registro global do mesmo tipo. Inexistente/outro tenant retorna 404; inativa/tipo divergente retorna 409, sem efeitos parciais. O lock da configuração é mantido até o commit para serializar alterações cadastrais concorrentes.
+
+Venda e Pagamento persistem o mesmo vínculo opcional, protegido por FKs compostas de empresa na V26. Respostas de Venda e `GET /vendas/{id}/pagamentos` incluem `configuracaoFormaPagamentoId`, nulo no legado. Não há preenchimento retroativo nem alteração de registros anteriores. Cancelamento preserva o vínculo mesmo após inativação cadastral. O novo ID participa do hash somente quando informado; retries legados permanecem compatíveis e outra configuração na mesma chave não substitui o vínculo original.
+
+A configuração é apenas identificação operacional neste bloco. Não são persistidos snapshots de nome/destino, e o cadastro atual não deve ser interpretado como destino histórico de liquidação. ContaFinanceira não é movimentada nem validada para liquidação por este vínculo. Não há Recebível, liquidação, taxa ou TEF; os efeitos legados de estoque/Caixa/LancamentoFinanceiro permanecem. Frontend e os fluxos ainda não suportados de boleto/transferência não mudam.
 
 ## Destinos financeiros — FUTURO
 

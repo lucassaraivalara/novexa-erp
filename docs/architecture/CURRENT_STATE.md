@@ -4,11 +4,29 @@ Cliente ........ funcional
 Estoque ........ backend funcional
 Venda .......... ABERTA → FATURADA consolidado
 Pagamento ...... fundação backend (base aeaec2e)
-Formas de Pagamento .... catálogo global backend (baseline integracao/formas-pagamento-ux)
+Formas de Pagamento .... catálogo técnico global + configurações empresariais backend (Bloco 3A)
 Caixa .......... cadastro; backend operacional integrado à Venda, suprimento/sangria e fechamento com resumo
 Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
+
+## Venda/Pagamento: identificação da configuração empresarial
+
+Backend aceita configuracaoFormaPagamentoId opcional na venda direta e faturamento de venda aberta, mantendo forma global/código legado obrigatórios conforme contrato existente. Vínculo da mesma empresa, ativo e de tipo compatível, salvo em Venda e Pagamento e devolvido como ID nas respostas. V26 aditiva com FKs compostas por empresa e índices; registros antigos permanecem sem configuração. Cancelamento conserva o vínculo. Hash legado preservado sem o campo e retries com configuração diferente rejeitados.
+
+Identificação operacional somente: nenhum novo lançamento financeiro, Recebível ou liquidação automática. Não há snapshot de nome/destino neste bloco. Frontend, Contas a Pagar/Financeiras e Caixa/fechamento não foram alterados por esta tarefa; efeitos legados preservados. Contrato em [financeiro.md](financeiro.md).
+
+Validação: 111 testes direcionados aprovados (76 Venda HTTP, 23 VendaService, 9 cancelamento, 2 compatibilidade e 1 migration V26 em PostgreSQL 18.6). Teste de migration aplica V1–V25, insere venda/pagamento legados, aplica V26 e verifica preservação e rejeição de vínculos entre tenants. Sem suíte completa, commit ou push.
+
+## Financeiro Bloco 3A: configurações empresariais de formas de pagamento
+
+Backend implementado sobre `ca0f621` (V23 no HEAD), com working tree inicialmente limpo; alterações sem commit/push. Nova API cadastral isolada pelo JWT e V24 com FK tenant-safe, coerência forma/tipo/destino e nomes únicos normalizados por empresa. Permite N configurações do mesmo tipo/forma. PIX/TRANSFERENCIA têm destino cadastral BANCO/CARTEIRA_DIGITAL; DINHEIRO/DEBITO/CREDITO/BOLETO não têm destino. Cartão não movimenta ContaFinanceira e nenhum desses cadastros gera lançamento financeiro.
+
+Forma/tipo imutáveis; conta ativa exigida ao vincular ou trocar. Vínculos posteriores com conta inativa continuam legíveis e editáveis em nome/situação, inclusive reativação cadastral mantendo o destino. A V25 acrescenta nomeNormalizado gerado/armazenado e UNIQUE por empresa/nome, sem alterar V24 ou migrations anteriores. Catálogo global permanece legível, com escrita HTTP bloqueada para usuários empresariais. Frontend/PDV, Pagamento, snapshots e fluxos financeiros existentes não foram alterados por esta tarefa; a tela antiga de catálogo dependerá de adaptação em tarefa frontend. Contrato detalhado em [financeiro.md](financeiro.md).
+
+Validação: 46 testes direcionados aprovados (22 da configuração, 14 de ContaFinanceira, 6 de acesso ao catálogo, 3 regressões de Venda afetadas pela preparação interna do catálogo e 1 migration). V24 validada em PostgreSQL 18.6 temporário, com Flyway V1–V23 seguido de V24 e schema descartado; preservação do catálogo/saldos, nomes normalizados, múltiplas configurações, FKs e CHECK de destino verificados. Suíte backend completa e frontend não executados por escopo. `git diff --check` aprovado.
+
+Complemento do contrato: 38 testes direcionados aprovados nesta retomada (23 da configuração, 14 de ContaFinanceira e 1 migration V24/V25 no PostgreSQL 18.6 temporário). Inclui nomeNormalizado persistido/atualizado pelo banco, preservação de configuração anterior à V25 e edição de situação com destino inativado. Trabalho paralelo de frontend/Contas a Pagar preservado, sem alterações desta tarefa nesses arquivos; sem suíte completa, commit ou push.
 
 ## Financeiro Bloco 2B: transferências entre Contas Financeiras
 

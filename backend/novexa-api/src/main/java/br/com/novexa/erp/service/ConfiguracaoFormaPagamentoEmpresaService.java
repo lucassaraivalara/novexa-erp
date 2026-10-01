@@ -42,7 +42,7 @@ public class ConfiguracaoFormaPagamentoEmpresaService {
                 .orElseThrow(() -> erro(HttpStatus.NOT_FOUND, "Forma de pagamento não encontrada."));
         if (!forma.isAtivo()) throw erro(HttpStatus.CONFLICT, "Forma de pagamento inativa.");
         String nome = nome(empresaId, p.nomeExibicao(), null);
-        var destino = destino(empresaId, forma.getTipo(), p.contaFinanceiraDestinoId(), null, true);
+        var destino = destino(empresaId, forma.getTipo(), p.contaFinanceiraDestinoId(), null);
         return ConfiguracaoFormaPagamentoEmpresaResponseDTO.de(configuracoes.saveAndFlush(
                 new ConfiguracaoFormaPagamentoEmpresaEntity(empresa, forma, nome, p.ativo() == null || p.ativo(), destino)));
     }
@@ -52,19 +52,19 @@ public class ConfiguracaoFormaPagamentoEmpresaService {
         if (!c.getFormaPagamento().getId().equals(p.formaPagamentoId()))
             throw erro(HttpStatus.CONFLICT, "A forma de pagamento não pode ser alterada. Cadastre outra configuração.");
         boolean ativo = p.ativo() == null ? c.isAtivo() : p.ativo();
-        var destino = destino(empresaId, c.getTipo(), p.contaFinanceiraDestinoId(), c.getContaFinanceiraDestino(), ativo && !c.isAtivo());
+        var destino = destino(empresaId, c.getTipo(), p.contaFinanceiraDestinoId(), c.getContaFinanceiraDestino());
         c.atualizar(nome(empresaId, p.nomeExibicao(), id), ativo, destino);
         return ConfiguracaoFormaPagamentoEmpresaResponseDTO.de(configuracoes.saveAndFlush(c));
     }
     private ContaFinanceiraEntity destino(Long empresaId, TipoFormaPagamento tipo, Long id,
-            ContaFinanceiraEntity atual, boolean ativando) {
+            ContaFinanceiraEntity atual) {
         if (tipo != TipoFormaPagamento.PIX && tipo != TipoFormaPagamento.TRANSFERENCIA) {
             if (id != null) throw erro(HttpStatus.BAD_REQUEST, "Este tipo não permite conta financeira de destino.");
             return null;
         }
         if (id == null) throw erro(HttpStatus.BAD_REQUEST, "Informe a conta financeira de destino.");
         boolean mesmoDestino = atual != null && atual.getId().equals(id);
-        if (mesmoDestino && !ativando) return atual;
+        if (mesmoDestino) return atual;
         var conta = contas.buscarParaAlterar(id, empresaId)
                 .orElseThrow(() -> erro(HttpStatus.NOT_FOUND, "Conta financeira não encontrada."));
         if (!conta.isAtivo()) throw erro(HttpStatus.CONFLICT, "Conta financeira de destino inativa.");

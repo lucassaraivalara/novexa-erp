@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.*;
 
 @EnabledIfSystemProperty(named = "novexa.test.config-formas.jdbc-url", matches = "jdbc:postgresql:.*")
 class ConfiguracaoFormaPagamentoEmpresaMigrationTest {
-    @Test void v24PreservaDadosEProtegeNomeTenantTipoEDestino() throws Exception {
+    @Test void v24EV25PreservamDadosEProtegemNomeTenantTipoEDestino() throws Exception {
         String url = System.getProperty("novexa.test.config-formas.jdbc-url");
         String user = System.getProperty("novexa.test.config-formas.jdbc-user", "postgres");
         String password = System.getProperty("novexa.test.config-formas.jdbc-password", "");
@@ -34,6 +34,17 @@ class ConfiguracaoFormaPagamentoEmpresaMigrationTest {
                     assertThat(r.next()).isTrue(); assertThat(r.getBigDecimal(1)).isEqualByComparingTo("300");
                 }
                 inserir(c, 1, 2, "PIX", "PIX Sicredi", 1L);
+                var normalizacao = Flyway.configure().dataSource(url, user, password).schemas(schema).defaultSchema(schema)
+                        .target("25").load().migrate();
+                assertThat(normalizacao.migrationsExecuted).isEqualTo(1);
+                try (var s = c.createStatement(); var r = s.executeQuery("SELECT nome_exibicao,nome_normalizado,conta_financeira_destino_id FROM configuracoes_formas_pagamento_empresa")) {
+                    assertThat(r.next()).isTrue();
+                    assertThat(r.getString(1)).isEqualTo("PIX Sicredi");
+                    assertThat(r.getString(2)).isEqualTo("pix sicredi");
+                    assertThat(r.getLong(3)).isEqualTo(1L);
+                }
+                assertThatThrownBy(() -> sql(c, "UPDATE configuracoes_formas_pagamento_empresa SET nome_normalizado='adulterado'"))
+                        .isInstanceOf(SQLException.class);
                 inserir(c, 1, 2, "PIX", "PIX Mercado Pago", 1L);
                 inserir(c, 2, 2, "PIX", "PIX Sicredi", 2L);
                 inserir(c, 1, 4, "CREDITO", "Credito Stone", null);
@@ -58,6 +69,9 @@ class ConfiguracaoFormaPagamentoEmpresaMigrationTest {
                         .isInstanceOf(SQLException.class);
                 sql(c, "UPDATE contas_financeiras SET ativo=FALSE WHERE id=1");
                 sql(c, "UPDATE configuracoes_formas_pagamento_empresa SET nome_exibicao='PIX renomeado',ativo=FALSE WHERE empresa_id=1 AND nome_exibicao='PIX Sicredi'");
+                try (var s = c.createStatement(); var r = s.executeQuery("SELECT nome_normalizado FROM configuracoes_formas_pagamento_empresa WHERE nome_exibicao='PIX renomeado'")) {
+                    assertThat(r.next()).isTrue(); assertThat(r.getString(1)).isEqualTo("pix renomeado");
+                }
                 assertThat(contar(c, "configuracoes_formas_pagamento_empresa")).isEqualTo(10);
                 assertThat(contar(c, "movimentacoes_financeiras")).isZero();
             } finally {

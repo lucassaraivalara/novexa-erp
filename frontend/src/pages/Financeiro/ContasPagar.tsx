@@ -268,7 +268,7 @@ export default function ContasPagar() {
             <DialogContent><Stack spacing={2}>
                 <Typography variant="body2">{confirmacao?.tipo === "cancelar"
                     ? `A conta ${confirmacao.conta.descricao} será cancelada.`
-                    : "O título voltará a ficar aberto e os dados do pagamento serão removidos."}</Typography>
+                    : "O título voltará a ficar aberto, a movimentação financeira vinculada será estornada e o saldo da conta financeira será recomposto."}</Typography>
                 {erro && <Alert severity="error">{erro}</Alert>}
             </Stack></DialogContent>
             <DialogActions><Button onClick={() => setConfirmacao(null)} disabled={processando}>Voltar</Button>
