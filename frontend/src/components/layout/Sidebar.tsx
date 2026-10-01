@@ -13,6 +13,8 @@ import {
     Stack,
     Tooltip,
     Typography,
+    useMediaQuery,
+    useTheme,
 } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
 import { itemMenuAtivo, menuPrincipal, obterCaminhoDaRota, type ItemMenu } from "../../routes/navigation";
@@ -21,7 +23,8 @@ import { obterSessao } from "../../utils/auth/sessao";
 import { layoutTokens } from "./layoutTokens";
 
 function Sidebar() {
-
+    const theme = useTheme();
+    const somenteIcones = useMediaQuery(theme.breakpoints.down("sm"));
     return (
         <Drawer
             variant="permanent"
@@ -32,11 +35,12 @@ function Sidebar() {
                     width: layoutTokens.sidebar.largura,
                     boxSizing: "border-box",
                     border: 0,
-                    borderRight: "1px solid rgba(148, 163, 184, 0.12)",
+                    borderRight: "1px solid",
+                    borderColor: "divider",
                     borderRadius: 0,
                     boxShadow: "none",
-                    color: "#DDE1E6",
-                    backgroundColor: "#15191E",
+                    color: "text.primary",
+                    backgroundColor: "background.paper",
                 },
             }}
         >
@@ -48,7 +52,7 @@ function Sidebar() {
                         alignItems: "center",
                         justifyContent: { xs: "center", sm: "flex-start" },
                         flexShrink: 0,
-                        minHeight: 60,
+                        minHeight: layoutTokens.header.altura,
                         px: { xs: 0.75, sm: 1.5 },
                         py: 1.25,
                     }}
@@ -60,10 +64,11 @@ function Sidebar() {
                             width: 32,
                             height: 32,
                             placeItems: "center",
-                            border: "1px solid rgba(94, 234, 212, 0.2)",
+                            border: "1px solid",
+                            borderColor: "divider",
                             borderRadius: "8px",
-                            color: "#5EEAD4",
-                            backgroundColor: "rgba(20, 184, 166, 0.14)",
+                            color: "primary.dark",
+                            backgroundColor: "primary.light",
                         }}
                     >
                         <StorefrontRoundedIcon sx={{ fontSize: 18 }} />
@@ -72,17 +77,17 @@ function Sidebar() {
                     <Box sx={{ display: { xs: "none", sm: "block" } }}>
                         <Typography
                             variant="subtitle1"
-                            sx={{ fontSize: "0.82rem", fontWeight: 800, lineHeight: 1.1, letterSpacing: 0 }}
+                            sx={{ fontSize: "16px", fontWeight: 700, lineHeight: 1.2, letterSpacing: 0 }}
                         >
                             NOVEXA
                         </Typography>
-                        <Typography variant="caption" sx={{ fontSize: "0.62rem", color: "rgba(203, 213, 225, 0.62)" }}>
+                        <Typography variant="caption" sx={{ fontSize: "11px", color: "text.secondary" }}>
                             ERP para pequenos negócios
                         </Typography>
                     </Box>
                 </Stack>
 
-                <Divider sx={{ borderColor: "rgba(148, 163, 184, 0.12)" }} />
+                <Divider />
 
                 <Box
                     component="nav"
@@ -93,16 +98,16 @@ function Sidebar() {
                         overflowY: "auto",
                         flex: 1,
                         scrollbarWidth: "thin",
-                        scrollbarColor: "rgba(148, 163, 184, 0.28) transparent",
+                        scrollbarColor: `${theme.palette.divider} transparent`,
                         "&::-webkit-scrollbar": { width: 4 },
                         "&::-webkit-scrollbar-thumb": {
                             borderRadius: 4,
-                            backgroundColor: "rgba(148, 163, 184, 0.28)",
+                            backgroundColor: "divider",
                         },
                     }}
                 >
                     <List sx={{ px: 0.75, py: 1 }}>
-                        {menuPrincipal.map(item => <EntradaMenu key={item.id} item={item} />)}
+                        {menuPrincipal.map(item => <EntradaMenu key={item.id} item={item} somenteIcones={somenteIcones} />)}
                     </List>
                 </Box>
 
@@ -111,7 +116,7 @@ function Sidebar() {
     );
 }
 
-function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
+function EntradaMenu({ item, nivel = 0, somenteIcones }: { item: ItemMenu; nivel?: number; somenteIcones: boolean }) {
     const location = useLocation();
     const ativo = itemMenuAtivo(item, location.pathname);
     const grupo = item.tipo === "grupo";
@@ -134,7 +139,7 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
             slotProps={{
                 primary: {
                     noWrap: true,
-                    sx: { fontSize: nivel ? "0.75rem" : "0.8125rem", fontWeight: nivel ? 500 : 600, lineHeight: 1.35, letterSpacing: 0 },
+                    sx: { fontSize: grupo ? "12px" : "14px", fontWeight: grupo ? 600 : 500, lineHeight: 1.35, letterSpacing: 0, textTransform: grupo ? "uppercase" : "none" },
                 },
             }}
             sx={{ display: { xs: "none", sm: "block" }, minWidth: 0, my: 0 }}
@@ -152,19 +157,17 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
     </>;
     const estilo = {
         position: "relative",
-        minHeight: { xs: 42, sm: nivel ? 36 : layoutTokens.sidebar.alturaItemMenu },
+        minHeight: { xs: 42, sm: layoutTokens.sidebar.alturaItemMenu },
         width: "100%",
         mb: 0.125,
-        borderRadius: "6px",
+        borderRadius: `${layoutTokens.radius.button}px`,
         color: indisponivel
-            ? "rgba(221, 225, 230, 0.38)"
+            ? "text.disabled"
             : ativo
-                ? "#99E0D5"
+                ? "primary.dark"
                 : grupo
-                    ? "#B5BDC7"
-                    : nivel
-                        ? "#ADB6C2"
-                        : "#DDE1E6",
+                    ? "text.secondary"
+                    : "text.primary",
         justifyContent: { xs: "center", sm: "flex-start" },
         columnGap: { xs: 0, sm: 1 },
         pl: { xs: 0, sm: nivel ? 2 : 1.25 },
@@ -173,27 +176,27 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
         textAlign: "left",
         transition: "background-color 120ms ease, color 120ms ease",
         "&.Mui-selected": {
-            color: "#99E0D5",
-            backgroundColor: "rgba(94, 234, 212, 0.08)",
+            color: "primary.dark",
+            backgroundColor: "primary.light",
             "&::before": {
                 position: "absolute",
                 top: 8,
                 bottom: 8,
                 left: 0,
-                width: 2,
+                width: 3,
                 borderRadius: "2px",
-                backgroundColor: "#5FD0BC",
+                backgroundColor: "primary.main",
                 content: "\"\"",
             },
         },
-        "&.Mui-selected:hover": { color: "#99E0D5", backgroundColor: "rgba(94, 234, 212, 0.12)" },
-        "&:hover": { color: "#F8FAFC", backgroundColor: "rgba(255, 255, 255, 0.045)" },
-        "&.Mui-focusVisible": { outline: "1px solid #99E0D5", outlineOffset: -1 },
+        "&.Mui-selected:hover": { color: "primary.dark", backgroundColor: "primary.light" },
+        "&:hover": { backgroundColor: "action.hover" },
+        "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: -2 },
         "&[aria-disabled=true]": {
-            color: "rgba(221, 225, 230, 0.38)",
+            color: "text.disabled",
             cursor: "default",
             backgroundColor: "transparent",
-            "&:hover": { color: "rgba(221, 225, 230, 0.38)", backgroundColor: "transparent" },
+            "&:hover": { color: "text.disabled", backgroundColor: "transparent" },
         },
     };
 
@@ -202,10 +205,11 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
         ...(grupo && nivel === 0 ? {
             mt: 1,
             pt: 1,
-            borderTop: "1px solid rgba(221, 225, 230, 0.08)",
+            borderTop: "1px solid",
+            borderColor: "divider",
         } : {}),
     }}>
-        <Tooltip title={indisponivel ? `${titulo} — ainda não disponível` : titulo} placement="right">
+        <Tooltip title={somenteIcones ? (indisponivel ? `${titulo} — ainda não disponível` : titulo) : ""} placement="right">
             {item.tipo === "rota" ? (
                 <ListItemButton component={Link} to={obterCaminhoDaRota(item.rota)} selected={ativo} aria-current={ativo ? "page" : undefined} aria-label={titulo} sx={estilo}>
                     {conteudo}
@@ -220,7 +224,7 @@ function EntradaMenu({ item, nivel = 0 }: { item: ItemMenu; nivel?: number }) {
         </Tooltip>
         {grupo && <Collapse in={aberto} timeout={140}>
             <List id={`menu-${item.id}`} aria-label={titulo} disablePadding sx={{ pt: 0.25 }}>
-                {item.filhos.map(filho => <EntradaMenu key={filho.id} item={filho} nivel={nivel + 1} />)}
+                {item.filhos.map(filho => <EntradaMenu key={filho.id} item={filho} nivel={nivel + 1} somenteIcones={somenteIcones} />)}
             </List>
         </Collapse>}
     </Box>;

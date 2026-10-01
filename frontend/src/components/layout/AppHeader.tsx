@@ -35,7 +35,9 @@ function AppHeader() {
             color="transparent"
             sx={{
                 borderBottom: "1px solid",
-                borderColor: "rgba(15, 23, 42, 0.08)",
+                borderColor: "divider",
+                borderRadius: 0,
+                boxShadow: "none",
                 backgroundColor: "background.paper",
             }}
         >
@@ -50,7 +52,7 @@ function AppHeader() {
                     variant="h6"
                     component="h1"
                     noWrap
-                    sx={{ flexGrow: 1, minWidth: 0, fontSize: "0.875rem", fontWeight: 700, lineHeight: 1.3, color: "text.primary" }}
+                    sx={{ flexGrow: 1, minWidth: 0, fontSize: "16px", fontWeight: 600, lineHeight: 1.3, color: "text.primary" }}
                 >
                     {tituloPagina}
                 </Typography>
@@ -66,9 +68,10 @@ function AppHeader() {
                     <Box
                         sx={{
                             display: { xs: "none", md: "flex" },
-                            flexDirection: "column",
-                            alignItems: "flex-end",
-                            maxWidth: 208,
+                            alignItems: "center",
+                            gap: 1,
+                            maxWidth: 300,
+                            minWidth: 0,
                         }}
                     >
                         {mostrarLogomarca ? (
@@ -78,35 +81,19 @@ function AppHeader() {
                                 alt={nomeEmpresa}
                                 onError={() => setLogomarcaComErro(true)}
                                 sx={{
-                                    maxHeight: 32,
-                                    maxWidth: 120,
-                                    height: "auto",
-                                    width: "auto",
+                                    height: 32,
+                                    width: 32,
+                                    flexShrink: 0,
+                                    borderRadius: "4px",
                                     objectFit: "contain",
                                     display: "block",
                                 }}
                             />
-                        ) : (
-                            <Typography
-                                noWrap
-                                sx={{
-                                    color: "text.secondary",
-                                    fontSize: "0.6875rem",
-                                    fontWeight: 600,
-                                    lineHeight: 1.15,
-                                    textTransform: "uppercase",
-                                }}
-                            >
-                                {nomeEmpresa}
-                            </Typography>
-                        )}
-                        <Typography
-                            noWrap
-                            variant="body2"
-                            sx={{ fontSize: "0.8rem", fontWeight: 600, lineHeight: 1.2, color: "text.primary" }}
-                        >
-                            {nomeUsuario}
-                        </Typography>
+                        ) : null}
+                        <Box sx={{ minWidth: 0, maxWidth: 240 }}>
+                            <TextoTruncado texto={nomeEmpresa} />
+                            <TextoTruncado texto={nomeUsuario} secundario />
+                        </Box>
                     </Box>
 
                     <Avatar
@@ -114,16 +101,17 @@ function AppHeader() {
                             width: 32,
                             height: 32,
                             fontSize: "0.75rem",
-                            fontWeight: 700,
+                            fontWeight: 600,
                             color: "primary.dark",
-                            backgroundColor: "#E6F7F5",
-                            border: "1px solid rgba(15, 118, 110, 0.18)",
+                            backgroundColor: "primary.light",
+                            border: "1px solid",
+                            borderColor: "divider",
                         }}
                     >
                         {iniciais}
                     </Avatar>
 
-                    <Divider orientation="vertical" flexItem sx={{ display: { xs: "none", sm: "block" }, height: 24, my: "auto", borderColor: "rgba(15, 23, 42, 0.1)" }} />
+                    <Divider orientation="vertical" flexItem sx={{ display: { xs: "none", sm: "block" }, height: 24, my: "auto" }} />
 
                     <Tooltip title="Sair">
                         <IconButton
@@ -134,12 +122,13 @@ function AppHeader() {
                                 width: 34,
                                 height: 34,
                                 color: "text.secondary",
-                                borderRadius: 1.25,
+                                borderRadius: `${layoutTokens.radius.button}px`,
                                 transition: "background-color 120ms ease, color 120ms ease",
                                 "&:hover": {
                                     color: "text.primary",
-                                    backgroundColor: "rgba(15, 23, 42, 0.05)",
+                                    backgroundColor: "action.hover",
                                 },
+                                "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 },
                                 "& svg": { fontSize: 18 },
                             }}
                         >
@@ -149,6 +138,23 @@ function AppHeader() {
                 </Box>
             </Toolbar>
         </AppBar>
+    );
+}
+
+function TextoTruncado({ texto, secundario = false }: { texto: string; secundario?: boolean }) {
+    const [truncado, setTruncado] = useState(false);
+    return (
+        <Tooltip title={truncado ? texto : ""}>
+            <Typography
+                noWrap
+                variant="body2"
+                onMouseEnter={(evento) => setTruncado(evento.currentTarget.scrollWidth > evento.currentTarget.clientWidth)}
+                onFocus={(evento) => setTruncado(evento.currentTarget.scrollWidth > evento.currentTarget.clientWidth)}
+                sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: secundario ? "12px" : "13px", fontWeight: secundario ? 400 : 600, color: secundario ? "text.secondary" : "text.primary" }}
+            >
+                {texto}
+            </Typography>
+        </Tooltip>
     );
 }
 

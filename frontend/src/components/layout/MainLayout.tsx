@@ -10,6 +10,8 @@ function MainLayout() {
             sx={{
                 display: "flex",
                 minHeight: "100vh",
+                width: "100%",
+                minWidth: 0,
                 backgroundColor: "background.default",
             }}
         >
@@ -33,6 +35,7 @@ function MainLayout() {
                         width: "100%",
                         minWidth: 0,
                         boxSizing: "border-box",
+                        backgroundColor: "background.default",
                         p: layoutTokens.conteudo.padding,
                     }}
                 >
