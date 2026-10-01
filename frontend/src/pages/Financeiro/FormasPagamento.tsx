@@ -5,13 +5,25 @@ import { Alert, Button, Chip, FormControl, InputLabel, MenuItem, Select, Snackba
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
-import { listarFormasPagamento, mensagemFormaPagamento } from "../../services/formaPagamentoService";
-import type { FormaPagamentoResumo } from "../../types/formaPagamento";
-import FormaPagamentoForm from "./FormaPagamentoForm";
+import { listarConfiguracoesFormasPagamento, mensagemConfiguracaoFormaPagamento } from "../../services/configuracaoFormaPagamentoService";
+import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
+import { rotulosTipoFormaPagamento } from "../../types/configuracaoFormaPagamento";
+import ConfiguracaoFormaPagamentoForm from "./ConfiguracaoFormaPagamentoForm";
 
-const colunas: Coluna<FormaPagamentoResumo>[] = [
-    { campo: "descricao", cabecalho: "Descrição", largura: 360 },
-    { campo: "tipo", cabecalho: "Tipo", largura: 220 },
+const colunas: Coluna<ConfiguracaoFormaPagamento>[] = [
+    { campo: "nomeExibicao", cabecalho: "Nome", largura: 280 },
+    {
+        campo: "tipo",
+        cabecalho: "Tipo",
+        largura: 160,
+        render: (valor) => rotulosTipoFormaPagamento[valor as keyof typeof rotulosTipoFormaPagamento] ?? valor,
+    },
+    {
+        campo: "contaFinanceiraDestino",
+        cabecalho: "Conta destino",
+        largura: 220,
+        render: (_valor, linha) => linha.contaFinanceiraDestino ? `${linha.contaFinanceiraDestino.nome} — ${linha.contaFinanceiraDestino.tipo}` : "—",
+    },
     {
         campo: "ativo",
         cabecalho: "Situação",
@@ -28,51 +40,48 @@ const colunas: Coluna<FormaPagamentoResumo>[] = [
 ];
 
 export default function FormasPagamento() {
-    const [formas, setFormas] = useState<FormaPagamentoResumo[]>([]);
+    const [configuracoes, setConfiguracoes] = useState<ConfiguracaoFormaPagamento[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
     const [tentativa, setTentativa] = useState(0);
-    const [situacao, setSituacao] = useState("ativas");
-    const [editor, setEditor] = useState<{ forma: FormaPagamentoResumo | null } | null>(null);
+    const [situacao, setSituacao] = useState<"ativas" | "inativas" | "todas">("ativas");
+    const [editor, setEditor] = useState<{ config: ConfiguracaoFormaPagamento | null } | null>(null);
     const [sucesso, setSucesso] = useState(false);
 
     useEffect(() => {
         const controller = new AbortController();
-        listarFormasPagamento(controller.signal)
-            .then(setFormas)
+        listarConfiguracoesFormasPagamento(situacao, controller.signal)
+            .then(setConfiguracoes)
             .catch((e) => {
-                if (!controller.signal.aborted) setErro(mensagemFormaPagamento(e, "Não foi possível carregar as formas de pagamento."));
+                if (!controller.signal.aborted) setErro(mensagemConfiguracaoFormaPagamento(e, "Não foi possível carregar as configurações de pagamento."));
             })
             .finally(() => {
                 if (!controller.signal.aborted) setCarregando(false);
             });
         return () => controller.abort();
-    }, [tentativa]);
+    }, [tentativa, situacao]);
 
-    const acoes: AcaoTabela<FormaPagamentoResumo>[] = [{
+    const acoes: AcaoTabela<ConfiguracaoFormaPagamento>[] = [{
         rotulo: "Editar",
         icone: <EditOutlinedIcon fontSize="small" />,
-        onClick: (forma) => setEditor({ forma }),
-        tooltip: "Editar forma de pagamento",
+        onClick: (config) => setEditor({ config }),
+        tooltip: "Editar configuração de pagamento",
     }];
 
-    function salvo(forma: FormaPagamentoResumo) {
-        setFormas((atuais) => atuais.some((atual) => atual.id === forma.id)
-            ? atuais.map((atual) => atual.id === forma.id ? forma : atual)
-            : [...atuais, forma]);
+    function salvo(config: ConfiguracaoFormaPagamento) {
+        setConfiguracoes((atuais) => atuais.some((atual) => atual.id === config.id)
+            ? atuais.map((atual) => atual.id === config.id ? config : atual)
+            : [...atuais, config]);
         setEditor(null);
         setSucesso(true);
     }
 
-    const formasFiltradas = formas.filter((forma) =>
-        situacao === "todas" || forma.ativo === (situacao === "ativas"));
-
     return (
         <PageContainer>
             <PageHeader
-                titulo="Formas de Pagamento"
-                descricao="Consulte as formas de pagamento disponíveis no sistema."
-                acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setEditor({ forma: null })}>Nova Forma de Pagamento</Button>}
+                titulo="Configurações de Pagamento"
+                descricao="Configure as formas de pagamento da sua empresa."
+                acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setEditor({ config: null })}>Nova Configuração</Button>}
             />
 
             {erro && (
@@ -83,18 +92,18 @@ export default function FormasPagamento() {
 
             <AppTable
                 colunas={colunas}
-                linhas={formasFiltradas}
+                linhas={configuracoes}
                 carregando={carregando}
-                obterChaveLinha={(forma) => forma.id}
+                obterChaveLinha={(config) => config.id}
                 filtros={
                     <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <InputLabel id="forma-pagamento-situacao-label">Situação</InputLabel>
+                        <InputLabel id="config-pagamento-situacao-label">Situação</InputLabel>
                         <Select
-                            labelId="forma-pagamento-situacao-label"
+                            labelId="config-pagamento-situacao-label"
                             label="Situação"
                             value={situacao}
-                            inputProps={{ "aria-label": "Filtrar formas de pagamento por situação", name: "situacao" }}
-                            onChange={(evento) => setSituacao(evento.target.value)}
+                            inputProps={{ "aria-label": "Filtrar configurações por situação", name: "situacao" }}
+                            onChange={(evento) => setSituacao(evento.target.value as "ativas" | "inativas" | "todas")}
                         >
                             <MenuItem value="todas">Todas</MenuItem>
                             <MenuItem value="ativas">Ativas</MenuItem>
@@ -103,17 +112,17 @@ export default function FormasPagamento() {
                     </FormControl>
                 }
                 vazio={{
-                    titulo: "Nenhuma forma de pagamento encontrada",
-                    descricao: erro ? "Listagem indisponível." : situacao !== "todas" ? "Tente ajustar o filtro de situação." : "Não há formas de pagamento cadastradas.",
+                    titulo: "Nenhuma configuração encontrada",
+                    descricao: erro ? "Listagem indisponível." : situacao !== "todas" ? "Tente ajustar o filtro de situação." : "Não há configurações de pagamento cadastradas.",
                 }}
                 acoes={acoes}
-                minWidth={760}
+                minWidth={880}
             />
 
-            {editor && <FormaPagamentoForm forma={editor.forma} onFechar={() => setEditor(null)} onSalvo={salvo} />}
+            {editor && <ConfiguracaoFormaPagamentoForm config={editor.config} onFechar={() => setEditor(null)} onSalvo={salvo} />}
 
             <Snackbar open={sucesso} autoHideDuration={5000} onClose={() => setSucesso(false)}>
-                <Alert severity="success" onClose={() => setSucesso(false)}>Forma de pagamento salva com sucesso.</Alert>
+                <Alert severity="success" onClose={() => setSucesso(false)}>Configuração salva com sucesso.</Alert>
             </Snackbar>
         </PageContainer>
     );
