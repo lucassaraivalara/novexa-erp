@@ -23,7 +23,7 @@ test("cadastros iniciam filtrados por ativos", () => {
     assert.match(fontes.clientes, /useState\("ativos"\)/);
     assert.match(fontes.empresas, /useState\("ativas"\)/);
     assert.match(fontes.caixas, /useState\("ativos"\)/);
-    assert.match(fontes.formas, /useState\("ativas"\)/);
+    assert.match(fontes.formas, /useState<"ativas" \| "inativas" \| "todas">\("ativas"\)/);
     assert.match(fontes.bancos, /useState\("ativos"\)/);
     assert.match(fontes.agencias, /useState\("ativos"\)/);
     assert.match(fontes.contas, /useState\("ativos"\)/);

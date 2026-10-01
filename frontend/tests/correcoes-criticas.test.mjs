@@ -172,19 +172,20 @@ test("Dados Bancários organiza Bancos, Agências e Contas em abas sem pedir emp
 });
 
 
-test("formas de pagamento possuem rota, menu, service e listagem somente leitura", async () => {
+test("configurações de pagamento possuem rota, menu, service e listagem empresarial", async () => {
     const navegacao = await readFile(new URL("../src/routes/navigation.tsx", import.meta.url), "utf8");
     const pagina = await readFile(new URL("../src/pages/Financeiro/FormasPagamento.tsx", import.meta.url), "utf8");
-    const service = await readFile(new URL("../src/services/formaPagamentoService.ts", import.meta.url), "utf8");
+    const service = await readFile(new URL("../src/services/configuracaoFormaPagamentoService.ts", import.meta.url), "utf8");
 
     assert.match(navegacao, /financeiro\/formas-pagamento/);
-    assert.match(navegacao, /Formas de Pagamento/);
-    assert.match(service, /api\.get<FormaPagamentoResumo\[]>\("\/financeiro\/formas-pagamento"/);
-    assert.match(pagina, /cabecalho: "Descrição"/);
+    assert.match(navegacao, /Configurações de Pagamento/);
+    assert.match(service, /configuracoes-formas-pagamento/);
+    assert.match(service, /api\.get<ConfiguracaoFormaPagamento\[\]>/);
+    assert.match(pagina, /cabecalho: "Nome"/);
     assert.match(pagina, /cabecalho: "Tipo"/);
     assert.match(pagina, /label=\{valor \? "Ativa" : "Inativa"\}/);
-    assert.match(pagina, /Nova Forma de Pagamento/);
-    assert.match(pagina, /FormaPagamentoForm/);
+    assert.match(pagina, /Nova Configuração/);
+    assert.match(pagina, /ConfiguracaoFormaPagamentoForm/);
 });
 
 test("AppHeader renderiza a logomarca da empresa autenticada com fallback para o nome", async () => {

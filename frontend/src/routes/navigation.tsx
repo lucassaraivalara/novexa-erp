@@ -95,7 +95,7 @@ export const rotasInternas: RotaInterna[] = [
     },
     {
         caminho: "financeiro/formas-pagamento",
-        titulo: "Formas de Pagamento",
+        titulo: "Configurações de Pagamento",
         icone: <PaymentsRoundedIcon />,
         elemento: <FormasPagamento />,
     },
@@ -134,10 +134,10 @@ export const menuPrincipal: ItemMenu[] = [
         titulo: "Financeiro",
         icone: <AccountBalanceWalletRoundedIcon />,
         abertoInicialmente: true,
-        filhos: [
+filhos: [
             { tipo: "rota", id: "caixas", titulo: "Caixas", rota: rotaCaixas },
-            { tipo: "rota", id: "contas-financeiras", titulo: "Contas Financeiras", rota: rotaContasFinanceiras },
             { tipo: "rota", id: "contas-pagar", titulo: "Contas a Pagar", rota: rotaContasPagar },
+            { tipo: "rota", id: "contas-financeiras", titulo: "Contas Financeiras", rota: rotaContasFinanceiras },
             { tipo: "rota", id: "formas-pagamento", titulo: "Formas de Pagamento", rota: rotaFormasPagamento },
             { tipo: "rota", id: "dados-bancarios", titulo: "Dados Bancários", rota: rotaDadosBancarios },
         ],
