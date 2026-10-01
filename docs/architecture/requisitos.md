@@ -10,6 +10,8 @@ Os requisitos representam as funcionalidades que o sistema deverá possuir para 
 
 # 2. Requisitos Funcionais
 
+Listagens administrativas e históricos de crescimento contínuo devem aplicar filtros, ordenação permitida e paginação no banco, com empresa do JWT e desempate por id. Parâmetros inválidos retornam 400. Contratos atuais em [paginacao.md](paginacao.md); catálogos pequenos podem permanecer List.
+
 Requisitos funcionais descrevem as ações que o sistema deverá realizar.
 
 ---

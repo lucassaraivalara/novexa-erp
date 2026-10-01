@@ -497,6 +497,8 @@ Essas situações devem preferencialmente ser calculadas, e não persistidas.
 
 ## 16. Tela operacional de Estoque
 
+Produtos e histórico usam paginação/filtros/ordenação no banco. O histórico mantém produtoId no path e retorna 404 para produto de outro tenant. A situação do estoque é filtro global anterior ao count. Contratos em [paginacao.md](paginacao.md); regras de movimentação e saldo preservadas.
+
 A tela de Estoque deve priorizar consulta rápida.
 
 Informações principais:

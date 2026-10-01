@@ -10,6 +10,14 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Paginação server-side (2026-10-01)
+
+Implementada na branch `feat/contas-pagar-integracao-backend` sobre `4d84785`, ainda não integrada à main. Vendas, Clientes, Produtos, Contas a Pagar, Movimentações Financeiras, Histórico de Estoque e Transferências usam Page/Pageable, filtros e ordenação permitida no banco, sempre com empresa do JWT e desempate por id. Contratos, limites, exceções List e índices em [paginacao.md](paginacao.md).
+
+Frontend de Clientes, Produtos, Central de Vendas, Estoque, Contas a Pagar e Extrato usa items/totalItems, debounce e cancelamento de consultas. Totais financeiros e filtro de situação do Estoque são globais no backend. Dashboard pede cinco vendas; Caixa consulta vendas da sessão. Transferências possui consulta/service paginados, sem nova tela de listagem. Trabalho PIX/PDV e V27/V28 preservado; nenhuma regra financeira ou migration criada/alterada nesta tarefa.
+
+Validação direcionada: matriz de consultas aprovada em H2 e PostgreSQL 18.6 (10 casos em cada banco), Flyway até V28 e Hibernate validate; 84 testes frontend, build e seis casos Playwright aprovados. Playwright usa HTTP simulado para UI; PostgreSQL valida consultas reais. Suíte backend final: 687 casos, nenhuma falha de asserção, 38 erros de inicialização e 22 ignorados. Erros concentrados em VendaServiceTest (dependência ConfirmacaoPagamentoPixService ausente no contexto) e EstoqueConcorrenciaTest (ArquivoStorageService ausente), sem alterações desses contextos nesta tarefa. Lint das telas de paginação aprovado; lint global mantém cinco erros anteriores e três avisos em Dashboard/Caixa/PDV/formulários. Commits de paginação separados do trabalho PIX ainda não consolidado; sem push.
+
 ## Venda/Pagamento: identificação da configuração empresarial
 
 Backend aceita configuracaoFormaPagamentoId opcional na venda direta e faturamento de venda aberta, mantendo forma global/código legado obrigatórios conforme contrato existente. Vínculo da mesma empresa, ativo e de tipo compatível, salvo em Venda e Pagamento e devolvido como ID nas respostas. V26 aditiva com FKs compostas por empresa e índices; registros antigos permanecem sem configuração. Cancelamento conserva o vínculo. Hash legado preservado sem o campo e retries com configuração diferente rejeitados.

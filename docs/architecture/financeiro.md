@@ -1,5 +1,9 @@
 FINANCEIRO NOVEXA
 
+## Consultas paginadas
+
+Contas a Pagar, Movimentações Financeiras e Transferências usam filtros, ordenação e paginação no banco. Totais de Contas a Pagar são agregados por empresa, independentes da página. Contratos em [paginacao.md](paginacao.md). Esta alteração de consultas não modifica criação, confirmação PIX, cancelamento, estorno, locks ou saldo.
+
 ## Estágios da arquitetura
 
 **IMPLEMENTADO** descreve Pagamento e a fundação backend de Formas de Pagamento global; os commits/baselines e sua integração na main devem ser conferidos em [CURRENT_STATE.md](CURRENT_STATE.md). **PRÓXIMO** identifica as fundações cadastrais planejadas. **FUTURO** depende dessas bases e não faz parte do estágio atual. A ordem de execução está no [roadmap.md](roadmap.md).

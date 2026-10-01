@@ -73,6 +73,7 @@ Leia somente os documentos necessários ao escopo da tarefa.
 | [financeiro.md](financeiro.md) | Arquitetura financeira e regras de destino dos pagamentos | Pagamentos, Caixa, bancos, recebíveis e liquidação |
 | [CURRENT_STATE.md](CURRENT_STATE.md) | Estado implementado, limitações e pendências verificadas | Planejamento e retomada de tarefas |
 | [frontend.md](frontend.md) | Padrões de cadastros, ações por ícones, busca/debounce e formulários/feedback | Implementação ou revisão do frontend |
+| [paginacao.md](paginacao.md) | Contratos paginados, filtros, ordenação e índices | Listagens de Vendas, Clientes, Produtos, financeiro e Estoque |
 | [roadmap.md](roadmap.md) | Sequência de evolução e dependências | Escolha das próximas tarefas |
 | [Auditorias](../audits/) | Evidências históricas e diagnósticos | Investigação de um achado específico |
 

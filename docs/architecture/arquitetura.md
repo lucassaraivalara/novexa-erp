@@ -8,6 +8,10 @@ docs/
 ├── AGENTES.md
 └── ROADMAP.md
 
+## Consultas paginadas
+
+As consultas de crescimento contínuo usam Page/Pageable e PaginaResponseDTO, com tenant, filtros, ordenação e paginação no banco. Contratos e exceções List em [paginacao.md](paginacao.md).
+
 ## Usuários
 
 `/usuarios` usa o tenant do JWT em listagem, cadastro e edição. O contrato de cadastro exige senha; a edição preserva o hash quando a senha não é informada. `PATCH /usuarios/{id}/senha` recebe somente a nova senha e `PATCH /usuarios/{id}/situacao` atualiza somente `ativo`, bloqueando a inativação do próprio usuário. `UsuarioResponseDTO` expõe a situação, nunca a senha. O filtro de segurança reserva `/usuarios` a `ADMIN`, cancelamento de Venda e sangria/suprimento a `ADMIN` ou `GERENTE`. No serviço de Sessão de Caixa, `OPERADOR` e o legado `USUARIO` só fecham a própria sessão; a abertura continua disponível aos perfis autenticados. O perfil no JWT é atualizado no próximo login.
