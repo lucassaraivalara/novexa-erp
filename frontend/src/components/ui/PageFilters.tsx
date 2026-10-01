@@ -27,7 +27,7 @@ interface PageFiltersProps {
 export default function PageFilters({ busca, children, campoBuscaAtivo }: PageFiltersProps) {
     const buscaRef = useRef<HTMLInputElement>(null);
     return (
-        <Paper component="section" aria-label="Filtros da página" variant="outlined" sx={{ px: { xs: 1.5, md: 2 }, py: 1.25 }}>
+        <Paper data-page-filters component="section" aria-label="Filtros da página" variant="outlined" sx={{ px: 2, py: 1.5 }}>
             <Stack
                 sx={{
                     flexDirection: { xs: "column", sm: "row" },
@@ -63,7 +63,7 @@ export default function PageFilters({ busca, children, campoBuscaAtivo }: PageFi
                             flex: { xs: "0 1 auto", sm: "1 1 320px" },
                             minWidth: { xs: 0, sm: 280 },
                             "& .MuiOutlinedInput-root": {
-                                borderRadius: layoutTokens.radius.field,
+                                borderRadius: `${layoutTokens.radius.field}px`,
                             },
                         }}
                     />

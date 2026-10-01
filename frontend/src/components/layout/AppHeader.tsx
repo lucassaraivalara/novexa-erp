@@ -91,8 +91,8 @@ function AppHeader() {
                             />
                         ) : null}
                         <Box sx={{ minWidth: 0, maxWidth: 240 }}>
-                            <TextoTruncado texto={nomeEmpresa} />
-                            <TextoTruncado texto={nomeUsuario} secundario />
+                            <TextoTruncado texto={nomeEmpresa} secundario />
+                            <TextoTruncado texto={nomeUsuario} />
                         </Box>
                     </Box>
 

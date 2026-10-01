@@ -1,10 +1,10 @@
 import { createTheme } from "@mui/material/styles";
 
 export const visualTokens = {
-    radius: { control: 8, surface: 12, dialog: 16, pill: 999 },
+    radius: { control: 6, surface: 10, dialog: 10, pill: 999 },
     shadow: {
-        surface: "0 1px 2px rgba(16,24,40,.05)",
-        elevated: "0 12px 32px -8px rgba(16,24,40,.18)",
+        surface: "0 1px 3px rgba(16,24,40,.06)",
+        elevated: "0 8px 24px rgba(16,24,40,.12)",
     },
     numeric: { fontVariantNumeric: "tabular-nums" },
 } as const;
@@ -14,7 +14,7 @@ const theme = createTheme({
         mode: "light",
         primary: { main: "#0E7C66", dark: "#0A5F4E", light: "#E7F4F0", contrastText: "#FFFFFF" },
         secondary: { main: "#101828", contrastText: "#FFFFFF" },
-        background: { default: "#F6F8F7", paper: "#FFFFFF" },
+        background: { default: "#F7F9FB", paper: "#FFFFFF" },
         text: { primary: "#101828", secondary: "#5D6B7A", disabled: "#98A2B3" },
         divider: "#E4E8EC",
         success: { main: "#16794A", light: "#E8F5EE", contrastText: "#FFFFFF" },
@@ -32,7 +32,7 @@ const theme = createTheme({
         h1: { fontWeight: 700 },
         h2: { fontWeight: 700 },
         h3: { fontWeight: 700 },
-        h4: { fontSize: "28px", fontWeight: 600 },
+        h4: { fontSize: "32px", fontWeight: 700 },
         h5: { fontWeight: 600 },
         h6: { fontSize: "18px", fontWeight: 600 },
         subtitle1: { fontWeight: 600 },
@@ -56,7 +56,7 @@ const theme = createTheme({
                 elevation: { boxShadow: visualTokens.shadow.surface },
                 elevation0: { boxShadow: "none" },
                 elevation1: ({ theme }) => ({ border: `1px solid ${theme.palette.divider}` }),
-                outlined: { borderWidth: 1, boxShadow: "none" },
+                outlined: { borderWidth: 1, boxShadow: visualTokens.shadow.surface },
             },
         },
         MuiCard: {
@@ -69,6 +69,10 @@ const theme = createTheme({
                 root: { textTransform: "none", fontWeight: 600, borderRadius: visualTokens.radius.control,
                     minHeight: 40, padding: "8px 16px" },
                 contained: { boxShadow: "none", "&:hover, &:active": { boxShadow: "none" } },
+                outlined: ({ theme, ownerState }) => ({ borderRadius: 999,
+                    ...(ownerState.color === "primary" ? { borderColor: theme.palette.divider, color: theme.palette.text.primary,
+                        "&:hover": { borderColor: theme.palette.text.disabled, backgroundColor: theme.palette.action.hover } } : {}),
+                }),
                 sizeSmall: { minHeight: 36, padding: "6px 12px", fontSize: "13px" },
             },
         },
@@ -122,8 +126,12 @@ const theme = createTheme({
         MuiDialogActions: { styleOverrides: { root: { padding: "12px 24px 20px", gap: 8 } } },
         MuiChip: {
             styleOverrides: {
-                root: { height: 24, borderRadius: visualTokens.radius.pill, fontWeight: 600, fontSize: "12px" },
+                root: { height: 24, borderRadius: visualTokens.radius.pill, fontWeight: 500, fontSize: "12px" },
                 sizeSmall: { height: 22, fontSize: "12px" },
+                outlined: ({ theme, ownerState }) => {
+                    const color = ownerState.color;
+                    return color && color !== "default" ? { borderColor: "transparent", backgroundColor: theme.palette[color].light, color: theme.palette[color].dark } : {};
+                },
             },
         },
         MuiTooltip: {

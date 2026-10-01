@@ -36,11 +36,11 @@ function Sidebar() {
                     boxSizing: "border-box",
                     border: 0,
                     borderRight: "1px solid",
-                    borderColor: "divider",
+                    borderColor: "#233047",
                     borderRadius: 0,
-                    boxShadow: "none",
-                    color: "text.primary",
-                    backgroundColor: "background.paper",
+                    boxShadow: "inset -1px 0 0 rgba(255,255,255,.03)",
+                    color: "#E6EBF2",
+                    backgroundColor: "#111B2B",
                 },
             }}
         >
@@ -55,6 +55,9 @@ function Sidebar() {
                         minHeight: layoutTokens.header.altura,
                         px: { xs: 0.75, sm: 1.5 },
                         py: 1.25,
+                        m: { xs: 0, sm: 1.5 },
+                        borderRadius: "10px",
+                        bgcolor: { xs: "transparent", sm: "primary.main" },
                     }}
                 >
                     <Box
@@ -77,17 +80,17 @@ function Sidebar() {
                     <Box sx={{ display: { xs: "none", sm: "block" } }}>
                         <Typography
                             variant="subtitle1"
-                            sx={{ fontSize: "16px", fontWeight: 700, lineHeight: 1.2, letterSpacing: 0 }}
+                            sx={{ fontSize: "20px", fontWeight: 700, lineHeight: 1.2, letterSpacing: 0, color: "#FFFFFF" }}
                         >
                             NOVEXA
                         </Typography>
-                        <Typography variant="caption" sx={{ fontSize: "11px", color: "text.secondary" }}>
+                        <Typography variant="caption" sx={{ fontSize: "11px", color: "#E7F4F0" }}>
                             ERP para pequenos negócios
                         </Typography>
                     </Box>
                 </Stack>
 
-                <Divider />
+                <Divider sx={{ borderColor: "#233047" }} />
 
                 <Box
                     component="nav"
@@ -162,12 +165,8 @@ function EntradaMenu({ item, nivel = 0, somenteIcones }: { item: ItemMenu; nivel
         mb: 0.125,
         borderRadius: `${layoutTokens.radius.button}px`,
         color: indisponivel
-            ? "text.disabled"
-            : ativo
-                ? "primary.dark"
-                : grupo
-                    ? "text.secondary"
-                    : "text.primary",
+            ? "#7D8BA0"
+            : grupo ? "#AAB7C9" : ativo ? "primary.dark" : "#E6EBF2",
         justifyContent: { xs: "center", sm: "flex-start" },
         columnGap: { xs: 0, sm: 1 },
         pl: { xs: 0, sm: nivel ? 2 : 1.25 },
@@ -177,7 +176,7 @@ function EntradaMenu({ item, nivel = 0, somenteIcones }: { item: ItemMenu; nivel
         transition: "background-color 120ms ease, color 120ms ease",
         "&.Mui-selected": {
             color: "primary.dark",
-            backgroundColor: "primary.light",
+            backgroundColor: "#CDEEE2",
             "&::before": {
                 position: "absolute",
                 top: 8,
@@ -189,14 +188,14 @@ function EntradaMenu({ item, nivel = 0, somenteIcones }: { item: ItemMenu; nivel
                 content: "\"\"",
             },
         },
-        "&.Mui-selected:hover": { color: "primary.dark", backgroundColor: "primary.light" },
-        "&:hover": { backgroundColor: "action.hover" },
+        "&.Mui-selected:hover": { color: "primary.dark", backgroundColor: "#CDEEE2" },
+        "&:hover": { backgroundColor: "rgba(255,255,255,.06)" },
         "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: -2 },
         "&[aria-disabled=true]": {
-            color: "text.disabled",
+            color: "#7D8BA0",
             cursor: "default",
             backgroundColor: "transparent",
-            "&:hover": { color: "text.disabled", backgroundColor: "transparent" },
+            "&:hover": { color: "#7D8BA0", backgroundColor: "transparent" },
         },
     };
 
@@ -206,7 +205,7 @@ function EntradaMenu({ item, nivel = 0, somenteIcones }: { item: ItemMenu; nivel
             mt: 1,
             pt: 1,
             borderTop: "1px solid",
-            borderColor: "divider",
+            borderColor: "#233047",
         } : {}),
     }}>
         <Tooltip title={somenteIcones ? (indisponivel ? `${titulo} — ainda não disponível` : titulo) : ""} placement="right">

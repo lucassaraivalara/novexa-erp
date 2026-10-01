@@ -9,8 +9,10 @@ let url;
 const fixture = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { ThemeProvider, CssBaseline } from '@mui/material';
+import { ThemeProvider, CssBaseline, Stack } from '@mui/material';
 import AppTable from '/src/components/ui/AppTable.tsx';
+import PageContainer from '/src/components/layout/PageContainer.tsx';
+import PageFilters from '/src/components/ui/PageFilters.tsx';
 import theme from '/src/theme/theme.ts';
 window.events = [];
 function Fixture() {
@@ -34,13 +36,17 @@ function Fixture() {
         ...options,
     };
     return React.createElement(ThemeProvider,{theme},React.createElement(CssBaseline),
-        React.createElement('main',{style:{padding:16,minWidth:0}},React.createElement(AppTable,props)));
+        React.createElement('main',{style:{padding:16,minWidth:0}},options.filtrosIntegrados
+            ? React.createElement(PageContainer,null,React.createElement(Stack,{spacing:1.5},
+                React.createElement(PageFilters,{busca:{placeholder:'Pesquisar',valor:'',onChange(){}}}),React.createElement(AppTable,props)))
+            : React.createElement(AppTable,props)));
 }
 createRoot(document.getElementById('root')).render(React.createElement(Fixture));
 `;
 
 before(async () => {
     server = await createServer({
+        cacheDir: "node_modules/.vite-app-table-tests",
         server: { host: "127.0.0.1", port: 0, hmr: false },
         plugins: [{
             name: "app-table-test-fixture",
@@ -82,6 +88,20 @@ test("AppTable preserva colunas, renderizadores e ordem recebida do backend", ()
     assert.equal(await page.getByRole("columnheader").nth(1).getByRole("button").count(), 0);
     await page.evaluate(() => window.setTableOptions({ colunas: [{campo:"nome",cabecalho:"Nome",render: (_v, row, index) => `${row.id}:${index}`}]}));
     await page.getByRole("cell", { name: "1:0", exact: true }).waitFor();
+}));
+
+test("Filtros adjacentes integram-se visualmente a tabela mesmo dentro de um Stack", () => withTable(async page => {
+    await page.evaluate(() => window.setTableOptions({filtrosIntegrados:true}));
+    await page.locator('[data-page-filters]').waitFor();
+    const spacing = await page.evaluate(() => {
+        const filter = document.querySelector('[data-page-filters]');
+        const table = document.querySelector('[data-app-table]');
+        return {gap:table.getBoundingClientRect().top-filter.getBoundingClientRect().bottom,
+            filterBottom:getComputedStyle(filter).borderBottomLeftRadius,tableTop:getComputedStyle(table).borderTopLeftRadius};
+    });
+    assert.equal(spacing.gap,0);
+    assert.equal(spacing.filterBottom,"0px");
+    assert.equal(spacing.tableTop,"0px");
 }));
 
 test("AppTable preserva acao, tooltip, aria-label, disabled e propagacao", () => withTable(async page => {

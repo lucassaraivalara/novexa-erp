@@ -12,7 +12,7 @@ const [actionsModule, emptyModule, statModule] = await Promise.all([
     server.ssrLoadModule("/src/components/ui/EmptyState.tsx"),
     server.ssrLoadModule("/src/components/ui/StatCard.tsx"),
 ]);
-const { default: theme } = await server.ssrLoadModule("/src/theme/theme.ts");
+const { default: theme, visualTokens } = await server.ssrLoadModule("/src/theme/theme.ts");
 await server.close();
 
 const render = (element) => renderToStaticMarkup(createElement(ThemeProvider, { theme }, element));
@@ -32,7 +32,7 @@ test("CadastroDialog preserva títulos, conteúdo, ações e limites responsivos
     assert.match(source, /aria-label="Fechar"/);
     assert.match(source, /<Button onClick=\{onFechar\} disabled=\{salvando\}>\{textoCancelar\}/);
     assert.match(source, /type="submit" variant="contained"/);
-    assert.match(source, /borderRadius: \{ xs: 0, sm: layoutTokens\.radius\.dialog \}/);
+    assert.match(source, /borderRadius: \{ xs: 0, sm: `\$\{layoutTokens\.radius\.dialog\}px` \}/);
     assert.match(source, /maxHeight: \{ xs: "100%", sm: "84vh" \}/);
     assert.match(source, /maxWidth: \{ xs: "100%", sm: "calc\(100vw - 32px\)" \}/);
     assert.match(source, /overflowY: "auto"/);
@@ -121,4 +121,16 @@ test("StatCard mantém a API legada e aceita tone e ícone opcionais", () => {
     assert.match(tonalizado, /Atenção/);
     assert.match(tonalizado, /aria-hidden="true"/);
     assert.match(tonalizado, /#b25e09/i);
+});
+
+test("Cadastros usam raios moderados em px, elevacao leve e secoes sem caixas aninhadas", async () => {
+    assert.deepEqual(visualTokens.radius, { control: 6, surface: 10, dialog: 10, pill: 999 });
+    assert.equal(visualTokens.shadow.surface, "0 1px 3px rgba(16,24,40,.06)");
+    assert.equal(theme.shape.borderRadius, 6);
+    const dialog = await readFile(new URL("../src/components/ui/CadastroDialog.tsx", import.meta.url), "utf8");
+    const filters = await readFile(new URL("../src/components/ui/PageFilters.tsx", import.meta.url), "utf8");
+    assert.match(dialog, /boxShadow: "none"/);
+    assert.match(dialog, /"& \.MuiPaper-outlined": \{ border: 0, borderBottom: 1/);
+    assert.match(filters, /data-page-filters/);
+    assert.match(filters, /borderRadius: `\$\{layoutTokens\.radius\.field\}px`/);
 });

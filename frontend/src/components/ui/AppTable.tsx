@@ -172,7 +172,7 @@ export default function AppTable<T extends Record<string, unknown>>({
     }
 
     return (
-        <Paper variant="outlined" sx={{ minWidth: 0, maxWidth: "100%", overflow: "hidden", bgcolor: "background.paper", borderRadius: `${visualTokens.radius.surface}px`, boxShadow: visualTokens.shadow.surface, ...sx }}>
+        <Paper data-app-table variant="outlined" sx={{ minWidth: 0, maxWidth: "100%", overflow: "hidden", bgcolor: "background.paper", borderRadius: `${visualTokens.radius.surface}px`, boxShadow: visualTokens.shadow.surface, ...sx }}>
             {/* Compatibilidade temporária para páginas ainda não migradas para PageFilters. */}
             {(busca || filtros) && (
                 <Toolbar
@@ -181,7 +181,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                         py: 1.5,
                         borderBottom: "1px solid",
                         borderColor: "divider",
-                        backgroundColor: "background.default",
+                        backgroundColor: "background.paper",
                     }}
                 >
                     <Stack
@@ -435,6 +435,9 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                                     width: 32,
                                                                     height: 32,
                                                                     borderRadius: `${visualTokens.radius.control}px`,
+                                                                    border: "1px solid",
+                                                                    borderColor: acao.cor === "error" ? "error.light" : "divider",
+                                                                    ...(acao.cor === "error" ? { bgcolor: "error.light" } : {}),
                                                                     ...(!acao.cor || acao.cor === "inherit" ? { color: "text.secondary" } : {}),
                                                                     "&:hover": {
                                                                         backgroundColor: "action.hover",

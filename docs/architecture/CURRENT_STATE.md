@@ -10,6 +10,10 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Linguagem visual ERP baseada nas referencias (2026-10-01)
+
+Restilizacao aprovada e encerrada na branch feat/contas-pagar-integracao-backend, sobre d6061d6. Sidebar navy com marca verde, selecao clara, superficies brancas com raios moderados e sombra leve. Filtros/tabelas integrados visualmente; indicadores do Dashboard compactos, sem raios multiplicados pelo MUI. PDV responsivo, cadastros e Login coerentes com a identidade aprovada. Sem alteracoes de regras, rotas ou APIs; recuperacao/suporte e preferencia de permanencia no Login continuam indisponiveis, sem alterar a sessao existente. Detalhes em frontend.md. Validacao de consolidacao: 114 testes frontend aprovados, TypeScript/build e diff check; lint dos arquivos alterados com um unico erro preexistente de react-hooks/set-state-in-effect no Dashboard, reproduzido tambem no HEAD anterior. Screenshots desktop/mobile de Dashboard, Vendas, Clientes/cadastro, Caixa, PDV e Login com dados simulados, sem overflow horizontal da pagina ou erros JS. Design preservado; proximas etapas sao funcionais e dependem de aprovacao, sem novas iteracoes esteticas salvo bugs visuais criticos.
+
 ## Design Foundation Novexa: Theme e Tokens (2026-10-01)
 
 Fundacao visual frontend na branch `feat/contas-pagar-integracao-backend`, sobre `dd46ca7`. Theme concentra palette neutra/verde funcional, tipografia Inter fixa, raios/sombras e overrides MUI; layoutTokens referencia o theme sem mudar suas chaves. Sem alteracoes de paginas, componentes compartilhados, backend, services/types/hooks, rotas, PDV ou Login. Sidebar escura permanece para onda posterior, sem promover seus hardcodes a tokens. Detalhes em frontend.md.

@@ -245,7 +245,7 @@ export default function Vendas() {
         return () => window.removeEventListener("keydown", atalhos);
     });
 
-    return <Box sx={{ height: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default", p: 2, gap: 1.5 }}>
+    return <Box sx={{ height: { xs: "auto", md: "100dvh" }, minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default", p: 2, gap: 1.5 }}>
         <SessaoCaixaPDVDialog resolvida={sessaoCaixaResolvida} onResolvida={definirSessaoCaixa} />
         {finalizacao && <VendaFinalizacaoDialog
             open
@@ -257,15 +257,15 @@ export default function Vendas() {
             mensagemErro={finalizacao.mensagemErro}
             onVoltar={fecharFinalizacao}
             onTentarNovamente={finalizacao.podeTentarNovamente ? () => void finalizar() : undefined} />}
-        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-            <Stack direction="row" spacing={2} sx={{ alignItems: "baseline" }}><Typography component="h1" variant="h6">Frente de caixa</Typography>
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
+            <Stack direction="row" spacing={2} sx={{ alignItems: "baseline", flexWrap: "wrap" }}><Typography component="h1" variant="h6">Frente de caixa</Typography>
                 <Typography variant="body2" color="text.secondary">{sessao?.empresa.nomeFantasia || sessao?.empresa.razaoSocial} · {sessao?.nomeUsuario}</Typography></Stack>
             <Button component={Link} to="/dashboard" size="small" disabled={salvando}>Voltar ao ERP</Button>
         </Stack>
         {erro && <Alert severity="error" role="alert">{erro}</Alert>}
         {erroConfig && <Alert severity="error" role="alert">{erroConfig}</Alert>}
         {rascunho.pendente && !salvando && !erro && <Alert severity="info">Finalização pendente de confirmação. F2 retoma sem duplicar a venda.</Alert>}
-        <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 350px", gap: 2, flex: 1, minHeight: 0, minWidth: 760 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) 350px" }, gap: 2, flex: 1, minHeight: 0, minWidth: 0 }}>
             <Stack spacing={1.5} sx={{ minHeight: 0, minWidth: 0 }}>
                 <Box sx={{ position: "relative" }}>
                     <TextField fullWidth autoFocus inputRef={buscaRef} disabled={!sessaoCaixaResolvida || salvando} value={busca}
@@ -301,8 +301,8 @@ export default function Vendas() {
                     </Box>}
                 </Box>
                 {erroCatalogo && <Alert severity="error" action={<Button onClick={() => void recarregarCatalogo()}>Recarregar</Button>}>{erroCatalogo}</Alert>}
-                <Box sx={{ flex: 1, overflow: "auto", border: 1, borderColor: "divider", bgcolor: "background.paper" }}>
-                    <Table stickyHeader size="small" aria-label="Itens da venda" sx={{ "& td, & th": { py: 0.25, px: 1, height: 30 }, "& input": { p: "3px 6px", fontSize: 14 } }}>
+                <Box sx={{ flex: 1, overflow: "auto", border: 1, borderColor: "divider", bgcolor: "background.paper", borderRadius: "10px", boxShadow: "0 1px 3px rgba(16,24,40,.06)" }}>
+                    <Table stickyHeader size="small" aria-label="Itens da venda" sx={{ minWidth: 560, "& td, & th": { py: 0.25, px: 1, height: 30 }, "& input": { p: "3px 6px", fontSize: 14 } }}>
                         <TableHead><TableRow><TableCell>Produto</TableCell><TableCell width={105}>Quantidade</TableCell><TableCell align="right">Unitário</TableCell><TableCell align="right">Subtotal</TableCell><TableCell width={65} /></TableRow></TableHead>
                         <TableBody>{rascunho.itens.map((item, i) => <TableRow key={item.produto.id} selected={selecionado === item.produto.id} onClick={() => setSelecionado(item.produto.id)}>
                             <TableCell>{String(i + 1).padStart(2, "0")} · {item.produto.nome}</TableCell>
@@ -320,14 +320,14 @@ export default function Vendas() {
                 </Box>
                 <Typography variant="caption" color="text.secondary">Enter adicionar · ↑ ↓ selecionar · F2 pagar · F4 desconto · F8 cliente · Ctrl+Delete remover item · Esc fechar opção</Typography>
             </Stack>
-            <Stack spacing={1.5} sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", p: 2, overflowY: "auto" }}>
+            <Stack spacing={1.5} sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", p: 2, overflowY: "auto", minWidth: 0, borderRadius: "10px", boxShadow: "0 1px 3px rgba(16,24,40,.06)" }}>
                 <Typography variant="overline">Resumo da venda · {rascunho.itens.length} itens</Typography>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Subtotal</span><span>{moeda(t.subtotal)}</span></Stack>
                 {!!t.desconto && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Desconto</span><span>− {moeda(t.desconto)}</span></Stack>}
                 {rascunho.cliente && <Typography variant="body2">Cliente: {rascunho.cliente.nome}</Typography>}
                 <Box><Typography variant="body2">Total a pagar</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 38, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
                 <Divider />
-                <Typography variant="overline" sx={{ letterSpacing: "0.08em" }}>Pagamento</Typography>
+                <Typography variant="overline">Pagamento</Typography>
                 {carregandoConfig ? (
                     <Typography variant="body2" color="text.secondary">Carregando formas de pagamento…</Typography>
                 ) : erroConfig ? (
@@ -335,7 +335,7 @@ export default function Vendas() {
                 ) : (
                     <>
                         <TextField select label="Forma de pagamento" value={rascunho.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
-                            slotProps={{ select: { native: true } }}
+                            slotProps={{ inputLabel: { shrink: true }, select: { native: true } }}
                             onChange={e => {
                                 const configId = e.target.value ? Number(e.target.value) : null;
                                 const config = configuracoes.find(c => c.id === configId);

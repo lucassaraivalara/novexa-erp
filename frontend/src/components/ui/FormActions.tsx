@@ -49,7 +49,7 @@ export default function FormActions({
                 sx={{
                     minHeight: 42,
                     fontWeight: 600,
-                    borderRadius: layoutTokens.radius.button,
+                    borderRadius: `${layoutTokens.radius.button}px`,
                     px: 2.5,
                     textTransform: "none",
                 }}
@@ -66,7 +66,7 @@ export default function FormActions({
                 sx={{
                     minHeight: 42,
                     fontWeight: 600,
-                    borderRadius: layoutTokens.radius.button,
+                    borderRadius: `${layoutTokens.radius.button}px`,
                     px: 2.5,
                     textTransform: "none",
                 }}

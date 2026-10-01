@@ -34,8 +34,7 @@ function StatCard({ titulo, valor, descricao, cor, aoClicar, tone, icone }: Stat
             onKeyDown={aoClicar ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); aoClicar(); } } : undefined}
             sx={{
                 p: layoutTokens.spacing.xl, minWidth: 0, height: "100%", display: "flex", flexDirection: "column",
-                justifyContent: "space-between", borderRadius: layoutTokens.radius.card,
-                ...(tonePalette ? { borderTop: `3px solid ${tonePalette.main}` } : {}),
+                justifyContent: "space-between", borderRadius: `${layoutTokens.radius.card}px`,
                 ...(aoClicar ? { cursor: "pointer", "&:hover": { borderColor: "primary.main" } } : {}),
             }}
         >
@@ -63,7 +62,7 @@ function StatCard({ titulo, valor, descricao, cor, aoClicar, tone, icone }: Stat
                                         flex: "0 0 32px",
                                         width: 32,
                                         height: 32,
-                                        borderRadius: layoutTokens.radius.button,
+                                        borderRadius: `${layoutTokens.radius.button}px`,
                                         bgcolor: tonePalette?.light ?? "action.hover",
                                         color: tonePalette?.main ?? "text.secondary",
                                         "& > svg": { fontSize: 18 },
@@ -75,7 +74,7 @@ function StatCard({ titulo, valor, descricao, cor, aoClicar, tone, icone }: Stat
                         </Box>
                     )}
                 </Stack>
-                <Typography variant="h4" sx={{ mt: layoutTokens.spacing.lg, fontSize: 28, fontWeight: 700, lineHeight: 1.2, color: tone ? "text.primary" : cor === "primary" ? "primary.main" : "text.primary", fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>
+                <Typography variant="h4" sx={{ mt: layoutTokens.spacing.lg, fontSize: 28, fontWeight: 700, lineHeight: 1.2, color: tone ? "text.primary" : cor === "warning" ? "warning.main" : cor === "primary" ? "primary.main" : "text.primary", fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>
                     {valor}
                 </Typography>
             </Stack>

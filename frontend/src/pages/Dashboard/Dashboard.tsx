@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AddShoppingCartRoundedIcon from "@mui/icons-material/AddShoppingCartRounded";
-import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import PeopleAltRoundedIcon from "@mui/icons-material/PeopleAltRounded";
 import WarehouseRoundedIcon from "@mui/icons-material/WarehouseRounded";
-import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
+import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
+import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
+import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import {
     Alert,
     Box,
@@ -66,26 +67,26 @@ export default function Dashboard() {
     }, [carregar]);
 
     return <Stack spacing={2}>
-        <PageHeader titulo="Dashboard" descricao="Resumo operacional de hoje." />
-
-        <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-            <Button size="small" variant="outlined" component={Link} to="/pdv" startIcon={<AddShoppingCartRoundedIcon fontSize="small" />}>Nova venda</Button>
-            <Button size="small" variant="outlined" component={Link} to="/produtos" startIcon={<Inventory2RoundedIcon fontSize="small" />}>Produtos</Button>
-            <Button size="small" variant="outlined" component={Link} to="/clientes" startIcon={<PeopleAltRoundedIcon fontSize="small" />}>Clientes</Button>
-            <Button size="small" variant="outlined" component={Link} to="/estoque" startIcon={<WarehouseRoundedIcon fontSize="small" />}>Estoque</Button>
-            <Button size="small" variant="outlined" component={Link} to="/vendas" startIcon={<PointOfSaleRoundedIcon fontSize="small" />}>Central de Vendas</Button>
-        </Stack>
+        <PageHeader titulo="Dashboard" descricao="Resumo operacional de hoje." acaoPrincipal={
+            <Stack direction="row" sx={{ flexWrap: "wrap", gap: 0.75 }}>
+                <Button size="small" variant="contained" component={Link} to="/pdv" startIcon={<AddShoppingCartRoundedIcon fontSize="small" />}>Nova venda</Button>
+                <Button size="small" variant="outlined" component={Link} to="/produtos">Produtos</Button>
+                <Button size="small" variant="outlined" component={Link} to="/clientes">Clientes</Button>
+                <Button size="small" variant="outlined" component={Link} to="/estoque">Estoque</Button>
+                <Button size="small" variant="outlined" component={Link} to="/vendas">Central de Vendas</Button>
+            </Stack>
+        } />
 
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregar()}>Tentar novamente</Button>}>{erro}</Alert>}
 
         {carregando && !resumo ? <Paper variant="outlined"><LoadingState mensagem="Carregando resumo operacional…" /></Paper> : resumo && <>
             <Box sx={{ display: "grid", gap: 2,
-                gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", xl: "repeat(5, 1fr)" } }}>
-                <StatCard titulo="Faturamento hoje" valor={moedaVenda(resumo.faturamentoHoje)} descricao="Vendas faturadas" cor="success" />
-                <StatCard titulo="Vendas hoje" valor={resumo.quantidadeVendasHoje} descricao="Vendas faturadas" cor="primary" />
-                <StatCard titulo="Ticket médio hoje" valor={moedaVenda(resumo.ticketMedioHoje)} descricao="Média por venda" cor="info" />
-                <StatCard titulo="Estoque baixo" valor={resumo.quantidadeProdutosEstoqueBaixo} descricao="Produtos no mínimo ou abaixo" cor="warning" aoClicar={() => navigate("/estoque")} />
-                <StatCard titulo="Clientes ativos" valor={resumo.quantidadeClientesAtivos} descricao="Cadastros disponíveis" cor="primary" />
+                gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(5, 1fr)" } }}>
+                <StatCard titulo="Faturamento hoje" valor={moedaVenda(resumo.faturamentoHoje)} descricao="Vendas faturadas" cor="success" icone={<PaymentsOutlinedIcon />} />
+                <StatCard titulo="Vendas hoje" valor={resumo.quantidadeVendasHoje} descricao="Vendas faturadas" icone={<FlagOutlinedIcon />} />
+                <StatCard titulo="Ticket médio hoje" valor={moedaVenda(resumo.ticketMedioHoje)} descricao="Média por venda" cor="info" icone={<ConfirmationNumberOutlinedIcon />} />
+                <StatCard titulo="Estoque baixo" valor={resumo.quantidadeProdutosEstoqueBaixo} descricao="Produtos no mínimo ou abaixo" cor="warning" icone={<WarehouseRoundedIcon />} aoClicar={() => navigate("/estoque")} />
+                <StatCard titulo="Clientes ativos" valor={resumo.quantidadeClientesAtivos} descricao="Cadastros disponíveis" icone={<PeopleAltRoundedIcon />} />
             </Box>
 
             <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 } }}>
@@ -99,8 +100,8 @@ export default function Dashboard() {
                     sx={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
                     <Typography color="text.secondary">Nenhum caixa aberto no momento.</Typography>
                     <Stack direction="row" spacing={1}>
-                        <Button size="small" component={Link} to="/financeiro/caixas">Ver caixas</Button>
-                        <Button size="small" component={Link} to="/pdv">Abrir PDV</Button>
+                        <Button size="small" variant="outlined" component={Link} to="/financeiro/caixas">Ver caixas</Button>
+                        <Button size="small" variant="contained" component={Link} to="/pdv">Abrir PDV</Button>
                     </Stack>
                 </Stack> : <Table size="small" aria-label="Sessões de caixa abertas">
                     <TableHead><TableRow><TableCell>Caixa</TableCell><TableCell align="right">Saldo inicial</TableCell>

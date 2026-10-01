@@ -10,6 +10,12 @@ Controles usam raio 8px, superficies 12px, dialogs 16px e chips pill. Sombras le
 
 Esta fundacao nao redesenha paginas ou componentes compartilhados, nem altera contratos, PDV/Login, rotas, services ou types. Sidebar escura/hardcodes e overrides locais continuam temporarios e nao viraram tokens da nova identidade. Validacao visual de Dashboard/Vendas/Clientes em desktop/mobile com dados simulados; integracao real nao foi exercitada nessa verificacao.
 
+## Linguagem visual ERP baseada nas referencias
+
+A direcao atual substitui a experiencia excessivamente plana: sidebar navy com bloco verde de marca e selecao verde clara, area principal #F7F9FB, superficies brancas com raio 10px e sombra discreta, controles 6px e dialogs 10px. Botoes primarios verdes solidos, secundarios outline/pilula e badges tonais compactos. Raios passados via sx usam unidades px para evitar a multiplicacao pelo shape do MUI, inclusive StatCard. CadastroDialog apresenta paineis internos outlined como secoes com divisor, sem caixas aninhadas decorativas.
+
+PageFilters e AppTable adjacentes sao unidos visualmente no PageContainer, sem alterar componentes ou callbacks. Dashboard apresenta indicadores com icones e cinco colunas em desktop largo. PDV mantem grade produto/resumo em desktop e empilha os mesmos controles em mobile, sem alterar atalhos ou pagamento. Contratos, estados, validacoes, rotas e APIs permanecem intactos. Validacao visual usa respostas simuladas; nao substitui integracao financeira real.
+
 ## Ações por ícones
 
 As ações de linha em `AppTable` usam `IconButton` compacto com `Tooltip` e `aria-label` descritivos, reutilizando o rótulo quando não houver tooltip específico. O estado desabilitado deve ser preservado e o ícone deve indicar a operação. A ação primária Novo continua como botão identificado no `PageHeader`; não transformar ações de linha em botões grandes nem remover seus nomes acessíveis.
@@ -67,6 +73,22 @@ antes da paginação.
 Estoque aplica busca por coluna somente a Produto e Código, mantendo a busca geral
 remota. Estoque atual e Estoque mínimo permitem ordenação no banco; Situação é
 filtro global no backend. O histórico tem paginação e filtros próprios.
+
+## Apresentacao do Login
+
+O Login utiliza duas colunas no desktop, painel navy/esmeralda e formulario
+branco com marca N compartilhada. Em telas menores que 900px, o formulario
+precede o bloco institucional. Os indicadores do painel sao ilustrativos,
+nao dados financeiros reais. A validacao de CPF, payload, sessao persistida,
+erros e redirecionamento permanecem inalterados; mostrar/ocultar senha
+preserva o comportamento existente.
+
+Recuperacao de senha e suporte nao possuem destino configurado: os controles
+visuais permanecem desabilitados com explicacao em tooltip. Manter conectado
+aparece marcado e desabilitado, refletindo a persistencia atual obrigatoria;
+nao introduz uma preferencia de autenticacao. Estes fluxos dependem de
+definicao funcional posterior. Testes Chromium cobrem validacao, retry,
+payload, sessao, duplo submit e breakpoints 1440/1024/390px.
 
 ## Configuracoes empresariais no PDV
 
