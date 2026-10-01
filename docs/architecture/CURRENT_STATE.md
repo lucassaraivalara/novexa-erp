@@ -18,6 +18,16 @@ Frontend de Clientes, Produtos, Central de Vendas, Estoque, Contas a Pagar e Ext
 
 Validação direcionada: matriz de consultas aprovada em H2 e PostgreSQL 18.6 (10 casos em cada banco), Flyway até V28 e Hibernate validate; 84 testes frontend, build e seis casos Playwright aprovados. Playwright usa HTTP simulado para UI; PostgreSQL valida consultas reais. Suíte backend final: 687 casos, nenhuma falha de asserção, 38 erros de inicialização e 22 ignorados. Erros concentrados em VendaServiceTest (dependência ConfirmacaoPagamentoPixService ausente no contexto) e EstoqueConcorrenciaTest (ArquivoStorageService ausente), sem alterações desses contextos nesta tarefa. Lint das telas de paginação aprovado; lint global mantém cinco erros anteriores e três avisos em Dashboard/Caixa/PDV/formulários. Commits de paginação separados do trabalho PIX ainda não consolidado; sem push.
 
+## Financeiro Bloco 4B-A: snapshot histórico da configuração no Pagamento
+
+Implementado no working tree de feat/contas-pagar-integracao-backend sobre HEAD 4d84785, inicialmente limpo, com V26 no HEAD; sem commit/push. Pagamento captura na criação nome/tipo da configuração e ID/nome do destino opcional, na mesma transação de faturamento. Campos imutáveis pela aplicação (sem setters, updatable=false) expostos adicionalmente no DTO. Mudança cadastral, retry e cancelamento preservam o histórico; Pagamento é a fonte histórica, não Venda nem configuração atual. V27 aditiva com colunas nullable e FK composta por empresa, sem inventar snapshot para pagamentos anteriores.
+
+Validação: 103 testes direcionados aprovados (77 Venda HTTP, 23 configuração e 2 compatibilidade, mais 1 V27 em PostgreSQL 18.6). Teste central altera configuração PIX Itaú para outro nome/destino, renomeia a conta original e confirma snapshot original após retry/cancelamento. Migration verificada sobre V26 com pagamentos legados vinculados e não vinculados, todos preservados com snapshot NULL. Compilação pelo Maven test aprovada; suíte completa não executada. Sem alterações em frontend/Caixa/saldos ou novos efeitos financeiros.
+
+Compatibilidade resolvida: snapshot do nome de destino usa VARCHAR(150), alinhado a ContaFinanceira e ao mapeamento JPA, sem truncamento. V27 ajustada diretamente após consulta ao histórico Flyway do banco persistente local novexa_erp, que continha V26 e não V27; aplicações anteriores de V27 ocorreram somente em schemas descartáveis dos testes. Nenhuma V28 criada.
+
+Validação do ajuste final: 9 testes direcionados aprovados (8 casos de snapshot em Venda e 1 migration V27 sobre V26 em PostgreSQL 18.6), incluindo nome integral de 150 caracteres após alteração cadastral, retry e cancelamento. Compilação Maven e git diff --check aprovados. Sem pendência de tamanho do snapshot.
+
 ## Venda/Pagamento: identificação da configuração empresarial
 
 Backend aceita configuracaoFormaPagamentoId opcional na venda direta e faturamento de venda aberta, mantendo forma global/código legado obrigatórios conforme contrato existente. Vínculo da mesma empresa, ativo e de tipo compatível, salvo em Venda e Pagamento e devolvido como ID nas respostas. V26 aditiva com FKs compostas por empresa e índices; registros antigos permanecem sem configuração. Cancelamento conserva o vínculo. Hash legado preservado sem o campo e retries com configuração diferente rejeitados.

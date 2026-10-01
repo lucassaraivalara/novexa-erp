@@ -24,6 +24,10 @@ public class PagamentoEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "configuracao_forma_pagamento_id", updatable = false)
     private ConfiguracaoFormaPagamentoEmpresaEntity configuracaoFormaPagamento;
+    @Column(length = 150, updatable = false) private String configuracaoNomeExibicao;
+    @Enumerated(EnumType.STRING) @Column(length = 20, updatable = false) private TipoFormaPagamento configuracaoTipo;
+    @Column(updatable = false) private Long configuracaoContaFinanceiraDestinoId;
+    @Column(length = 150, updatable = false) private String configuracaoContaFinanceiraDestinoNome;
     @Column(nullable = false, precision = 19, scale = 2) private BigDecimal valor;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private StatusPagamento status;
     @Column(nullable = false) private LocalDateTime dataHora;
@@ -55,6 +59,15 @@ public class PagamentoEntity {
                 || configuracaoFormaPagamento.getTipo() != forma.getTipo() || !configuracaoFormaPagamento.isAtivo())) {
             throw new IllegalArgumentException("Configuracao de pagamento indisponivel ou incompativel.");
         }
+        if (configuracaoFormaPagamento != null) {
+            this.configuracaoNomeExibicao = configuracaoFormaPagamento.getNomeExibicao();
+            this.configuracaoTipo = configuracaoFormaPagamento.getTipo();
+            var destino = configuracaoFormaPagamento.getContaFinanceiraDestino();
+            if (destino != null) {
+                this.configuracaoContaFinanceiraDestinoId = destino.getId();
+                this.configuracaoContaFinanceiraDestinoNome = destino.getNome();
+            }
+        }
         this.valor = venda.getTotal();
         this.status = StatusPagamento.REGISTRADO;
         this.dataHora = LocalDateTime.now();
@@ -75,6 +88,10 @@ public class PagamentoEntity {
     public FormaPagamento getFormaPagamento() { return formaPagamento; }
     public FormaPagamentoEntity getForma() { return forma; }
     public ConfiguracaoFormaPagamentoEmpresaEntity getConfiguracaoFormaPagamento() { return configuracaoFormaPagamento; }
+    public String getConfiguracaoNomeExibicao() { return configuracaoNomeExibicao; }
+    public TipoFormaPagamento getConfiguracaoTipo() { return configuracaoTipo; }
+    public Long getConfiguracaoContaFinanceiraDestinoId() { return configuracaoContaFinanceiraDestinoId; }
+    public String getConfiguracaoContaFinanceiraDestinoNome() { return configuracaoContaFinanceiraDestinoNome; }
     public BigDecimal getValor() { return valor; }
     public StatusPagamento getStatus() { return status; }
     public LocalDateTime getDataHora() { return dataHora; }

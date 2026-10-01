@@ -59,7 +59,15 @@ Nenhum destino cadastrado gera lançamento financeiro neste bloco. Venda, Pagame
 
 Venda e Pagamento persistem o mesmo vínculo opcional, protegido por FKs compostas de empresa na V26. Respostas de Venda e `GET /vendas/{id}/pagamentos` incluem `configuracaoFormaPagamentoId`, nulo no legado. Não há preenchimento retroativo nem alteração de registros anteriores. Cancelamento preserva o vínculo mesmo após inativação cadastral. O novo ID participa do hash somente quando informado; retries legados permanecem compatíveis e outra configuração na mesma chave não substitui o vínculo original.
 
-A configuração é apenas identificação operacional neste bloco. Não são persistidos snapshots de nome/destino, e o cadastro atual não deve ser interpretado como destino histórico de liquidação. ContaFinanceira não é movimentada nem validada para liquidação por este vínculo. Não há Recebível, liquidação, taxa ou TEF; os efeitos legados de estoque/Caixa/LancamentoFinanceiro permanecem. Frontend e os fluxos ainda não suportados de boleto/transferência não mudam.
+A configuração é identificação operacional. ContaFinanceira não é movimentada nem validada para liquidação por este vínculo. Não há Recebível, liquidação, taxa ou TEF; os efeitos legados de estoque/Caixa/LancamentoFinanceiro permanecem. Frontend e os fluxos ainda não suportados de boleto/transferência não mudam.
+
+### Bloco 4B-A: snapshot histórico no Pagamento
+
+Pagamento é a fonte histórica imutável da configuração utilizada. Seu construtor captura, na mesma transação do faturamento, configuracaoNomeExibicao, configuracaoTipo, configuracaoContaFinanceiraDestinoId e configuracaoContaFinanceiraDestinoNome, com destino nulo quando não existe. Todos são updatable=false e sem setters; cancelamento altera somente status. Consulta de Pagamento devolve esses valores persistidos, sem reler nome/tipo/destino da configuração atual. Os campos anteriores do contrato permanecem disponíveis.
+
+A V27 adiciona as quatro colunas nullable e FK tenant-safe (destino histórico, empresa_id) para contas_financeiras(id, empresa_id), sem backfill. Pagamentos anteriores, mesmo com configuração vinculada, e novos pagamentos sem configuração mantêm snapshot NULL. Nome da configuração e nome do destino suportam 150 caracteres, alinhados às entidades de origem, e tipo suporta 20. Nenhum nome válido é truncado.
+
+Retries usam o mecanismo/hash existente e devolvem o Pagamento original, sem recriar ou atualizar snapshot. Alterações futuras de nome/destino na configuração ou renomeação da conta não reinterpretam pagamentos já registrados. Integração financeira futura deverá usar o ID original gravado no Pagamento. PIX financeiro, Recebíveis e liquidação automática permanecem fora deste bloco.
 
 ## Destinos financeiros — FUTURO
 

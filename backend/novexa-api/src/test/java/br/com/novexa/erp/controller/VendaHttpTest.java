@@ -761,7 +761,9 @@ class VendaHttpTest {
         mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.configuracaoFormaPagamentoId").value(config.getId()));
         mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[0].configuracaoFormaPagamentoId").value(config.getId()));
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].configuracaoFormaPagamentoId").value(config.getId()))
+                .andExpect(jsonPath("$[0].configuracaoNomeExibicao").value(config.getNomeExibicao()))
+                .andExpect(jsonPath("$[0].configuracaoTipo").value(config.getTipo().name()));
         assertThat(pagamentos.findAll().getFirst().getConfiguracaoFormaPagamento().getId()).isEqualTo(config.getId());
         assertThat(jdbc.queryForObject("select count(*) from movimentacoes_financeiras", Long.class)).isZero();
         assertThat(financeiro.count()).isEqualTo(1);
@@ -816,7 +818,11 @@ class VendaHttpTest {
                     .andExpect(status().isOk()).andExpect(jsonPath("$.configuracaoFormaPagamentoId").value(config.getId()));
         mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value("CANCELADO"))
-                .andExpect(jsonPath("$[0].configuracaoFormaPagamentoId").value(config.getId()));
+                .andExpect(jsonPath("$[0].configuracaoFormaPagamentoId").value(config.getId()))
+                .andExpect(jsonPath("$[0].configuracaoNomeExibicao").value(config.getNomeExibicao()))
+                .andExpect(jsonPath("$[0].configuracaoTipo").value("DINHEIRO"))
+                .andExpect(jsonPath("$[0].configuracaoContaFinanceiraDestinoId").doesNotExist())
+                .andExpect(jsonPath("$[0].configuracaoContaFinanceiraDestinoNome").doesNotExist());
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
         assertThat(movimentosCaixa.count()).isEqualTo(2);
         assertThat(pagamentos.count()).isEqualTo(1);
@@ -833,7 +839,47 @@ class VendaHttpTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.configuracaoFormaPagamentoId").doesNotExist());
         mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].configuracaoFormaPagamentoId").doesNotExist())
-                .andExpect(jsonPath("$[0].formaPagamentoId").value(2));
+                .andExpect(jsonPath("$[0].formaPagamentoId").value(2))
+                .andExpect(jsonPath("$[0].configuracaoNomeExibicao").doesNotExist())
+                .andExpect(jsonPath("$[0].configuracaoTipo").doesNotExist())
+                .andExpect(jsonPath("$[0].configuracaoContaFinanceiraDestinoId").doesNotExist())
+                .andExpect(jsonPath("$[0].configuracaoContaFinanceiraDestinoNome").doesNotExist());
+    }
+
+    @ParameterizedTest @ValueSource(ints = {4, 150})
+    void snapshotPixPreservaNomeEDestinoOriginaisAposEdicaoRetryECancelamento(int tamanhoNome) throws Exception {
+        var config = configuracao(empresa, 2, true);
+        var itau = config.getContaFinanceiraDestino();
+        String nomeOriginal = "Itaú" + "x".repeat(tamanhoNome - 4);
+        itau.editar(nomeOriginal, TipoContaFinanceira.BANCO); contasFinanceiras.saveAndFlush(itau);
+        config.atualizar("PIX Itaú", true, itau); configuracoes.saveAndFlush(config);
+        var p = pedido(); p.remove("formaPagamento"); p.put("formaPagamentoId", 2L);
+        p.put("configuracaoFormaPagamentoId", config.getId());
+        long vendaId = enviar(p);
+        var original = pagamentos.findAll().getFirst();
+        assertThat(original.getConfiguracaoNomeExibicao()).isEqualTo("PIX Itaú");
+        assertThat(original.getConfiguracaoTipo()).isEqualTo(TipoFormaPagamento.PIX);
+        assertThat(original.getConfiguracaoContaFinanceiraDestinoId()).isEqualTo(itau.getId());
+        assertThat(original.getConfiguracaoContaFinanceiraDestinoNome()).isEqualTo(nomeOriginal);
+
+        var nubank = contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(empresa, "Nubank", TipoContaFinanceira.BANCO, BigDecimal.ZERO));
+        mvc.perform(put("/financeiro/configuracoes-formas-pagamento/" + config.getId()).header(HttpHeaders.AUTHORIZATION, authorization)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of(
+                                "formaPagamentoId", 2, "nomeExibicao", "PIX Nubank", "contaFinanceiraDestinoId", nubank.getId()))))
+                .andExpect(status().isOk());
+        itau.editar("Itaú renomeado", TipoContaFinanceira.BANCO); contasFinanceiras.saveAndFlush(itau);
+        for (int retry = 0; retry < 2; retry++) assertThat(enviar(p)).isEqualTo(vendaId);
+        mvc.perform(post("/vendas/" + vendaId + "/cancelar").header(HttpHeaders.AUTHORIZATION, authorization)).andExpect(status().isOk());
+        mvc.perform(get("/vendas/" + vendaId + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(original.getId()))
+                .andExpect(jsonPath("$[0].status").value("CANCELADO"))
+                .andExpect(jsonPath("$[0].configuracaoNomeExibicao").value("PIX Itaú"))
+                .andExpect(jsonPath("$[0].configuracaoTipo").value("PIX"))
+                .andExpect(jsonPath("$[0].configuracaoContaFinanceiraDestinoId").value(itau.getId()))
+                .andExpect(jsonPath("$[0].configuracaoContaFinanceiraDestinoNome").value(nomeOriginal));
+        assertThat(pagamentos.count()).isEqualTo(1);
+        assertThat(contasFinanceiras.findById(itau.getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("100");
+        assertThat(contasFinanceiras.findById(nubank.getId()).orElseThrow().getSaldoAtual()).isZero();
     }
 
     private ConfiguracaoFormaPagamentoEmpresaEntity configuracao(EmpresaEntity e, long formaId, boolean ativo) {
