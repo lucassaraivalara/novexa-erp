@@ -9,7 +9,7 @@ export const rotulosTipoFormaPagamento: Record<TipoFormaPagamento, string> = {
     TRANSFERENCIA: "Transferência",
 };
 
-export const tiposFormaPagamentoComContaDestino: TipoFormaPagamento[] = ["PIX", "TRANSFERENCIA"];
+export const tiposFormaPagamentoComContaDestino: TipoFormaPagamento[] = ["PIX", "TRANSFERENCIA", "DEBITO", "CREDITO"];
 
 export type ContaFinanceiraDestinoResumo = {
     id: number;

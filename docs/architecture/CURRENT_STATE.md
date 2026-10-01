@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## MVP 01: destino financeiro nas configuracoes de cartao (2026-10-01)
+
+Frontend implementado na branch feat/contas-pagar-integracao-backend sobre 3d98fbf. DEBITO/CREDITO permitem selecionar destino obrigatorio para novas configuracoes; legado sem destino e legivel/inativavel, mas salvar ativo/reativar exige regularizacao explicita. Lista sinaliza destino ausente; destino atual inativo pode ser preservado. Troca para DINHEIRO/BOLETO limpa destino, sem tenant no payload. Contrato POST/PUT existente e services reutilizados, sem backend/migrations ou alteracao de historico, liquidacao, PIX/PDV e design aprovado. Detalhes em frontend.md.
+
+Validacao: 14 testes direcionados (12 novos Chromium + 2 services), suite frontend 126/126, TypeScript/build e diff check aprovados. Criacao de Debito/Credito, Dinheiro, edicao/reativacao/inativacao legada e erros exercitados com HTTP simulado; homologacao com backend real permanece pendente. Lint alterado sem erros, com warning preexistente react-hooks/incompatible-library de watch() confirmado no HEAD anterior. Erro preexistente do Dashboard react-hooks/set-state-in-effect registrado separadamente, sem correcao nesta tarefa.
+
 ## Linguagem visual ERP baseada nas referencias (2026-10-01)
 
 Restilizacao aprovada e encerrada na branch feat/contas-pagar-integracao-backend, sobre d6061d6. Sidebar navy com marca verde, selecao clara, superficies brancas com raios moderados e sombra leve. Filtros/tabelas integrados visualmente; indicadores do Dashboard compactos, sem raios multiplicados pelo MUI. PDV responsivo, cadastros e Login coerentes com a identidade aprovada. Sem alteracoes de regras, rotas ou APIs; recuperacao/suporte e preferencia de permanencia no Login continuam indisponiveis, sem alterar a sessao existente. Detalhes em frontend.md. Validacao de consolidacao: 114 testes frontend aprovados, TypeScript/build e diff check; lint dos arquivos alterados com um unico erro preexistente de react-hooks/set-state-in-effect no Dashboard, reproduzido tambem no HEAD anterior. Screenshots desktop/mobile de Dashboard, Vendas, Clientes/cadastro, Caixa, PDV e Login com dados simulados, sem overflow horizontal da pagina ou erros JS. Design preservado; proximas etapas sao funcionais e dependem de aprovacao, sem novas iteracoes esteticas salvo bugs visuais criticos.

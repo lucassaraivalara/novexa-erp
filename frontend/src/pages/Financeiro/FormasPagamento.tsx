@@ -22,7 +22,8 @@ const colunas: Coluna<ConfiguracaoFormaPagamento>[] = [
         campo: "contaFinanceiraDestino",
         cabecalho: "Conta destino",
         largura: 220,
-        render: (_valor, linha) => linha.contaFinanceiraDestino ? `${linha.contaFinanceiraDestino.nome} — ${linha.contaFinanceiraDestino.tipo}` : "—",
+        render: (_valor, linha) => linha.contaFinanceiraDestino ? `${linha.contaFinanceiraDestino.nome} — ${linha.contaFinanceiraDestino.tipo}`
+            : ["DEBITO", "CREDITO"].includes(linha.tipo) ? "Pendente de regularização" : "—",
     },
     {
         campo: "ativo",
