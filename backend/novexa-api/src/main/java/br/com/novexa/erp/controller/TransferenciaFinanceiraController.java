@@ -23,8 +23,17 @@ public class TransferenciaFinanceiraController {
     }
 
     @GetMapping
-    public List<TransferenciaFinanceiraResponseDTO> listar(@AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return service.listar(usuario.empresaId());
+    public br.com.novexa.erp.dto.PaginaResponseDTO<TransferenciaFinanceiraResponseDTO> listar(
+            @RequestParam(required = false) Long contaOrigemId,
+            @RequestParam(required = false) Long contaDestinoId,
+            @RequestParam(required = false) br.com.novexa.erp.entity.StatusTransferenciaFinanceira status,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataInicial,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataFinal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "dataMovimento,desc") String sort,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return service.listarPagina(usuario.empresaId(), contaOrigemId, contaDestinoId, status, dataInicial, dataFinal, page, size, sort);
     }
 
     @PostMapping("/{id}/estornar")

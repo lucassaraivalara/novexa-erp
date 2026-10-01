@@ -24,6 +24,17 @@ public class TransferenciaFinanceiraService {
     private final TransactionTemplate transacao;
     private final Validator validator;
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public br.com.novexa.erp.dto.PaginaResponseDTO<TransferenciaFinanceiraResponseDTO> listarPagina(Long empresaId, Long contaOrigemId, Long contaDestinoId, br.com.novexa.erp.entity.StatusTransferenciaFinanceira status, java.time.LocalDate dataInicial, java.time.LocalDate dataFinal, int page, int size, String sort) {
+        var pageable = br.com.novexa.erp.util.Paginacao.criar(page, size, sort,
+                java.util.Set.of("id", "dataMovimento", "valor", "status"), org.springframework.data.domain.Sort.Direction.DESC);
+        if (dataInicial != null && dataFinal != null && dataInicial.isAfter(dataFinal))
+            throw br.com.novexa.erp.util.Paginacao.invalida("Periodo invalido.");
+
+        return br.com.novexa.erp.dto.PaginaResponseDTO.de(transferencias.listarPagina(empresaId, contaOrigemId, contaDestinoId, status, dataInicial, dataFinal, pageable), TransferenciaFinanceiraResponseDTO::de);
+    }
+
+
     public TransferenciaFinanceiraService(TransferenciaFinanceiraRepository transferencias,
             ContaFinanceiraRepository contas, MovimentacaoFinanceiraRepository movimentos,
             UsuarioRepository usuarios, PlatformTransactionManager transactionManager, Validator validator) {

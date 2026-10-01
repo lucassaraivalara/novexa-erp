@@ -11,8 +11,12 @@ const transferenciasUrl = "/financeiro/transferencias";
 export const criarTransferenciaFinanceira = async (dados: TransferenciaFinanceiraInput) =>
     (await api.post<TransferenciaFinanceira>(transferenciasUrl, dados)).data;
 
-export const listarTransferenciasFinanceiras = async (signal?: AbortSignal) =>
-    (await api.get<TransferenciaFinanceira[]>(transferenciasUrl, { signal })).data;
+export type FiltrosTransferencia = {
+    page?: number; size?: number; sort?: string; contaOrigemId?: number; contaDestinoId?: number;
+    status?: string; dataInicial?: string; dataFinal?: string;
+};
+export const listarTransferenciasFinanceiras = async (params: FiltrosTransferencia = {}, signal?: AbortSignal) =>
+    (await api.get<PaginaResponse<TransferenciaFinanceira>>(transferenciasUrl, { params, signal })).data;
 
 export const estornarTransferenciaFinanceira = async (id: number, motivoEstorno: string) =>
     (await api.post<TransferenciaFinanceira>(`${transferenciasUrl}/${id}/estornar`, { motivoEstorno })).data;

@@ -8,6 +8,17 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface TransferenciaFinanceiraRepository extends JpaRepository<TransferenciaFinanceiraEntity, Long> {
+    @org.springframework.data.jpa.repository.Query("""
+        select t from TransferenciaFinanceiraEntity t where t.empresa.id = :empresaId
+         and (:contaOrigemId is null or t.contaOrigem.id = :contaOrigemId)
+         and (:contaDestinoId is null or t.contaDestino.id = :contaDestinoId)
+         and (:status is null or t.status = :status)
+         and (cast(:dataInicial as date) is null or t.dataMovimento >= :dataInicial)
+         and (cast(:dataFinal as date) is null or t.dataMovimento <= :dataFinal)
+        """)
+    org.springframework.data.domain.Page<TransferenciaFinanceiraEntity> listarPagina(Long empresaId, Long contaOrigemId, Long contaDestinoId, br.com.novexa.erp.entity.StatusTransferenciaFinanceira status, java.time.LocalDate dataInicial, java.time.LocalDate dataFinal,
+            org.springframework.data.domain.Pageable pageable);
+
     Optional<TransferenciaFinanceiraEntity> findByEmpresaIdAndChaveRequisicao(Long empresaId, UUID chave);
     @EntityGraph(attributePaths = {"contaOrigem", "contaDestino", "usuario", "usuarioEstorno"})
     List<TransferenciaFinanceiraEntity> findByEmpresaIdOrderByDataMovimentoDescIdDesc(Long empresaId);

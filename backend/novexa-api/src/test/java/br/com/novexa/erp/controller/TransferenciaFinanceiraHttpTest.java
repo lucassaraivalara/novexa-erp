@@ -79,11 +79,11 @@ class TransferenciaFinanceiraHttpTest {
             assertThat(m.getContaFinanceira().getId()).isEqualTo(destino.getId());
         });
         mvc.perform(get("/financeiro/transferencias").header("Authorization", token))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(1));
         mvc.perform(get("/financeiro/transferencias").header("Authorization", tokenOutro))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0));
         mvc.perform(get("/financeiro/movimentacoes-financeiras").header("Authorization", token))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[0].transferenciaId").value(id));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].transferenciaId").value(id));
         mvc.perform(post("/financeiro/transferencias/" + id + "/estornar").header("Authorization", tokenOutro)
                 .contentType(MediaType.APPLICATION_JSON).content("{\"motivoEstorno\":\"Teste\"}"))
                 .andExpect(status().isNotFound());
