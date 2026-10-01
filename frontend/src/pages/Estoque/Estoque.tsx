@@ -2,10 +2,10 @@ import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import InputRoundedIcon from "@mui/icons-material/InputRounded";
 import OutputRoundedIcon from "@mui/icons-material/OutputRounded";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-    Divider, Stack, TextField, Typography,
+    Divider, MenuItem, Stack, TablePagination, TextField, Typography,
 } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
@@ -54,59 +54,75 @@ export default function Estoque() {
     const [quantidade, setQuantidade] = useState("");
     const [motivo, setMotivo] = useState("");
     const [salvando, setSalvando] = useState(false);
+    const [totalItems, setTotalItems] = useState(0);
+    const [revisao, setRevisao] = useState(0);
+    const [situacao, setSituacao] = useState("");
+    const [ordenacao, setOrdenacao] = useState({ campo: "nome", direcao: "asc" as "asc" | "desc" });
+    const [paginaHistorico, setPaginaHistorico] = useState(0);
+    const [sizeHistorico, setSizeHistorico] = useState(25);
+    const [totalHistorico, setTotalHistorico] = useState(0);
+    const [filtrosHistorico, setFiltrosHistorico] = useState({ tipo: "", origem: "", dataInicial: "", dataFinal: "", sort: "dataHora,desc" });
 
-    async function carregarProdutos() {
-        setCarregando(true); setErro("");
-        try { setProdutos(await listarProdutosEstoque()); }
-        catch (e) { setErro(obterMensagemEstoque(e, "Não foi possível carregar o estoque.")); }
-        finally { setCarregando(false); }
-    }
+    function carregarProdutos() { setRevisao(n => n + 1); }
 
     useEffect(() => {
-        let ativo = true;
-        listarProdutosEstoque()
-            .then((dados) => { if (ativo) setProdutos(dados); })
-            .catch((e) => { if (ativo) setErro(obterMensagemEstoque(e, "Não foi possível carregar o estoque.")); })
-            .finally(() => { if (ativo) setCarregando(false); });
-        return () => { ativo = false; };
-    }, []);
+        const controller = new AbortController();
+        const timer = setTimeout(() => {
+            setCarregando(true);
+            listarProdutosEstoque({ page: pagina, size: porPagina, sort: `${ordenacao.campo},${ordenacao.direcao}`,
+                busca, campoBusca: campoBusca === "codigoEstoque" ? "codigoInterno" : campoBusca ?? undefined,
+                situacaoEstoque: situacao || undefined }, controller.signal)
+                .then(resposta => {
+                    if (controller.signal.aborted) return;
+                    setProdutos(resposta.items); setTotalItems(resposta.totalItems); setErro("");
+                    if (pagina > 0 && !resposta.items.length) setPagina(Math.max(0, resposta.totalPages - 1));
+                })
+                .catch(e => { if (!controller.signal.aborted) setErro(obterMensagemEstoque(e, "Não foi possível carregar o estoque.")); })
+                .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
+        }, busca.trim() ? 350 : 0);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [pagina, porPagina, busca, campoBusca, situacao, ordenacao, revisao]);
 
-    const produtosFiltrados = useMemo(() => {
-        const termo = busca.trim().toLocaleLowerCase("pt-BR");
-        return produtos.map<ProdutoEstoque>((produto) => ({
+    const linhasPagina = produtos.map<ProdutoEstoque>((produto) => ({
             ...produto,
             codigoEstoque: codigoProduto(produto),
             situacao: situacaoEstoque(produto),
-        })).filter((produto) => {
-            if (!termo) return true;
-            if (campoBusca === "nome") return produto.nome.toLocaleLowerCase("pt-BR").includes(termo);
-            if (campoBusca === "codigoEstoque") return produto.codigoEstoque.toLocaleLowerCase("pt-BR").includes(termo);
-            return produto.nome.toLocaleLowerCase("pt-BR").includes(termo)
-                || produto.codigoEstoque.toLocaleLowerCase("pt-BR").includes(termo);
-        });
-    }, [busca, campoBusca, produtos]);
-    const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(produtosFiltrados.length / porPagina) - 1));
-    const linhasPagina = produtosFiltrados.slice(paginaAtual * porPagina, paginaAtual * porPagina + porPagina);
+        }));
 
     function selecionarCampoBusca(campo: string) {
         if (!(campo in camposBusca)) return;
         setCampoBusca(campo as CampoBuscaEstoque);
+        setPagina(0);
     }
 
     function removerCampoBusca() {
         setCampoBusca(null);
+        setPagina(0);
     }
 
     function abrirMovimentacao(produto: Produto, operacao: Operacao) {
         setErro(""); setQuantidade(""); setMotivo(""); setDialogo({ produto, operacao });
     }
 
-    async function abrirHistorico(produto: Produto) {
-        setHistoricoProduto(produto); setCarregandoHistorico(true); setErro("");
-        try { setHistorico(await listarHistoricoProduto(produto.id)); }
-        catch (e) { setHistorico([]); setErro(obterMensagemEstoque(e, "Não foi possível carregar o histórico.")); }
-        finally { setCarregandoHistorico(false); }
+    function abrirHistorico(produto: Produto) {
+        setHistoricoProduto(produto); setPaginaHistorico(0); setHistorico([]); setTotalHistorico(0);
+        setFiltrosHistorico({ tipo: "", origem: "", dataInicial: "", dataFinal: "", sort: "dataHora,desc" });
     }
+
+    useEffect(() => {
+        if (!historicoProduto) return;
+        const controller = new AbortController();
+        const timer = setTimeout(() => {
+            setCarregandoHistorico(true);
+            listarHistoricoProduto(historicoProduto.id, { page: paginaHistorico, size: sizeHistorico,
+                sort: filtrosHistorico.sort, tipo: filtrosHistorico.tipo || undefined, origem: filtrosHistorico.origem || undefined,
+                dataInicial: filtrosHistorico.dataInicial || undefined, dataFinal: filtrosHistorico.dataFinal || undefined }, controller.signal)
+                .then(resposta => { if (!controller.signal.aborted) { setHistorico(resposta.items); setTotalHistorico(resposta.totalItems); } })
+                .catch(e => { if (!controller.signal.aborted) setErro(obterMensagemEstoque(e, "Não foi possível carregar o histórico.")); })
+                .finally(() => { if (!controller.signal.aborted) setCarregandoHistorico(false); });
+        }, 0);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [historicoProduto, paginaHistorico, sizeHistorico, filtrosHistorico]);
 
     async function confirmarMovimentacao() {
         if (!dialogo || salvando) return;
@@ -130,7 +146,7 @@ export default function Estoque() {
         { campo: "codigoEstoque", cabecalho: "Código", largura: 135, pesquisavel: true, ordenavel: true },
         { campo: "estoqueAtual", cabecalho: "Estoque atual", largura: 125, alinhar: "right", ordenavel: true, render: (valor) => quantidadeFormatada.format(Number(valor)) },
         { campo: "estoqueMinimo", cabecalho: "Estoque mínimo", largura: 125, alinhar: "right", ordenavel: true, render: (valor) => quantidadeFormatada.format(Number(valor)) },
-        { campo: "situacao", cabecalho: "Situação", largura: 135, ordenavel: true, render: (valor) => { const situacao = valor as SituacaoEstoque; return <Chip size="small" label={situacao} color={coresSituacao[situacao]} variant="outlined" />; } },
+        { campo: "situacao", cabecalho: "Situação", largura: 135, render: (valor) => { const situacao = valor as SituacaoEstoque; return <Chip size="small" label={situacao} color={coresSituacao[situacao]} variant="outlined" />; } },
     ];
 
     const acoes: AcaoTabela<ProdutoEstoque>[] = [
@@ -155,17 +171,30 @@ export default function Estoque() {
                 busca={{
                     placeholder: campoBusca === null ? "Pesquisar por produto ou código…" : camposBusca[campoBusca].placeholder,
                     valor: busca,
-                    onChange: setBusca,
+                    onChange: valor => { setBusca(valor); setPagina(0); },
                 }}
-            />
+            >
+                <TextField select size="small" label="Situação do estoque" value={situacao} sx={{ minWidth: 180 }}
+                    onChange={e => { setSituacao(e.target.value); setPagina(0); }}>
+                    <MenuItem value="">Todas</MenuItem>
+                    <MenuItem value="zerado">Zerado</MenuItem><MenuItem value="baixo">Baixo</MenuItem>
+                    <MenuItem value="normal">Normal</MenuItem><MenuItem value="semControle">Sem controle</MenuItem>
+                </TextField>
+            </PageFilters>
             <AppTable colunas={colunas} buscaPorColuna={{ campo: campoBusca, onSelecionar: selecionarCampoBusca }} linhas={linhasPagina} carregando={carregando} obterChaveLinha={(produto) => produto.id}
             vazio={{ titulo: "Nenhum produto encontrado", descricao: busca ? "Tente outro nome ou código." : "Cadastre produtos para acompanhar o estoque." }}
             acoes={acoes} compacta alturaCorpo={480}
             minWidth={900} sx={{ "& .MuiTableCell-root": { py: 0.75 } }}
+            ordenacaoRemota
+            ordenacao={{ campo: ordenacao.campo === "codigoInterno" ? "codigoEstoque" : ordenacao.campo,
+                direcao: ordenacao.direcao, onSort: campo => {
+                    const propriedade = campo === "codigoEstoque" ? "codigoInterno" : campo;
+                    setPagina(0); setOrdenacao(atual => ({ campo: propriedade, direcao: atual.campo === propriedade && atual.direcao === "asc" ? "desc" : "asc" }));
+                } }}
             paginacao={{
-                pagina: paginaAtual,
+                pagina,
                 linhasPorPagina: porPagina,
-                total: produtosFiltrados.length,
+                total: totalItems,
                 onPageChange: setPagina,
                 onRowsPerPageChange: (valor) => { setPorPagina(valor); setPagina(0); },
                 opcoesLinhasPorPagina: [10, 25, 50],
@@ -188,6 +217,22 @@ export default function Estoque() {
 
         <Dialog open={historicoProduto !== null} onClose={() => setHistoricoProduto(null)} fullWidth maxWidth="md" aria-labelledby="estoque-historico-titulo">
             <DialogTitle id="estoque-historico-titulo">Histórico de movimentações{historicoProduto ? ` · ${historicoProduto.nome}` : ""}</DialogTitle>
+            <Stack direction="row" spacing={1} sx={{ px: 3, flexWrap: "wrap", gap: 1 }}>
+                {([ ["tipo", "Tipo", ["ENTRADA", "SAIDA", "AJUSTE"]],
+                    ["origem", "Origem", ["MANUAL", "VENDA", "COMPRA", "AJUSTE", "CANCELAMENTO"]] ] as const).map(([campo, label, opcoes]) =>
+                    <TextField key={campo} select size="small" label={label} value={filtrosHistorico[campo]} sx={{ minWidth: 140 }}
+                        onChange={e => { setPaginaHistorico(0); setFiltrosHistorico(atual => ({ ...atual, [campo]: e.target.value })); }}>
+                        <MenuItem value="">Todas</MenuItem>{opcoes.map(valor => <MenuItem key={valor} value={valor}>{valor}</MenuItem>)}
+                    </TextField>)}
+                {([ ["dataInicial", "Data inicial"], ["dataFinal", "Data final"] ] as const).map(([campo, label]) =>
+                    <TextField key={campo} type="date" size="small" label={label} value={filtrosHistorico[campo]}
+                        slotProps={{ inputLabel: { shrink: true } }}
+                        onChange={e => { setPaginaHistorico(0); setFiltrosHistorico(atual => ({ ...atual, [campo]: e.target.value })); }} />)}
+                <TextField select size="small" label="Ordem" value={filtrosHistorico.sort}
+                    onChange={e => { setPaginaHistorico(0); setFiltrosHistorico(atual => ({ ...atual, sort: e.target.value })); }}>
+                    <MenuItem value="dataHora,desc">Mais recentes</MenuItem><MenuItem value="dataHora,asc">Mais antigas</MenuItem>
+                </TextField>
+            </Stack>
             <DialogContent>{carregandoHistorico ? <Typography color="text.secondary">Carregando histórico…</Typography> : historico.length === 0 ? <Typography color="text.secondary">Nenhuma movimentação encontrada.</Typography> : <Stack divider={<Divider />}>
                 {historico.map((movimentacao) => <Stack key={movimentacao.id} spacing={0.5} sx={{ py: 1.5 }}>
                     <Stack direction="row" sx={{ justifyContent: "space-between", gap: 2 }}><Typography sx={{ fontWeight: 700 }}>{movimentacao.tipo} · {movimentacao.origem}</Typography><Typography variant="body2" color="text.secondary">{dataFormatada.format(new Date(movimentacao.dataHora))}</Typography></Stack>
@@ -195,6 +240,9 @@ export default function Estoque() {
                     <Typography variant="body2" color="text.secondary">{movimentacao.motivo || "Sem motivo informado"} · {movimentacao.nomeUsuario}</Typography>
                 </Stack>)}
             </Stack>}</DialogContent>
+            <TablePagination component="div" count={totalHistorico} page={paginaHistorico} rowsPerPage={sizeHistorico}
+                rowsPerPageOptions={[10, 25, 50]} onPageChange={(_, pagina) => setPaginaHistorico(pagina)}
+                onRowsPerPageChange={e => { setSizeHistorico(Number(e.target.value)); setPaginaHistorico(0); }} />
             <DialogActions><Button type="button" onClick={() => setHistoricoProduto(null)}>Fechar</Button></DialogActions>
         </Dialog>
     </PageContainer>;

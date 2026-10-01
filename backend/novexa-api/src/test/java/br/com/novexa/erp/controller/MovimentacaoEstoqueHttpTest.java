@@ -231,8 +231,7 @@ class MovimentacaoEstoqueHttpTest {
         mvc.perform(get("/estoque/movimentacoes/produto/" + produto2.getId())
                         .param("empresaId", empresa2.getId().toString())
                         .header(HttpHeaders.AUTHORIZATION, authorization))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -270,10 +269,10 @@ class MovimentacaoEstoqueHttpTest {
         var resultado = mvc.perform(get("/estoque/movimentacoes/produto/" + produto1.getId())
                         .header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$.items.length()").value(3))
                 .andReturn();
 
-        var lista = json.readTree(resultado.getResponse().getContentAsString());
+        var lista = json.readTree(resultado.getResponse().getContentAsString()).get("items");
         assertThat(lista.get(0).get("motivo").asText()).isEqualTo("Terceira");
         assertThat(lista.get(1).get("motivo").asText()).isEqualTo("Segunda");
         assertThat(lista.get(2).get("motivo").asText()).isEqualTo("Primeira");

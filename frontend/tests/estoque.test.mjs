@@ -59,7 +59,8 @@ test("serviço usa endpoints oficiais sem enviar empresa ou usuário", async () 
         ["get", "/estoque/movimentacoes/produto/4"],
     ]);
     for (const chamada of chamadas) {
-        assert.equal(chamada.params, undefined);
+        assert.equal(chamada.params?.empresaId, undefined);
+        assert.equal(chamada.params?.usuarioId, undefined);
         if (chamada.data) {
             assert.equal(chamada.data.includes("empresaId"), false);
             assert.equal(chamada.data.includes("usuarioId"), false);
@@ -73,12 +74,12 @@ test("nova consulta de produtos retorna o saldo atualizado pela API", async () =
         consulta += 1;
         return {
             config, status: 200, statusText: "OK", headers: {},
-            data: [{ id: 4, nome: "Produto", estoqueAtual: consulta === 1 ? 5 : 10 }],
+            data: { items: [{ id: 4, nome: "Produto", estoqueAtual: consulta === 1 ? 5 : 10 }], totalItems: 1 },
         };
     };
 
-    assert.equal((await listarProdutosEstoque())[0].estoqueAtual, 5);
-    assert.equal((await listarProdutosEstoque())[0].estoqueAtual, 10);
+    assert.equal((await listarProdutosEstoque()).items[0].estoqueAtual, 5);
+    assert.equal((await listarProdutosEstoque()).items[0].estoqueAtual, 10);
     assert.equal(consulta, 2);
 });
 
@@ -89,10 +90,10 @@ test("histórico preserva saldo, quantidade, motivo, usuário e data retornados 
         dataHora: "2026-09-14T10:00:00Z", usuarioId: 2, nomeUsuario: "Operador",
     };
     apiModule.default.defaults.adapter = async (config) => ({
-        config, status: 200, statusText: "OK", headers: {}, data: [movimento],
+        config, status: 200, statusText: "OK", headers: {}, data: { items: [movimento], totalItems: 1 },
     });
 
-    assert.deepEqual(await listarHistoricoProduto(4), [movimento]);
+    assert.deepEqual((await listarHistoricoProduto(4)).items, [movimento]);
 });
 
 test("erro de estoque insuficiente preserva a mensagem de negócio", () => {

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -96,16 +97,17 @@ public class MovimentacaoEstoqueController {
     }
 
     @GetMapping("/produto/{produtoId}")
-    public ResponseEntity<List<MovimentacaoEstoqueResponseDTO>> historicoPorProduto(
+    public br.com.novexa.erp.dto.PaginaResponseDTO<MovimentacaoEstoqueResponseDTO> historicoPorProduto(
             @PathVariable Long produtoId,
+            @RequestParam(required = false) TipoMovimentacaoEstoque tipo,
+            @RequestParam(required = false) OrigemMovimentacaoEstoque origem,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataInicial,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataFinal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "dataHora,desc") String sort,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
-
-        var movimentacoes = service.buscarPorProduto(usuario.empresaId(), produtoId);
-
-        var response = movimentacoes.stream()
-                .map(mapper::toResponse)
-                .toList();
-
-        return ResponseEntity.ok(response);
+        return br.com.novexa.erp.dto.PaginaResponseDTO.de(service.listarPagina(usuario.empresaId(), produtoId,
+                tipo, origem, dataInicial, dataFinal, page, size, sort), mapper::toResponse);
     }
 }

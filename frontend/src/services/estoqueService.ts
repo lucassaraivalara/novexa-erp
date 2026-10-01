@@ -1,6 +1,7 @@
 import axios from "axios";
-import type { Produto } from "../types/produto";
 import api from "./api";
+import type { PaginaResponse } from "../types/paginacao";
+import { listarProdutosPaginado, type FiltrosProduto } from "./produtoService";
 
 export type TipoMovimentacaoEstoque = "ENTRADA" | "SAIDA" | "AJUSTE";
 
@@ -25,8 +26,8 @@ export type MovimentacaoEstoque = {
     nomeUsuario: string;
 };
 
-export async function listarProdutosEstoque(): Promise<Produto[]> {
-    return (await api.get<Produto[]>("/produtos")).data;
+export async function listarProdutosEstoque(params: FiltrosProduto = {}, signal?: AbortSignal) {
+    return listarProdutosPaginado(params, signal);
 }
 
 export async function registrarEntrada(dados: MovimentacaoEstoqueRequest): Promise<MovimentacaoEstoque> {
@@ -41,8 +42,12 @@ export async function registrarAjuste(dados: MovimentacaoEstoqueRequest): Promis
     return (await api.post<MovimentacaoEstoque>("/estoque/movimentacoes/ajuste", dados)).data;
 }
 
-export async function listarHistoricoProduto(produtoId: number): Promise<MovimentacaoEstoque[]> {
-    return (await api.get<MovimentacaoEstoque[]>(`/estoque/movimentacoes/produto/${produtoId}`)).data;
+export type FiltrosHistoricoEstoque = {
+    page?: number; size?: number; sort?: string; tipo?: string; origem?: string;
+    dataInicial?: string; dataFinal?: string;
+};
+export async function listarHistoricoProduto(produtoId: number, params: FiltrosHistoricoEstoque = {}, signal?: AbortSignal) {
+    return (await api.get<PaginaResponse<MovimentacaoEstoque>>(`/estoque/movimentacoes/produto/${produtoId}`, { params, signal })).data;
 }
 
 export function obterMensagemEstoque(erro: unknown, mensagemPadrao: string): string {
