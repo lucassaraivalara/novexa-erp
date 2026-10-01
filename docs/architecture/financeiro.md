@@ -61,6 +61,22 @@ Venda e Pagamento persistem o mesmo vínculo opcional, protegido por FKs compost
 
 A configuração é identificação operacional. ContaFinanceira não é movimentada nem validada para liquidação por este vínculo. Não há Recebível, liquidação, taxa ou TEF; os efeitos legados de estoque/Caixa/LancamentoFinanceiro permanecem. Frontend e os fluxos ainda não suportados de boleto/transferência não mudam.
 
+### Bloco 4C-A1: confirmação financeira explícita do PIX
+
+`POST /financeiro/pagamentos/{id}/confirmar-recebimento`, sem payload, usa empresa e usuário do JWT. Exige pagamento não cancelado, configuracaoTipo PIX, destino histórico e valor positivo; pagamentos legados sem snapshot válido não são reinterpretados. O destino vem exclusivamente do snapshot, mesmo após alteração da configuração ou inativação da conta histórica. Conta deve existir no tenant; não há redirecionamento.
+
+Uma transação segue a ordem de locks operador, Venda, Pagamento e ContaFinanceira com PESSIMISTIC_WRITE, verifica confirmação existente, credita o saldo e cria ENTRADA/PAGAMENTO_PIX. A V28 acrescenta pagamento_id em movimentacoes_financeiras, FK composta por empresa, UNIQUE por pagamento e CHECK de origem/vínculo/tipo. A confirmação deriva do movimento único: PagamentoResponseDTO expõe confirmadoFinanceiramente, dataConfirmacaoFinanceira, usuarioConfirmacaoFinanceiraId e movimentacaoFinanceiraId. Retry preserva saldo, movimento e auditoria originais.
+
+Não há confirmação automática no faturamento ou fechamento do Caixa. Efeitos legados permanecem; não há Recebível ou liquidação de cartão.
+
+### Bloco 4C-A2: cancelamento e concorrência PIX
+
+Cancelamento da Venda integra o estorno do PIX à mesma transação de estoque/Pagamento/lançamento legado. Debita o valor na conta histórica (inclusive inativa) e preserva o movimento original com estornada, dataEstorno, usuarioEstorno e motivoEstorno. Sem confirmação não inventa movimento. Retry de cancelamento não repete débito nem altera auditoria; saldo insuficiente retorna 409 e desfaz toda a tentativa. A confirmação ocorrida e sua auditoria continuam históricas; status CANCELADO e movimento estornado registram sua reversão.
+
+Confirmação e cancelamento usam a mesma ordem operador → Venda → Pagamento → ContaFinanceira. Cancelamento mantém os locks existentes de produtos antes dos pagamentos, adquiridos por ID; pagamentos também são bloqueados em ordem de ID. A confirmação nunca tenta bloquear Venda depois de Pagamento. O saldo da conta é relido sob lock para evitar entidades previamente carregadas com saldo desatualizado. O fluxo atual possui um pagamento por venda; pagamento misto permanece fora do escopo.
+
+Dupla confirmação serializa e mantém uma única entrada, também protegida pelo UNIQUE da V28. Se confirmar primeiro, cancelamento estorna; se cancelar primeiro, confirmação retorna conflito. Falha em qualquer etapa provoca rollback integral. Estorno individual de PAGAMENTO_PIX permanece bloqueado no endpoint genérico, devendo ocorrer pelo cancelamento da venda. V27/V28 preservadas; nenhuma V29 necessária.
+
 ### Bloco 4B-A: snapshot histórico no Pagamento
 
 Pagamento é a fonte histórica imutável da configuração utilizada. Seu construtor captura, na mesma transação do faturamento, configuracaoNomeExibicao, configuracaoTipo, configuracaoContaFinanceiraDestinoId e configuracaoContaFinanceiraDestinoNome, com destino nulo quando não existe. Todos são updatable=false e sem setters; cancelamento altera somente status. Consulta de Pagamento devolve esses valores persistidos, sem reler nome/tipo/destino da configuração atual. Os campos anteriores do contrato permanecem disponíveis.

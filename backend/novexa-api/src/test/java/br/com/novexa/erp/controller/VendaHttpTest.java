@@ -52,6 +52,7 @@ class VendaHttpTest {
     @Autowired MovimentacaoCaixaRepository movimentosCaixa;
     @MockitoSpyBean LancamentoFinanceiroRepository financeiro;
     @MockitoSpyBean PagamentoRepository pagamentos;
+    @MockitoSpyBean MovimentacaoFinanceiraRepository movimentosFinanceiros;
     @Autowired JwtService jwt;
     @Autowired FormaPagamentoService formas;
     @Autowired FormaPagamentoRepository catalogo;
@@ -78,8 +79,9 @@ class VendaHttpTest {
 
     @AfterEach
     void limpar() {
-        reset(financeiro, pagamentos);
+        reset(financeiro, pagamentos, movimentosFinanceiros);
         jdbc.update("delete from movimentacoes_caixa");
+        jdbc.update("delete from movimentacoes_financeiras");
         jdbc.update("delete from pagamentos");
         jdbc.update("delete from lancamentos_financeiros");
         jdbc.update("delete from itens_venda");
@@ -880,6 +882,224 @@ class VendaHttpTest {
         assertThat(pagamentos.count()).isEqualTo(1);
         assertThat(contasFinanceiras.findById(itau.getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("100");
         assertThat(contasFinanceiras.findById(nubank.getId()).orElseThrow().getSaldoAtual()).isZero();
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void confirmacaoPixUsaSnapshotMesmoAposTrocaDeDestinoEInativacao(boolean inativarConta) throws Exception {
+        var config = configuracao(empresa, 2, true);
+        Long contaOriginal = config.getContaFinanceiraDestino().getId();
+        long vendaId = vendaConfigurada(config, 2);
+        long pagamentoId = pagamentos.findAll().getFirst().getId();
+        assertThat(movimentosFinanceiros.count()).isZero();
+        mvc.perform(get("/vendas/" + vendaId + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(jsonPath("$[0].confirmadoFinanceiramente").value(false));
+        var novaConta = contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(empresa, "Novo destino", TipoContaFinanceira.CARTEIRA_DIGITAL, BigDecimal.ZERO));
+        config.atualizar("PIX alterado", false, novaConta); configuracoes.saveAndFlush(config);
+        if (inativarConta) jdbc.update("update contas_financeiras set ativo=false where id=?", contaOriginal);
+        var primeira = confirmarPix(pagamentoId, authorization).andExpect(status().isOk())
+                .andExpect(jsonPath("$.confirmadoFinanceiramente").value(true))
+                .andExpect(jsonPath("$.usuarioConfirmacaoFinanceiraId").value(operador.getId()))
+                .andExpect(jsonPath("$.dataConfirmacaoFinanceira").isNotEmpty())
+                .andExpect(jsonPath("$.movimentacaoFinanceiraId").isNumber()).andReturn().getResponse().getContentAsString();
+        String outroOperador = "Bearer " + jwt.gerarToken(segundo);
+        var segunda = confirmarPix(pagamentoId, outroOperador).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(json.readTree(segunda)).isEqualTo(json.readTree(primeira));
+        assertThat(contasFinanceiras.findById(contaOriginal).orElseThrow().getSaldoAtual()).isEqualByComparingTo("120");
+        assertThat(contasFinanceiras.findById(novaConta.getId()).orElseThrow().getSaldoAtual()).isZero();
+        var movimento = movimentosFinanceiros.findAll().getFirst();
+        assertThat(movimentosFinanceiros.count()).isEqualTo(1);
+        assertThat(movimento.getTipo()).isEqualTo(TipoMovimentacaoFinanceira.ENTRADA);
+        assertThat(movimento.getOrigem()).isEqualTo(OrigemMovimentacaoFinanceira.PAGAMENTO_PIX);
+        assertThat(movimento.getPagamento().getId()).isEqualTo(pagamentoId);
+        assertThat(movimento.getContaFinanceira().getId()).isEqualTo(contaOriginal);
+        assertThat(movimento.getValor()).isEqualByComparingTo("20");
+        mvc.perform(get("/vendas/" + vendaId + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(jsonPath("$[0].movimentacaoFinanceiraId").value(movimento.getId()))
+                .andExpect(jsonPath("$[0].confirmadoFinanceiramente").value(true));
+        assertThat(movimentosCaixa.count()).isZero();
+        assertThat(financeiro.count()).isEqualTo(1);
+    }
+
+    @ParameterizedTest @ValueSource(longs = {1, 3, 4})
+    void confirmacaoPixRejeitaOutrosTipos(long forma) throws Exception {
+        vendaConfigurada(configuracao(empresa, forma, true), forma);
+        confirmarPix(pagamentos.findAll().getFirst().getId(), authorization).andExpect(status().isConflict());
+        assertThat(movimentosFinanceiros.count()).isZero();
+    }
+
+    @Test void confirmacaoPixRejeitaCanceladoEOutroTenant() throws Exception {
+        var config = configuracao(empresa, 2, true);
+        long vendaId = vendaConfigurada(config, 2);
+        long pagamentoId = pagamentos.findAll().getFirst().getId();
+        String externo = "Bearer " + jwt.gerarToken(1L, "02360684663", outra.getId(), PerfilUsuario.ADMIN);
+        confirmarPix(pagamentoId, externo).andExpect(status().isNotFound());
+        mvc.perform(post("/vendas/" + vendaId + "/cancelar").header(HttpHeaders.AUTHORIZATION, authorization)).andExpect(status().isOk());
+        confirmarPix(pagamentoId, authorization).andExpect(status().isConflict());
+        assertThat(movimentosFinanceiros.count()).isZero();
+        assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("100");
+    }
+
+    @Test void confirmacaoPixRejeitaDestinoAusenteOuDeOutroTenant() throws Exception {
+        var config = configuracao(empresa, 2, true);
+        vendaConfigurada(config, 2);
+        long id = pagamentos.findAll().getFirst().getId();
+        jdbc.update("update pagamentos set configuracao_conta_financeira_destino_id=null where id=?", id);
+        confirmarPix(id, authorization).andExpect(status().isConflict());
+        var externa = contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(outra, "Externa", TipoContaFinanceira.BANCO, BigDecimal.ZERO));
+        jdbc.update("update pagamentos set configuracao_conta_financeira_destino_id=? where id=?", externa.getId(), id);
+        confirmarPix(id, authorization).andExpect(status().isNotFound());
+        assertThat(movimentosFinanceiros.count()).isZero();
+    }
+
+    @ParameterizedTest @ValueSource(ints = {0, -1})
+    void confirmacaoPixRejeitaValorInvalido(int valor) throws Exception {
+        vendaConfigurada(configuracao(empresa, 2, true), 2);
+        long id = pagamentos.findAll().getFirst().getId();
+        jdbc.update("update pagamentos set valor=? where id=?", valor, id);
+        confirmarPix(id, authorization).andExpect(status().isConflict());
+        assertThat(movimentosFinanceiros.count()).isZero();
+    }
+
+    @Test void confirmacaoPixFalhaDePersistenciaReverteSaldoEMovimento() throws Exception {
+        var config = configuracao(empresa, 2, true);
+        vendaConfigurada(config, 2);
+        long id = pagamentos.findAll().getFirst().getId();
+        doAnswer(invocation -> {
+            movimentosFinanceiros.save(invocation.getArgument(0));
+            movimentosFinanceiros.flush();
+            throw new IllegalStateException("falha persistencia PIX");
+        }).when(movimentosFinanceiros).saveAndFlush(any(MovimentacaoFinanceiraEntity.class));
+        assertThatThrownBy(() -> confirmarPix(id, authorization)).hasRootCauseMessage("falha persistencia PIX");
+        assertThat(movimentosFinanceiros.count()).isZero();
+        assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("100");
+        reset(movimentosFinanceiros);
+        confirmarPix(id, authorization).andExpect(status().isOk());
+        assertThat(movimentosFinanceiros.count()).isEqualTo(1);
+        assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("120");
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void cicloPixCancelamentoPreservaHistoricoEAuditoria(boolean inativa) throws Exception {
+        var config = configuracao(empresa, 2, true);
+        long venda = vendaConfigurada(config, 2);
+        long pagamento = pagamentos.findAll().getFirst().getId();
+        confirmarPix(pagamento, authorization).andExpect(status().isOk());
+        var original = movimentosFinanceiros.findAll().getFirst();
+        if (inativa) jdbc.update("update contas_financeiras set ativo=false where id=?", config.getContaFinanceiraDestino().getId());
+        cancelarPix(venda).andExpect(status().isOk());
+        var estornado = movimentosFinanceiros.findById(original.getId()).orElseThrow();
+        assertThat(estornado.isEstornada()).isTrue();
+        assertThat(estornado.getDataEstorno()).isNotNull();
+        assertThat(estornado.getUsuarioEstorno().getId()).isEqualTo(operador.getId());
+        assertThat(estornado.getMotivoEstorno()).isEqualTo("Cancelamento da venda " + venda);
+        cancelarPix(venda).andExpect(status().isOk());
+        var retry = movimentosFinanceiros.findById(original.getId()).orElseThrow();
+        assertThat(retry.getDataEstorno()).isEqualTo(estornado.getDataEstorno());
+        assertThat(retry.getDataCriacao()).isEqualTo(original.getDataCriacao());
+        assertThat(movimentosFinanceiros.count()).isEqualTo(1);
+        assertThat(pagamentos.findById(pagamento).orElseThrow().getStatus()).isEqualTo(StatusPagamento.CANCELADO);
+        assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("100");
+        confirmarPix(pagamento, authorization).andExpect(status().isConflict());
+    }
+
+    @Test void cicloPixFalhaNoCancelamentoReverteTodosEfeitos() throws Exception {
+        var config = configuracao(empresa, 2, true);
+        long venda = vendaConfigurada(config, 2);
+        confirmarPix(pagamentos.findAll().getFirst().getId(), authorization).andExpect(status().isOk());
+        doAnswer(invocation -> {
+            movimentosFinanceiros.save(invocation.getArgument(0)); movimentosFinanceiros.flush();
+            throw new IllegalStateException("falha estorno PIX");
+        }).when(movimentosFinanceiros).saveAndFlush(any(MovimentacaoFinanceiraEntity.class));
+        assertThatThrownBy(() -> cancelarPix(venda)).hasRootCauseMessage("falha estorno PIX");
+        assertThat(vendas.findById(venda).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
+        assertThat(pagamentos.findAll().getFirst().getStatus()).isEqualTo(StatusPagamento.REGISTRADO);
+        assertThat(movimentosFinanceiros.findAll().getFirst().isEstornada()).isFalse();
+        assertThat(movimentosFinanceiros.findAll().getFirst().getDataEstorno()).isNull();
+        assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("120");
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
+        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(financeiro.findAll().getFirst().getSituacao()).isEqualTo(LancamentoFinanceiroEntity.Situacao.RECEBIDO);
+        reset(movimentosFinanceiros);
+        cancelarPix(venda).andExpect(status().isOk());
+    }
+
+    @Test void cicloPixSaldoInsuficienteImpedeCancelamentoIntegral() throws Exception {
+        var config = configuracao(empresa, 2, true);
+        long venda = vendaConfigurada(config, 2);
+        confirmarPix(pagamentos.findAll().getFirst().getId(), authorization).andExpect(status().isOk());
+        jdbc.update("update contas_financeiras set saldo_atual=10 where id=?", config.getContaFinanceiraDestino().getId());
+        cancelarPix(venda).andExpect(status().isConflict());
+        assertThat(vendas.findById(venda).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
+        assertThat(pagamentos.findAll().getFirst().getStatus()).isEqualTo(StatusPagamento.REGISTRADO);
+        assertThat(movimentosFinanceiros.findAll().getFirst().isEstornada()).isFalse();
+        assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("10");
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
+    }
+
+    @Test void cicloPixBloqueiaEstornoIndividual() throws Exception {
+        long venda = vendaConfigurada(configuracao(empresa, 2, true), 2);
+        confirmarPix(pagamentos.findAll().getFirst().getId(), authorization).andExpect(status().isOk());
+        long movimento = movimentosFinanceiros.findAll().getFirst().getId();
+        mvc.perform(patch("/financeiro/movimentacoes-financeiras/" + movimento + "/estorno")
+                .header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"motivoEstorno\":\"Estorno isolado\"}")).andExpect(status().isConflict());
+        assertThat(movimentosFinanceiros.findById(movimento).orElseThrow().isEstornada()).isFalse();
+        assertThat(vendas.findById(venda).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
+    }
+
+    @Test void cicloPixDuplaConfirmacaoConcorrente() throws Exception {
+        var config = configuracao(empresa, 2, true);
+        vendaConfigurada(config, 2);
+        long pagamento = pagamentos.findAll().getFirst().getId();
+        var outroToken = "Bearer " + jwt.gerarToken(segundo);
+        var respostas = simultaneas(
+                () -> confirmarPix(pagamento, authorization).andReturn().getResponse().getStatus(),
+                () -> confirmarPix(pagamento, outroToken).andReturn().getResponse().getStatus());
+        assertThat(respostas).containsExactly(200, 200);
+        assertThat(movimentosFinanceiros.count()).isEqualTo(1);
+        assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("120");
+    }
+
+    @Test void cicloPixConfirmacaoECancelamentoConcorrentes() throws Exception {
+        var config = configuracao(empresa, 2, true);
+        long venda = vendaConfigurada(config, 2);
+        long pagamento = pagamentos.findAll().getFirst().getId();
+        var outroToken = "Bearer " + jwt.gerarToken(segundo);
+        var respostas = simultaneas(
+                () -> confirmarPix(pagamento, outroToken).andReturn().getResponse().getStatus(),
+                () -> cancelarPix(venda).andReturn().getResponse().getStatus());
+        assertThat(respostas.get(0)).isIn(200, 409);
+        assertThat(respostas.get(1)).isEqualTo(200);
+        assertThat(vendas.findById(venda).orElseThrow().getStatus()).isEqualTo(StatusVenda.CANCELADA);
+        assertThat(pagamentos.findById(pagamento).orElseThrow().getStatus()).isEqualTo(StatusPagamento.CANCELADO);
+        assertThat(movimentosFinanceiros.count()).isEqualTo(respostas.get(0) == 200 ? 1 : 0);
+        assertThat(movimentosFinanceiros.findAll()).allMatch(MovimentacaoFinanceiraEntity::isEstornada);
+        assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("100");
+    }
+
+    private List<Integer> simultaneas(Callable<Integer> a, Callable<Integer> b) throws Exception {
+        var inicio = new CountDownLatch(1);
+        var prontas = new CountDownLatch(2);
+        var pool = Executors.newFixedThreadPool(2);
+        try {
+            var primeira = pool.submit(() -> { prontas.countDown(); inicio.await(); return a.call(); });
+            var segunda = pool.submit(() -> { prontas.countDown(); inicio.await(); return b.call(); });
+            assertThat(prontas.await(5, TimeUnit.SECONDS)).isTrue(); inicio.countDown();
+            return List.of(primeira.get(20, TimeUnit.SECONDS), segunda.get(20, TimeUnit.SECONDS));
+        } finally { inicio.countDown(); pool.shutdownNow(); pool.awaitTermination(5, TimeUnit.SECONDS); }
+    }
+
+    private org.springframework.test.web.servlet.ResultActions cancelarPix(long venda) throws Exception {
+        return mvc.perform(post("/vendas/" + venda + "/cancelar").header(HttpHeaders.AUTHORIZATION, authorization));
+    }
+
+    private long vendaConfigurada(ConfiguracaoFormaPagamentoEmpresaEntity config, long forma) throws Exception {
+        var p = pedido(); p.remove("formaPagamento"); p.put("formaPagamentoId", forma);
+        p.put("configuracaoFormaPagamentoId", config.getId()); return enviar(p);
+    }
+    private org.springframework.test.web.servlet.ResultActions confirmarPix(long id, String auth) throws Exception {
+        return mvc.perform(post("/financeiro/pagamentos/" + id + "/confirmar-recebimento").header(HttpHeaders.AUTHORIZATION, auth));
     }
 
     private ConfiguracaoFormaPagamentoEmpresaEntity configuracao(EmpresaEntity e, long formaId, boolean ativo) {

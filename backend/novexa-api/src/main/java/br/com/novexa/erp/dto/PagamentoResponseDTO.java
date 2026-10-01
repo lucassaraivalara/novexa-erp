@@ -13,8 +13,11 @@ public record PagamentoResponseDTO(Long id, Long empresaId, Long vendaId, Long u
         StatusPagamento status, LocalDateTime dataHora, BigDecimal valorRecebido, BigDecimal troco,
         Long formaPagamentoId, String descricaoFormaPagamento, TipoFormaPagamento tipoFormaPagamento,
         Long configuracaoFormaPagamentoId, String configuracaoNomeExibicao, TipoFormaPagamento configuracaoTipo,
-        Long configuracaoContaFinanceiraDestinoId, String configuracaoContaFinanceiraDestinoNome) {
+        Long configuracaoContaFinanceiraDestinoId, String configuracaoContaFinanceiraDestinoNome,
+        boolean confirmadoFinanceiramente, LocalDateTime dataConfirmacaoFinanceira,
+        Long usuarioConfirmacaoFinanceiraId, Long movimentacaoFinanceiraId) {
     public static PagamentoResponseDTO de(PagamentoEntity pagamento) {
+        var movimento = pagamento.getMovimentacaoFinanceira();
         return new PagamentoResponseDTO(pagamento.getId(), pagamento.getEmpresa().getId(),
                 pagamento.getVenda().getId(), pagamento.getUsuario().getId(), pagamento.getSequencia(),
                 pagamento.getChaveRequisicao(), pagamento.getFormaPagamento(), pagamento.getValor(),
@@ -22,6 +25,8 @@ public record PagamentoResponseDTO(Long id, Long empresaId, Long vendaId, Long u
                 pagamento.getForma().getId(), pagamento.getForma().getDescricao(), pagamento.getForma().getTipo(),
                 pagamento.getConfiguracaoFormaPagamento() == null ? null : pagamento.getConfiguracaoFormaPagamento().getId(),
                 pagamento.getConfiguracaoNomeExibicao(), pagamento.getConfiguracaoTipo(),
-                pagamento.getConfiguracaoContaFinanceiraDestinoId(), pagamento.getConfiguracaoContaFinanceiraDestinoNome());
+                pagamento.getConfiguracaoContaFinanceiraDestinoId(), pagamento.getConfiguracaoContaFinanceiraDestinoNome(),
+                movimento != null, movimento == null ? null : movimento.getDataCriacao(),
+                movimento == null ? null : movimento.getUsuario().getId(), movimento == null ? null : movimento.getId());
     }
 }

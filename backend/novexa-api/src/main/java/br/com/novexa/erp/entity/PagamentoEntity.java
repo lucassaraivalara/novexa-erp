@@ -28,6 +28,8 @@ public class PagamentoEntity {
     @Enumerated(EnumType.STRING) @Column(length = 20, updatable = false) private TipoFormaPagamento configuracaoTipo;
     @Column(updatable = false) private Long configuracaoContaFinanceiraDestinoId;
     @Column(length = 150, updatable = false) private String configuracaoContaFinanceiraDestinoNome;
+    @OneToOne(mappedBy = "pagamento", fetch = FetchType.LAZY)
+    private MovimentacaoFinanceiraEntity movimentacaoFinanceira;
     @Column(nullable = false, precision = 19, scale = 2) private BigDecimal valor;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private StatusPagamento status;
     @Column(nullable = false) private LocalDateTime dataHora;
@@ -78,6 +80,13 @@ public class PagamentoEntity {
     }
 
     public void cancelar() { this.status = StatusPagamento.CANCELADO; }
+
+    public MovimentacaoFinanceiraEntity getMovimentacaoFinanceira() { return movimentacaoFinanceira; }
+    public void registrarConfirmacaoFinanceira(MovimentacaoFinanceiraEntity movimento) {
+        if (movimentacaoFinanceira != null || movimento.getPagamento() != this)
+            throw new IllegalStateException("Confirmacao financeira incompativel com o pagamento.");
+        this.movimentacaoFinanceira = movimento;
+    }
 
     public Long getId() { return id; }
     public EmpresaEntity getEmpresa() { return empresa; }

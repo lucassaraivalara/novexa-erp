@@ -18,6 +18,7 @@ public interface MovimentacaoFinanceiraRepository extends JpaRepository<Moviment
     org.springframework.data.domain.Page<MovimentacaoFinanceiraEntity> listarPagina(Long empresaId, Long contaFinanceiraId, br.com.novexa.erp.entity.TipoMovimentacaoFinanceira tipo, br.com.novexa.erp.entity.OrigemMovimentacaoFinanceira origem, java.time.LocalDate dataInicial, java.time.LocalDate dataFinal, Boolean estornada,
             org.springframework.data.domain.Pageable pageable);
 
+    Optional<MovimentacaoFinanceiraEntity> findByPagamentoIdAndEmpresaId(Long pagamentoId, Long empresaId);
     List<MovimentacaoFinanceiraEntity> findByEmpresaIdAndTransferenciaIdOrderByIdAsc(Long empresaId, Long transferenciaId);
     @EntityGraph(attributePaths = {"contaFinanceira", "usuario", "usuarioEstorno"})
     List<MovimentacaoFinanceiraEntity> findByEmpresaIdOrderByDataMovimentoDescIdDesc(Long empresaId);

@@ -10,6 +10,20 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Consolidacao PIX/PDV e validacao da branch (2026-10-01)
+
+Consolidacao sobre `7ab7f7d` na branch `feat/contas-pagar-integracao-backend`, sem integracao a main. Os nove commits de paginacao permanecem inalterados. Snapshot V27 e PDV possuem commits separados; o ciclo PIX V28 conserva confirmacao explicita, conta historica, idempotencia, cancelamento, locks, rollback e auditoria. Nenhuma V29 ou nova regra financeira.
+
+Estado inicial: seis arquivos PIX staged, 18 unstaged (tres tambem staged) e PagamentoPixPostgresTest untracked. Mapeamento: A/V27 = migration, PagamentoEntity, PagamentoResponseDTO, PagamentoSnapshotMigrationTest, asserts snapshot de VendaHttpTest e docs; B/PDV = Vendas.tsx, pdv.ts, vendaService.ts e configuracaoFormaPagamentoService.ts; C/V28 = migration, controller/service ConfirmacaoPagamentoPix, PagamentoService/Repository, MovimentacaoFinanceiraEntity/Repository, OrigemMovimentacaoFinanceira, testes PIX/migration e docs; D/compartilhados = PagamentoEntity/DTO, VendaHttpTest, CURRENT_STATE, financeiro e FINANCEIRO_RULES. E/alteracoes alheias: nenhuma encontrada. VendaRepository/VendaService e consultas paginadas preservados; vendaService.ts conserva ambos os contratos. Staging seletivo separa os blocos sem descartar o working tree.
+
+Analise objetiva dos 38 erros anteriores: `git archive 4d84785` em copia isolada, seguido de `mvnw.cmd -Dtest=VendaServiceTest,EstoqueConcorrenciaTest test`, reproduziu 15 erros em EstoqueConcorrenciaTest e aprovou os 23 casos de VendaServiceTest. O primeiro contexto ja importava ProdutoService sem ArquivoStorageService na baseline; permaneceu sem alteracao. Os 23 erros de Venda foram introduzidos pelo novo parametro ConfirmacaoPagamentoPixService em PagamentoService; corrigidos somente adicionando o service ao @Import de VendaServiceTest. Nenhuma regra de producao alterada para satisfazer teste.
+
+Validacao direcionada: 211 casos aprovados (95 Venda HTTP, 23 VendaService, 4 listagem, 14 ContaFinanceira, 9 ContaPagar, 29 Transferencias, 10 paginacao H2, 10 paginacao PostgreSQL, 15 ciclo PIX PostgreSQL e migrations V27/V28). PostgreSQL 18.6 descartavel com Flyway ate V28 e Hibernate validate. Dupla confirmacao e confirmacao/cancelamento repetidos tres vezes cada; retry, conta inativa, tenant, estorno individual bloqueado e rollback cobertos. Frontend: 86 testes, build, lint PDV e quatro cenarios Playwright com HTTP simulado aprovados; select nativo e listener com estado atual corrigidos.
+
+A suite completa apos o ajuste PIX executou 687 casos, sem falhas de assercao, com 16 erros e 22 ignorados: 15 do contexto Storage anterior e uma colisao de SKU na fixture de MovimentacaoEstoqueHttpTest. O gerador `System.currentTimeMillis()` ja existia identico em 4d84785 e podia produzir duas chaves no mesmo milissegundo. Corrigido somente o sufixo dos codigos de teste para UUID, em commit proprio. Validacao final apos esse ajuste registrada abaixo. Lint global conserva quatro erros e dois avisos fora dos arquivos PDV alterados (Dashboard, Caixa, SessaoCaixaPDVDialog e formularios).
+
+Os blocos abaixo registram validacoes historicas anteriores a esta consolidacao, nao substituindo os resultados acima.
+
 ## Paginação server-side (2026-10-01)
 
 Implementada na branch `feat/contas-pagar-integracao-backend` sobre `4d84785`, ainda não integrada à main. Vendas, Clientes, Produtos, Contas a Pagar, Movimentações Financeiras, Histórico de Estoque e Transferências usam Page/Pageable, filtros e ordenação permitida no banco, sempre com empresa do JWT e desempate por id. Contratos, limites, exceções List e índices em [paginacao.md](paginacao.md).
@@ -17,6 +31,22 @@ Implementada na branch `feat/contas-pagar-integracao-backend` sobre `4d84785`, a
 Frontend de Clientes, Produtos, Central de Vendas, Estoque, Contas a Pagar e Extrato usa items/totalItems, debounce e cancelamento de consultas. Totais financeiros e filtro de situação do Estoque são globais no backend. Dashboard pede cinco vendas; Caixa consulta vendas da sessão. Transferências possui consulta/service paginados, sem nova tela de listagem. Trabalho PIX/PDV e V27/V28 preservado; nenhuma regra financeira ou migration criada/alterada nesta tarefa.
 
 Validação direcionada: matriz de consultas aprovada em H2 e PostgreSQL 18.6 (10 casos em cada banco), Flyway até V28 e Hibernate validate; 84 testes frontend, build e seis casos Playwright aprovados. Playwright usa HTTP simulado para UI; PostgreSQL valida consultas reais. Suíte backend final: 687 casos, nenhuma falha de asserção, 38 erros de inicialização e 22 ignorados. Erros concentrados em VendaServiceTest (dependência ConfirmacaoPagamentoPixService ausente no contexto) e EstoqueConcorrenciaTest (ArquivoStorageService ausente), sem alterações desses contextos nesta tarefa. Lint das telas de paginação aprovado; lint global mantém cinco erros anteriores e três avisos em Dashboard/Caixa/PDV/formulários. Commits de paginação separados do trabalho PIX ainda não consolidado; sem push.
+
+## Financeiro Bloco 4C-A2: ciclo financeiro PIX
+
+Implementado no working tree sobre a Parte 1, sem alterar V27/V28 ou frontend. Cancelamento de Venda/Pagamento reverte saldo PIX na conta histórica, inclusive inativa, e estorna o movimento original com auditoria, na mesma transação dos efeitos legados. Retry não repete débito. Saldo insuficiente retorna conflito e rollback integral. Estorno individual continua bloqueado pela regra existente.
+
+Confirmação e cancelamento seguem locks operador → Venda → Pagamento → ContaFinanceira, preservando locks intermediários de estoque no cancelamento. Dupla confirmação mantém uma entrada; confirmação concorrente ao cancelamento termina sem crédito ativo de pagamento cancelado. Fechamento do Caixa não é gatilho financeiro do PIX. Detalhes em financeiro.md.
+
+Validação: 90 casos direcionados aprovados (21 Venda/PIX/snapshot/legado, 15 ciclo PIX em PostgreSQL 18.6, 14 ContaFinanceira, 9 ContaPagar, 29 TransferenciaFinanceira, 1 V27 e 1 V28). PostgreSQL com Flyway até V28 e Hibernate validate, concorrência com operadores distintos repetida três vezes por cenário, rollback na confirmação e no estorno. Compilação Maven aprovada; suíte completa não executada. Sem V29 ou pendências deste bloco.
+
+## Financeiro Bloco 4C-A1: confirmação financeira PIX
+
+Backend implementado no working tree, preservando V27. Endpoint explícito de confirmação usa somente o destino do snapshot, inclusive conta histórica posteriormente inativada. Transação com locks em Pagamento/ContaFinanceira, crédito no saldo e movimento ENTRADA/PAGAMENTO_PIX vinculado; V28 garante FK tenant-safe e unicidade por pagamento. Resposta expõe confirmação e auditoria derivadas do movimento. Retry não duplica crédito. Contrato em financeiro.md.
+
+Validação: 30 casos direcionados aprovados (10 confirmação PIX, 5 regressões de Venda/snapshot/cancelamento, 14 ContaFinanceira e 1 V28 sobre V27 em PostgreSQL 18.6). Inclui falha após persistência do movimento com rollback total. Compilação pelo Maven test; sem suíte completa. Sem alterações de frontend nesta tarefa.
+
+Pendências originais de cancelamento/concorrência resolvidas no Bloco 4C-A2 acima. Sem confirmação automática no faturamento/Caixa, webhook ou outros meios financeiros.
 
 ## Financeiro Bloco 4B-A: snapshot histórico da configuração no Pagamento
 

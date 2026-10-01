@@ -25,15 +25,17 @@ public class PagamentoService {
     private final FormaPagamentoService formas;
     private final CaixaOperacionalService caixa;
     private final ConfiguracaoFormaPagamentoEmpresaRepository configuracoes;
+    private final ConfirmacaoPagamentoPixService pix;
     private final br.com.novexa.erp.repository.LancamentoFinanceiroRepository financeiro;
 
     public PagamentoService(PagamentoRepository pagamentos, VendaRepository vendas, FormaPagamentoService formas, CaixaOperacionalService caixa,
             br.com.novexa.erp.repository.LancamentoFinanceiroRepository financeiro,
-            ConfiguracaoFormaPagamentoEmpresaRepository configuracoes) {
+            ConfiguracaoFormaPagamentoEmpresaRepository configuracoes, ConfirmacaoPagamentoPixService pix) {
         this.pagamentos = pagamentos;
         this.vendas = vendas;
         this.formas = formas; this.caixa = caixa; this.financeiro = financeiro;
         this.configuracoes = configuracoes;
+        this.pix = pix;
     }
 
     // Uso interno do faturamento, sob o lock da Venda e na mesma transação dos demais efeitos.
@@ -62,7 +64,7 @@ public class PagamentoService {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void cancelarFaturamento(VendaEntity venda, UsuarioEntity operador) {
-        var registros = pagamentos.findByEmpresaIdAndVendaIdOrderBySequenciaAsc(venda.getEmpresa().getId(), venda.getId());
+        var registros = pagamentos.buscarParaCancelar(venda.getEmpresa().getId(), venda.getId());
         var lancamento = financeiro.findByVendaIdAndEmpresaId(venda.getId(), venda.getEmpresa().getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Lançamento financeiro original não encontrado."));
         if (registros.isEmpty() || registros.stream().anyMatch(p -> p.getStatus() != br.com.novexa.erp.entity.StatusPagamento.REGISTRADO)
@@ -71,6 +73,7 @@ public class PagamentoService {
                 || lancamento.getSituacao() == br.com.novexa.erp.entity.LancamentoFinanceiroEntity.Situacao.CANCELADO)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Registros financeiros incompatíveis com o cancelamento.");
         caixa.reverterVenda(venda, registros, operador);
+        registros.forEach(p -> pix.estornarNoCancelamento(p, operador));
         registros.forEach(PagamentoEntity::cancelar);
         pagamentos.saveAll(registros);
         lancamento.cancelar();
