@@ -25,6 +25,11 @@ public class RecebivelEntity {
     @Column(updatable = false) private Long configuracaoFormaPagamentoId;
     @Column(length = 150, updatable = false) private String configuracaoNomeExibicao;
     @Enumerated(EnumType.STRING) @Column(length = 20, updatable = false) private TipoFormaPagamento configuracaoTipo;
+    private LocalDateTime dataLiquidacao;
+    @Column(precision = 19, scale = 2) private BigDecimal valorLiquidoRecebido;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "usuario_liquidacao_id") private UsuarioEntity usuarioLiquidacao;
+    private LocalDateTime dataCancelamento;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "usuario_cancelamento_id") private UsuarioEntity usuarioCancelamento;
 
     protected RecebivelEntity() { }
 
@@ -50,10 +55,26 @@ public class RecebivelEntity {
         this.configuracaoTipo = pagamento.getConfiguracaoTipo();
     }
 
-    public void cancelar() {
-        if (status == StatusRecebivel.LIQUIDADO) throw new IllegalStateException("Recebivel liquidado exige reversao da liquidacao.");
-        status = StatusRecebivel.CANCELADO;
+    public void liquidar(MovimentacaoFinanceiraEntity movimento) {
+        if (status != StatusRecebivel.PENDENTE || movimento.getRecebivel() != this || movimento.isEstornada())
+            throw new IllegalStateException("Liquidacao incompativel com o recebivel.");
+        status = StatusRecebivel.LIQUIDADO;
+        dataLiquidacao = movimento.getDataCriacao();
+        valorLiquidoRecebido = movimento.getValor();
+        usuarioLiquidacao = movimento.getUsuario();
     }
+
+    public void cancelar(UsuarioEntity usuario) {
+        if (status == StatusRecebivel.CANCELADO) return;
+        status = StatusRecebivel.CANCELADO;
+        dataCancelamento = LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        usuarioCancelamento = usuario;
+    }
+    public LocalDateTime getDataLiquidacao() { return dataLiquidacao; }
+    public BigDecimal getValorLiquidoRecebido() { return valorLiquidoRecebido; }
+    public UsuarioEntity getUsuarioLiquidacao() { return usuarioLiquidacao; }
+    public LocalDateTime getDataCancelamento() { return dataCancelamento; }
+    public UsuarioEntity getUsuarioCancelamento() { return usuarioCancelamento; }
     public Long getId() { return id; }
     public EmpresaEntity getEmpresa() { return empresa; }
     public PagamentoEntity getPagamento() { return pagamento; }

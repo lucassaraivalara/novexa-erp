@@ -21,10 +21,10 @@ public class CancelamentoVendaService {
     private final MovimentacaoEstoqueService estoque;
     private final EntityManager em;
     private final PagamentoService pagamentos;
-    private final RecebivelService recebiveis;
+    private final LiquidacaoRecebivelService recebiveis;
 
     public CancelamentoVendaService(VendaRepository vendas, MovimentacaoEstoqueRepository movimentos,
-            MovimentacaoEstoqueService estoque, EntityManager em, PagamentoService pagamentos, RecebivelService recebiveis) {
+            MovimentacaoEstoqueService estoque, EntityManager em, PagamentoService pagamentos, LiquidacaoRecebivelService recebiveis) {
         this.vendas = vendas; this.movimentos = movimentos; this.estoque = estoque; this.em = em; this.pagamentos = pagamentos;
         this.recebiveis = recebiveis;
     }
@@ -71,7 +71,7 @@ public class CancelamentoVendaService {
             estoque.reverterSaidaVenda(original, operador.getId(),
                     "Cancelamento da venda " + venda.getId() + "; reversão da movimentação " + original.getId());
         }
-        recebiveis.cancelar(venda);
+        recebiveis.cancelar(venda, operador);
         pagamentos.cancelarFaturamento(venda, operador);
         venda.setStatus(StatusVenda.CANCELADA);
         vendas.saveAndFlush(venda);

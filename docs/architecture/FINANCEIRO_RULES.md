@@ -1,5 +1,17 @@
 # Regras oficiais do Financeiro
 
+## Liquidacao de cartao - Bloco 5B
+
+- CARTAO -> Pagamento -> Recebivel PENDENTE -> liquidacao explicita -> MovimentacaoFinanceira ENTRADA/RECEBIVEL_LIQUIDACAO -> ContaFinanceira -> Recebivel LIQUIDADO. A venda nao credita ContaFinanceira.
+- Novas configuracoes DEBITO/CREDITO exigem destino BANCO/CARTEIRA_DIGITAL ativo do mesmo tenant. Configuracoes historicas sem destino permanecem legiveis e inativaveis; devem ser regularizadas antes do uso em novas vendas. V30 altera o CHECK da V24 sem backfill, mantendo regras PIX/TRANSFERENCIA/DINHEIRO/BOLETO. O contrato legado sem configuracao continua aceito, mas produz historico sem destino liquidavel.
+- POST /financeiro/recebiveis/{id}/liquidar nao exige body e nao aceita autoridade do cliente sobre conta/valor/empresa. Destino exclusivamente de Pagamento.configuracaoContaFinanceiraDestinoId, nunca do cadastro atual. Ausencia/inconsistencia do destino historico retorna 409 sem efeito; outro tenant retorna 404. Conta historica inativa permite liquidacao e reversao.
+- Liquidacao integral sem taxas: valorLiquidoRecebido = valorLiquidoPrevisto = valorBruto. Nenhum prazo, parcelamento operacional, taxa, antecipacao, parcial ou lote.
+- Ordem dos locks: operador -> Venda -> Pagamento -> Recebivel -> ContaFinanceira. Cancelamento preserva os locks de estoque entre Venda e Pagamento. Pagamentos/recebiveis e contas multiplas sao bloqueados por ID crescente. Locks do operador e da Venda sao comuns aos fluxos PIX e cancelamento; transferencias bloqueiam somente suas contas em ordem crescente, sem depois adquirir locks de Venda/Pagamento.
+- PENDENTE -> LIQUIDADO em uma transacao: movimento unico, credito, status e auditoria. Retry LIQUIDADO retorna o mesmo resultado, sem novo saldo/movimento. UNIQUE(recebivel_id), FK composta por empresa e CHECK de origem ENTRADA protegem o banco. CANCELADO nao liquida (409).
+- Cancelar Venda liquidada reverte saldo, marca a entrada original estornada com auditoria e muda o recebivel para CANCELADO, preservando auditoria de liquidacao. Nunca apagar ou criar movimento compensatorio. Saldo insuficiente bloqueia tudo com rollback; retry do cancelamento nao repete debito. Estorno individual pelo endpoint generico continua bloqueado por origem.
+- Auditoria de liquidacao no Recebivel copia valor/data/usuario do movimento original; vinculo persistido apenas em MovimentacaoFinanceira -> Recebivel. ID do movimento no DTO e derivado da consulta, inclusive apos cancelamento, sem FK circular. Auditoria de cancelamento preserva data/usuario da primeira execucao.
+- Frontend ainda nao permite regularizar destino de DEBITO/CREDITO: pendencia explicita da proxima rodada frontend. Nao contornar pelo endpoint de liquidacao.
+
 ## Recebiveis de cartao - Bloco 5A
 
 - CARTAO -> Pagamento -> Recebivel -> futura Liquidacao -> ContaFinanceira. Venda com cartao NAO credita ContaFinanceira; o recebivel e um direito de receber, nao dinheiro disponivel.
@@ -7,7 +19,7 @@
 - Snapshot ID/nome/tipo vem do Pagamento e nao e reinterpretado pelo cadastro atual. Contrato legado sem configuracao mantem snapshot NULL.
 - Sem taxas ou prazo reais: valorLiquidoPrevisto = valorBruto e dataPrevistaRecebimento = NULL. Parcelas futuras sao identificadas por numeroParcela/totalParcelas; nesta fase ambos valem 1.
 - Idempotencia de Venda e UNIQUE da parcela impedem duplicidade; falha na criacao causa rollback integral. V29 garante vinculos pagamento/venda/empresa no banco.
-- Cancelamento da Venda preserva o historico e altera PENDENTE para CANCELADO, sem efeito no saldo. LIQUIDADO exige reversao ainda nao implementada: bloquear com 409, nunca cancelar silenciosamente. Liquidacao futura deve coordenar locks com a Venda.
+- No 5A, cancelamento preservava historico (PENDENTE -> CANCELADO) e bloqueava LIQUIDADO com 409. Essa limitacao foi substituida pela reversao transacional do 5B descrita acima; nunca cancelar silenciosamente uma entrada liquidada.
 - Consulta GET /financeiro/recebiveis e paginada, filtrada e ordenada no banco por empresa do JWT. Contrato detalhado em financeiro.md. Nao ha liquidacao, taxas, adquirentes, antecipacao ou frontend neste bloco.
 
 ## Regras das fundacoes anteriores

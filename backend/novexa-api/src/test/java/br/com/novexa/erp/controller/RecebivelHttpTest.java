@@ -107,8 +107,10 @@ class RecebivelHttpTest {
         assertThat(fluxo.produtos.findById(fluxo.produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
     }
     @Test void snapshotNaoMudaQuandoConfiguracaoMuda() throws Exception {
+        var destino = fluxo.contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(fluxo.empresa,
+                "Carteira", TipoContaFinanceira.CARTEIRA_DIGITAL, java.math.BigDecimal.ZERO));
         var config = fluxo.configuracoes.saveAndFlush(new ConfiguracaoFormaPagamentoEmpresaEntity(fluxo.empresa,
-                fluxo.catalogo.findById(4L).orElseThrow(), "Credito Cielo", true, null));
+                fluxo.catalogo.findById(4L).orElseThrow(), "Credito Cielo", true, destino));
         var pedido = pedido("CARTAO_CREDITO"); pedido.put("configuracaoFormaPagamentoId", config.getId());
         enviar(pedido); config.atualizar("Novo nome", false, null); fluxo.configuracoes.saveAndFlush(config);
         var r = recebiveis.findAll().getFirst();
@@ -117,9 +119,9 @@ class RecebivelHttpTest {
         assertThat(r.getConfiguracaoNomeExibicao()).isEqualTo("Credito Cielo");
         listar("").andExpect(jsonPath("$.items[0].configuracaoNomeExibicao").value("Credito Cielo"));
     }
-    @Test void liquidadoBloqueiaCancelamentoComRollback() throws Exception {
+    @Test void liquidadoSemMovimentoBloqueiaCancelamentoComRollback() throws Exception {
         long id = enviar(pedido("CARTAO_DEBITO"));
-        fluxo.jdbc.update("update recebiveis set status='LIQUIDADO'");
+        fluxo.jdbc.update("update recebiveis set status='LIQUIDADO',data_liquidacao=CURRENT_TIMESTAMP,valor_liquido_recebido=20,usuario_liquidacao_id=?", fluxo.operador.getId());
         fluxo.mvc.perform(post("/vendas/" + id + "/cancelar").header("Authorization", fluxo.authorization))
                 .andExpect(status().isConflict());
         assertThat(fluxo.vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);

@@ -10,6 +10,16 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Bloco 5B: Liquidacao de Recebiveis (2026-10-01)
+
+Implementacao backend consolidada sobre `ae4df35` (Bloco 5A). V30 concentra auditoria de liquidacao/cancelamento, entrada unica RECEBIVEL_LIQUIDACAO tenant-safe e compatibilidade cadastral de DEBITO/CREDITO; V24 a V29 intactas, sem V31 ou backfill.
+
+POST /financeiro/recebiveis/{id}/liquidar deriva conta exclusivamente do snapshot historico do Pagamento e valor do previsto. Conta historica inativa e permitida, destino ausente/invalido retorna 409. Liquidacao idempotente e reversao no cancelamento preservam movimento/auditoria; saldo insuficiente causa rollback integral. GET continua paginado, com auditoria e ID do movimento derivado, sem relacao circular. Novas configuracoes de cartao exigem destino valido e novas vendas configuradas exigem regularizacao das legadas sem destino. Contrato de venda legado sem configuracao preservado, com liquidacao 409 se snapshot ausente.
+
+Locks: operador -> Venda -> Pagamento -> Recebivel -> ContaFinanceira; cancelamento preserva estoque intermediario, registros/contas multiplos em ordem crescente. Sem alterar arquitetura PIX, Caixa, Contas a Pagar, frontend ou implementacao de paginacao. Pendencia real frontend: selecao de destino e regularizacao das configuracoes de cartao; sem taxas/prazos/parcelamento real ou conciliacao neste bloco. Detalhes em financeiro.md.
+
+Validacao final direcionada: 339 casos aprovados, sem falhas/erros/ignorados. Liquidacao H2 (35) e PostgreSQL (46), upgrade V29->V30 (1), Recebiveis H2/PG (18/19), configuracoes (23), Venda HTTP/service (95/23), cancelamento (9), ContaFinanceira/extrato (14), PIX PostgreSQL (15), Transferencias (29), paginacao PostgreSQL (10) e migrations especificas V27/V28 (1 cada). PostgreSQL 18.6 descartavel com Flyway V1..V30 e Hibernate validate; cinco repeticoes reais de liquidar x liquidar e cinco de liquidar x cancelar com operadores distintos, sem deadlock, dupla entrada ou estado parcial. Rollbacks apos movimento/saldo, antes da persistencia do status e apos estorno; saldo insuficiente; snapshot/destino inativo/tenant/auditoria/estorno individual bloqueado cobertos. Upgrade preserva configuracao legada sem destino e recebivel PENDENTE sem auditoria ficticia. Maven package e git diff --check aprovados; suite completa/frontend nao executados por escopo.
+
 ## Bloco 5A: Recebiveis de cartao (2026-10-01)
 
 Nucleo backend consolidado na branch `feat/contas-pagar-integracao-backend`, baseline `9815b40`, sem push ou integracao a main. Recebivel com snapshot historico e suporte estrutural a parcelas; DEBITO/CREDITO geram uma parcela PENDENTE na transacao da Venda/Pagamento. Liquido previsto igual ao bruto e data prevista NULL, sem taxas/prazos ficticios. Nenhum backfill. V29 adiciona FKs tenant-safe, unicidade de parcela e CHECKs; V27/V28 intactas.

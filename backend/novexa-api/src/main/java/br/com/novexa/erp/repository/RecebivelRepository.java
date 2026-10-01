@@ -5,6 +5,8 @@ import org.springframework.data.domain.*;
 import org.springframework.data.jpa.repository.*;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import jakarta.persistence.LockModeType;
 
 public interface RecebivelRepository extends JpaRepository<RecebivelEntity, Long> {
     @Query("""
@@ -19,4 +21,14 @@ public interface RecebivelRepository extends JpaRepository<RecebivelEntity, Long
             LocalDateTime inicio, LocalDateTime fim, Long vendaId, Pageable pageable);
 
     List<RecebivelEntity> findByEmpresaIdAndVendaIdOrderByIdAsc(Long empresaId, Long vendaId);
+
+    interface Vinculos { Long getVendaId(); Long getPagamentoId(); }
+    @Query("select r.venda.id as vendaId, r.pagamento.id as pagamentoId from RecebivelEntity r where r.id = :id and r.empresa.id = :empresaId")
+    Optional<Vinculos> buscarVinculos(Long id, Long empresaId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from RecebivelEntity r where r.id = :id and r.empresa.id = :empresaId")
+    Optional<RecebivelEntity> buscarParaLiquidar(Long id, Long empresaId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from RecebivelEntity r where r.empresa.id = :empresaId and r.venda.id = :vendaId order by r.id")
+    List<RecebivelEntity> buscarParaCancelar(Long empresaId, Long vendaId);
 }

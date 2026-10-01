@@ -9,8 +9,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.*;
 
 @EnabledIfSystemProperty(named = "novexa.test.recebivel.jdbc-url", matches = "jdbc:postgresql:.*")
-class RecebivelPostgresTest extends RecebivelHttpTest {
-    private static final String SCHEMA = "teste_recebivel_" + UUID.randomUUID().toString().replace("-", "");
+class LiquidacaoRecebivelPostgresTest extends LiquidacaoRecebivelHttpTest {
+    private static final String SCHEMA = "teste_liquidacao_" + UUID.randomUUID().toString().replace("-", "");
     private static final String URL = System.getProperty("novexa.test.recebivel.jdbc-url");
     private static final String USER = System.getProperty("novexa.test.recebivel.jdbc-user", "postgres");
     private static final String PASSWORD = System.getProperty("novexa.test.recebivel.jdbc-password", "");
@@ -21,18 +21,20 @@ class RecebivelPostgresTest extends RecebivelHttpTest {
         p.add("spring.jpa.hibernate.ddl-auto", () -> "validate"); p.add("spring.flyway.enabled", () -> "true");
         p.add("spring.flyway.default-schema", () -> SCHEMA); p.add("spring.flyway.schemas", () -> SCHEMA);
     }
-    @Test void constraintsImpedemDuplicidadeTenantIncorretoEValoresInvalidos() throws Exception {
-        enviar(pedido("CARTAO_DEBITO"));
+    @RepeatedTest(5) void duasLiquidacoes() throws Exception { concorrencia(false); }
+    @RepeatedTest(5) void liquidacaoVersusCancelamento() throws Exception { concorrencia(true); }
+    @Test void bancoImpedeDuplaEntradaEOrigemIncoerente() throws Exception {
+        long id = prepararCartao(); liquidar(id).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
         assertThatThrownBy(() -> fluxo.jdbc.update("""
-            insert into recebiveis(empresa_id,pagamento_id,venda_id,tipo,numero_parcela,total_parcelas,valor_bruto,data_venda,status,criado_em)
-            select empresa_id,pagamento_id,venda_id,tipo,numero_parcela,total_parcelas,valor_bruto,data_venda,status,criado_em from recebiveis
-            """)).hasMessageContaining("uk_recebivel_parcela");
-        assertThatThrownBy(() -> fluxo.jdbc.update("update recebiveis set empresa_id=?", fluxo.outra.getId()))
-                .hasMessageContaining("fk_recebivel_pagamento_venda_empresa");
-        for (String alteracao : new String[]{"numero_parcela=0", "total_parcelas=0", "numero_parcela=2", "valor_bruto=0",
-                "valor_liquido_previsto=-1", "tipo='PIX'", "status='OUTRO'"})
-            assertThatThrownBy(() -> fluxo.jdbc.update("update recebiveis set " + alteracao))
-                    .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+            insert into movimentacoes_financeiras(empresa_id,conta_financeira_id,tipo,origem,descricao,valor,data_movimento,usuario_id,data_criacao,estornada,recebivel_id)
+            select empresa_id,conta_financeira_id,tipo,origem,descricao,valor,data_movimento,usuario_id,data_criacao,estornada,recebivel_id from movimentacoes_financeiras
+            """)).hasMessageContaining("uk_mov_fin_recebivel");
+        assertThatThrownBy(() -> fluxo.jdbc.update("update movimentacoes_financeiras set tipo='SAIDA'"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> fluxo.jdbc.update("update movimentacoes_financeiras set origem='MANUAL'"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> fluxo.jdbc.update("update recebiveis set usuario_liquidacao_id=NULL"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
     @AfterAll static void limparSchema() throws Exception {
         try (var c = DriverManager.getConnection(URL, USER, PASSWORD); var s = c.createStatement()) {

@@ -59,6 +59,16 @@ public class PagamentoService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Configuracao de pagamento inativa.");
         if (configuracao.getTipo() != forma.getTipo())
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Configuracao incompativel com o tipo da forma de pagamento.");
+        if (configuracao.getTipo() == br.com.novexa.erp.entity.TipoFormaPagamento.DEBITO
+                || configuracao.getTipo() == br.com.novexa.erp.entity.TipoFormaPagamento.CREDITO) {
+            var destino = configuracao.getContaFinanceiraDestino();
+            if (destino == null)
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Regularize o destino financeiro da configuracao de cartao antes de uma nova venda.");
+            if (!destino.isAtivo() || !destino.getEmpresa().getId().equals(empresaId)
+                    || (destino.getTipo() != br.com.novexa.erp.entity.TipoContaFinanceira.BANCO
+                        && destino.getTipo() != br.com.novexa.erp.entity.TipoContaFinanceira.CARTEIRA_DIGITAL))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Destino financeiro indisponivel para nova venda com cartao.");
+        }
         return configuracao;
     }
 

@@ -22,6 +22,8 @@ public class MovimentacaoFinanceiraEntity {
     private TransferenciaFinanceiraEntity transferencia;
     @OneToOne(fetch = FetchType.LAZY) @JoinColumn(name = "pagamento_id", unique = true, updatable = false)
     private PagamentoEntity pagamento;
+    @OneToOne(fetch = FetchType.LAZY) @JoinColumn(name = "recebivel_id", unique = true, updatable = false)
+    private RecebivelEntity recebivel;
     @Column(nullable = false, length = 200, updatable = false) private String descricao;
     @Column(nullable = false, precision = 19, scale = 2, updatable = false) private BigDecimal valor;
     @Column(nullable = false, updatable = false) private LocalDate dataMovimento;
@@ -66,6 +68,14 @@ public class MovimentacaoFinanceiraEntity {
     }
     @PrePersist @PreUpdate
     private void validarTransferencia() {
+        if ((origem == OrigemMovimentacaoFinanceira.RECEBIVEL_LIQUIDACAO) != (recebivel != null))
+            throw new IllegalStateException("Origem e vinculo de recebivel incompativeis.");
+        if (recebivel != null && (tipo != TipoMovimentacaoFinanceira.ENTRADA
+                || !empresa.getId().equals(recebivel.getEmpresa().getId())
+                || !empresa.getId().equals(usuario.getEmpresa().getId())
+                || !contaFinanceira.getId().equals(recebivel.getPagamento().getConfiguracaoContaFinanceiraDestinoId())
+                || valor.compareTo(recebivel.getValorLiquidoPrevisto()) != 0))
+            throw new IllegalStateException("Movimentacao incompativel com o recebivel historico.");
         if ((origem == OrigemMovimentacaoFinanceira.PAGAMENTO_PIX) != (pagamento != null))
             throw new IllegalStateException("Origem e vinculo de pagamento incompativeis.");
         if (pagamento != null && (tipo != TipoMovimentacaoFinanceira.ENTRADA
@@ -92,6 +102,15 @@ public class MovimentacaoFinanceiraEntity {
         return movimento;
     }
     public PagamentoEntity getPagamento() { return pagamento; }
+    public RecebivelEntity getRecebivel() { return recebivel; }
+    public static MovimentacaoFinanceiraEntity doRecebivel(RecebivelEntity recebivel,
+            ContaFinanceiraEntity conta, UsuarioEntity usuario) {
+        var movimento = new MovimentacaoFinanceiraEntity(conta, TipoMovimentacaoFinanceira.ENTRADA,
+                OrigemMovimentacaoFinanceira.RECEBIVEL_LIQUIDACAO, "Liquidacao de recebivel de cartao",
+                recebivel.getValorLiquidoPrevisto(), LocalDate.now(), null, usuario);
+        movimento.recebivel = recebivel;
+        return movimento;
+    }
     public void estornar(UsuarioEntity usuario, String motivo) {
         this.estornada = true;
         this.dataEstorno = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);

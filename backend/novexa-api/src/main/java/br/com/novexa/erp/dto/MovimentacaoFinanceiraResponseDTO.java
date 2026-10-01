@@ -10,7 +10,7 @@ public record MovimentacaoFinanceiraResponseDTO(Long id, Long contaFinanceiraId,
         BigDecimal valor, LocalDate dataMovimento, String observacao, Long usuarioId, String usuarioNome,
         LocalDateTime dataCriacao, boolean estornada, LocalDateTime dataEstorno,
         Long usuarioEstornoId, String usuarioEstornoNome, String motivoEstorno, Long transferenciaId,
-        String contaContraparteNome) {
+        String contaContraparteNome, Long recebivelId) {
     public static MovimentacaoFinanceiraResponseDTO de(MovimentacaoFinanceiraEntity movimento) {
         var estorno = movimento.getUsuarioEstorno();
         return new MovimentacaoFinanceiraResponseDTO(movimento.getId(),
@@ -22,6 +22,7 @@ public record MovimentacaoFinanceiraResponseDTO(Long id, Long contaFinanceiraId,
                 estorno == null ? null : estorno.getNomeUsuario(), movimento.getMotivoEstorno(),
                 movimento.getTransferencia() == null ? null : movimento.getTransferencia().getId(),
                 movimento.getTransferencia() == null ? null : (movimento.getTipo() == TipoMovimentacaoFinanceira.SAIDA
-                        ? movimento.getTransferencia().getContaDestino() : movimento.getTransferencia().getContaOrigem()).getNome());
+                        ? movimento.getTransferencia().getContaDestino() : movimento.getTransferencia().getContaOrigem()).getNome(),
+                movimento.getRecebivel() == null ? null : movimento.getRecebivel().getId());
     }
 }

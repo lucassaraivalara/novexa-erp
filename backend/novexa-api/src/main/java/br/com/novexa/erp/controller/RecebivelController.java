@@ -4,6 +4,7 @@ import br.com.novexa.erp.dto.*;
 import br.com.novexa.erp.entity.*;
 import br.com.novexa.erp.security.UsuarioAutenticado;
 import br.com.novexa.erp.service.RecebivelService;
+import br.com.novexa.erp.service.LiquidacaoRecebivelService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +14,15 @@ import java.time.LocalDate;
 @RequestMapping("/financeiro/recebiveis")
 public class RecebivelController {
     private final RecebivelService service;
-    public RecebivelController(RecebivelService service) { this.service = service; }
+    private final LiquidacaoRecebivelService liquidacao;
+    public RecebivelController(RecebivelService service, LiquidacaoRecebivelService liquidacao) {
+        this.service = service; this.liquidacao = liquidacao;
+    }
+
+    @PostMapping("/{id}/liquidar")
+    public RecebivelResponseDTO liquidar(@PathVariable Long id, @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return liquidacao.liquidar(id, usuario.empresaId(), usuario.usuarioId());
+    }
 
     @GetMapping
     public PaginaResponseDTO<RecebivelResponseDTO> listar(

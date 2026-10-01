@@ -1105,7 +1105,8 @@ class VendaHttpTest {
 
     private ConfiguracaoFormaPagamentoEmpresaEntity configuracao(EmpresaEntity e, long formaId, boolean ativo) {
         var forma = catalogo.findById(formaId).orElseThrow();
-        var destino = forma.getTipo() == TipoFormaPagamento.PIX
+        var destino = forma.getTipo() == TipoFormaPagamento.PIX || forma.getTipo() == TipoFormaPagamento.DEBITO
+                || forma.getTipo() == TipoFormaPagamento.CREDITO
                 ? contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(e, "Banco", TipoContaFinanceira.BANCO, new BigDecimal("100"))) : null;
         return configuracoes.saveAndFlush(new ConfiguracaoFormaPagamentoEmpresaEntity(e, forma, "Forma " + UUID.randomUUID(), ativo, destino));
     }

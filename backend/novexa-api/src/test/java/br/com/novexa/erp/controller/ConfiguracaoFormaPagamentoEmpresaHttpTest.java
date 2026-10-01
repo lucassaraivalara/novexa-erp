@@ -63,13 +63,13 @@ class ConfiguracaoFormaPagamentoEmpresaHttpTest {
         assertThat(movimentos.count()).isZero();
     }
 
-    @ParameterizedTest @ValueSource(longs = {1, 3, 4, 5})
+    @ParameterizedTest @ValueSource(longs = {1, 5})
     void tiposSemDestinoRejeitamConta(long forma) throws Exception {
         criar(token, pedido(forma, "Forma", banco.getId())).andExpect(status().isBadRequest());
         assertThat(configuracoes.count()).isZero();
     }
 
-    @ParameterizedTest @ValueSource(longs = {2, 6})
+    @ParameterizedTest @ValueSource(longs = {2, 3, 4, 6})
     void pixETransferenciaExigemBancoOuCarteira(long forma) throws Exception {
         criar(token, pedido(forma, "Sem destino", null)).andExpect(status().isBadRequest());
         criar(token, pedido(forma, "Banco", banco.getId())).andExpect(status().isCreated())
@@ -84,14 +84,14 @@ class ConfiguracaoFormaPagamentoEmpresaHttpTest {
     @ParameterizedTest @ValueSource(strings = {"CAIXA", "ADQUIRENTE", "COFRE", "OUTROS"})
     void rejeitaTiposDeContaNaoPermitidos(String tipo) throws Exception {
         var destino = conta(empresa, TipoContaFinanceira.valueOf(tipo));
-        for (long forma : new long[]{2, 6})
+        for (long forma : new long[]{2, 3, 4, 6})
             criar(token, pedido(forma, "Inválida", destino.getId())).andExpect(status().isBadRequest());
     }
 
     @ParameterizedTest @ValueSource(longs = {2, 3, 4, 5})
     void permiteMultiplasConfiguracoesDaMesmaForma(long forma) throws Exception {
         for (String nome : List.of("Stone", "Cielo", "Rede"))
-            criar(token, pedido(forma, nome, forma == 2 ? banco.getId() : null)).andExpect(status().isCreated());
+            criar(token, pedido(forma, nome, forma == 5 ? null : banco.getId())).andExpect(status().isCreated());
         assertThat(configuracoes.listar(empresa.getId(), null)).hasSize(3);
         assertThat(movimentos.count()).isZero();
     }
@@ -107,7 +107,8 @@ class ConfiguracaoFormaPagamentoEmpresaHttpTest {
     }
 
     @Test void crossTenantNaoAcessaNemAlteraNemVincula() throws Exception {
-        criar(token, pedido(2, "Externa", externa.getId())).andExpect(status().isNotFound());
+        for (long forma : new long[]{2, 3, 4, 6})
+            criar(token, pedido(forma, "Externa", externa.getId())).andExpect(status().isNotFound());
         long id = id(criar(token, pedido(2, "Minha", banco.getId())).andExpect(status().isCreated()));
         mvc.perform(get(URL + "/" + id).header("Authorization", tokenOutro)).andExpect(status().isNotFound());
         atualizar(tokenOutro, id, pedido(2, "Tomada", externa.getId())).andExpect(status().isNotFound());

@@ -19,6 +19,10 @@ public interface MovimentacaoFinanceiraRepository extends JpaRepository<Moviment
             org.springframework.data.domain.Pageable pageable);
 
     Optional<MovimentacaoFinanceiraEntity> findByPagamentoIdAndEmpresaId(Long pagamentoId, Long empresaId);
+    Optional<MovimentacaoFinanceiraEntity> findByRecebivelIdAndEmpresaId(Long recebivelId, Long empresaId);
+    interface LiquidacaoRecebivel { Long getRecebivelId(); Long getMovimentoId(); }
+    @Query("select m.recebivel.id as recebivelId, m.id as movimentoId from MovimentacaoFinanceiraEntity m where m.empresa.id = :empresaId and m.recebivel.id in :ids")
+    List<LiquidacaoRecebivel> buscarLiquidacoes(Long empresaId, List<Long> ids);
     List<MovimentacaoFinanceiraEntity> findByEmpresaIdAndTransferenciaIdOrderByIdAsc(Long empresaId, Long transferenciaId);
     @EntityGraph(attributePaths = {"contaFinanceira", "usuario", "usuarioEstorno"})
     List<MovimentacaoFinanceiraEntity> findByEmpresaIdOrderByDataMovimentoDescIdDesc(Long empresaId);

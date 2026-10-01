@@ -52,13 +52,15 @@ public class ConfiguracaoFormaPagamentoEmpresaService {
         if (!c.getFormaPagamento().getId().equals(p.formaPagamentoId()))
             throw erro(HttpStatus.CONFLICT, "A forma de pagamento não pode ser alterada. Cadastre outra configuração.");
         boolean ativo = p.ativo() == null ? c.isAtivo() : p.ativo();
-        var destino = destino(empresaId, c.getTipo(), p.contaFinanceiraDestinoId(), c.getContaFinanceiraDestino());
+        var destino = cartao(c.getTipo()) && c.getContaFinanceiraDestino() == null
+                && p.contaFinanceiraDestinoId() == null && !ativo ? null
+                : destino(empresaId, c.getTipo(), p.contaFinanceiraDestinoId(), c.getContaFinanceiraDestino());
         c.atualizar(nome(empresaId, p.nomeExibicao(), id), ativo, destino);
         return ConfiguracaoFormaPagamentoEmpresaResponseDTO.de(configuracoes.saveAndFlush(c));
     }
     private ContaFinanceiraEntity destino(Long empresaId, TipoFormaPagamento tipo, Long id,
             ContaFinanceiraEntity atual) {
-        if (tipo != TipoFormaPagamento.PIX && tipo != TipoFormaPagamento.TRANSFERENCIA) {
+        if (tipo != TipoFormaPagamento.PIX && tipo != TipoFormaPagamento.TRANSFERENCIA && !cartao(tipo)) {
             if (id != null) throw erro(HttpStatus.BAD_REQUEST, "Este tipo não permite conta financeira de destino.");
             return null;
         }
@@ -78,5 +80,6 @@ public class ConfiguracaoFormaPagamentoEmpresaService {
         return nome.trim();
     }
     private ResponseStatusException naoEncontrada() { return erro(HttpStatus.NOT_FOUND, "Configuração de forma de pagamento não encontrada."); }
+    private boolean cartao(TipoFormaPagamento tipo) { return tipo == TipoFormaPagamento.DEBITO || tipo == TipoFormaPagamento.CREDITO; }
     private ResponseStatusException erro(HttpStatus status, String texto) { return new ResponseStatusException(status, texto); }
 }
