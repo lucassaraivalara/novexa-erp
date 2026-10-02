@@ -9,6 +9,8 @@ import PageHeader from "../../components/ui/PageHeader";
 import StatusChip from "../../components/ui/StatusChip";
 import { listarRecebiveis, liquidarRecebivel, mensagemRecebivel } from "../../services/recebivelService";
 import type { Recebivel, StatusRecebivel, TipoRecebivel } from "../../types/recebivel";
+import { podeExecutarAcaoGerencial } from "../../utils/auth/perfis";
+import { obterSessao } from "../../utils/auth/sessao";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const tipos: Record<TipoRecebivel, string> = { DEBITO: "Débito", CREDITO: "Crédito" };
@@ -29,6 +31,7 @@ function formatarData(valor: string | null, comHora = false) {
 }
 
 export default function Recebiveis() {
+    const podeLiquidar = podeExecutarAcaoGerencial(obterSessao()?.perfil);
     const [items, setItems] = useState<Recebivel[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
@@ -89,7 +92,7 @@ export default function Recebiveis() {
     }
 
     function abrirConfirmacao(recebivel: Recebivel) {
-        if (recebivel.status !== "PENDENTE" || liquidandoRef.current) return;
+        if (!podeLiquidar || recebivel.status !== "PENDENTE" || liquidandoRef.current) return;
         setErroLiquidacao("");
         setConfirmacao(recebivel);
     }
@@ -131,7 +134,7 @@ export default function Recebiveis() {
             render: (_, item) => formatarData(item.dataPrevistaRecebimento) },
         { campo: "status", cabecalho: "Status", largura: 125, ordenavel: true,
             render: (_, item) => <StatusChip status={item.status} label={statusLabels[item.status]} /> },
-        { campo: "id", cabecalho: "Ações", largura: 70, alinhar: "center", render: (_, item) => item.status === "PENDENTE"
+        { campo: "id", cabecalho: "Ações", largura: 70, alinhar: "center", render: (_, item) => podeLiquidar && item.status === "PENDENTE"
             ? <Tooltip title="Liquidar recebível"><IconButton size="small" aria-label={`Liquidar recebível #${item.id}`}
                 onClick={() => abrirConfirmacao(item)}><CreditCardRoundedIcon fontSize="small" /></IconButton></Tooltip>
             : null },

@@ -21,12 +21,13 @@ import {
     inativarCaixa, listarCaixas, listarMovimentacoes, listarSessoesAbertas, listarSessoesFechadas,
     mensagemCaixa,
 } from "../../services/caixaService";
-import { listarVendasSessao, type VendaDetalhe } from "../../services/vendaService";
+import { listarVendasSessao } from "../../services/vendaService";
 import type {
-    CaixaCompleta, CaixaResumo, MovimentacaoCaixa, ResumoSessaoCaixa, SessaoCaixaAberta,
+    CaixaCompleta, CaixaResumo, ResumoSessaoCaixa, SessaoCaixaAberta,
     SessaoCaixaHistorico, SessaoCaixaDetalhe,
 } from "../../types/caixa";
 import CaixaForm from "./CaixaForm";
+import { criarTimeline, type ItemTimeline } from "./caixaTimeline";
 import { podeExecutarAcaoGerencial, podeFecharSessao } from "../../utils/auth/perfis";
 import { obterSessao } from "../../utils/auth/sessao";
 
@@ -41,9 +42,6 @@ const valorDecimal = (texto: string) => {
 };
 const valorEditavel = (valor: number) => valor.toFixed(2).replace(".", ",");
 const chave = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
-const rotuloFormaPagamento: Record<NonNullable<VendaDetalhe["formaPagamento"]>, string> = {
-    DINHEIRO: "Dinheiro", PIX: "PIX", CARTAO_DEBITO: "Débito", CARTAO_CREDITO: "Crédito",
-};
 const rotuloTipoFormaPagamento: Record<string, string> = {
     DINHEIRO: "Dinheiro", PIX: "PIX", DEBITO: "Débito", CREDITO: "Crédito",
 };
@@ -53,39 +51,6 @@ const rotuloMovimentacao: Record<string, string> = {
 };
 
 type ModalMovimento = "SUPRIMENTO" | "SANGRIA" | null;
-type ItemTimeline = {
-    chave: string;
-    tipo: "VENDA" | "SUPRIMENTO" | "SANGRIA";
-    dataHora: string;
-    valor: number;
-    descricao: string;
-    formaPagamento: string | null;
-};
-
-function criarTimeline(movimentos: MovimentacaoCaixa[], vendas: VendaDetalhe[]): ItemTimeline[] {
-    const vendasTimeline = vendas.map((venda) => ({
-        chave: `venda-${venda.id}`,
-        tipo: "VENDA" as const,
-        dataHora: venda.dataHora,
-        valor: venda.total,
-        descricao: `Venda #${venda.id}`,
-        formaPagamento: venda.formaPagamento ? rotuloFormaPagamento[venda.formaPagamento] : "Pagamento",
-    }));
-    const movimentosTimeline = movimentos
-        .filter((movimento) => movimento.tipo !== "VENDA")
-        .map((movimento) => ({
-            chave: `movimento-${movimento.id}`,
-            tipo: movimento.tipo,
-            dataHora: movimento.dataHora,
-            valor: movimento.valor,
-            descricao: movimento.tipo === "SUPRIMENTO" ? "Suprimento" : "Sangria",
-            formaPagamento: null,
-        }));
-    return [...vendasTimeline, ...movimentosTimeline].sort(
-        (a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime(),
-    );
-}
-
 export default function Caixa() {
     const usuarioAtual = obterSessao();
     const podeMovimentar = podeExecutarAcaoGerencial(usuarioAtual?.perfil);
@@ -605,9 +570,9 @@ function Atual({ abertas, sessaoId, onSessao, resumo, timeline, podeMovimentar, 
                                 "&:not(:last-child)::before": { content: '""', position: "absolute", top: 32, bottom: 0, left: 15,
                                     borderLeft: "1px solid", borderColor: "divider" } }}>
                             <Box sx={{ width: 32, height: 32, borderRadius: "50%", display: "grid", placeItems: "center",
-                                bgcolor: "action.hover", color: movimento.tipo === "SANGRIA" ? "error.main" : movimento.tipo === "SUPRIMENTO" ? "success.main" : "text.secondary" }}>
+                                bgcolor: "action.hover", color: movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? "error.main" : movimento.tipo === "SUPRIMENTO" ? "success.main" : "text.secondary" }}>
                                 {movimento.tipo === "VENDA" ? <AccountBalanceWalletRoundedIcon fontSize="small" aria-hidden="true" />
-                                    : movimento.tipo === "SANGRIA" ? <ArrowUpwardRoundedIcon fontSize="small" aria-hidden="true" />
+                                    : movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? <ArrowUpwardRoundedIcon fontSize="small" aria-hidden="true" />
                                         : <ArrowDownwardRoundedIcon fontSize="small" aria-hidden="true" />}
                             </Box>
                             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "minmax(0, 1fr) minmax(0, 0.8fr)" }, gap: 0.5 }}>
@@ -621,8 +586,8 @@ function Atual({ abertas, sessaoId, onSessao, resumo, timeline, podeMovimentar, 
                                     </Typography>
                                 </Box>
                                 <Typography variant="body2" sx={{ textAlign: { sm: "right" }, fontWeight: 700, overflowWrap: "anywhere" }}
-                                    color={movimento.tipo === "SANGRIA" ? "error.main" : "text.primary"}>
-                                    {movimento.tipo === "SANGRIA" ? "−" : "+"}{dinheiro(movimento.valor)}
+                                    color={movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? "error.main" : "text.primary"}>
+                                    {movimento.sinal}{dinheiro(movimento.valor)}
                                 </Typography>
                             </Box>
                         </Box>)}

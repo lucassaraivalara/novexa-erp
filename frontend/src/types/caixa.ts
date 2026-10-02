@@ -89,7 +89,7 @@ export type MovimentacaoCaixa = {
     vendaId: number | null;
     usuarioId: number;
     chaveRequisicao: string;
-    tipo: "VENDA" | "SUPRIMENTO" | "SANGRIA";
+    tipo: "VENDA" | "SUPRIMENTO" | "SANGRIA" | "ESTORNO_VENDA";
     valor: number;
     observacao: string | null;
     dataHora: string;

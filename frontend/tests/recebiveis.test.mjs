@@ -139,11 +139,14 @@ after(async () => {
     await server?.close();
 });
 
-async function comTela(callback, options) {
+async function comTela(callback, options = {}) {
     const estado = criarBackendMock(options);
     const page = await browser.newPage();
     await page.route("**/financeiro/recebiveis**", estado.interceptar);
     try {
+        await page.addInitScript((perfil) => localStorage.setItem("novexa-auth", JSON.stringify({
+            token: "token-e2e", perfil, empresa: { id: 1 },
+        })), options.perfil ?? "ADMIN");
         await page.goto(url);
         await page.getByRole("table").waitFor();
         await callback(page, estado);
@@ -247,14 +250,28 @@ test("filtros de status, tipo, datas e venda são enviados ao backend", () => co
     await response;
 }, { rows: recebiveisBase }));
 
-test("status só oferece liquidação para PENDENTE", () => comTela(async (page) => {
+test("ADMIN vê Liquidar em PENDENTE e não vê a ação em LIQUIDADO/CANCELADO", () => comTela(async (page) => {
     await page.getByText("Pendente", { exact: true }).waitFor();
     await page.getByText("Liquidado", { exact: true }).waitFor();
     await page.getByText("Cancelado", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Liquidar recebível #1" }).count(), 1);
     assert.equal(await page.getByRole("button", { name: "Liquidar recebível #2" }).count(), 0);
     assert.equal(await page.getByRole("button", { name: "Liquidar recebível #3" }).count(), 0);
-}, { rows: recebiveisBase }));
+}, { rows: recebiveisBase, perfil: "ADMIN" }));
+
+test("GERENTE vê Liquidar para recebível PENDENTE", () => comTela(async (page) => {
+    await page.getByText("Pendente", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Liquidar recebível #1" }).count(), 1);
+}, { rows: recebiveisBase, perfil: "GERENTE" }));
+
+for (const perfil of ["OPERADOR", "USUARIO"]) {
+    test(`${perfil} consulta recebíveis sem ação Liquidar`, () => comTela(async (page) => {
+        await page.getByText("Pendente", { exact: true }).waitFor();
+        assert.equal(await page.getByText("Liquidado", { exact: true }).count(), 1);
+        assert.equal(await page.getByRole("button", { name: "Liquidar recebível #1" }).count(), 0);
+        assert.equal(await page.getByRole("dialog", { name: "Liquidar recebível?" }).count(), 0);
+    }, { rows: recebiveisBase, perfil }));
+}
 
 test("confirmação liquida sem payload, recarrega a lista e remove a ação após sucesso", () => comTela(async (page, estado) => {
     await page.getByRole("button", { name: "Liquidar recebível #1" }).click();
