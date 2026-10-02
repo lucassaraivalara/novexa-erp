@@ -10,11 +10,13 @@ import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import PageFilters from "../../components/ui/PageFilters";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
-import { cancelarConta, estornarConta, listarContasPagar, listarFornecedoresContaPagar,
+import { listarFornecedores } from "../../services/fornecedorService";
+import { cancelarConta, estornarConta, listarContasPagar,
     mensagemContaPagar, pagarConta, listarCategoriasContasPagar, resumirContasPagar,
     type ResumoContasPagar } from "../../services/contaPagarService";
 import { listarContasFinanceiras } from "../../services/contaFinanceiraService";
-import type { ContaPagar, FornecedorContaPagar, StatusContaPagar } from "../../types/contaPagar";
+import type { ContaPagar, StatusContaPagar } from "../../types/contaPagar";
+import type { Fornecedor } from "../../types/fornecedor";
 import type { ContaFinanceira } from "../../types/contaFinanceira";
 import { rotulosTipoContaFinanceira } from "../../types/contaFinanceira";
 import ContaPagarDrawer from "./ContaPagarDrawer";
@@ -30,7 +32,7 @@ const hoje = () => {
 
 export default function ContasPagar() {
     const [contas, setContas] = useState<ContaPagar[]>([]);
-    const [fornecedores, setFornecedores] = useState<FornecedorContaPagar[]>([]);
+    const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
     const [contasFinanceiras, setContasFinanceiras] = useState<ContaFinanceira[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
@@ -60,7 +62,7 @@ export default function ContasPagar() {
     useEffect(() => {
         const controller = new AbortController();
         Promise.all([
-            listarFornecedoresContaPagar(controller.signal),
+            listarFornecedores({ size: 100, sort: "razaoSocial,asc" }, controller.signal),
             listarContasFinanceiras(controller.signal),
             listarCategoriasContasPagar(controller.signal),
             resumirContasPagar(controller.signal)
@@ -68,7 +70,7 @@ export default function ContasPagar() {
             .then(([fornecedoresLista, contasFinanceirasLista, categoriasLista, resumoAtual]) => {
                 if (!controller.signal.aborted) {
                     setCategorias(categoriasLista); setResumo(resumoAtual);
-                    setFornecedores(fornecedoresLista);
+                    setFornecedores(fornecedoresLista.items);
                     setContasFinanceiras(contasFinanceirasLista);
                     setErro("");
                 }
@@ -256,7 +258,7 @@ export default function ContasPagar() {
             paginacao={{ pagina, linhasPorPagina: porPagina, total: totalItems,
                 onPageChange: setPagina, onRowsPerPageChange: (valor) => { setPorPagina(valor); setPagina(0); },
                 opcoesLinhasPorPagina: [10, 25, 50] }} />
-        {editor && <ContaPagarDrawer key={editor.conta?.id ?? "nova"} conta={editor.conta} fornecedores={fornecedores}
+        {editor && <ContaPagarDrawer key={editor.conta?.id ?? "nova"} conta={editor.conta}
             onFechar={() => setEditor(null)} onSalvo={() => { setTentativa(n => n + 1); setEditor(null); setSucesso("Conta salva."); }} />}
         <Dialog open={pagamento !== null} onClose={processando ? undefined : () => setPagamento(null)} fullWidth maxWidth="xs" aria-labelledby="pagar-conta-titulo">
             <form onSubmit={(e) => void confirmarPagamento(e)}>

@@ -1,7 +1,7 @@
 import axios from "axios";
 import api from "./api";
 import type { PaginaResponse } from "../types/paginacao";
-import type { ContaPagar, ContaPagarInput, FornecedorContaPagar, PagamentoContaPagarInput } from "../types/contaPagar";
+import type { ContaPagar, ContaPagarInput, PagamentoContaPagarInput } from "../types/contaPagar";
 
 const base = "/financeiro/contas-pagar";
 
@@ -18,9 +18,6 @@ export const resumirContasPagar = async (signal?: AbortSignal) =>
     (await api.get<ResumoContasPagar>(`${base}/resumo`, { signal })).data;
 export const listarCategoriasContasPagar = async (signal?: AbortSignal) =>
     (await api.get<string[]>(`${base}/categorias`, { signal })).data;
-
-export const listarFornecedoresContaPagar = async (signal?: AbortSignal) =>
-    (await api.get<FornecedorContaPagar[]>("/fornecedores", { signal })).data;
 
 export const salvarContaPagar = async (dados: ContaPagarInput, id?: number) =>
     (await api.request<ContaPagar>({ method: id ? "PUT" : "POST", url: id ? `${base}/${id}` : base, data: dados })).data;

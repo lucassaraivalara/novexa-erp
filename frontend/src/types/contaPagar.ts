@@ -24,5 +24,3 @@ export type PagamentoContaPagarInput = {
     dataPagamento: string;
     valorPago: number;
 };
-
-export type FornecedorContaPagar = { id: number; razaoSocial: string; ativo: boolean };
