@@ -6,6 +6,22 @@ Novas vendas NAO geram LancamentoFinanceiroEntity. VendaService nao injeta o rep
 
 Fonte de verdade atual: Venda/Pagamento + MovimentacaoCaixa + MovimentacaoFinanceira + Recebivel, conforme a forma de pagamento. Entidade, repository, tabela e historico legado permanecem intactos e legiveis; sua situacao nao acompanha novos cancelamentos e nao deve ser interpretada como estado operacional. Nenhuma migration, exclusao ou backfill.
 
+## Bloco 5C: taxas e prazo de cartao (backend)
+
+Configuracao empresarial DEBITO/CREDITO recebe taxa percentual, taxa fixa opcional e prazo em dias corridos. As condicoes sao independentes por configuracao (sem hardcode por bandeira/adquirente). Faturamento captura snapshot no Pagamento e copia para Recebivel, onde o calculo monetario e centralizado: percentual monetario arredondado HALF_UP em duas casas + fixa = taxas previstas; bruto - taxas = liquido previsto. Liquido zero/negativo causa 409 e rollback da Venda/Pagamento/estoque. Data prevista deriva de dataVenda.toLocalDate() + prazo; nao usa dias uteis.
+
+V31 adiciona colunas nullable com CHECKs; sem alterar migrations anteriores, valores/datas historicos ou FKs. Historico sem snapshot continua liquidando pelo valor previsto ja armazenado, nunca pelo cadastro atual. Novas vendas sem taxas configuradas usam 0% / R$0 / 0 dias para compatibilidade com payloads existentes. Edicao com campo omitido preserva o valor vigente; NULL historico nao representa uma taxa inferida retroativamente.
+
+POST /financeiro/recebiveis/{id}/liquidar permanece sem body, ADMIN/GERENTE, com locks operador -> Venda -> Pagamento -> Recebivel -> ContaFinanceira e UNIQUE do movimento. Credita somente valorLiquidoPrevisto; cancelamento reverte o valor original creditado e preserva auditoria, idempotencia e rollback por saldo insuficiente. Configuracao atual nunca muda destino, taxa, prazo, liquido ou data de venda anterior. Exemplo: R$100, 3%, 30 dias -> R$3 taxas, R$97 liquido; com R$0,50 fixa -> R$3,50 taxas e R$96,50 liquido.
+
+### Contrato para frontend (aditivo, sem implementacao nesta tarefa)
+
+- POST/PUT /financeiro/configuracoes-formas-pagamento: taxaPercentual decimal 0..100, ate quatro casas; taxaFixa decimal >=0, ate duas casas; prazoRecebimentoDias inteiro >=0. Exclusivos de DEBITO/CREDITO. Na criacao, omissao/NULL usa zero para compatibilidade; na edicao preserva vigente. Enviar explicitamente 0 para zerar. Destino financeiro continua obrigatorio conforme regras do 5B.
+- Resposta da configuracao adiciona os mesmos tres campos (NULL quando desconhecidos no legado ou nao aplicaveis).
+- Pagamento adiciona taxaPercentualSnapshot, taxaFixaSnapshot, prazoRecebimentoDiasSnapshot.
+- GET /financeiro/recebiveis e POST /financeiro/recebiveis/{id}/liquidar adicionam taxaPercentualSnapshot, taxaFixaSnapshot, valorTaxasPrevisto, prazoRecebimentoDiasSnapshot; preservam valorBruto, valorLiquidoPrevisto, dataPrevistaRecebimento e toda paginacao existente. Snapshots historicos desconhecidos retornam NULL.
+- Sem frontend, parcelamento real, antecipacao, conciliacao, prazo por dias uteis, PSP, taxas por bandeira, parcial ou lote.
+
 ## Bloco 5B: liquidacao backend de cartao
 
 MVP 03B: liquidacao autorizada apenas para ADMIN/GERENTE no matcher POST /financeiro/recebiveis/{id}/liquidar, seguindo a protecao existente do PIX. OPERADOR/USUARIO recebem 403 antes da execucao financeira; nao autenticado recebe 401. Consulta GET permanece inalterada. Snapshot, saldo, locks, idempotencia, tenant, cancelamento e reversao abaixo nao mudam.
@@ -18,7 +34,7 @@ V30 tambem substitui somente chk_config_forma_destino da V24 para permitir desti
 
 Locks em liquidacao: operador -> Venda -> Pagamento -> Recebivel -> ContaFinanceira; cancelamento mantem locks intermediarios de estoque entre Venda e Pagamento. Recebiveis e pagamentos por ID crescente; contas de reversao por ID crescente e debitos agregados/validados antes dos efeitos. Refresh apos lock evita saldo/status obsoleto. Dupla liquidacao utiliza o lock da Venda/Recebivel e unicidade estrutural. Se cancelar vencer, liquidacao retorna 409; se liquidacao vencer, cancelamento debita a conta historica, estorna o movimento original e muda recebivel/venda para CANCELADO/CANCELADA na mesma transacao. Auditoria anterior permanece. Retry nao duplica efeitos; saldo insuficiente ou falha em qualquer etapa reverte toda a operacao. Estorno individual e recusado pelo endpoint generico.
 
-Nao implementados: taxas, MDR, prazos, adquirentes, parcelamento real, antecipacao, liquidacao parcial/lote, conciliacao, webhook ou frontend. Pendencia frontend: cadastro de cartao precisa expor destino/regularizacao antes de permitir novas configuracoes e vendas configuradas liquidaveis. Nao existe API de troca manual de destino da liquidacao.
+No fechamento do 5B, taxas/prazos e frontend eram pendentes. O MVP 01 integrou destino/regularizacao e o 5C adiciona taxas/prazo backend conforme contrato acima. Permanecem fora do escopo: adquirentes, parcelamento real, antecipacao, liquidacao parcial/lote, conciliacao e webhook. Nao existe API de troca manual de destino da liquidacao.
 
 ## Bloco 5A: nucleo backend de Recebiveis
 

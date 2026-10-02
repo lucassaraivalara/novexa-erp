@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Bloco 5C: taxas e prazo de cartao (2026-10-02)
+
+Backend sobre 583fc76: configuracoes DEBITO/CREDITO possuem percentual, taxa fixa e prazo em dias corridos; Pagamento e Recebivel preservam snapshots imutaveis. Calculo centralizado BigDecimal/HALF_UP (centavos), data prevista pelo faturamento + prazo, liquidacao total pelo liquido e reversao pelo movimento original. Liquido <=0 rejeita faturamento com rollback. Payload antigo preservado (criacao usa zero, edicao omitida nao apaga condicoes). V31 aditiva sem backfill e sem alterar V1..V30; historico nao recalculado. Regras, contrato frontend e limites em financeiro.md e FINANCEIRO_RULES.md. Frontend de taxas/prazo ainda pendente; parcelamento real/antecipacao/conciliacao nao implementados. Perfis, tenant, locks, PIX e Caixa preservados.
+
+Validacao: 455 testes distintos aprovados (363 H2/unidade e 92 PostgreSQL), sem falhas, erros ou ignorados; regressao de configuracao, Venda/Pagamento, cancelamento, Caixa/sessao, PIX, Contas a Pagar e Transferencias. PostgreSQL 18.6 local descartavel: Flyway do zero V1..V31 e upgrade V30..V31, Hibernate validate aprovado em ambos; upgrade preserva valores e snapshots NULL do legado. Liquidacao PostgreSQL repete cinco vezes cada disputa com e sem taxas (20 casos concorrentes), sem duplicidade ou estado parcial; PIX tambem preserva sua concorrencia existente. Package backend (-DskipTests apos testes) e diff check aprovados. Sem suite completa ou frontend. Flyway existente emite aviso de suporte oficial ate PostgreSQL 17; execucao real PostgreSQL 18 validada sem atualizar dependencias.
+
 ## MVP 03B: autorizacao da liquidacao de recebiveis (2026-10-01)
 
 Backend sobre ea9e15e: POST /financeiro/recebiveis/{id}/liquidar exige ADMIN/GERENTE na cadeia Spring Security, seguindo o padrao PIX existente. OPERADOR/USUARIO recebem 403 antes do service; sem autenticacao retorna 401. Listagem permanece autenticada/tenant-safe. Testes por perfil verificam retry autorizado, saldo unico e autoria; negacoes preservam saldo, ausencia de movimentos, recebivel PENDENTE e auditoria nula, Venda/Pagamento intactos. Sem frontend, migrations ou mudanca na mecanica financeira. Regras em financeiro.md e FINANCEIRO_RULES.md.

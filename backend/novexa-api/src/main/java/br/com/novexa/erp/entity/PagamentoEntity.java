@@ -28,6 +28,9 @@ public class PagamentoEntity {
     @Enumerated(EnumType.STRING) @Column(length = 20, updatable = false) private TipoFormaPagamento configuracaoTipo;
     @Column(updatable = false) private Long configuracaoContaFinanceiraDestinoId;
     @Column(length = 150, updatable = false) private String configuracaoContaFinanceiraDestinoNome;
+    @Column(precision = 7, scale = 4, updatable = false) private BigDecimal taxaPercentualSnapshot;
+    @Column(precision = 19, scale = 2, updatable = false) private BigDecimal taxaFixaSnapshot;
+    @Column(updatable = false) private Integer prazoRecebimentoDiasSnapshot;
     @OneToOne(mappedBy = "pagamento", fetch = FetchType.LAZY)
     private MovimentacaoFinanceiraEntity movimentacaoFinanceira;
     @Column(nullable = false, precision = 19, scale = 2) private BigDecimal valor;
@@ -70,6 +73,12 @@ public class PagamentoEntity {
                 this.configuracaoContaFinanceiraDestinoNome = destino.getNome();
             }
         }
+        if (formaPagamento == FormaPagamento.CARTAO_DEBITO || formaPagamento == FormaPagamento.CARTAO_CREDITO) {
+            var c = configuracaoFormaPagamento;
+            this.taxaPercentualSnapshot = c == null || c.getTaxaPercentual() == null ? BigDecimal.ZERO : c.getTaxaPercentual();
+            this.taxaFixaSnapshot = c == null || c.getTaxaFixa() == null ? BigDecimal.ZERO : c.getTaxaFixa();
+            this.prazoRecebimentoDiasSnapshot = c == null || c.getPrazoRecebimentoDias() == null ? 0 : c.getPrazoRecebimentoDias();
+        }
         this.valor = venda.getTotal();
         this.status = StatusPagamento.REGISTRADO;
         this.dataHora = LocalDateTime.now();
@@ -102,6 +111,9 @@ public class PagamentoEntity {
     public Long getConfiguracaoContaFinanceiraDestinoId() { return configuracaoContaFinanceiraDestinoId; }
     public String getConfiguracaoContaFinanceiraDestinoNome() { return configuracaoContaFinanceiraDestinoNome; }
     public BigDecimal getValor() { return valor; }
+    public BigDecimal getTaxaPercentualSnapshot() { return taxaPercentualSnapshot; }
+    public BigDecimal getTaxaFixaSnapshot() { return taxaFixaSnapshot; }
+    public Integer getPrazoRecebimentoDiasSnapshot() { return prazoRecebimentoDiasSnapshot; }
     public StatusPagamento getStatus() { return status; }
     public LocalDateTime getDataHora() { return dataHora; }
     public BigDecimal getValorRecebido() { return valorRecebido; }

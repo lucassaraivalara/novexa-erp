@@ -42,6 +42,33 @@ class ConfiguracaoFormaPagamentoEmpresaHttpTest {
     EmpresaEntity empresa, outra;
     ContaFinanceiraEntity banco, carteira, externa, inativa;
     String token, tokenOutro;
+    @ParameterizedTest @ValueSource(longs = {3, 4})
+    void cartaoAceitaCondicoesIndependentesEPayloadAntigo(long forma) throws Exception {
+        var p = pedido(forma, "Com taxas", banco.getId());
+        p.put("taxaPercentual", "3.2"); p.put("taxaFixa", "0.50"); p.put("prazoRecebimentoDias", 30);
+        long id = id(criar(token, p).andExpect(status().isCreated()).andExpect(jsonPath("$.taxaPercentual").value(3.2))
+                .andExpect(jsonPath("$.taxaFixa").value(0.5)).andExpect(jsonPath("$.prazoRecebimentoDias").value(30)));
+        atualizar(token, id, pedido(forma, "Com taxas", banco.getId())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.taxaPercentual").value(3.2)).andExpect(jsonPath("$.prazoRecebimentoDias").value(30));
+        criar(token, pedido(forma, "Sem taxas", banco.getId())).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.taxaPercentual").value(0)).andExpect(jsonPath("$.prazoRecebimentoDias").value(0));
+    }
+    @ParameterizedTest @ValueSource(strings = {"taxaPercentual:-1", "taxaPercentual:100.01", "taxaPercentual:1.00001",
+            "taxaFixa:-0.01", "taxaFixa:0.001", "prazoRecebimentoDias:-1", "prazoRecebimentoDias:1.5"})
+    void condicoesInvalidasNaoCriamConfiguracao(String invalido) throws Exception {
+        var partes = invalido.split(":"); var p = pedido(4, "Invalida", banco.getId()); p.put(partes[0], partes[1]);
+        criar(token, p).andExpect(status().isBadRequest()); assertThat(configuracoes.count()).isZero();
+    }
+    @ParameterizedTest @ValueSource(longs = {1, 2, 5, 6})
+    void outrosTiposNaoAceitamCondicoesDeCartao(long forma) throws Exception {
+        var p = pedido(forma, "Outra", forma == 2 || forma == 6 ? banco.getId() : null);
+        p.put("taxaPercentual", 0); criar(token, p).andExpect(status().isBadRequest());
+        assertThat(configuracoes.count()).isZero();
+    }
+    @Test void prazoDecimalNumericoNaoPodeSerTruncado() throws Exception {
+        var p = pedido(4, "Prazo fracionado", banco.getId()); p.put("prazoRecebimentoDias", new BigDecimal("1.5"));
+        criar(token, p).andExpect(status().isBadRequest()); assertThat(configuracoes.count()).isZero();
+    }
 
     @BeforeEach void preparar() {
         empresa = empresa(); outra = empresa();

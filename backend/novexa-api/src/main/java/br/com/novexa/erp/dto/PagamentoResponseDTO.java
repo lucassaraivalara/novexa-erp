@@ -15,7 +15,8 @@ public record PagamentoResponseDTO(Long id, Long empresaId, Long vendaId, Long u
         Long configuracaoFormaPagamentoId, String configuracaoNomeExibicao, TipoFormaPagamento configuracaoTipo,
         Long configuracaoContaFinanceiraDestinoId, String configuracaoContaFinanceiraDestinoNome,
         boolean confirmadoFinanceiramente, LocalDateTime dataConfirmacaoFinanceira,
-        Long usuarioConfirmacaoFinanceiraId, Long movimentacaoFinanceiraId) {
+        Long usuarioConfirmacaoFinanceiraId, Long movimentacaoFinanceiraId,
+        BigDecimal taxaPercentualSnapshot, BigDecimal taxaFixaSnapshot, Integer prazoRecebimentoDiasSnapshot) {
     public static PagamentoResponseDTO de(PagamentoEntity pagamento) {
         var movimento = pagamento.getMovimentacaoFinanceira();
         return new PagamentoResponseDTO(pagamento.getId(), pagamento.getEmpresa().getId(),
@@ -27,6 +28,7 @@ public record PagamentoResponseDTO(Long id, Long empresaId, Long vendaId, Long u
                 pagamento.getConfiguracaoNomeExibicao(), pagamento.getConfiguracaoTipo(),
                 pagamento.getConfiguracaoContaFinanceiraDestinoId(), pagamento.getConfiguracaoContaFinanceiraDestinoNome(),
                 movimento != null, movimento == null ? null : movimento.getDataCriacao(),
-                movimento == null ? null : movimento.getUsuario().getId(), movimento == null ? null : movimento.getId());
+                movimento == null ? null : movimento.getUsuario().getId(), movimento == null ? null : movimento.getId(),
+                pagamento.getTaxaPercentualSnapshot(), pagamento.getTaxaFixaSnapshot(), pagamento.getPrazoRecebimentoDiasSnapshot());
     }
 }

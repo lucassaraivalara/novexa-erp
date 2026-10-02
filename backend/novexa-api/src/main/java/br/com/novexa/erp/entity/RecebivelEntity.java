@@ -2,6 +2,7 @@ package br.com.novexa.erp.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -19,7 +20,11 @@ public class RecebivelEntity {
     @Column(nullable = false, precision = 19, scale = 2, updatable = false) private BigDecimal valorBruto;
     @Column(precision = 19, scale = 2, updatable = false) private BigDecimal valorLiquidoPrevisto;
     @Column(nullable = false, updatable = false) private LocalDateTime dataVenda;
-    private LocalDate dataPrevistaRecebimento;
+    @Column(updatable = false) private LocalDate dataPrevistaRecebimento;
+    @Column(precision = 7, scale = 4, updatable = false) private BigDecimal taxaPercentualSnapshot;
+    @Column(precision = 19, scale = 2, updatable = false) private BigDecimal taxaFixaSnapshot;
+    @Column(precision = 19, scale = 2, updatable = false) private BigDecimal valorTaxasPrevisto;
+    @Column(updatable = false) private Integer prazoRecebimentoDiasSnapshot;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private StatusRecebivel status;
     @Column(nullable = false, updatable = false) private LocalDateTime criadoEm;
     @Column(updatable = false) private Long configuracaoFormaPagamentoId;
@@ -44,9 +49,17 @@ public class RecebivelEntity {
         this.numeroParcela = 1;
         this.totalParcelas = 1;
         this.valorBruto = pagamento.getValor();
-        this.valorLiquidoPrevisto = valorBruto;
+        this.taxaPercentualSnapshot = pagamento.getTaxaPercentualSnapshot() == null ? BigDecimal.ZERO : pagamento.getTaxaPercentualSnapshot();
+        this.taxaFixaSnapshot = pagamento.getTaxaFixaSnapshot() == null ? BigDecimal.ZERO : pagamento.getTaxaFixaSnapshot();
+        this.prazoRecebimentoDiasSnapshot = pagamento.getPrazoRecebimentoDiasSnapshot() == null ? 0 : pagamento.getPrazoRecebimentoDiasSnapshot();
+        this.valorTaxasPrevisto = valorBruto.multiply(taxaPercentualSnapshot).movePointLeft(2)
+                .setScale(2, RoundingMode.HALF_UP).add(taxaFixaSnapshot).setScale(2, RoundingMode.UNNECESSARY);
+        this.valorLiquidoPrevisto = valorBruto.subtract(valorTaxasPrevisto);
+        if (valorLiquidoPrevisto.signum() <= 0)
+            throw new IllegalArgumentException("Taxas devem resultar em valor liquido positivo para esta venda.");
         // Momento do faturamento, nao da abertura da venda.
         this.dataVenda = pagamento.getDataHora();
+        this.dataPrevistaRecebimento = dataVenda.toLocalDate().plusDays(prazoRecebimentoDiasSnapshot);
         this.status = StatusRecebivel.PENDENTE;
         this.criadoEm = LocalDateTime.now();
         var configuracao = pagamento.getConfiguracaoFormaPagamento();
@@ -83,6 +96,10 @@ public class RecebivelEntity {
     public int getNumeroParcela() { return numeroParcela; }
     public int getTotalParcelas() { return totalParcelas; }
     public BigDecimal getValorBruto() { return valorBruto; }
+    public BigDecimal getTaxaPercentualSnapshot() { return taxaPercentualSnapshot; }
+    public BigDecimal getTaxaFixaSnapshot() { return taxaFixaSnapshot; }
+    public BigDecimal getValorTaxasPrevisto() { return valorTaxasPrevisto; }
+    public Integer getPrazoRecebimentoDiasSnapshot() { return prazoRecebimentoDiasSnapshot; }
     public BigDecimal getValorLiquidoPrevisto() { return valorLiquidoPrevisto; }
     public LocalDateTime getDataVenda() { return dataVenda; }
     public LocalDate getDataPrevistaRecebimento() { return dataPrevistaRecebimento; }

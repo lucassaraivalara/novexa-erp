@@ -53,8 +53,8 @@ public class LiquidacaoRecebivelService {
         var conta = contas.buscarParaAlterar(destinoId, empresaId).orElseThrow(() -> conflito("Destino financeiro historico invalido."));
         em.refresh(conta);
         var valor = r.getValorLiquidoPrevisto();
-        if (valor == null || valor.signum() <= 0 || valor.compareTo(r.getValorBruto()) != 0)
-            throw conflito("Valor previsto incompativel com a liquidacao integral sem taxas.");
+        if (valor == null || valor.signum() <= 0 || valor.compareTo(r.getValorBruto()) > 0)
+            throw conflito("Valor liquido previsto invalido para liquidacao integral.");
         validarSaldo(conta.getSaldoAtual().add(valor));
         var movimento = movimentos.saveAndFlush(MovimentacaoFinanceiraEntity.doRecebivel(r, conta, usuario));
         conta.aplicar(valor);

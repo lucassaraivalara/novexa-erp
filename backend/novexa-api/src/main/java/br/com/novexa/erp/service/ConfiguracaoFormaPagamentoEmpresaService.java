@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Locale;
+import java.math.BigDecimal;
 
 @Service
 @Transactional(readOnly = true)
@@ -43,8 +44,9 @@ public class ConfiguracaoFormaPagamentoEmpresaService {
         if (!forma.isAtivo()) throw erro(HttpStatus.CONFLICT, "Forma de pagamento inativa.");
         String nome = nome(empresaId, p.nomeExibicao(), null);
         var destino = destino(empresaId, forma.getTipo(), p.contaFinanceiraDestinoId(), null);
-        return ConfiguracaoFormaPagamentoEmpresaResponseDTO.de(configuracoes.saveAndFlush(
-                new ConfiguracaoFormaPagamentoEmpresaEntity(empresa, forma, nome, p.ativo() == null || p.ativo(), destino)));
+        var c = new ConfiguracaoFormaPagamentoEmpresaEntity(empresa, forma, nome, p.ativo() == null || p.ativo(), destino);
+        condicoes(c, p);
+        return ConfiguracaoFormaPagamentoEmpresaResponseDTO.de(configuracoes.saveAndFlush(c));
     }
     @Transactional
     public ConfiguracaoFormaPagamentoEmpresaResponseDTO atualizar(Long id, Long empresaId, ConfiguracaoFormaPagamentoEmpresaRequestDTO p) {
@@ -56,7 +58,20 @@ public class ConfiguracaoFormaPagamentoEmpresaService {
                 && p.contaFinanceiraDestinoId() == null && !ativo ? null
                 : destino(empresaId, c.getTipo(), p.contaFinanceiraDestinoId(), c.getContaFinanceiraDestino());
         c.atualizar(nome(empresaId, p.nomeExibicao(), id), ativo, destino);
+        condicoes(c, p);
         return ConfiguracaoFormaPagamentoEmpresaResponseDTO.de(configuracoes.saveAndFlush(c));
+    }
+    private void condicoes(ConfiguracaoFormaPagamentoEmpresaEntity c, ConfiguracaoFormaPagamentoEmpresaRequestDTO p) {
+        if (!cartao(c.getTipo())) {
+            if (p.taxaPercentual() != null || p.taxaFixa() != null || p.prazoRecebimentoDias() != null)
+                throw erro(HttpStatus.BAD_REQUEST, "Taxas e prazo sao exclusivos de cartao.");
+            return;
+        }
+        c.atualizarCondicoesCartao(p.taxaPercentual() != null ? p.taxaPercentual()
+                        : c.getTaxaPercentual() != null ? c.getTaxaPercentual() : BigDecimal.ZERO,
+                p.taxaFixa() != null ? p.taxaFixa() : c.getTaxaFixa() != null ? c.getTaxaFixa() : BigDecimal.ZERO,
+                p.prazoRecebimentoDias() != null ? p.prazoRecebimentoDias()
+                        : c.getPrazoRecebimentoDias() != null ? c.getPrazoRecebimentoDias() : 0);
     }
     private ContaFinanceiraEntity destino(Long empresaId, TipoFormaPagamento tipo, Long id,
             ContaFinanceiraEntity atual) {

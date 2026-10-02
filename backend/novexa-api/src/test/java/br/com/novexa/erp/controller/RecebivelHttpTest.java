@@ -75,7 +75,7 @@ class RecebivelHttpTest {
         assertThat(r.getTipo().name()).isEqualTo(tipo.replace("CARTAO_", ""));
         assertThat(r.getValorBruto()).isEqualByComparingTo("20");
         assertThat(r.getValorLiquidoPrevisto()).isEqualByComparingTo("20");
-        assertThat(r.getDataPrevistaRecebimento()).isNull();
+        assertThat(r.getDataPrevistaRecebimento()).isEqualTo(r.getDataVenda().toLocalDate());
         assertThat(r.getStatus()).isEqualTo(StatusRecebivel.PENDENTE);
         assertThat(fluxo.movimentosFinanceiros.count()).isZero();
         assertThat(fluxo.contasFinanceiras.count()).isZero();

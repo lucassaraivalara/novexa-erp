@@ -9,7 +9,9 @@ public record RecebivelResponseDTO(Long id, Long vendaId, Long pagamentoId, Tipo
         int numeroParcela, int totalParcelas, BigDecimal valorBruto, BigDecimal valorLiquidoPrevisto,
         LocalDateTime dataVenda, LocalDate dataPrevistaRecebimento, StatusRecebivel status, String configuracaoNomeExibicao,
         BigDecimal valorLiquidoRecebido, LocalDateTime dataLiquidacao, Long usuarioLiquidacaoId,
-        LocalDateTime dataCancelamento, Long usuarioCancelamentoId, Long movimentacaoFinanceiraId) {
+        LocalDateTime dataCancelamento, Long usuarioCancelamentoId, Long movimentacaoFinanceiraId,
+        BigDecimal taxaPercentualSnapshot, BigDecimal taxaFixaSnapshot, BigDecimal valorTaxasPrevisto,
+        Integer prazoRecebimentoDiasSnapshot) {
     public static RecebivelResponseDTO de(RecebivelEntity r) {
         return de(r, null);
     }
@@ -18,6 +20,7 @@ public record RecebivelResponseDTO(Long id, Long vendaId, Long pagamentoId, Tipo
                 r.getNumeroParcela(), r.getTotalParcelas(), r.getValorBruto(), r.getValorLiquidoPrevisto(),
                 r.getDataVenda(), r.getDataPrevistaRecebimento(), r.getStatus(), r.getConfiguracaoNomeExibicao(),
                 r.getValorLiquidoRecebido(), r.getDataLiquidacao(), r.getUsuarioLiquidacao() == null ? null : r.getUsuarioLiquidacao().getId(),
-                r.getDataCancelamento(), r.getUsuarioCancelamento() == null ? null : r.getUsuarioCancelamento().getId(), movimentoId);
+                r.getDataCancelamento(), r.getUsuarioCancelamento() == null ? null : r.getUsuarioCancelamento().getId(), movimentoId,
+                r.getTaxaPercentualSnapshot(), r.getTaxaFixaSnapshot(), r.getValorTaxasPrevisto(), r.getPrazoRecebimentoDiasSnapshot());
     }
 }

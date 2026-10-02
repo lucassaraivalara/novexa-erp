@@ -6,6 +6,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import java.sql.DriverManager;
 import java.util.UUID;
+import org.flywaydb.core.Flyway;
 import static org.assertj.core.api.Assertions.*;
 
 @EnabledIfSystemProperty(named = "novexa.test.recebivel.jdbc-url", matches = "jdbc:postgresql:.*")
@@ -15,6 +16,9 @@ class LiquidacaoRecebivelPostgresTest extends LiquidacaoRecebivelHttpTest {
     private static final String USER = System.getProperty("novexa.test.recebivel.jdbc-user", "postgres");
     private static final String PASSWORD = System.getProperty("novexa.test.recebivel.jdbc-password", "");
     @DynamicPropertySource static void postgres(DynamicPropertyRegistry p) {
+        // A aplicacao deve completar o upgrade V30 -> V31 e executar Hibernate validate.
+        Flyway.configure().dataSource(URL, USER, PASSWORD).schemas(SCHEMA).defaultSchema(SCHEMA)
+                .target("30").load().migrate();
         p.add("spring.datasource.url", () -> URL + (URL.contains("?") ? "&" : "?") + "currentSchema=" + SCHEMA);
         p.add("spring.datasource.username", () -> USER); p.add("spring.datasource.password", () -> PASSWORD);
         p.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
@@ -23,6 +27,8 @@ class LiquidacaoRecebivelPostgresTest extends LiquidacaoRecebivelHttpTest {
     }
     @RepeatedTest(5) void duasLiquidacoes() throws Exception { concorrencia(false); }
     @RepeatedTest(5) void liquidacaoVersusCancelamento() throws Exception { concorrencia(true); }
+    @RepeatedTest(5) void duasLiquidacoesComTaxas() throws Exception { concorrenciaComTaxas(false); }
+    @RepeatedTest(5) void liquidacaoComTaxasVersusCancelamento() throws Exception { concorrenciaComTaxas(true); }
     @Test void bancoImpedeDuplaEntradaEOrigemIncoerente() throws Exception {
         long id = prepararCartao(); liquidar(id).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
         assertThatThrownBy(() -> fluxo.jdbc.update("""

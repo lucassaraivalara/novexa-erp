@@ -7,18 +7,27 @@
 - Fontes operacionais: Venda/Pagamento + MovimentacaoCaixa (dinheiro), MovimentacaoFinanceira (PIX confirmado e liquidacao de cartao) e Recebivel (cartao), conforme a forma de pagamento.
 - Cancelamento de cartao LIQUIDADO continua coordenado pelo 5B, com reversao de saldo/movimento e Recebivel CANCELADO na mesma transacao. Sem DELETE, backfill ou migration para aposentar o fluxo legado.
 
+## Taxas e prazo de cartao - Bloco 5C
+
+- DEBITO/CREDITO possuem taxaPercentual (0..100, quatro casas), taxaFixa (>=0, centavos) e prazoRecebimentoDias (>=0, dias corridos), por configuracao empresarial. Outros tipos rejeitam essas propriedades.
+- Payload antigo continua aceito: na criacao de cartao, campos omitidos assumem 0; na edicao, omissao preserva a condicao existente. Configuracoes historicas permanecem legiveis/inativaveis sem backfill economico.
+- Faturamento captura condicoes imutaveis no Pagamento; Recebivel copia o snapshot, nunca consulta a configuracao atual para recalcular historico. Taxa percentual monetaria = round(bruto * percentual / 100, 2, HALF_UP); taxas previstas = percentual monetario + fixa; liquido = bruto - taxas. Liquido <=0 rejeita a venda com 409 e rollback integral.
+- Data prevista = data do faturamento (Pagamento.dataHora / Recebivel.dataVenda) + prazo em dias corridos, sem dias uteis. Novas vendas sem condicoes explicitas usam zero, inclusive prazo zero; registros anteriores mantem datas/valores e novos snapshots NULL.
+- Liquidacao total credita exclusivamente o liquido previsto historico; cancelamento reverte exatamente o valor do movimento original. Sem credito do bruto, recalculo, fallback de destino, liquidacao parcial ou nova arquitetura de estorno.
+- V31 aditiva, sem UPDATE/backfill, conserva V1..V30 e FKs tenant-safe. ADMIN/GERENTE, idempotencia, UNIQUE financeiro e ordem dos locks do 5B permanecem. Parcelamento real, antecipacao, adquirentes, conciliacao e frontend de taxas ainda nao implementados.
+
 ## Liquidacao de cartao - Bloco 5B
 
 - No MVP 03B, POST /financeiro/recebiveis/{id}/liquidar e exclusivo de ADMIN/GERENTE, com protecao na cadeia Spring Security pelo perfil do JWT. OPERADOR/USUARIO recebem 403 antes do service, sem credito, movimento ou auditoria; sem autenticacao retorna 401. GET permanece com a autorizacao autenticada existente e isolamento por tenant.
 - CARTAO -> Pagamento -> Recebivel PENDENTE -> liquidacao explicita -> MovimentacaoFinanceira ENTRADA/RECEBIVEL_LIQUIDACAO -> ContaFinanceira -> Recebivel LIQUIDADO. A venda nao credita ContaFinanceira.
 - Novas configuracoes DEBITO/CREDITO exigem destino BANCO/CARTEIRA_DIGITAL ativo do mesmo tenant. Configuracoes historicas sem destino permanecem legiveis e inativaveis; devem ser regularizadas antes do uso em novas vendas. V30 altera o CHECK da V24 sem backfill, mantendo regras PIX/TRANSFERENCIA/DINHEIRO/BOLETO. O contrato legado sem configuracao continua aceito, mas produz historico sem destino liquidavel.
 - POST /financeiro/recebiveis/{id}/liquidar nao exige body e nao aceita autoridade do cliente sobre conta/valor/empresa. Destino exclusivamente de Pagamento.configuracaoContaFinanceiraDestinoId, nunca do cadastro atual. Ausencia/inconsistencia do destino historico retorna 409 sem efeito; outro tenant retorna 404. Conta historica inativa permite liquidacao e reversao.
-- Liquidacao integral sem taxas: valorLiquidoRecebido = valorLiquidoPrevisto = valorBruto. Nenhum prazo, parcelamento operacional, taxa, antecipacao, parcial ou lote.
+- Liquidacao integral: valorLiquidoRecebido = valorLiquidoPrevisto. No 5B o previsto era igual ao bruto; o 5C incorpora taxas/prazo por snapshot, conforme regras acima. Sem parcelamento operacional, antecipacao, parcial ou lote.
 - Ordem dos locks: operador -> Venda -> Pagamento -> Recebivel -> ContaFinanceira. Cancelamento preserva os locks de estoque entre Venda e Pagamento. Pagamentos/recebiveis e contas multiplas sao bloqueados por ID crescente. Locks do operador e da Venda sao comuns aos fluxos PIX e cancelamento; transferencias bloqueiam somente suas contas em ordem crescente, sem depois adquirir locks de Venda/Pagamento.
 - PENDENTE -> LIQUIDADO em uma transacao: movimento unico, credito, status e auditoria. Retry LIQUIDADO retorna o mesmo resultado, sem novo saldo/movimento. UNIQUE(recebivel_id), FK composta por empresa e CHECK de origem ENTRADA protegem o banco. CANCELADO nao liquida (409).
 - Cancelar Venda liquidada reverte saldo, marca a entrada original estornada com auditoria e muda o recebivel para CANCELADO, preservando auditoria de liquidacao. Nunca apagar ou criar movimento compensatorio. Saldo insuficiente bloqueia tudo com rollback; retry do cancelamento nao repete debito. Estorno individual pelo endpoint generico continua bloqueado por origem.
 - Auditoria de liquidacao no Recebivel copia valor/data/usuario do movimento original; vinculo persistido apenas em MovimentacaoFinanceira -> Recebivel. ID do movimento no DTO e derivado da consulta, inclusive apos cancelamento, sem FK circular. Auditoria de cancelamento preserva data/usuario da primeira execucao.
-- Frontend ainda nao permite regularizar destino de DEBITO/CREDITO: pendencia explicita da proxima rodada frontend. Nao contornar pelo endpoint de liquidacao.
+- Frontend de destino/regularizacao foi integrado no MVP 01; campos de taxa/prazo do 5C ainda exigem integracao frontend. Nao contornar pelo endpoint de liquidacao.
 
 ## Recebiveis de cartao - Bloco 5A
 

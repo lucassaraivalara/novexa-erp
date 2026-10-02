@@ -36,6 +36,115 @@ class LiquidacaoRecebivelHttpTest extends RecebivelHttpTest {
         return fluxo.mvc.perform(post("/financeiro/recebiveis/" + id + "/liquidar").header("Authorization", fluxo.authorization));
     }
     BigDecimal saldo() { return contas.findById(destino.getId()).orElseThrow().getSaldoAtual(); }
+    long prepararCartaoComTaxas(long forma, String percentual, String fixa, int prazo, int quantidade) throws Exception {
+        destino = contas.saveAndFlush(new ContaFinanceiraEntity(fluxo.empresa, "Destino com taxas",
+                TipoContaFinanceira.CARTEIRA_DIGITAL, new BigDecimal("100")));
+        config = fluxo.configuracoes.saveAndFlush(new ConfiguracaoFormaPagamentoEmpresaEntity(fluxo.empresa,
+                fluxo.catalogo.findById(forma).orElseThrow(), "Cartao com taxas", true, destino));
+        editarTaxas(forma, percentual, fixa, prazo);
+        var p = pedido(forma == 3 ? "CARTAO_DEBITO" : "CARTAO_CREDITO");
+        p.put("configuracaoFormaPagamentoId", config.getId());
+        p.put("itens", List.of(Map.of("produtoId", fluxo.produto.getId(), "quantidade", quantidade, "precoUnitarioEsperado", 10)));
+        p.put("totalEsperado", quantidade * 10);
+        p.put("valorRecebido", quantidade * 10);
+        vendaId = enviar(p);
+        return recebiveis.findAll().getFirst().getId();
+    }
+    void editarTaxas(long forma, String percentual, String fixa, int prazo) throws Exception {
+        var p = Map.of("formaPagamentoId", forma, "nomeExibicao", config.getNomeExibicao(), "ativo", true,
+                "contaFinanceiraDestinoId", destino.getId(), "taxaPercentual", percentual,
+                "taxaFixa", fixa, "prazoRecebimentoDias", prazo);
+        fluxo.mvc.perform(put("/financeiro/configuracoes-formas-pagamento/" + config.getId())
+                .header("Authorization", fluxo.authorization).contentType("application/json")
+                .content(fluxo.json.writeValueAsBytes(p))).andExpect(status().isOk());
+    }
+    @ParameterizedTest @ValueSource(longs = {3, 4})
+    void cemReaisComTresPorCentoLiquida97ECancelaExatamente97(long forma) throws Exception {
+        long id = prepararCartaoComTaxas(forma, "3", "0", 30, 10);
+        var r = recebiveis.findById(id).orElseThrow();
+        assertThat(r.getValorBruto()).isEqualByComparingTo("100");
+        assertThat(r.getTaxaPercentualSnapshot()).isEqualByComparingTo("3");
+        assertThat(r.getValorTaxasPrevisto()).isEqualByComparingTo("3");
+        assertThat(r.getValorLiquidoPrevisto()).isEqualByComparingTo("97");
+        assertThat(r.getDataPrevistaRecebimento()).isEqualTo(r.getDataVenda().toLocalDate().plusDays(30));
+        liquidar(id).andExpect(status().isOk()).andExpect(jsonPath("$.valorLiquidoRecebido").value(97));
+        liquidar(id).andExpect(status().isOk());
+        assertThat(saldo()).isEqualByComparingTo("197");
+        assertThat(fluxo.movimentosFinanceiros.findAll()).singleElement().satisfies(m -> assertThat(m.getValor()).isEqualByComparingTo("97"));
+        cancelar(vendaId); cancelar(vendaId);
+        assertThat(saldo()).isEqualByComparingTo("100");
+        assertThat(fluxo.movimentosFinanceiros.findAll().getFirst().isEstornada()).isTrue();
+        assertThat(recebiveis.findById(id).orElseThrow().getStatus()).isEqualTo(StatusRecebivel.CANCELADO);
+    }
+    @Test void taxaFixaSomadaAoPercentual() throws Exception {
+        long id = prepararCartaoComTaxas(4, "3", "0.50", 30, 10);
+        listar("").andExpect(jsonPath("$.items[0].taxaFixaSnapshot").value(0.5))
+                .andExpect(jsonPath("$.items[0].valorTaxasPrevisto").value(3.5))
+                .andExpect(jsonPath("$.items[0].valorLiquidoPrevisto").value(96.5))
+                .andExpect(jsonPath("$.items[0].prazoRecebimentoDiasSnapshot").value(30));
+        liquidar(id).andExpect(status().isOk()); assertThat(saldo()).isEqualByComparingTo("196.50");
+        cancelar(vendaId); assertThat(saldo()).isEqualByComparingTo("100");
+    }
+    @Test void falhaAposCreditoLiquidoReverteSaldoMovimentoEAuditoria() throws Exception {
+        long id = prepararCartaoComTaxas(4, "3", "0.50", 30, 2);
+        doAnswer(i -> {
+            contas.save((ContaFinanceiraEntity) i.getArgument(0)); contas.flush();
+            throw new IllegalStateException("falha depois do credito liquido");
+        }).when(contas).saveAndFlush(any(ContaFinanceiraEntity.class));
+        assertThatThrownBy(() -> liquidar(id)).hasRootCauseMessage("falha depois do credito liquido");
+        assertThat(saldo()).isEqualByComparingTo("100"); assertThat(fluxo.movimentosFinanceiros.count()).isZero();
+        var r = recebiveis.findById(id).orElseThrow();
+        assertThat(r.getStatus()).isEqualTo(StatusRecebivel.PENDENTE);
+        assertThat(r.getDataLiquidacao()).isNull(); assertThat(r.getValorLiquidoRecebido()).isNull();
+        assertThat(r.getValorLiquidoPrevisto()).isEqualByComparingTo("18.90");
+    }
+    @Test void arredondaPercentualHalfUpUmaVezNoCentavo() throws Exception {
+        long id = prepararCartaoComTaxas(3, "0.025", "0.01", 1, 2);
+        var r = recebiveis.findById(id).orElseThrow();
+        assertThat(r.getValorTaxasPrevisto()).isEqualByComparingTo("0.02");
+        assertThat(r.getValorLiquidoPrevisto()).isEqualByComparingTo("19.98");
+    }
+    @Test void configuracaoNovaNaoReinterpretaSnapshotEContratoAntigoDeEdicaoNaoApagaTaxas() throws Exception {
+        long a = prepararCartaoComTaxas(4, "3", "0", 30, 2);
+        atualizarConfiguracao(config.getId(), config.getNomeExibicao(), destino.getId(), true).andExpect(status().isOk());
+        assertThat(fluxo.configuracoes.findById(config.getId()).orElseThrow().getTaxaPercentual()).isEqualByComparingTo("3");
+        editarTaxas(4, "5", "0", 15);
+        var p = pedido("CARTAO_CREDITO"); p.put("configuracaoFormaPagamentoId", config.getId());
+        long b = enviar(p); assertThat(enviar(p)).isEqualTo(b);
+        var antigo = recebiveis.findById(a).orElseThrow();
+        assertThat(antigo.getTaxaPercentualSnapshot()).isEqualByComparingTo("3");
+        assertThat(antigo.getValorLiquidoPrevisto()).isEqualByComparingTo("19.40");
+        assertThat(antigo.getDataPrevistaRecebimento()).isEqualTo(antigo.getDataVenda().toLocalDate().plusDays(30));
+        var novo = recebiveis.findAll().stream().filter(r -> r.getVenda().getId().equals(b)).findFirst().orElseThrow();
+        assertThat(novo.getTaxaPercentualSnapshot()).isEqualByComparingTo("5");
+        assertThat(novo.getValorLiquidoPrevisto()).isEqualByComparingTo("19");
+        assertThat(novo.getDataPrevistaRecebimento()).isEqualTo(novo.getDataVenda().toLocalDate().plusDays(15));
+        assertThat(fluxo.pagamentos.findById(antigo.getPagamento().getId()).orElseThrow().getTaxaPercentualSnapshot()).isEqualByComparingTo("3");
+        liquidar(a).andExpect(status().isOk()); assertThat(saldo()).isEqualByComparingTo("119.40");
+    }
+    @ParameterizedTest @ValueSource(strings = {"100:0", "0:20.01"})
+    void liquidoZeroOuNegativoRejeitaVendaComRollbackIntegral(String taxas) throws Exception {
+        destino = contas.saveAndFlush(new ContaFinanceiraEntity(fluxo.empresa, "Destino", TipoContaFinanceira.CARTEIRA_DIGITAL, BigDecimal.ZERO));
+        config = fluxo.configuracoes.saveAndFlush(new ConfiguracaoFormaPagamentoEmpresaEntity(fluxo.empresa,
+                fluxo.catalogo.findById(4L).orElseThrow(), "Taxas", true, destino));
+        var partes = taxas.split(":"); editarTaxas(4, partes[0], partes[1], 0);
+        var p = pedido("CARTAO_CREDITO"); p.put("configuracaoFormaPagamentoId", config.getId());
+        fluxo.mvc.perform(post("/vendas").header("Authorization", fluxo.authorization).contentType("application/json")
+                .content(fluxo.json.writeValueAsBytes(p))).andExpect(status().isConflict());
+        assertThat(fluxo.vendas.count()).isZero(); assertThat(fluxo.pagamentos.count()).isZero();
+        assertThat(recebiveis.count()).isZero(); assertThat(fluxo.movimentos.count()).isZero();
+        assertThat(fluxo.movimentosFinanceiros.count()).isZero(); assertThat(saldo()).isZero();
+        assertThat(fluxo.produtos.findById(fluxo.produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+    }
+    @Test void historicoSemSnapshotMantemLiquidoGravadoSemRecalculo() throws Exception {
+        long id = prepararCartao();
+        fluxo.jdbc.update("update recebiveis set taxa_percentual_snapshot=NULL,taxa_fixa_snapshot=NULL,prazo_recebimento_dias_snapshot=NULL,valor_taxas_previsto=NULL,data_prevista_recebimento=NULL,valor_liquido_previsto=18.50 where id=?", id);
+        fluxo.jdbc.update("update pagamentos set taxa_percentual_snapshot=NULL,taxa_fixa_snapshot=NULL,prazo_recebimento_dias_snapshot=NULL");
+        editarTaxas(4, "5", "1", 15);
+        liquidar(id).andExpect(status().isOk()).andExpect(jsonPath("$.taxaPercentualSnapshot").doesNotExist());
+        assertThat(saldo()).isEqualByComparingTo("118.50");
+        cancelar(vendaId); assertThat(saldo()).isEqualByComparingTo("100");
+    }
 
     @ParameterizedTest @ValueSource(strings = {"ADMIN", "GERENTE", "OPERADOR", "USUARIO"})
     void liquidacaoRespeitaPerfilSemEfeitoQuandoNegada(String perfil) throws Exception {
@@ -249,6 +358,13 @@ class LiquidacaoRecebivelHttpTest extends RecebivelHttpTest {
 
     void concorrencia(boolean cancelar) throws Exception {
         long id = prepararCartao();
+        executarConcorrencia(cancelar, id, "120");
+    }
+    void concorrenciaComTaxas(boolean cancelar) throws Exception {
+        long id = prepararCartaoComTaxas(4, "3", "0.50", 30, 2);
+        executarConcorrencia(cancelar, id, "118.90");
+    }
+    void executarConcorrencia(boolean cancelar, long id, String saldoEsperado) throws Exception {
         fluxo.segundo.setPerfil(PerfilUsuario.GERENTE); fluxo.usuarios.saveAndFlush(fluxo.segundo);
         String outroToken = "Bearer " + fluxo.jwt.gerarToken(fluxo.segundo);
         var executor = Executors.newFixedThreadPool(2); var inicio = new CountDownLatch(1);
@@ -261,7 +377,7 @@ class LiquidacaoRecebivelHttpTest extends RecebivelHttpTest {
             inicio.countDown(); int a = primeira.get(20, TimeUnit.SECONDS), b = segunda.get(20, TimeUnit.SECONDS);
             if (!cancelar) {
                 assertThat(a).isEqualTo(200); assertThat(b).isEqualTo(200);
-                assertThat(saldo()).isEqualByComparingTo("120"); assertThat(fluxo.movimentosFinanceiros.count()).isEqualTo(1);
+                assertThat(saldo()).isEqualByComparingTo(saldoEsperado); assertThat(fluxo.movimentosFinanceiros.count()).isEqualTo(1);
                 assertLiquidadoSemEstorno(id);
             } else {
                 assertThat(a).isIn(200, 409); assertThat(b).isEqualTo(200);

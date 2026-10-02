@@ -23,8 +23,16 @@ public class RecebivelService {
     @Transactional(propagation = Propagation.MANDATORY)
     public void gerar(PagamentoEntity pagamento) {
         if (pagamento.getFormaPagamento() == FormaPagamento.CARTAO_DEBITO
-                || pagamento.getFormaPagamento() == FormaPagamento.CARTAO_CREDITO)
-            recebiveis.saveAndFlush(new RecebivelEntity(pagamento));
+                || pagamento.getFormaPagamento() == FormaPagamento.CARTAO_CREDITO) {
+            RecebivelEntity recebivel;
+            try {
+                recebivel = new RecebivelEntity(pagamento);
+            } catch (IllegalArgumentException | java.time.DateTimeException ex) {
+                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                        "Condicoes de cartao invalidas para esta venda: " + ex.getMessage());
+            }
+            recebiveis.saveAndFlush(recebivel);
+        }
     }
 
     public PaginaResponseDTO<RecebivelResponseDTO> listar(Long empresaId, StatusRecebivel status, TipoFormaPagamento tipo,
