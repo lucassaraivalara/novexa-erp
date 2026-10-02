@@ -32,7 +32,7 @@ before(async () => {
             load(id) { if (id === "\0layout-fixture.js") return fixture; },
             configureServer(vite) {
                 vite.middlewares.use(async (req,res,next) => {
-                    if (!["/clientes","/produtos","/usuarios","/financeiro/contas-pagar","/login"].includes(req.url)) return next();
+                    if (!["/clientes","/produtos","/usuarios","/financeiro/contas-pagar","/financeiro/recebiveis","/login"].includes(req.url)) return next();
                     res.setHeader("Content-Type","text/html");
                     res.end(await vite.transformIndexHtml(req.url,'<div id="root"></div><script type="module" src="/layout-fixture.js"></script>'));
                 });
@@ -60,7 +60,7 @@ async function withLayout(run, options = {}) {
 
 test("Sidebar preserva grupos, ordem, item ativo e indisponibilidade", () => withLayout(async page => {
     const nav = page.getByRole("navigation");
-    assert.deepEqual(await nav.getByRole("link").allTextContents(), ["Dashboard","Vendas","Produtos","Clientes","Estoque","Caixas","Contas a Pagar","Contas Financeiras","Formas de Pagamento","Dados Bancarios","Empresas","Usuarios"].map(x => x === "Dados Bancarios" ? "Dados Banc\u00e1rios" : x === "Usuarios" ? "Usu\u00e1rios" : x));
+    assert.deepEqual(await nav.getByRole("link").allTextContents(), ["Dashboard","Vendas","Produtos","Clientes","Estoque","Caixas","Contas a Pagar","Receb\u00edveis","Contas Financeiras","Formas de Pagamento","Dados Bancarios","Empresas","Usuarios"].map(x => x === "Dados Bancarios" ? "Dados Banc\u00e1rios" : x === "Usuarios" ? "Usu\u00e1rios" : x));
     assert.equal(await nav.getByRole("button",{name:"Financeiro",exact:true}).getAttribute("aria-expanded"),"true");
     assert.equal(await nav.getByRole("button",{name:"Administra\u00e7\u00e3o",exact:true}).count(),1);
     const active = nav.getByRole("link",{name:"Clientes",exact:true});
