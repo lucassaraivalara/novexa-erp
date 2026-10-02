@@ -15,7 +15,7 @@ import Clientes from "../pages/Clientes/Clientes";
 import Dashboard from "../pages/Dashboard/Dashboard";
 import Empresa from "../pages/Empresa/Empresa";
 import Estoque from "../pages/Estoque/Estoque";
-import Produtos from "../pages/Produtos/Produtos";
+import Produtos from "../pages/Produtos/ProdutosArea";
 import CentralVendas from "../pages/Vendas/CentralVendas";
 import DadosBancarios from "../pages/Financeiro/DadosBancarios";
 import FormasPagamento from "../pages/Financeiro/FormasPagamento";

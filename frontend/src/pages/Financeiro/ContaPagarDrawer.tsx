@@ -1,11 +1,9 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { Alert, Autocomplete, Box, Button, Drawer, IconButton, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Drawer, IconButton, Stack, TextField, Typography } from "@mui/material";
+import FornecedorAutocomplete, { type FornecedorOpcao } from "../../components/fornecedores/FornecedorAutocomplete";
 import { mensagemContaPagar, salvarContaPagar } from "../../services/contaPagarService";
-import { buscarFornecedores } from "../../services/fornecedorService";
 import type { ContaPagar, ContaPagarInput } from "../../types/contaPagar";
-
-type OpcaoFornecedor = { id: number; razaoSocial: string };
 
 type Props = {
     conta: ContaPagar | null;
@@ -27,22 +25,8 @@ export default function ContaPagarDrawer({ conta, onFechar, onSalvo }: Props) {
     const [salvando, setSalvando] = useState(false);
     const [erro, setErro] = useState("");
     // O fornecedor já vinculado permanece selecionável mesmo se estiver inativo.
-    const [fornecedor, setFornecedor] = useState<OpcaoFornecedor | null>(
+    const [fornecedor, setFornecedor] = useState<FornecedorOpcao | null>(
         conta?.fornecedorId ? { id: conta.fornecedorId, razaoSocial: conta.fornecedorNome ?? `Fornecedor #${conta.fornecedorId}` } : null);
-    const [termo, setTermo] = useState("");
-    const [opcoes, setOpcoes] = useState<OpcaoFornecedor[]>([]);
-
-    useEffect(() => {
-        const controller = new AbortController();
-        const timer = setTimeout(() => {
-            buscarFornecedores(termo, controller.signal)
-                .then((lista) => { if (!controller.signal.aborted) setOpcoes(lista); })
-                .catch(() => { if (!controller.signal.aborted) setOpcoes([]); });
-        }, termo ? 300 : 0);
-        return () => { clearTimeout(timer); controller.abort(); };
-    }, [termo]);
-
-    const opcoesVisiveis = fornecedor && !opcoes.some((item) => item.id === fornecedor.id) ? [fornecedor, ...opcoes] : opcoes;
 
     async function enviar(evento: FormEvent<HTMLFormElement>) {
         evento.preventDefault();
@@ -77,12 +61,8 @@ export default function ContaPagarDrawer({ conta, onFechar, onSalvo }: Props) {
                     onChange={(e) => setForm({ ...form, descricao: e.target.value })} slotProps={{ htmlInput: { maxLength: 200 } }} />
                 <TextField fullWidth label="Número do documento" name="documento" value={form.documento}
                     onChange={(e) => setForm({ ...form, documento: e.target.value })} slotProps={{ htmlInput: { maxLength: 80 } }} />
-                <Autocomplete options={opcoesVisiveis} value={fornecedor} filterOptions={(lista) => lista}
-                    getOptionLabel={(item) => item.razaoSocial} isOptionEqualToValue={(a, b) => a.id === b.id}
-                    noOptionsText="Nenhum fornecedor ativo encontrado"
-                    onInputChange={(_, texto, motivo) => { if (motivo === "input") setTermo(texto); }}
-                    onChange={(_, item) => { setFornecedor(item); setForm({ ...form, fornecedorId: item?.id ?? "" }); }}
-                    renderInput={(params) => <TextField {...params} label="Fornecedor" name="fornecedorId" placeholder="Sem fornecedor" />} />
+                <FornecedorAutocomplete value={fornecedor} placeholder="Sem fornecedor"
+                    onChange={(item) => { setFornecedor(item); setForm({ ...form, fornecedorId: item?.id ?? "" }); }} />
                 <TextField fullWidth label="Categoria" name="categoria" value={form.categoria}
                     onChange={(e) => setForm({ ...form, categoria: e.target.value })} slotProps={{ htmlInput: { maxLength: 100 } }} />
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

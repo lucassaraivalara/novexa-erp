@@ -5,12 +5,12 @@ import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlin
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-    Autocomplete, MenuItem, Paper, Snackbar, Stack, TextField, Typography } from "@mui/material";
+    MenuItem, Paper, Snackbar, Stack, TextField, Typography } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import PageFilters from "../../components/ui/PageFilters";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
-import { buscarFornecedores } from "../../services/fornecedorService";
+import FornecedorAutocomplete, { type FornecedorOpcao } from "../../components/fornecedores/FornecedorAutocomplete";
 import { cancelarConta, estornarConta, listarContasPagar,
     mensagemContaPagar, pagarConta, listarCategoriasContasPagar, resumirContasPagar,
     type ResumoContasPagar } from "../../services/contaPagarService";
@@ -29,13 +29,9 @@ const hoje = () => {
     return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
 };
 
-type OpcaoFornecedor = { id: number; razaoSocial: string };
-
 export default function ContasPagar() {
     const [contas, setContas] = useState<ContaPagar[]>([]);
-    const [fornecedorFiltro, setFornecedorFiltro] = useState<OpcaoFornecedor | null>(null);
-    const [termoFornecedor, setTermoFornecedor] = useState("");
-    const [opcoesFornecedor, setOpcoesFornecedor] = useState<OpcaoFornecedor[]>([]);
+    const [fornecedorFiltro, setFornecedorFiltro] = useState<FornecedorOpcao | null>(null);
     const [contasFinanceiras, setContasFinanceiras] = useState<ContaFinanceira[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
@@ -79,16 +75,6 @@ export default function ContasPagar() {
             .catch((e) => { if (!controller.signal.aborted) setErro(mensagemContaPagar(e, "Não foi possível carregar as contas.")); });
         return () => controller.abort();
     }, [tentativa]);
-
-    useEffect(() => {
-        const controller = new AbortController();
-        const timer = setTimeout(() => {
-            buscarFornecedores(termoFornecedor, controller.signal)
-                .then((lista) => { if (!controller.signal.aborted) setOpcoesFornecedor(lista); })
-                .catch(() => { if (!controller.signal.aborted) setOpcoesFornecedor([]); });
-        }, termoFornecedor ? 300 : 0);
-        return () => { clearTimeout(timer); controller.abort(); };
-    }, [termoFornecedor]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -238,12 +224,8 @@ export default function ContasPagar() {
                     <MenuItem value="PAGA">Pagas</MenuItem>
                     <MenuItem value="CANCELADA">Canceladas</MenuItem>
             </TextField>
-            <Autocomplete size="small" options={opcoesFornecedor} value={fornecedorFiltro} sx={{ minWidth: 220 }}
-                filterOptions={(lista) => lista} getOptionLabel={(item) => item.razaoSocial}
-                isOptionEqualToValue={(a, b) => a.id === b.id} noOptionsText="Nenhum fornecedor ativo encontrado"
-                onInputChange={(_, texto, motivo) => { if (motivo === "input") setTermoFornecedor(texto); }}
-                onChange={(_, item) => { setFornecedorFiltro(item); alterarFiltro("fornecedor", item ? String(item.id) : ""); }}
-                renderInput={(params) => <TextField {...params} label="Fornecedor" placeholder="Todos" />} />
+            <FornecedorAutocomplete size="small" minWidth={220} value={fornecedorFiltro} placeholder="Todos"
+                onChange={(item) => { setFornecedorFiltro(item); alterarFiltro("fornecedor", item ? String(item.id) : ""); }} />
             <TextField select size="small" label="Categoria" value={filtros.categoria} sx={{ minWidth: 160 }}
                 onChange={(e) => alterarFiltro("categoria", e.target.value)}>
                 <MenuItem value="">Todas</MenuItem>
@@ -254,7 +236,7 @@ export default function ContasPagar() {
                 <TextField key={campo} size="small" type="date" label={label} value={filtros[campo]}
                     onChange={(e) => alterarFiltro(campo, e.target.value)} slotProps={{ inputLabel: { shrink: true } }}
                     sx={{ width: { xs: "100%", sm: 175 } }} />)}
-            <Button size="small" onClick={() => { setBusca(""); setStatus("todas"); setFornecedorFiltro(null); setTermoFornecedor(""); setFiltros({ fornecedor: "", categoria: "", vencimentoDe: "", vencimentoAte: "", emissaoDe: "", emissaoAte: "" }); setPagina(0); }}>
+            <Button size="small" onClick={() => { setBusca(""); setStatus("todas"); setFornecedorFiltro(null); setFiltros({ fornecedor: "", categoria: "", vencimentoDe: "", vencimentoAte: "", emissaoDe: "", emissaoAte: "" }); setPagina(0); }}>
                 Limpar filtros
             </Button>
         </PageFilters>
