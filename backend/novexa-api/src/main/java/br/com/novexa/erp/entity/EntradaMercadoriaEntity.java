@@ -48,6 +48,7 @@ public class EntradaMercadoriaEntity {
     public FornecedorEntity getFornecedor() { return fornecedor; }
     public void setFornecedor(FornecedorEntity v) { fornecedor = v; }
     public OrigemEntradaMercadoria getOrigem() { return origem; }
+    public void setOrigem(OrigemEntradaMercadoria v) { origem = v; }
     public StatusEntradaMercadoria getStatus() { return status; }
     public String getNumeroNota() { return numeroNota; }
     public void setNumeroNota(String v) { numeroNota = v; }

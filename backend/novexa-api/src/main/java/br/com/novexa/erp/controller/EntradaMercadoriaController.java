@@ -4,19 +4,33 @@ import br.com.novexa.erp.dto.*;
 import br.com.novexa.erp.entity.*;
 import br.com.novexa.erp.security.UsuarioAutenticado;
 import br.com.novexa.erp.service.EntradaMercadoriaService;
+import br.com.novexa.erp.service.EntradaXmlService;
 import jakarta.validation.Valid;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/estoque/entradas")
 public class EntradaMercadoriaController {
     private final EntradaMercadoriaService service;
-    public EntradaMercadoriaController(EntradaMercadoriaService service) { this.service = service; }
+    private final EntradaXmlService xml;
+    public EntradaMercadoriaController(EntradaMercadoriaService service, EntradaXmlService xml) { this.service = service; this.xml = xml; }
+    @PostMapping(value = "/importar-xml", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public EntradaXmlPreviewDTO preview(@RequestPart("arquivo") MultipartFile arquivo,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return xml.preview(arquivo, usuario.empresaId());
+    }
+    @PostMapping("/from-xml")
+    public ResponseEntity<EntradaMercadoriaResponseDTO> criarXml(@Valid @RequestBody EntradaMercadoriaRequestDTO pedido,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return ResponseEntity.status(201).body(service.criarXml(pedido, usuario));
+    }
     @PostMapping
     public ResponseEntity<EntradaMercadoriaResponseDTO> criar(@Valid @RequestBody EntradaMercadoriaRequestDTO pedido,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {

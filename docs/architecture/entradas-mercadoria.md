@@ -1,10 +1,12 @@
-# Entrada de Mercadoria - fluxo manual
+# Entrada de Mercadoria - manual e XML NF-e
 
-Dominio unico `EntradaMercadoriaEntity -> ItemEntradaMercadoriaEntity`, implementado na branch `feat/contas-pagar-integracao-backend`, sobre `039526f`. Origem possui MANUAL/XML; as APIs desta etapa sempre criam MANUAL. XML e apenas capacidade do modelo, sem parser/upload/endpoint de importacao.
+Dominio unico `EntradaMercadoriaEntity -> ItemEntradaMercadoriaEntity`, implementado na branch `feat/contas-pagar-integracao-backend`, sobre `039526f`. Criacao manual usa origem MANUAL; importacao revisada usa XML. Ambas criam RASCUNHO e compartilham confirmacao/cancelamento, sem dominio paralelo.
 
 ## API
 
 - `POST /estoque/entradas`: cria RASCUNHO e retorna detalhe (201).
+- `POST /estoque/entradas/importar-xml`: multipart, campo `arquivo`; retorna EntradaXmlPreviewDTO (200), sem gravar dados.
+- `POST /estoque/entradas/from-xml`: dados revisados, mesmo EntradaMercadoriaRequestDTO; exige chave NF-e e cria RASCUNHO XML (201).
 - `GET /estoque/entradas`: PaginaResponseDTO, sem carregar itens na listagem (`itens=null`).
 - `GET /estoque/entradas/{id}`: detalhe, fornecedor, itens, custos, totais, movimentos e auditoria.
 - `PUT /estoque/entradas/{id}`: substitui dados/itens somente de RASCUNHO.
@@ -56,6 +58,22 @@ Formulario permite salvar RASCUNHO ou revisar e confirmar (POST de criacao segui
 
 Validacao frontend direcionada usa navegador real com respostas HTTP simuladas, incluindo mobile, sem E2E geral ou homologacao com banco/backend nesta etapa.
 
+## Importacao XML NF-e - backend
+
+Fluxo: XML -> preview -> resolucao de fornecedor/produtos no frontend futuro -> criacao RASCUNHO -> confirmacao existente. Preview nao cria Entrada, fornecedor, produto ou movimento, nem altera saldo/custo. `from-xml` exige IDs validos e ativos no tenant; nao cadastra entidades implicitamente. Origem/status/tenant/totais sao determinados pelo backend. Dados historicos dos itens ficam no mesmo ItemEntradaMercadoria.
+
+Parser StAX aceita `NFe` ou `nfeProc`, com namespace `http://www.portalfiscal.inf.br/nfe` e prefixo livre; uma nota por arquivo. Rejeita DTD, entidades, resolucao externa, campos duplicados e profundidade acima de 32; limita campos e 200 itens. Filename/content-type nao determinam validade. Limite de leitura segue `spring.servlet.multipart.max-file-size` (2MB atual), inclusive por leitura limitada do stream. Arquivo vazio/XML malformado/inseguro retorna 400, NF-e incompleta/conteudo inadequado 422, tamanho excedido 413 e duplicidade 409, sem expor erro interno.
+
+Extrai chave de `infNFe/@Id` (prefixo NFe + 44 digitos), numero/serie, data local de emissao de dhEmi ou dEmi, emitente, totais e itens: cProd/xProd/cEAN ou cEANTrib/NCM/CFOP/uCom/qCom/vUnCom/vProd. Datas com offset preservam a data declarada no documento, sem conversao para UTC. BigDecimal preserva precisao original no preview. GTIN exige 8/12/13/14 digitos com digito verificador valido; vazio, SEM GTIN ou invalido vira null, usando cEANTrib valido como alternativa. Nao valida assinatura digital ou autorizacao SEFAZ.
+
+Fornecedor e localizado por CPF/CNPJ normalizado/validado com DocumentoUtils e igualdade exata tenant-safe, inclusive documentos historicos mascarados. Inativo e retornado com `ativo=false` para regularizacao; inexistente devolve `fornecedorMatch=null` e os dados do emitente. Produto e localizado por codigoBarras exato, ativo e do tenant; sem match/GTIN devolve `produtoMatch=null`. Nao ha matching por descricao ou ProdutoFornecedor.
+
+Preview retorna `fornecedorXml` (cpfCnpj, razaoSocial, nomeFantasia), `fornecedorMatch` (id, razaoSocial, ativo) ou null, cabecalho/totais originais e itens com `produtoMatch` (id, nome, codigoBarras) ou null. Na criacao, enviar fornecedorId e produtoId resolvidos, chaveAcessoNfe e dados revisados no DTO existente. Quantidade/custo mantem as escalas operacionais de 3/2 casas; XML com precisao superior requer revisao explicita, nao arredondamento silencioso. Totais persistidos sao recalculados pelos itens, podendo diferir do vNF original (frete/impostos nao compoem esta etapa).
+
+Duplicidade por empresa/chave e verificada no preview e na criacao; unique parcial da V34 continua a protecao final, inclusive entre requisicoes concorrentes. Idempotencia de criacao existente permanece, agora distinguindo MANUAL/XML para impedir reutilizar a mesma chave de requisicao entre origens. Nao foi criada migration ou alterado o fluxo de estoque/Financeiro.
+
+Validacao backend: 100 testes direcionados aprovados (30 parser, 13 XML HTTP/H2, 43 Entrada HTTP/H2 e 14 XML PostgreSQL 18.6). Banco local dedicado/schema descartavel, Flyway V1..V34 e Hibernate validate, query exata de documento/GTIN, unicidade estrutural da chave, tenant e ciclo XML -> rascunho -> confirmacao/cancelamento. Package backend e diff check aprovados. Sem frontend, E2E geral ou suite financeira.
+
 ## Fora desta etapa
 
-XML/preview/matching, ProdutoFornecedor, Pedido/Ordem de Compra, Cotacao, recebimento parcial, custo medio, tributacao e geracao automatica de Conta a Pagar nao foram implementados. Entrada nao altera Caixa, Contas Financeiras, PIX, Recebiveis ou Transferencias.
+Frontend XML/upload/revisao de matches, ProdutoFornecedor, matching por nome, Pedido/Ordem de Compra, Cotacao, recebimento parcial, custo medio, tributacao e geracao automatica de Conta a Pagar nao foram implementados. Entrada nao altera Caixa, Contas Financeiras, PIX, Recebiveis ou Transferencias.

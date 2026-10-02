@@ -17,6 +17,12 @@ public interface FornecedorRepository extends JpaRepository<FornecedorEntity, Lo
     Optional<FornecedorEntity> findByIdAndEmpresaId(Long id, Long empresaId);
 
     @Query("""
+            select f from FornecedorEntity f where f.empresa.id = :empresaId
+              and cast(function('regexp_replace', f.cpfCnpj, '[^0-9]', '', 'g') as string) = :documento
+            """)
+    Optional<FornecedorEntity> buscarPorDocumentoExato(@Param("empresaId") Long empresaId, @Param("documento") String documento);
+
+    @Query("""
             select (count(f) > 0) from FornecedorEntity f
             where f.empresa.id = :empresaId
               and cast(function('regexp_replace', f.cpfCnpj, '[^0-9]', '', 'g') as string) = :documento

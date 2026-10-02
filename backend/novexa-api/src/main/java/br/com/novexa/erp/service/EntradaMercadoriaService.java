@@ -38,6 +38,17 @@ public class EntradaMercadoriaService {
     }
 
     public EntradaMercadoriaResponseDTO criar(EntradaMercadoriaRequestDTO pedido, UsuarioAutenticado usuario) {
+        return criar(pedido, usuario, OrigemEntradaMercadoria.MANUAL);
+    }
+
+    public EntradaMercadoriaResponseDTO criarXml(EntradaMercadoriaRequestDTO pedido, UsuarioAutenticado usuario) {
+        if (pedido.chaveAcessoNfe() == null || !pedido.chaveAcessoNfe().matches("[0-9]{44}"))
+            throw Paginacao.invalida("Chave NF-e deve conter 44 digitos.");
+        return criar(pedido, usuario, OrigemEntradaMercadoria.XML);
+    }
+
+    private EntradaMercadoriaResponseDTO criar(EntradaMercadoriaRequestDTO pedido, UsuarioAutenticado usuario,
+            OrigemEntradaMercadoria origem) {
         var operador = entradas.bloquearOperador(usuario.usuarioId(), usuario.empresaId())
                 .filter(u -> Boolean.TRUE.equals(u.getAtivo()) && Boolean.TRUE.equals(u.getEmpresa().getAtivo()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario indisponivel."));
@@ -46,12 +57,16 @@ public class EntradaMercadoriaService {
             var anterior = entradas.findByEmpresaIdAndUsuarioCadastroIdAndChaveRequisicao(
                     usuario.empresaId(), usuario.usuarioId(), pedido.chaveRequisicao());
             if (anterior.isPresent()) {
-                if (!Objects.equals(anterior.get().getResumoRequisicao(), resumo))
+                if (anterior.get().getOrigem() != origem || !Objects.equals(anterior.get().getResumoRequisicao(), resumo))
                     throw conflito("Chave de requisicao ja utilizada com outros dados.");
                 return detalhe(anterior.get());
             }
         }
+        if (origem == OrigemEntradaMercadoria.XML
+                && entradas.existsByEmpresaIdAndChaveAcessoNfe(usuario.empresaId(), pedido.chaveAcessoNfe()))
+            throw conflito("Nota fiscal ja importada/cadastrada.");
         var entrada = new EntradaMercadoriaEntity();
+        entrada.setOrigem(origem);
         entrada.setEmpresa(operador.getEmpresa()); entrada.setUsuarioCadastroId(usuario.usuarioId());
         entrada.setChaveRequisicao(pedido.chaveRequisicao()); entrada.setResumoRequisicao(resumo);
         preencher(entrada, pedido, usuario.empresaId());

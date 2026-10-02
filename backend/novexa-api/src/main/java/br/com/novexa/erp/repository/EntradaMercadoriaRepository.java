@@ -11,6 +11,7 @@ import java.util.UUID;
 
 public interface EntradaMercadoriaRepository extends JpaRepository<EntradaMercadoriaEntity, Long> {
     Optional<EntradaMercadoriaEntity> findByIdAndEmpresaId(Long id, Long empresaId);
+    boolean existsByEmpresaIdAndChaveAcessoNfe(Long empresaId, String chaveAcessoNfe);
     Optional<EntradaMercadoriaEntity> findByEmpresaIdAndUsuarioCadastroIdAndChaveRequisicao(Long empresaId, Long usuarioId, UUID chave);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -33,6 +33,7 @@ public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
     List<ProdutoEntity> findAllByEmpresaIdAndAtivoTrueOrderByNomeAscIdAsc(Long empresaId);
 
     Optional<ProdutoEntity> findByIdAndEmpresaId(Long id, Long empresaId);
+    Optional<ProdutoEntity> findByEmpresaIdAndCodigoBarrasAndAtivoTrue(Long empresaId, String codigoBarras);
 
     @Query("""
             select count(produto)
