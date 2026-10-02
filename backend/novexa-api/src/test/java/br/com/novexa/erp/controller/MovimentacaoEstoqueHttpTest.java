@@ -91,6 +91,15 @@ class MovimentacaoEstoqueHttpTest {
                 .andExpect(jsonPath("$.quantidade").value(10))
                 .andExpect(jsonPath("$.saldoPosterior").value(110.000));
     }
+    @ParameterizedTest @ValueSource(strings = {"entrada:0", "saida:0", "entrada:-1", "saida:-1", "ajuste:-1", "entrada:0.0001", "ajuste:0.0001"})
+    void quantidadeInvalidaRetorna400SemAlterarSaldo(String caso) throws Exception {
+        var partes = caso.split(":");
+        mvc.perform(post("/estoque/movimentacoes/" + partes[0]).header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("produtoId", produto1.getId(),
+                        "quantidade", new BigDecimal(partes[1]))))).andExpect(status().isBadRequest());
+        assertThat(movimentos.count()).isZero();
+        assertThat(produtos.findById(produto1.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("100");
+    }
 
     @Test
     void entradaAlteraSaldoCorretamente() throws Exception {

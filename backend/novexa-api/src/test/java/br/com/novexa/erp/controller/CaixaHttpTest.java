@@ -41,6 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class CaixaHttpTest {
+    @Autowired br.com.novexa.erp.repository.UsuarioRepository usuarios;
 
     @Autowired
     private MockMvc mvc;
@@ -72,12 +73,7 @@ class CaixaHttpTest {
         empresaB = empresa("Empresa B", "12345678000190");
         caixaA = caixa(empresaA, "Caixa A");
         caixaB = caixa(empresaB, "Caixa B");
-        authorizationA = "Bearer " + jwt.gerarToken(
-                1L,
-                "02360684663",
-                empresaA.getId(),
-                PerfilUsuario.USUARIO
-        );
+        authorizationA = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwt, empresaA, PerfilUsuario.USUARIO, "02360684663");
     }
 
     @Test

@@ -88,7 +88,7 @@ public class VendaService {
     public VendaResponseDTO alterarQuantidade(Long vendaId, Long itemId, BigDecimal quantidade,
                                                UsuarioAutenticado autenticado) {
         VendaEntity venda = buscarVendaAberta(vendaId, autenticado.empresaId());
-        ItemVendaEntity item = itensVenda.findById(itemId)
+        ItemVendaEntity item = itensVenda.findByIdAndVendaEmpresaId(itemId, autenticado.empresaId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item não encontrado."));
         if (!item.getVenda().getId().equals(vendaId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Item não pertence a esta venda.");
@@ -103,7 +103,7 @@ public class VendaService {
 
     public VendaResponseDTO removerItem(Long vendaId, Long itemId, UsuarioAutenticado autenticado) {
         VendaEntity venda = buscarVendaAberta(vendaId, autenticado.empresaId());
-        ItemVendaEntity item = itensVenda.findById(itemId)
+        ItemVendaEntity item = itensVenda.findByIdAndVendaEmpresaId(itemId, autenticado.empresaId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item não encontrado."));
         if (!item.getVenda().getId().equals(vendaId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Item não pertence a esta venda.");
@@ -133,6 +133,8 @@ public class VendaService {
         VendaEntity venda = buscarVendaAberta(vendaId, autenticado.empresaId());
         ClienteEntity cliente = clientes.findByIdAndEmpresaId(clienteId, autenticado.empresaId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente não encontrado para a empresa informada."));
+        if (!Boolean.TRUE.equals(cliente.getAtivo()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cliente inativo.");
         venda.setCliente(cliente);
         vendas.save(venda);
         return VendaResponseDTO.de(venda);

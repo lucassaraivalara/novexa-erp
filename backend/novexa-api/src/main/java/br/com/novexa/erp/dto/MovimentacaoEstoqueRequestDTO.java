@@ -7,12 +7,15 @@ import java.math.BigDecimal;
 public class MovimentacaoEstoqueRequestDTO {
 
     @NotNull(message = "Produto é obrigatório.")
+    @jakarta.validation.constraints.Positive
     private Long produtoId;
 
     @NotNull(message = "Quantidade é obrigatória.")
+    @jakarta.validation.constraints.DecimalMin("0")
+    @jakarta.validation.constraints.Digits(integer = 16, fraction = 3)
     private BigDecimal quantidade;
 
-    private String motivo;
+    @jakarta.validation.constraints.Size(max = 255) private String motivo;
 
     public MovimentacaoEstoqueRequestDTO() {
     }

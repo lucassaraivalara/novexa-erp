@@ -3,6 +3,7 @@ package br.com.novexa.erp.config;
 import br.com.novexa.erp.security.JwtAuthenticationFilter;
 import br.com.novexa.erp.security.SecurityErrorHandler;
 import br.com.novexa.erp.service.JwtService;
+import br.com.novexa.erp.repository.UsuarioRepository;
 import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,7 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtService jwtService) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtService jwtService, UsuarioRepository usuarios) throws Exception {
         SecurityErrorHandler errorHandler = new SecurityErrorHandler();
         http
                 .cors(Customizer.withDefaults())
@@ -37,6 +38,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/financeiro/formas-pagamento", "/financeiro/formas-pagamento/**").denyAll()
                         .requestMatchers(HttpMethod.PUT, "/financeiro/formas-pagamento", "/financeiro/formas-pagamento/**").denyAll()
                         .requestMatchers("/usuarios", "/usuarios/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/empresas", "/empresas/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/empresas", "/empresas/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/empresas", "/empresas/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/empresas", "/empresas/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/vendas/{id}/cancelar").hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.POST, "/financeiro/pagamentos/{id}/confirmar-recebimento")
                             .hasAnyRole("ADMIN", "GERENTE")
@@ -46,7 +51,7 @@ public class SecurityConfig {
                             .hasAnyRole("ADMIN", "GERENTE")
                         .anyRequest().authenticated())
                 // Registrado apenas na cadeia do Spring Security, evitando execução dupla pelo servlet container.
-                .addFilterBefore(new JwtAuthenticationFilter(jwtService, errorHandler),
+                .addFilterBefore(new JwtAuthenticationFilter(jwtService, errorHandler, usuarios),
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

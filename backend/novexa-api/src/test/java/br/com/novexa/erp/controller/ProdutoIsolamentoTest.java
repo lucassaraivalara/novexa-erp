@@ -44,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class ProdutoIsolamentoTest {
+    @Autowired br.com.novexa.erp.repository.UsuarioRepository usuarios;
 
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper json;
@@ -64,7 +65,7 @@ class ProdutoIsolamentoTest {
         empresa2 = empresa("Empresa 2", "12345678000190");
         produto1 = produto(empresa1);
         produto2 = produto(empresa2);
-        authorization = "Bearer " + jwtService.gerarToken(1L, "02360684663", empresa1.getId(), PerfilUsuario.USUARIO);
+        authorization = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwtService, empresa1, PerfilUsuario.USUARIO, "02360684663");
     }
 
     @ParameterizedTest
@@ -204,6 +205,22 @@ class ProdutoIsolamentoTest {
 
     private Map<String, Object> dados() {
         return new HashMap<>(Map.of("nome", "Produto alterado", "unidadeMedida", "UN", "precoVenda", 25));
+    }
+    @Test void buscaRapidaNaoRetornaInativosNemProdutoDeOutroTenant() throws Exception {
+        produto1.setAtivo(false); entityManager.flush();
+        mvc.perform(get("/produtos/buscar?termo=Produto").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/produtos/buscar?termo=").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/produtos?situacao=inativos").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(1));
+    }
+    @ParameterizedTest @ValueSource(strings = {"precoVenda", "precoCusto", "estoqueMinimo"})
+    void cadastroRejeitaPrecisaoQueSeriaArredondadaPeloBanco(String campo) throws Exception {
+        var p = dados(); p.put(campo, new BigDecimal(campo.equals("estoqueMinimo") ? "0.0001" : "0.001"));
+        mvc.perform(post("/produtos").header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(p))).andExpect(status().isBadRequest());
+        assertThat(produtos.count()).isEqualTo(2);
     }
 
     private EmpresaEntity empresa(String nome, String cnpj) {

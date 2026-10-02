@@ -159,8 +159,10 @@ public class EmpresaService {
             );
         }
 
-        // Se existir, realiza a exclusão.
-        empresaRepository.deleteById(id);
+        // Preserva os vinculos e o historico da empresa.
+        var empresa = buscarPorId(id);
+        empresa.setAtivo(false);
+        empresaRepository.save(empresa);
     }
 
     private void preparar(EmpresaEntity empresa) {

@@ -27,14 +27,14 @@ public class ProdutoRequestDTO {
     private String unidadeMedida;
 
     @DecimalMin(value = "0.00", message = "O preço de custo não pode ser negativo.")
-    private BigDecimal precoCusto;
+    @jakarta.validation.constraints.Digits(integer = 17, fraction = 2) private BigDecimal precoCusto;
 
     @NotNull(message = "O preço de venda é obrigatório.")
     @DecimalMin(value = "0.00", message = "O preço de venda não pode ser negativo.")
-    private BigDecimal precoVenda;
+    @jakarta.validation.constraints.Digits(integer = 17, fraction = 2) private BigDecimal precoVenda;
 
     @DecimalMin(value = "0.00", message = "O estoque mínimo não pode ser negativo.")
-    private BigDecimal estoqueMinimo;
+    @jakarta.validation.constraints.Digits(integer = 16, fraction = 3) private BigDecimal estoqueMinimo;
 
     private Boolean controlaEstoque;
     private Boolean ativo;

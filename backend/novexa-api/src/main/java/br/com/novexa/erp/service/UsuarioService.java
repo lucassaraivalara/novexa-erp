@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 @Service
+@org.springframework.transaction.annotation.Transactional
 public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
@@ -33,10 +34,10 @@ public class UsuarioService {
 
     public UsuarioEntity salvar(UsuarioEntity usuario, Long empresaId) {
         usuario.setEmpresa(buscarEmpresaObrigatoria(empresaId));
-        usuario.setCpf(normalizarCpf(usuario.getCpf()));
+        prepararCadastro(usuario);
 
         if (usuarioRepository.existsByCpf(usuario.getCpf())) {
-            throw new RuntimeException("Já existe um usuário com este CPF.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ja existe um usuario com este CPF.");
         }
 
         usuario.setSenha(criptografarSenha(usuario.getSenha()));
@@ -66,17 +67,18 @@ public class UsuarioService {
             UsuarioEntity dadosNovos,
             Long empresaId) {
 
-        dadosNovos.setCpf(normalizarCpf(dadosNovos.getCpf()));
+        prepararCadastro(dadosNovos);
 
         UsuarioEntity usuarioExistente = buscarPorId(id, empresaId);
 
         if (usuarioRepository.existsByCpfAndIdNot(dadosNovos.getCpf(), id)) {
-            throw new RuntimeException("Já existe outro usuário com este CPF.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ja existe outro usuario com este CPF.");
         }
 
         usuarioExistente.setNomeUsuario(dadosNovos.getNomeUsuario());
         usuarioExistente.setCpf(dadosNovos.getCpf());
         usuarioExistente.setEmail(dadosNovos.getEmail());
+        usuarioExistente.setTelefone(dadosNovos.getTelefone());
         if (dadosNovos.getSenha() != null && !dadosNovos.getSenha().isBlank()) {
             usuarioExistente.setSenha(criptografarSenha(dadosNovos.getSenha()));
         }
@@ -113,7 +115,8 @@ public class UsuarioService {
 
     public void excluir(Long id, Long empresaId) {
         UsuarioEntity usuario = buscarPorId(id, empresaId);
-        usuarioRepository.delete(usuario);
+        usuario.setAtivo(false);
+        usuarioRepository.save(usuario);
     }
 
     // O controller chama este método; o repository não é acessado diretamente pela web.
@@ -161,10 +164,20 @@ public class UsuarioService {
 
     private String criptografarSenha(String senha) {
         if (senha == null || senha.isBlank()) {
-            throw new IllegalArgumentException("A senha é obrigatória.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A senha e obrigatoria.");
         }
+        if (senha.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Senha excede o limite de 72 bytes.");
 
         return passwordEncoder.encode(senha);
+    }
+    private void prepararCadastro(UsuarioEntity usuario) {
+        if (usuario.getNomeUsuario() == null || usuario.getNomeUsuario().isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe o nome do usuario.");
+        var cpf = normalizarCpf(usuario.getCpf());
+        if (cpf.length() != 11) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe um CPF valido.");
+        usuario.setCpf(br.com.novexa.erp.util.DocumentoUtils.normalizarEValidarCpfCnpj(cpf));
+        usuario.setNomeUsuario(usuario.getNomeUsuario().trim());
     }
 
     private boolean senhaConfere(String senhaInformada, String senhaCriptografada) {

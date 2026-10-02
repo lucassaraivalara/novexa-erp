@@ -44,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class EmpresaConsolidacaoTest {
+    @Autowired br.com.novexa.erp.repository.UsuarioRepository usuarios;
 
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper json;
@@ -58,8 +59,7 @@ class EmpresaConsolidacaoTest {
     void preparar() {
         empresaA = empresa("Empresa A", "11222333000181");
         empresaB = empresa("Empresa B", "12345678000190");
-        authorization = "Bearer " + jwtService.gerarToken(
-                1L, "02360684663", empresaA.getId(), PerfilUsuario.USUARIO);
+        authorization = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwtService, empresaA, PerfilUsuario.ADMIN, "02360684663");
     }
 
     @Test

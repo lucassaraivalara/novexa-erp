@@ -46,6 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class ContaBancariaHttpTest {
+    @Autowired br.com.novexa.erp.repository.UsuarioRepository usuarios;
 
     private static final String URL = "/financeiro/contas-bancarias";
 
@@ -425,6 +426,6 @@ class ContaBancariaHttpTest {
     }
 
     private String token(Long usuarioId, String cpf, Long empresaId) {
-        return "Bearer " + jwt.gerarToken(usuarioId, cpf, empresaId, PerfilUsuario.USUARIO);
+        return br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwt, empresas.findById(empresaId).orElseThrow(), PerfilUsuario.USUARIO, cpf);
     }
 }

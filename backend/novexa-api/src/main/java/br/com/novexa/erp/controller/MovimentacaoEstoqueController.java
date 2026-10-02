@@ -47,7 +47,7 @@ public class MovimentacaoEstoqueController {
                 usuario.usuarioId(),
                 TipoMovimentacaoEstoque.ENTRADA,
                 OrigemMovimentacaoEstoque.MANUAL,
-                request.getQuantidade(),
+                quantidadePositiva(request.getQuantidade()),
                 request.getMotivo()
         );
 
@@ -67,7 +67,7 @@ public class MovimentacaoEstoqueController {
                 usuario.usuarioId(),
                 TipoMovimentacaoEstoque.SAIDA,
                 OrigemMovimentacaoEstoque.MANUAL,
-                request.getQuantidade(),
+                quantidadePositiva(request.getQuantidade()),
                 request.getMotivo()
         );
 
@@ -109,5 +109,11 @@ public class MovimentacaoEstoqueController {
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
         return br.com.novexa.erp.dto.PaginaResponseDTO.de(service.listarPagina(usuario.empresaId(), produtoId,
                 tipo, origem, dataInicial, dataFinal, page, size, sort), mapper::toResponse);
+    }
+    private BigDecimal quantidadePositiva(BigDecimal quantidade) {
+        if (quantidade.signum() <= 0)
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Quantidade deve ser maior que zero.");
+        return quantidade;
     }
 }

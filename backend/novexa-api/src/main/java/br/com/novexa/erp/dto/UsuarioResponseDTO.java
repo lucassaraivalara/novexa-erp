@@ -8,6 +8,7 @@ public class UsuarioResponseDTO {
     private String nomeUsuario;
     private String cpf;
     private String email;
+    private String telefone;
     private PerfilUsuario perfil;
     private Boolean ativo;
     private EmpresaResponseDTO empresa;
@@ -63,6 +64,8 @@ public class UsuarioResponseDTO {
     public void setPerfil(PerfilUsuario perfil) {
         this.perfil = perfil;
     }
+    public String getTelefone() { return telefone; }
+    public void setTelefone(String telefone) { this.telefone = telefone; }
 
     public Boolean getAtivo() {
         return ativo;

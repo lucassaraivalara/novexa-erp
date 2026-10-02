@@ -17,6 +17,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/usuarios")
 public class UsuarioController {
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public org.springframework.http.ResponseEntity<String> conflitoDeCadastro() {
+        return org.springframework.http.ResponseEntity.status(409).body("CPF ja cadastrado ou dados de usuario invalidos.");
+    }
 
     private final UsuarioService usuarioService;
     private final UsuarioMapper usuarioMapper;
@@ -106,6 +110,9 @@ public class UsuarioController {
         // para uma UsuarioEntity.
         UsuarioEntity dadosNovos =
                 usuarioMapper.toEntity(request);
+        if (id.equals(autenticado.usuarioId()) && Boolean.FALSE.equals(request.getAtivo()))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "Voce nao pode inativar o proprio usuario conectado.");
 
         // Envia o ID e os novos dados para o Service.
         UsuarioEntity usuarioAtualizado =
@@ -149,6 +156,6 @@ public class UsuarioController {
                         @AuthenticationPrincipal UsuarioAutenticado autenticado) {
 
         // Envia o ID recebido na URL para o Service.
-        usuarioService.excluir(id, autenticado.empresaId());
+        usuarioService.alterarSituacao(id, false, autenticado);
     }
 }

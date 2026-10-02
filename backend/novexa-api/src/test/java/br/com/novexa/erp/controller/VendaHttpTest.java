@@ -842,7 +842,7 @@ class VendaHttpTest {
         assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
         assertThat(movimentosCaixa.count()).isEqualTo(2);
         assertThat(pagamentos.count()).isEqualTo(1);
-        String outroToken = "Bearer " + jwt.gerarToken(1L, "02360684663", outra.getId(), PerfilUsuario.USUARIO);
+        String outroToken = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwt, outra, PerfilUsuario.USUARIO, "52998224725");
         mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, outroToken)).andExpect(status().isNotFound());
         mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, outroToken)).andExpect(status().isNotFound());
     }
@@ -978,7 +978,7 @@ class VendaHttpTest {
         var config = configuracao(empresa, 2, true);
         long vendaId = vendaConfigurada(config, 2);
         long pagamentoId = pagamentos.findAll().getFirst().getId();
-        String externo = "Bearer " + jwt.gerarToken(1L, "02360684663", outra.getId(), PerfilUsuario.ADMIN);
+        String externo = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwt, outra, PerfilUsuario.ADMIN, "52998224725");
         confirmarPix(pagamentoId, externo).andExpect(status().isNotFound());
         mvc.perform(post("/vendas/" + vendaId + "/cancelar").header(HttpHeaders.AUTHORIZATION, authorization)).andExpect(status().isOk());
         confirmarPix(pagamentoId, authorization).andExpect(status().isConflict());

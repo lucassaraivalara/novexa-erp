@@ -2,6 +2,7 @@ package br.com.novexa.erp.security;
 
 import br.com.novexa.erp.entity.PerfilUsuario;
 import br.com.novexa.erp.service.JwtService;
+import br.com.novexa.erp.repository.UsuarioRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -25,10 +26,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final AuthenticationEntryPoint authenticationEntryPoint;
+    private final UsuarioRepository usuarios;
 
-    public JwtAuthenticationFilter(JwtService jwtService, AuthenticationEntryPoint authenticationEntryPoint) {
+    public JwtAuthenticationFilter(JwtService jwtService, AuthenticationEntryPoint authenticationEntryPoint, UsuarioRepository usuarios) {
         this.jwtService = jwtService;
         this.authenticationEntryPoint = authenticationEntryPoint;
+        this.usuarios = usuarios;
     }
 
     @Override
@@ -44,6 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // O parser existente verifica assinatura e expiração antes de disponibilizar as claims.
                 Claims claims = jwtService.extrairClaims(authorization.substring(7).trim());
                 UsuarioAutenticado principal = criarPrincipal(claims);
+                validarVinculoAtual(principal);
                 var authentication = UsernamePasswordAuthenticationToken.authenticated(
                         principal, null, List.of(new SimpleGrantedAuthority("ROLE_" + principal.perfil().name())));
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -75,5 +79,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return new UsuarioAutenticado(usuarioId, cpf, empresaId, PerfilUsuario.valueOf(perfil));
+    }
+    private void validarVinculoAtual(UsuarioAutenticado principal) {
+        var usuario = usuarios.findByIdAndEmpresaId(principal.usuarioId(), principal.empresaId())
+                .orElseThrow(() -> new BadCredentialsException("Vinculo de usuario invalido."));
+        if (Boolean.FALSE.equals(usuario.getAtivo()) || usuario.getEmpresa() == null
+                || Boolean.FALSE.equals(usuario.getEmpresa().getAtivo())
+                || usuario.getPerfil() != principal.perfil())
+            throw new BadCredentialsException("Usuario, empresa ou perfil indisponivel.");
     }
 }

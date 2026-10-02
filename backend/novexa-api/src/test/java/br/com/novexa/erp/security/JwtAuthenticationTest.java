@@ -67,6 +67,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({SecurityConfig.class, CorsConfig.class, PasswordConfig.class, JwtService.class,
         UsuarioService.class, UsuarioMapper.class, EmpresaMapper.class, JwtAuthenticationTest.ContextoController.class})
 class JwtAuthenticationTest {
+    @org.junit.jupiter.api.BeforeEach void prepararVinculo() { usuario(PerfilUsuario.ADMIN); }
 
     private static final String SECRET = "01234567890123456789012345678901";
     private static final String CPF = "02360684663";
@@ -156,7 +157,8 @@ class JwtAuthenticationTest {
 
     @Test
     void tokenValidoChegaAoEndpointESegurancaNaoCriaSessao() throws Exception {
-        when(empresaService.listar(10L)).thenReturn(List.of(usuario(PerfilUsuario.ADMIN).getEmpresa()));
+        var empresa = usuario(PerfilUsuario.ADMIN).getEmpresa();
+        when(empresaService.listar(10L)).thenReturn(List.of(empresa));
         var resultado = mvc.perform(get("/empresas").header(HttpHeaders.AUTHORIZATION, "Bearer " + token()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(10)).andReturn();
         verify(empresaService).listar(10L);
@@ -226,6 +228,7 @@ class JwtAuthenticationTest {
     @ParameterizedTest
     @EnumSource(value = PerfilUsuario.class, names = {"OPERADOR", "USUARIO"})
     void operadorNaoExecutaAcoesGerenciais(PerfilUsuario perfil) throws Exception {
+        usuario(perfil);
         String authorization = "Bearer " + jwtService.gerarToken(1L, CPF, 10L, perfil);
         for (String url : List.of("/vendas/1/cancelar", "/financeiro/caixas/sessoes/1/movimentacoes")) {
             mvc.perform(post(url).header(HttpHeaders.AUTHORIZATION, authorization))
@@ -239,11 +242,21 @@ class JwtAuthenticationTest {
 
     @Test
     void gerenteNaoGerenciaUsuarios() throws Exception {
+        usuario(PerfilUsuario.GERENTE);
         String authorization = "Bearer " + jwtService.gerarToken(1L, CPF, 10L, PerfilUsuario.GERENTE);
         mvc.perform(get("/usuarios").header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isForbidden());
         mvc.perform(post("/usuarios").header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isForbidden());
+    }
+    @ParameterizedTest @EnumSource(value = PerfilUsuario.class, names = {"GERENTE", "OPERADOR", "USUARIO"})
+    void somenteAdminAlteraEmpresa(PerfilUsuario perfil) throws Exception {
+        usuario(perfil);
+        var token = "Bearer " + jwtService.gerarToken(1L, CPF, 10L, perfil);
+        for (var metodo : List.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE))
+            mvc.perform(request(metodo, "/empresas/10").header(HttpHeaders.AUTHORIZATION, token))
+                    .andExpect(status().isForbidden());
+        verifyNoInteractions(empresaService);
     }
 
     private ResultActions login(String senha) throws Exception {
@@ -286,6 +299,7 @@ class JwtAuthenticationTest {
         usuario.setSenha(passwordEncoder.encode("senha123"));
         usuario.setPerfil(perfil);
         usuario.setEmpresa(empresa);
+        when(usuarioRepository.findByIdAndEmpresaId(1L, 10L)).thenReturn(Optional.of(usuario));
         return usuario;
     }
 

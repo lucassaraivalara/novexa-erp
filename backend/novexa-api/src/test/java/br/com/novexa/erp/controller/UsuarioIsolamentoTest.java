@@ -60,6 +60,7 @@ class UsuarioIsolamentoTest {
     private UsuarioEntity usuarioA;
     private UsuarioEntity usuarioB;
     private String authorization;
+    private long quantidadeInicial;
 
     @BeforeEach
     void preparar() {
@@ -68,6 +69,7 @@ class UsuarioIsolamentoTest {
         usuarioA = usuario(empresaA, "02360684663");
         usuarioB = usuario(empresaB, "52998224725");
         authorization = "Bearer " + jwtService.gerarToken(usuarioA);
+        quantidadeInicial = usuarios.count();
     }
 
     @ParameterizedTest
@@ -161,7 +163,7 @@ class UsuarioIsolamentoTest {
                 .andExpect(status().isOk());
         entityManager.flush();
         entityManager.clear();
-        assertThat(usuarios.findById(alvo.getId())).isEmpty();
+        assertThat(usuarios.findById(alvo.getId()).orElseThrow().getAtivo()).isFalse();
         assertThat(usuarios.findById(usuarioB.getId())).isPresent();
     }
 
@@ -261,7 +263,7 @@ class UsuarioIsolamentoTest {
     @CsvSource({"GET,/usuarios", "GET,/usuarios/1", "POST,/usuarios", "PUT,/usuarios/1", "DELETE,/usuarios/1"})
     void todosOsEndpointsExigemAutenticacao(String metodo, String url) throws Exception {
         mvc.perform(request(HttpMethod.valueOf(metodo), url)).andExpect(status().isUnauthorized());
-        assertThat(usuarios.count()).isEqualTo(2);
+        assertThat(usuarios.count()).isEqualTo(quantidadeInicial);
     }
 
     @ParameterizedTest
@@ -275,19 +277,63 @@ class UsuarioIsolamentoTest {
         if (atualizar) {
             assertThatThrownBy(() -> usuarioService.atualizar(usuarioA.getId(), dados, empresaA.getId()))
                     .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Já existe outro usuário com este CPF.");
+                    .hasMessageContaining("409 CONFLICT");
         } else {
             assertThatThrownBy(() -> usuarioService.salvar(dados, empresaA.getId()))
                     .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Já existe um usuário com este CPF.");
+                    .hasMessageContaining("409 CONFLICT");
         }
-        assertThat(usuarios.count()).isEqualTo(2);
+        assertThat(usuarios.count()).isEqualTo(quantidadeInicial);
         assertThat(usuarios.findById(usuarioA.getId()).orElseThrow().getCpf()).isEqualTo("02360684663");
     }
 
     private Map<String, Object> dados() {
         return new HashMap<>(Map.of("nomeUsuario", "Usuário alterado", "cpf", "11144477735",
                 "email", "novo@novexa.com", "senha", "novaSenha123", "perfil", "USUARIO"));
+    }
+    @ParameterizedTest @ValueSource(strings = {"usuario", "empresa", "perfil", "vinculo", "excluido"})
+    void jwtAnteriorNaoOperaAposMudancaDeAcesso(String caso) throws Exception {
+        switch (caso) {
+            case "usuario" -> usuarioA.setAtivo(false);
+            case "empresa" -> empresaA.setAtivo(false);
+            case "perfil" -> usuarioA.setPerfil(PerfilUsuario.OPERADOR);
+            case "vinculo" -> usuarioA.setEmpresa(empresaB);
+            case "excluido" -> usuarios.delete(usuarioA);
+        }
+        entityManager.flush(); entityManager.clear();
+        mvc.perform(get("/clientes").header(HttpHeaders.AUTHORIZATION, authorization)).andExpect(status().isUnauthorized());
+    }
+    @ParameterizedTest @ValueSource(strings = {"nome", "cpf", "email", "semSenha", "senhaLonga"})
+    void cadastroInvalidoRetorna400SemUsuarioParcial(String caso) throws Exception {
+        var p = dados();
+        switch (caso) {
+            case "nome" -> p.put("nomeUsuario", " ");
+            case "cpf" -> p.put("cpf", "11111111111");
+            case "email" -> p.put("email", "invalido");
+            case "semSenha" -> p.remove("senha");
+            case "senhaLonga" -> p.put("senha", "x".repeat(73));
+        }
+        mvc.perform(post("/usuarios").header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(p))).andExpect(status().isBadRequest());
+        assertThat(usuarios.count()).isEqualTo(quantidadeInicial);
+    }
+    @Test void cadastroETelefoneEdicaoSemAtivoNaoReativaUsuario() throws Exception {
+        var p = dados(); p.put("telefone", "11999999999"); p.put("ativo", false);
+        var resposta = mvc.perform(post("/usuarios").header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(p))).andExpect(status().isOk()).andExpect(jsonPath("$.telefone").value("11999999999"))
+                .andExpect(jsonPath("$.senha").doesNotExist()).andReturn();
+        long id = json.readTree(resposta.getResponse().getContentAsString()).get("id").asLong();
+        p.remove("ativo"); p.remove("senha"); p.put("telefone", "11888888888");
+        mvc.perform(put("/usuarios/" + id).header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(p))).andExpect(status().isOk()).andExpect(jsonPath("$.ativo").value(false))
+                .andExpect(jsonPath("$.telefone").value("11888888888"));
+    }
+    @Test void putEDeleteNaoContornamBloqueioDeAutoInativacao() throws Exception {
+        var p = dados(); p.put("cpf", usuarioA.getCpf()); p.put("ativo", false);
+        mvc.perform(put("/usuarios/" + usuarioA.getId()).header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(p))).andExpect(status().isConflict());
+        mvc.perform(delete("/usuarios/" + usuarioA.getId()).header(HttpHeaders.AUTHORIZATION, authorization)).andExpect(status().isConflict());
+        assertThat(usuarios.findById(usuarioA.getId()).orElseThrow().getAtivo()).isTrue();
     }
 
     private EmpresaEntity empresa(String nome, String cnpj) {

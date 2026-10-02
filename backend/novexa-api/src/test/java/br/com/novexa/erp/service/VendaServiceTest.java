@@ -65,6 +65,35 @@ class VendaServiceTest {
     }
 
     @Test
+    void clienteInativoNaoPodeSerVinculado() {
+        cliente.setAtivo(false);
+        clientes.saveAndFlush(cliente);
+        var venda = service.criarVendaAberta(autenticado);
+        assertThatThrownBy(() -> service.vincularCliente(venda.id(), cliente.getId(), autenticado))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode().value()).isEqualTo(409));
+        assertThat(vendas.findById(venda.id()).orElseThrow().getCliente()).isNull();
+    }
+
+    @Test
+    void itemDeOutraEmpresaNaoPodeSerAlteradoOuRemovido() {
+        var usuarioB = usuarios.saveAndFlush(usuario(outra, "52998224725"));
+        var produtoB = produtos.saveAndFlush(produto(outra, "Produto B", "20", "10"));
+        var principalB = new UsuarioAutenticado(usuarioB.getId(), usuarioB.getCpf(), outra.getId(), PerfilUsuario.USUARIO);
+        var vendaB = service.criarVendaAberta(principalB);
+        service.adicionarItem(vendaB.id(), produtoB.getId(), BigDecimal.ONE, principalB);
+        var item = itensVenda.findByVendaId(vendaB.id()).getFirst();
+        var vendaA = service.criarVendaAberta(autenticado);
+        assertThatThrownBy(() -> service.alterarQuantidade(vendaA.id(), item.getId(), BigDecimal.TEN, autenticado))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode().value()).isEqualTo(404));
+        assertThatThrownBy(() -> service.removerItem(vendaA.id(), item.getId(), autenticado))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode().value()).isEqualTo(404));
+        assertThat(itensVenda.findById(item.getId()).orElseThrow().getQuantidade()).isEqualByComparingTo("1");
+    }
+
+    @Test
     void vendaPodeExistirSemCliente() {
         var venda = service.criarVendaAberta(autenticado);
         assertThat(venda.clienteId()).isNull();
@@ -278,7 +307,7 @@ class VendaServiceTest {
         return usuarios.saveAndFlush(u);
     }
 
-    private ProdutoEntity produto(EmpresaEntity empresa, String nome, String preco, String saldo) {
+    ProdutoEntity produto(EmpresaEntity empresa, String nome, String preco, String saldo) {
         var p = new ProdutoEntity(); p.setEmpresa(empresa); p.setNome(nome); p.setUnidadeMedida("UN");
         p.setPrecoCusto(new BigDecimal("5.00")); p.setPrecoVenda(new BigDecimal(preco));
         p.setEstoqueAtual(new BigDecimal(saldo)); p.setEstoqueMinimo(new BigDecimal("1.000"));

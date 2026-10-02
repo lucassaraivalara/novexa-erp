@@ -24,6 +24,7 @@ public class UsuarioEntity {
     private String cpf;
 
     private String email;
+    @jakarta.persistence.Column(length = 30) private String telefone;
 
     // A senha é armazenada como hash BCrypt, nunca em texto puro.
     private String senha;
@@ -86,6 +87,8 @@ public class UsuarioEntity {
     public String getSenha() {
         return senha;
     }
+    public String getTelefone() { return telefone; }
+    public void setTelefone(String telefone) { this.telefone = telefone; }
 
     public void setSenha(String senha) {
         this.senha = senha;

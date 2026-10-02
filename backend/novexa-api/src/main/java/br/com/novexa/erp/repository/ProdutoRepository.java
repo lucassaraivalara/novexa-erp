@@ -30,6 +30,7 @@ public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
             String busca, String campo, String estoque, org.springframework.data.domain.Pageable pageable);
 
     List<ProdutoEntity> findAllByEmpresaIdOrderByNomeAsc(Long empresaId);
+    List<ProdutoEntity> findAllByEmpresaIdAndAtivoTrueOrderByNomeAscIdAsc(Long empresaId);
 
     Optional<ProdutoEntity> findByIdAndEmpresaId(Long id, Long empresaId);
 
@@ -63,12 +64,13 @@ public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
             select produto
             from ProdutoEntity produto
             where produto.empresa.id = :empresaId
+              and produto.ativo = true
               and (
                     lower(produto.nome) like lower(concat('%', :termo, '%'))
                     or lower(produto.codigoInterno) = lower(:termo)
                     or produto.codigoBarras = :termo
               )
-            order by produto.nome asc
+            order by produto.nome asc, produto.id asc
             """)
     List<ProdutoEntity> buscarPorTermo(
             @Param("empresaId") Long empresaId,

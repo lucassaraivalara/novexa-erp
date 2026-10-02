@@ -37,6 +37,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class BancoHttpTest {
+    @Autowired br.com.novexa.erp.repository.EmpresaRepository empresas;
+    @Autowired br.com.novexa.erp.repository.UsuarioRepository usuarios;
 
     private static final String URL = "/financeiro/bancos";
 
@@ -57,8 +59,8 @@ class BancoHttpTest {
 
     @BeforeEach
     void preparar() {
-        tokenEmpresaA = "Bearer " + jwt.gerarToken(1L, "02360684663", 1L, PerfilUsuario.USUARIO);
-        tokenEmpresaB = "Bearer " + jwt.gerarToken(2L, "11144477735", 2L, PerfilUsuario.USUARIO);
+        tokenEmpresaA = br.com.novexa.erp.support.AutenticacaoTeste.token(empresas, usuarios, jwt, PerfilUsuario.USUARIO, "02360684663");
+        tokenEmpresaB = br.com.novexa.erp.support.AutenticacaoTeste.token(empresas, usuarios, jwt, PerfilUsuario.USUARIO, "11144477735");
     }
 
     @Test

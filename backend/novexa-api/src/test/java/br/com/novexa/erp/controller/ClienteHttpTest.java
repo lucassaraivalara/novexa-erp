@@ -34,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 })
 @Import(ClienteHttpTest.FalhaController.class)
 class ClienteHttpTest {
+    @Autowired br.com.novexa.erp.repository.UsuarioRepository usuarios;
     @Autowired TestRestTemplate http;
     @Autowired ObjectMapper json;
     @Autowired EmpresaRepository empresas;
@@ -49,13 +50,14 @@ class ClienteHttpTest {
         empresa.setAtivo(true);
         empresas.saveAndFlush(empresa);
         headers = new HttpHeaders();
-        headers.setBearerAuth(jwt.gerarToken(1L, "02360684663", empresa.getId(), PerfilUsuario.USUARIO));
+        headers.set("Authorization", br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwt, empresa, PerfilUsuario.USUARIO, "02360684663"));
         headers.setContentType(MediaType.APPLICATION_JSON);
     }
 
     @AfterEach
     void limpar() {
         clientes.deleteAll();
+        usuarios.deleteAll();
         empresas.deleteAll();
     }
 

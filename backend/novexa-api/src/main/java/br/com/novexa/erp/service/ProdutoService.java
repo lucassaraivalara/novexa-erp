@@ -37,6 +37,7 @@ public class ProdutoService {
         this.arquivoStorageService = arquivoStorageService;
     }
 
+    @Transactional
     public ProdutoEntity salvar(ProdutoEntity produto, Long empresaId) {
         produto.setEmpresa(buscarEmpresa(empresaId));
         prepararDados(produto, null);
@@ -80,7 +81,7 @@ public class ProdutoService {
         buscarEmpresa(empresaId);
 
         if (termo == null || termo.isBlank()) {
-            return produtoRepository.findAllByEmpresaIdOrderByNomeAsc(empresaId);
+            return produtoRepository.findAllByEmpresaIdAndAtivoTrueOrderByNomeAscIdAsc(empresaId);
         }
 
         return produtoRepository.buscarPorTermo(empresaId, termo.trim());

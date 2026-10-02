@@ -1,12 +1,16 @@
 package br.com.novexa.erp.dto;
 
 import br.com.novexa.erp.entity.PerfilUsuario;
+import jakarta.validation.constraints.*;
 
 public class UsuarioRequestDTO {
 
-    private String nomeUsuario;
+    @NotBlank @Size(max = 255) private String nomeUsuario;
+    @NotBlank @Size(max = 18)
     private String cpf;
+    @Email @Size(max = 255)
     private String email;
+    @Size(max = 30) private String telefone;
     private String senha;
     private PerfilUsuario perfil;
     private Boolean ativo;
@@ -64,6 +68,8 @@ public class UsuarioRequestDTO {
     public void setPerfil(PerfilUsuario perfil) {
         this.perfil = perfil;
     }
+    public String getTelefone() { return telefone; }
+    public void setTelefone(String telefone) { this.telefone = telefone; }
 
     public Boolean getAtivo() {
         return ativo;

@@ -31,11 +31,10 @@ public class UsuarioMapper {
         usuario.setNomeUsuario(request.getNomeUsuario());
         usuario.setCpf(request.getCpf());
         usuario.setEmail(request.getEmail());
+        usuario.setTelefone(request.getTelefone());
         usuario.setSenha(request.getSenha());
         usuario.setPerfil(request.getPerfil());
-        if (request.getAtivo() != null) {
-            usuario.setAtivo(request.getAtivo());
-        }
+        usuario.setAtivo(request.getAtivo());
 
         // Retorna a Entity preenchida.
         return usuario;
@@ -57,6 +56,7 @@ public class UsuarioMapper {
         response.setNomeUsuario(usuario.getNomeUsuario());
         response.setCpf(usuario.getCpf());
         response.setEmail(usuario.getEmail());
+        response.setTelefone(usuario.getTelefone());
         response.setPerfil(usuario.getPerfil());
         response.setAtivo(usuario.getAtivo());
         response.setEmpresa(empresaMapper.paraResponseDTO(usuario.getEmpresa()));

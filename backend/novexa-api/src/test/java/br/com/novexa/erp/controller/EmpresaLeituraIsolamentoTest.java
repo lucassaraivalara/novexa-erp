@@ -30,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class EmpresaLeituraIsolamentoTest {
+    @Autowired br.com.novexa.erp.repository.UsuarioRepository usuarios;
 
     @Autowired private MockMvc mvc;
     @Autowired private EmpresaRepository empresas;
@@ -43,8 +44,7 @@ class EmpresaLeituraIsolamentoTest {
     void preparar() {
         empresaA = empresa("Empresa A", "11222333000181");
         empresaB = empresa("Empresa B", "12345678000190");
-        authorization = "Bearer " + jwtService.gerarToken(
-                1L, "02360684663", empresaA.getId(), PerfilUsuario.USUARIO);
+        authorization = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwtService, empresaA, PerfilUsuario.USUARIO, "02360684663");
     }
 
     @ParameterizedTest

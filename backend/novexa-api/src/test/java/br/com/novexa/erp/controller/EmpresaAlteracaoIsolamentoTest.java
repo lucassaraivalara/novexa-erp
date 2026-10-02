@@ -43,6 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 class EmpresaAlteracaoIsolamentoTest {
+    @Autowired br.com.novexa.erp.repository.UsuarioRepository usuarios;
 
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper json;
@@ -57,8 +58,7 @@ class EmpresaAlteracaoIsolamentoTest {
     void preparar() {
         empresaA = empresa("Empresa A", "11222333000181");
         empresaB = empresa("Empresa B", "12345678000190");
-        authorization = "Bearer " + jwtService.gerarToken(
-                1L, "02360684663", empresaA.getId(), PerfilUsuario.USUARIO);
+        authorization = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwtService, empresaA, PerfilUsuario.ADMIN, "02360684663");
     }
 
     @ParameterizedTest
@@ -95,6 +95,9 @@ class EmpresaAlteracaoIsolamentoTest {
         if (informarOutraEmpresa) request.param("empresaId", empresaB.getId().toString());
 
         mvc.perform(request).andExpect(status().isNoContent());
+        org.assertj.core.api.Assertions.assertThat(empresas.findById(empresaA.getId()).orElseThrow().getAtivo()).isFalse();
+        org.assertj.core.api.Assertions.assertThat(usuarios.findAllByEmpresaId(empresaA.getId())).hasSize(1);
+        mvc.perform(get("/empresas").header(HttpHeaders.AUTHORIZATION, authorization)).andExpect(status().isUnauthorized());
     }
 
     @ParameterizedTest

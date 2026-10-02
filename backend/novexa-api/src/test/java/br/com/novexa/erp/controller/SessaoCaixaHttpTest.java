@@ -175,10 +175,10 @@ class SessaoCaixaHttpTest {
     void rejeitaOperadorInativoOuDeOutraEmpresa() throws Exception {
         operadorA.setAtivo(false); usuarios.saveAndFlush(operadorA);
         mvc.perform(post(url(caixaA)).header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"saldoInicial\":0}")).andExpect(status().isForbidden());
+                .content("{\"saldoInicial\":0}")).andExpect(status().isUnauthorized());
         String forjado = "Bearer " + jwt.gerarToken(operadorB.getId(), operadorB.getCpf(), principal.empresaId(), PerfilUsuario.USUARIO);
         mvc.perform(post(url(caixaA)).header("Authorization", forjado).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"saldoInicial\":0}")).andExpect(status().isForbidden());
+                .content("{\"saldoInicial\":0}")).andExpect(status().isUnauthorized());
         assertThat(sessoes.count()).isZero();
     }
 

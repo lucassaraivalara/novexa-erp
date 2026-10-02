@@ -30,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 @Sql("/formas-pagamento-fixture.sql")
 class ConfiguracaoFormaPagamentoEmpresaHttpTest {
+    @Autowired UsuarioRepository usuarios;
     private static final String URL = "/financeiro/configuracoes-formas-pagamento";
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
@@ -72,8 +73,8 @@ class ConfiguracaoFormaPagamentoEmpresaHttpTest {
 
     @BeforeEach void preparar() {
         empresa = empresa(); outra = empresa();
-        token = "Bearer " + jwt.gerarToken(1L, "02360684663", empresa.getId(), PerfilUsuario.USUARIO);
-        tokenOutro = "Bearer " + jwt.gerarToken(2L, "11144477735", outra.getId(), PerfilUsuario.ADMIN);
+        token = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwt, empresa, PerfilUsuario.USUARIO, "02360684663");
+        tokenOutro = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwt, outra, PerfilUsuario.ADMIN, "11144477735");
         banco = conta(empresa, TipoContaFinanceira.BANCO);
         carteira = conta(empresa, TipoContaFinanceira.CARTEIRA_DIGITAL);
         externa = conta(outra, TipoContaFinanceira.BANCO);

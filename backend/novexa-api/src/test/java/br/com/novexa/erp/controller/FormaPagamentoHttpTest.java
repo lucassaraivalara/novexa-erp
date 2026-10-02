@@ -26,6 +26,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 @Sql("/formas-pagamento-fixture.sql")
 class FormaPagamentoHttpTest {
+    @Autowired br.com.novexa.erp.repository.EmpresaRepository empresas;
+    @Autowired br.com.novexa.erp.repository.UsuarioRepository usuarios;
     private static final String URL = "/financeiro/formas-pagamento";
     @Autowired MockMvc mvc;
     @Autowired JwtService jwt;
@@ -33,7 +35,8 @@ class FormaPagamentoHttpTest {
     @Test
     void leituraDoCatalogoContinuaGlobalECompativel() throws Exception {
         for (long empresa : new long[]{1L, 2L}) {
-            String token = "Bearer " + jwt.gerarToken(empresa, "02360684663", empresa, PerfilUsuario.USUARIO);
+            String token = br.com.novexa.erp.support.AutenticacaoTeste.token(empresas, usuarios, jwt, PerfilUsuario.USUARIO,
+                    empresa == 1 ? "02360684663" : "11144477735");
             mvc.perform(get(URL).header(HttpHeaders.AUTHORIZATION, token)).andExpect(status().isOk())
                     .andExpect(jsonPath("$.length()").value(6));
             mvc.perform(get(URL + "/2").header(HttpHeaders.AUTHORIZATION, token)).andExpect(status().isOk())
@@ -45,7 +48,7 @@ class FormaPagamentoHttpTest {
     @ParameterizedTest
     @EnumSource(PerfilUsuario.class)
     void perfisEmpresariaisNaoAlteramCatalogoGlobal(PerfilUsuario perfil) throws Exception {
-        String token = "Bearer " + jwt.gerarToken(1L, "02360684663", 1L, perfil);
+        String token = br.com.novexa.erp.support.AutenticacaoTeste.token(empresas, usuarios, jwt, perfil, "02360684663");
         mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, token).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"descricao\":\"PIX Alternativo\",\"tipo\":\"PIX\"}")).andExpect(status().isForbidden());
         mvc.perform(put(URL + "/2").header(HttpHeaders.AUTHORIZATION, token).contentType(MediaType.APPLICATION_JSON)
