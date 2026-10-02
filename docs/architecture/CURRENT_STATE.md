@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## MVP 03B: autorizacao da liquidacao de recebiveis (2026-10-01)
+
+Backend sobre ea9e15e: POST /financeiro/recebiveis/{id}/liquidar exige ADMIN/GERENTE na cadeia Spring Security, seguindo o padrao PIX existente. OPERADOR/USUARIO recebem 403 antes do service; sem autenticacao retorna 401. Listagem permanece autenticada/tenant-safe. Testes por perfil verificam retry autorizado, saldo unico e autoria; negacoes preservam saldo, ausencia de movimentos, recebivel PENDENTE e auditoria nula, Venda/Pagamento intactos. Sem frontend, migrations ou mudanca na mecanica financeira. Regras em financeiro.md e FINANCEIRO_RULES.md.
+
+Validacao direcionada: 58 testes H2 (18 RecebivelHttpTest + 40 LiquidacaoRecebivelHttpTest) e 51 LiquidacaoRecebivelPostgresTest aprovados, sem falhas/erros/ignorados. PostgreSQL 18.6 descartavel, Flyway V1..V30 e Hibernate validate; cinco repeticoes de liquidar x liquidar e cinco de liquidar x cancelar. Cobertura existente de snapshot, conta inativa, destino ausente, tenant, rollback e reversao preservada. Package backend (-DskipTests apos a regressao) e diff check aprovados. Nenhum teste/frontend ou suite backend completa executados por escopo.
+
 ## MVP 02: confirmacao PIX com controle de acesso (2026-10-01)
 
 Implementado sobre 5138bd9, na mesma branch. Central de Vendas -> detalhe -> Pagamentos consulta o endpoint existente e apresenta configuracao/conta historicas, valor, situacao e auditoria. ADMIN/GERENTE confirmam com dialog e POST sem payload; OPERADOR/USUARIO nao veem a acao e recebem 403 no backend; sem autenticacao retorna 401. Feedback, recarga do detalhe e bloqueio durante a request preservam o fluxo fora do PDV. Sem redesign, migrations, fallback de destino ou alteracao das regras de confirmacao/cancelamento. Detalhes em financeiro.md e FINANCEIRO_RULES.md.

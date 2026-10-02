@@ -9,6 +9,7 @@
 
 ## Liquidacao de cartao - Bloco 5B
 
+- No MVP 03B, POST /financeiro/recebiveis/{id}/liquidar e exclusivo de ADMIN/GERENTE, com protecao na cadeia Spring Security pelo perfil do JWT. OPERADOR/USUARIO recebem 403 antes do service, sem credito, movimento ou auditoria; sem autenticacao retorna 401. GET permanece com a autorizacao autenticada existente e isolamento por tenant.
 - CARTAO -> Pagamento -> Recebivel PENDENTE -> liquidacao explicita -> MovimentacaoFinanceira ENTRADA/RECEBIVEL_LIQUIDACAO -> ContaFinanceira -> Recebivel LIQUIDADO. A venda nao credita ContaFinanceira.
 - Novas configuracoes DEBITO/CREDITO exigem destino BANCO/CARTEIRA_DIGITAL ativo do mesmo tenant. Configuracoes historicas sem destino permanecem legiveis e inativaveis; devem ser regularizadas antes do uso em novas vendas. V30 altera o CHECK da V24 sem backfill, mantendo regras PIX/TRANSFERENCIA/DINHEIRO/BOLETO. O contrato legado sem configuracao continua aceito, mas produz historico sem destino liquidavel.
 - POST /financeiro/recebiveis/{id}/liquidar nao exige body e nao aceita autoridade do cliente sobre conta/valor/empresa. Destino exclusivamente de Pagamento.configuracaoContaFinanceiraDestinoId, nunca do cadastro atual. Ausencia/inconsistencia do destino historico retorna 409 sem efeito; outro tenant retorna 404. Conta historica inativa permite liquidacao e reversao.

@@ -40,6 +40,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/vendas/{id}/cancelar").hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.POST, "/financeiro/pagamentos/{id}/confirmar-recebimento")
                             .hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.POST, "/financeiro/recebiveis/{id}/liquidar")
+                            .hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.POST, "/financeiro/caixas/sessoes/{sessaoId}/movimentacoes")
                             .hasAnyRole("ADMIN", "GERENTE")
                         .anyRequest().authenticated())

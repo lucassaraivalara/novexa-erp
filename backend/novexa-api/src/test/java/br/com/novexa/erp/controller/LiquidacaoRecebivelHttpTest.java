@@ -37,6 +37,52 @@ class LiquidacaoRecebivelHttpTest extends RecebivelHttpTest {
     }
     BigDecimal saldo() { return contas.findById(destino.getId()).orElseThrow().getSaldoAtual(); }
 
+    @ParameterizedTest @ValueSource(strings = {"ADMIN", "GERENTE", "OPERADOR", "USUARIO"})
+    void liquidacaoRespeitaPerfilSemEfeitoQuandoNegada(String perfil) throws Exception {
+        long id = prepararCartao();
+        fluxo.segundo.setPerfil(PerfilUsuario.valueOf(perfil));
+        fluxo.segundo = fluxo.usuarios.saveAndFlush(fluxo.segundo);
+        String token = "Bearer " + fluxo.jwt.gerarToken(fluxo.segundo);
+        fluxo.mvc.perform(get("/financeiro/recebiveis").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(1));
+        boolean autorizado = perfil.equals("ADMIN") || perfil.equals("GERENTE");
+        for (int tentativa = 0; tentativa < 2; tentativa++) {
+            fluxo.mvc.perform(post("/financeiro/recebiveis/" + id + "/liquidar").header("Authorization", token))
+                    .andExpect(autorizado ? status().isOk() : status().isForbidden());
+        }
+        if (autorizado) {
+            assertThat(saldo()).isEqualByComparingTo("120");
+            assertThat(fluxo.movimentosFinanceiros.findAll()).singleElement().satisfies(m -> {
+                assertThat(m.getContaFinanceira().getId()).isEqualTo(destino.getId());
+                assertThat(m.getEmpresa().getId()).isEqualTo(fluxo.empresa.getId());
+            });
+            var r = recebiveis.findById(id).orElseThrow();
+            assertThat(r.getStatus()).isEqualTo(StatusRecebivel.LIQUIDADO);
+            assertThat(r.getUsuarioLiquidacao().getId()).isEqualTo(fluxo.segundo.getId());
+        } else assertPendenteSemEfeito(id);
+    }
+
+    @Test void liquidacaoSemAutenticacaoRetorna401SemEfeito() throws Exception {
+        long id = prepararCartao();
+        fluxo.mvc.perform(post("/financeiro/recebiveis/" + id + "/liquidar"))
+                .andExpect(status().isUnauthorized());
+        assertPendenteSemEfeito(id);
+    }
+
+    private void assertPendenteSemEfeito(long id) {
+        assertThat(saldo()).isEqualByComparingTo("100");
+        assertThat(fluxo.movimentosFinanceiros.count()).isZero();
+        var r = recebiveis.findById(id).orElseThrow();
+        assertThat(r.getStatus()).isEqualTo(StatusRecebivel.PENDENTE);
+        assertThat(r.getDataLiquidacao()).isNull();
+        assertThat(r.getValorLiquidoRecebido()).isNull();
+        assertThat(r.getUsuarioLiquidacao()).isNull();
+        assertThat(r.getDataCancelamento()).isNull();
+        assertThat(r.getUsuarioCancelamento()).isNull();
+        assertThat(fluxo.vendas.findById(vendaId).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
+        assertThat(fluxo.pagamentos.findAll().getFirst().getStatus()).isEqualTo(StatusPagamento.REGISTRADO);
+    }
+
     @ParameterizedTest @ValueSource(longs = {3, 4})
     void liquidacaoIntegralAuditadaUmaEntradaSemCreditoNaVenda(long forma) throws Exception {
         long id = prepararCartao(forma);

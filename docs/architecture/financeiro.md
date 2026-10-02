@@ -8,6 +8,8 @@ Fonte de verdade atual: Venda/Pagamento + MovimentacaoCaixa + MovimentacaoFinanc
 
 ## Bloco 5B: liquidacao backend de cartao
 
+MVP 03B: liquidacao autorizada apenas para ADMIN/GERENTE no matcher POST /financeiro/recebiveis/{id}/liquidar, seguindo a protecao existente do PIX. OPERADOR/USUARIO recebem 403 antes da execucao financeira; nao autenticado recebe 401. Consulta GET permanece inalterada. Snapshot, saldo, locks, idempotencia, tenant, cancelamento e reversao abaixo nao mudam.
+
 Backend consolidado sobre `ae4df35` (Bloco 5A). Fluxo: Venda -> Pagamento -> Recebivel PENDENTE -> liquidacao explicita -> entrada RECEBIVEL_LIQUIDACAO -> ContaFinanceira -> LIQUIDADO. Venda de cartao continua sem efeito no saldo. POST /financeiro/recebiveis/{id}/liquidar sem body deriva valor do previsto (igual ao bruto, sem taxas) e destino somente do snapshot do Pagamento. Cadastro atual nao reinterpreta historico; conta historica inativa e permitida; destino ausente/invalido retorna 409, recebivel externo ao tenant retorna 404.
 
 V30 adiciona auditoria de liquidacao e cancelamento no Recebivel (data, valor recebido, usuarios tenant-safe), FK MovimentacaoFinanceira -> Recebivel e UNIQUE(recebivel_id), CHECK de origem/tipo ENTRADA. Nao existe relacao circular: movimentacaoFinanceiraId exposto pelo DTO e derivado do movimento vinculado, com busca em lote dos IDs da pagina no GET. DTO conserva todos os campos 5A e adiciona valorLiquidoRecebido, dataLiquidacao, usuarioLiquidacaoId, dataCancelamento, usuarioCancelamentoId e movimentacaoFinanceiraId. Extrato financeiro adiciona recebivelId, sem alterar filtros/paginacao.
