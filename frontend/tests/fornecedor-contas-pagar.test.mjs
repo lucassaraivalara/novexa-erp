@@ -24,6 +24,10 @@ const fornecedores = [
     { id: 1, razaoSocial: "Aço Sul", nomeFantasia: null, cpfCnpj: null, telefone: null, ativo: true },
     { id: 2, razaoSocial: "Distribuidora Antiga", nomeFantasia: null, cpfCnpj: null, telefone: null, ativo: false },
 ];
+const esperar = async (condicao) => {
+    for (let i = 0; i < 100 && !condicao(); i++) await new Promise((r) => setTimeout(r, 50));
+    assert.ok(condicao(), "condição não atendida a tempo");
+};
 const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" };
 
 before(async () => {
@@ -69,6 +73,44 @@ test("service separa listagem paginada e busca rápida de ativos", async () => {
     } finally {
         if (anterior === undefined) delete globalThis.localStorage; else globalThis.localStorage = anterior;
     }
+});
+
+test("Contas a Pagar filtra fornecedor no backend por autocomplete remoto, sem carregar lista", async () => {
+    const page = await browser.newPage();
+    const buscas = [];
+    const listagens = [];
+    const consultas = [];
+    await page.addInitScript(() => localStorage.setItem("novexa-auth", JSON.stringify({ token: "t", perfil: "ADMIN", empresa: { id: 1 } })));
+    await page.route("http://localhost:8080/**", async (route) => {
+        const req = route.request();
+        const u = new URL(req.url());
+        if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+        let data = [];
+        if (u.pathname === "/fornecedores") { listagens.push(u.search); data = pagina(fornecedores); }
+        else if (u.pathname === "/fornecedores/buscar") {
+            buscas.push(u.searchParams.get("termo"));
+            data = fornecedores.filter((f) => f.ativo).map(({ ativo: _ativo, ...f }) => f);
+        } else if (u.pathname === "/financeiro/contas-pagar") { consultas.push(u.searchParams); data = pagina([]); }
+        else if (u.pathname === "/financeiro/contas-pagar/resumo") data = Object.fromEntries(
+            ["vencidas", "seteDias", "trintaDias", "emAberto", "pagasMes"].map((k) => [k, { total: 0, quantidade: 0 }]));
+        await route.fulfill({ status: 200, contentType: "application/json", headers: cors, body: JSON.stringify(data) });
+    });
+    try {
+        await page.goto(url);
+        await page.getByRole("combobox", { name: "Fornecedor" }).click();
+        await page.getByRole("option", { name: "Aço Sul" }).click();
+        await esperar(() => consultas.some((p) => p.get("fornecedor") === "1"));
+        assert.deepEqual(listagens, []);
+        assert.ok(buscas.includes(""));
+        const filtrada = consultas.find((p) => p.get("fornecedor") === "1");
+        assert.ok(filtrada, "deve enviar fornecedor=1 ao backend");
+        assert.equal(filtrada.get("page"), "0");
+        assert.ok(filtrada.get("size"));
+        assert.ok(consultas.every((p) => p.get("size") !== "100" || p.get("fornecedor")));
+        const antes = consultas.length;
+        await page.getByRole("button", { name: "Limpar filtros" }).click();
+        await esperar(() => consultas.length > antes && !consultas.at(-1).has("fornecedor"));
+    } finally { await page.close(); }
 });
 
 test("Contas a Pagar consome fornecedores paginados e seleciona somente ativos na busca rápida", async () => {

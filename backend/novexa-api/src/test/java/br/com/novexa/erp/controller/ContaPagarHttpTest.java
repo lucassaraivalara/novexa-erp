@@ -66,6 +66,19 @@ class ContaPagarHttpTest {
         assertThat(contas.findById(id).orElseThrow().getEmpresa().getId()).isEqualTo(empresaA.getId());
     }
 
+    @Test void filtraPorFornecedorNoBancoComPaginacaoEIsolamentoDeTenant() throws Exception {
+        long comFornecedor = criar(tokenA, fornecedorA.getId());
+        criar(tokenA, null); criar(tokenA, null);
+        criar(tokenB, fornecedorB.getId());
+        mvc.perform(get("/financeiro/contas-pagar?fornecedor=" + fornecedorA.getId() + "&page=0&size=1").header("Authorization", tokenA))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(1))
+                .andExpect(jsonPath("$.size").value(1)).andExpect(jsonPath("$.items[0].id").value(comFornecedor));
+        mvc.perform(get("/financeiro/contas-pagar?size=1").header("Authorization", tokenA))
+                .andExpect(jsonPath("$.totalItems").value(3)).andExpect(jsonPath("$.totalPages").value(3));
+        mvc.perform(get("/financeiro/contas-pagar?fornecedor=" + fornecedorB.getId()).header("Authorization", tokenA))
+                .andExpect(jsonPath("$.totalItems").value(0));
+    }
+
     @Test void editaAbertaEPreservaTenantMesmoComEmpresaForjada() throws Exception {
         long id = criar(tokenA, null);
         mvc.perform(put("/financeiro/contas-pagar/" + id).header("Authorization", tokenA)

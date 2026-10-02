@@ -5,18 +5,17 @@ import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlin
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-    MenuItem, Paper, Snackbar, Stack, TextField, Typography } from "@mui/material";
+    Autocomplete, MenuItem, Paper, Snackbar, Stack, TextField, Typography } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import PageFilters from "../../components/ui/PageFilters";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
-import { listarFornecedores } from "../../services/fornecedorService";
+import { buscarFornecedores } from "../../services/fornecedorService";
 import { cancelarConta, estornarConta, listarContasPagar,
     mensagemContaPagar, pagarConta, listarCategoriasContasPagar, resumirContasPagar,
     type ResumoContasPagar } from "../../services/contaPagarService";
 import { listarContasFinanceiras } from "../../services/contaFinanceiraService";
 import type { ContaPagar, StatusContaPagar } from "../../types/contaPagar";
-import type { Fornecedor } from "../../types/fornecedor";
 import type { ContaFinanceira } from "../../types/contaFinanceira";
 import { rotulosTipoContaFinanceira } from "../../types/contaFinanceira";
 import ContaPagarDrawer from "./ContaPagarDrawer";
@@ -30,9 +29,13 @@ const hoje = () => {
     return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
 };
 
+type OpcaoFornecedor = { id: number; razaoSocial: string };
+
 export default function ContasPagar() {
     const [contas, setContas] = useState<ContaPagar[]>([]);
-    const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+    const [fornecedorFiltro, setFornecedorFiltro] = useState<OpcaoFornecedor | null>(null);
+    const [termoFornecedor, setTermoFornecedor] = useState("");
+    const [opcoesFornecedor, setOpcoesFornecedor] = useState<OpcaoFornecedor[]>([]);
     const [contasFinanceiras, setContasFinanceiras] = useState<ContaFinanceira[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
@@ -62,15 +65,13 @@ export default function ContasPagar() {
     useEffect(() => {
         const controller = new AbortController();
         Promise.all([
-            listarFornecedores({ size: 100, sort: "razaoSocial,asc" }, controller.signal),
             listarContasFinanceiras(controller.signal),
             listarCategoriasContasPagar(controller.signal),
             resumirContasPagar(controller.signal)
         ])
-            .then(([fornecedoresLista, contasFinanceirasLista, categoriasLista, resumoAtual]) => {
+            .then(([contasFinanceirasLista, categoriasLista, resumoAtual]) => {
                 if (!controller.signal.aborted) {
                     setCategorias(categoriasLista); setResumo(resumoAtual);
-                    setFornecedores(fornecedoresLista.items);
                     setContasFinanceiras(contasFinanceirasLista);
                     setErro("");
                 }
@@ -78,6 +79,16 @@ export default function ContasPagar() {
             .catch((e) => { if (!controller.signal.aborted) setErro(mensagemContaPagar(e, "Não foi possível carregar as contas.")); });
         return () => controller.abort();
     }, [tentativa]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => {
+            buscarFornecedores(termoFornecedor, controller.signal)
+                .then((lista) => { if (!controller.signal.aborted) setOpcoesFornecedor(lista); })
+                .catch(() => { if (!controller.signal.aborted) setOpcoesFornecedor([]); });
+        }, termoFornecedor ? 300 : 0);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [termoFornecedor]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -227,11 +238,12 @@ export default function ContasPagar() {
                     <MenuItem value="PAGA">Pagas</MenuItem>
                     <MenuItem value="CANCELADA">Canceladas</MenuItem>
             </TextField>
-            <TextField select size="small" label="Fornecedor" value={filtros.fornecedor} sx={{ minWidth: 180 }}
-                onChange={(e) => alterarFiltro("fornecedor", e.target.value)}>
-                <MenuItem value="">Todos</MenuItem>
-                {fornecedores.map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.razaoSocial}</MenuItem>)}
-            </TextField>
+            <Autocomplete size="small" options={opcoesFornecedor} value={fornecedorFiltro} sx={{ minWidth: 220 }}
+                filterOptions={(lista) => lista} getOptionLabel={(item) => item.razaoSocial}
+                isOptionEqualToValue={(a, b) => a.id === b.id} noOptionsText="Nenhum fornecedor ativo encontrado"
+                onInputChange={(_, texto, motivo) => { if (motivo === "input") setTermoFornecedor(texto); }}
+                onChange={(_, item) => { setFornecedorFiltro(item); alterarFiltro("fornecedor", item ? String(item.id) : ""); }}
+                renderInput={(params) => <TextField {...params} label="Fornecedor" placeholder="Todos" />} />
             <TextField select size="small" label="Categoria" value={filtros.categoria} sx={{ minWidth: 160 }}
                 onChange={(e) => alterarFiltro("categoria", e.target.value)}>
                 <MenuItem value="">Todas</MenuItem>
@@ -242,7 +254,7 @@ export default function ContasPagar() {
                 <TextField key={campo} size="small" type="date" label={label} value={filtros[campo]}
                     onChange={(e) => alterarFiltro(campo, e.target.value)} slotProps={{ inputLabel: { shrink: true } }}
                     sx={{ width: { xs: "100%", sm: 175 } }} />)}
-            <Button size="small" onClick={() => { setBusca(""); setStatus("todas"); setFiltros({ fornecedor: "", categoria: "", vencimentoDe: "", vencimentoAte: "", emissaoDe: "", emissaoAte: "" }); setPagina(0); }}>
+            <Button size="small" onClick={() => { setBusca(""); setStatus("todas"); setFornecedorFiltro(null); setTermoFornecedor(""); setFiltros({ fornecedor: "", categoria: "", vencimentoDe: "", vencimentoAte: "", emissaoDe: "", emissaoAte: "" }); setPagina(0); }}>
                 Limpar filtros
             </Button>
         </PageFilters>
