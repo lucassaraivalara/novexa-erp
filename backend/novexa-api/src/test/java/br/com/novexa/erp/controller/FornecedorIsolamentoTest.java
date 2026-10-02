@@ -73,9 +73,9 @@ class FornecedorIsolamentoTest {
         if (informarOutraEmpresa) request.param("empresaId", empresaB.getId().toString());
 
         mvc.perform(request).andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(fornecedorA.getId()))
-                .andExpect(jsonPath("$[0].empresaId").value(empresaA.getId()));
+                .andExpect(jsonPath("$.totalItems").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(fornecedorA.getId()))
+                .andExpect(jsonPath("$.items[0].empresaId").value(empresaA.getId()));
     }
 
     @ParameterizedTest
@@ -148,7 +148,7 @@ class FornecedorIsolamentoTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"GET,/fornecedores", "GET,/fornecedores/1", "POST,/fornecedores", "PUT,/fornecedores/1", "DELETE,/fornecedores/1"})
+    @CsvSource({"GET,/fornecedores", "GET,/fornecedores/buscar", "GET,/fornecedores/1", "POST,/fornecedores", "PUT,/fornecedores/1", "DELETE,/fornecedores/1"})
     void todosOsEndpointsExigemAutenticacao(String metodo, String url) throws Exception {
         mvc.perform(request(HttpMethod.valueOf(metodo), url)).andExpect(status().isUnauthorized());
         assertThat(fornecedores.count()).isEqualTo(2);

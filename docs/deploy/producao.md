@@ -1,6 +1,6 @@
 # Publicacao do Novexa: backend / Cloud Run
 
-Perfil implementado: `prod`, Java 21 / Spring Boot 3.5.4, PostgreSQL e Flyway V1..V32. Este guia prepara a publicacao; nao comprova deploy nem homologacao do piloto. Frontend, regras financeiras e migrations existentes nao sao alterados.
+Perfil implementado: `prod`, Java 21 / Spring Boot 3.5.4, PostgreSQL e Flyway V1..V33. Este guia prepara a publicacao; nao comprova deploy nem homologacao do piloto. Frontend, regras financeiras e migrations existentes nao sao alterados.
 
 ## Configuracao e secrets
 
@@ -30,6 +30,7 @@ Antes de inicializar datasource/Flyway, startup rejeita propriedades obrigatoria
 
 - Usar banco exclusivo por ambiente; testar primeiro em staging, nunca contra producao para homologar.
 - Garantir backup e restauracao testada antes de publicar. Em base antiga, conferir CPFs normalizados duplicados antes da V32; nao apagar usuarios nem realizar backfill automatico para contornar a constraint.
+- Antes da V33, conferir documentos de fornecedores normalizados duplicados dentro do mesmo tenant. Havendo conflito, regularizar explicitamente; nao deduplicar/apagar fornecedores automaticamente. Conferir a compatibilidade do consumidor frontend em [fornecedores.md](../architecture/fornecedores.md).
 - `ddl-auto=validate`, Flyway habilitado, `validate-on-migrate=true`, `baseline-on-migrate=false`, `clean-disabled=true`. Schema desconhecido, checksum divergente ou incompatibilidade Hibernate deve impedir startup.
 - Nunca editar migration aplicada, usar `clean` ou `repair` para esconder divergencia. Baseline de banco preexistente exige procedimento revisado fora do startup automatico.
 - O MVP migra durante startup usando a coordenacao existente do Flyway. Provisionar permissoes DDL no schema para o usuario usado nessa etapa; nao conceder superuser. Futuramente separar usuario de migration/runtime requer mudar o procedimento de deploy, nao desligar validacao silenciosamente.
@@ -88,7 +89,7 @@ Publicar primeiro sem trafego em servico de staging com banco isolado. Mesmo uma
 - [ ] Build Docker, scan e execucao como non-root aprovados no ambiente com Docker.
 - [ ] Secrets fora do Git/imagem/frontend; service account e IAM minimo revisados; versoes de secrets fixadas.
 - [ ] Banco correto, backup/restauracao, rede/TLS, permissoes, CPFs e capacidade de conexoes conferidos.
-- [ ] Flyway V1..V32 e Hibernate validate aprovados em staging; nenhuma alteracao de migration antiga.
+- [ ] Flyway V1..V33 e Hibernate validate aprovados em staging; nenhuma alteracao de migration antiga.
 - [ ] Empresa e ADMIN inicial provisionados por procedimento autorizado, sem seed de senha/secrets em Git; login e acesso administrativo conferidos.
 - [ ] CORS permite apenas dominio aprovado; origem nao permitida negada; header X-Request-ID acessivel no browser.
 - [ ] Probes 200 em banco disponivel; readiness 503 com banco indisponivel e liveness nao reinicia por falha compartilhada de banco.

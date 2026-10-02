@@ -162,6 +162,8 @@ A primeira versão do Novexa ERP terá como foco:
 * Produtos;
 * Fornecedores.
 
+Fornecedor: somente nome/razao social obrigatorio; documento opcional, validado quando informado e unico por empresa. Cadastro rapido e completo usam a mesma API, com lookup ativo limitado e manutencao paginada. Inativacao preserva historico. Integracao embutida no frontend e modulo operacional de Compras ainda nao implementados. Contrato em [fornecedores.md](fornecedores.md).
+
 ## Fase 3 - Operações
 
 * Estoque;

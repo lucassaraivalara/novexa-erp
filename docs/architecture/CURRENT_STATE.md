@@ -10,6 +10,18 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Compras / Cadastros Auxiliares: Fornecedor backend (2026-10-02)
+
+Cadastro existente evoluido sobre 5a65042: uma unica API aceita cadastro rapido (somente nome) e completo. razaoSocial permanece canonico, com nomeRazaoSocial como alias de entrada; CPF/CNPJ opcional, normalizado/validado e tipoPessoa inferido. Endereco estruturado, observacao e dataAtualizacao acrescentados sem backfill. Empresa vem do JWT e permanece imutavel na edicao; POST cria ativo, DELETE inativa sem excluir e PUT permite reativacao explicita. Documento unico dentro do tenant, inclusive em inativo; nomes iguais e mesmo documento entre empresas permitidos.
+
+GET /fornecedores usa PaginaResponseDTO com termo/ativo/page/size/sort aplicados no banco; /fornecedores/buscar retorna ate 20 ativos, tenant-safe. V33 aditiva altera a tabela ja existente e cria indice unico parcial de documento normalizado por empresa; preserva referencias existentes de Contas a Pagar e migrations V1..V32. Duplicatas legadas bloqueiam migration sem deduplicacao automatica. Contrato, payloads e limites em [fornecedores.md](fornecedores.md). Fornecedor e dominio proprio, mas podera ser cadastrado dentro de outros fluxos no frontend.
+
+Validacao direcionada: 157 casos distintos aprovados (115 H2/unidade e 42 PostgreSQL), sem falhas, erros ou ignorados nas ultimas execucoes selecionadas. Inclui Fornecedor HTTP/isolamento, JWT, regressao minima da referencia em Contas a Pagar e perfil prod. PostgreSQL 18.6 descartavel: Flyway V1..V33, upgrade V32->V33, Hibernate validate, constraint normalizada por tenant, multiplos documentos null/vazios, historico mascarado preservado e migration bloqueada diante de duplicidade legada. Package backend e diff check aprovados. Sem suite financeira ampla ou E2E/frontend.
+
+**Bloqueio de publicacao:** o frontend atual de Contas a Pagar espera array em GET /fornecedores e usa fornecedores.map. O novo contrato paginado exige ajuste do consumidor, ainda nao autorizado neste escopo backend-only. Nao publicar a mudanca de contrato junto ao frontend atual sem resolver/aceitar explicitamente essa compatibilidade. Nenhum frontend ou codigo financeiro de producao foi alterado.
+
+Nao implementados: ProdutoFornecedor, fornecedor principal, Ordem de Compra, Cotacao, Entrada, historico/tabela de precos e modulo Compras no frontend.
+
 ## Preparacao do backend para producao (2026-10-02)
 
 Perfil `prod` configurado exclusivamente por ambiente, sem importar o arquivo local de desenvolvimento. Secrets obrigatorios, CORS HTTPS explicito e guard de configuracao executado antes de inicializar datasource/Flyway. Hibernate validate, Flyway sem baseline automatico/clean, pool Hikari limitado, SQL desabilitado e erros inesperados sanitizados. Headers de seguranca e X-Request-ID/MDC com log de metodo, template de rota, status e duracao sem payload/credenciais. Probes publicas sem detalhes internos; demais actuators nao expostos em producao. Nenhuma migration, dependencia, frontend ou regra financeira alterada.

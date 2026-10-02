@@ -24,6 +24,7 @@ Já existem no projeto:
 - Empresa
 - Produto
 - Cliente
+- Fornecedor (cadastro backend)
 - Estoque
 - Venda
 - Pagamento
@@ -74,6 +75,7 @@ Leia somente os documentos necessários ao escopo da tarefa.
 | [CURRENT_STATE.md](CURRENT_STATE.md) | Estado implementado, limitações e pendências verificadas | Planejamento e retomada de tarefas |
 | [frontend.md](frontend.md) | Padrões de cadastros, ações por ícones, busca/debounce e formulários/feedback | Implementação ou revisão do frontend |
 | [paginacao.md](paginacao.md) | Contratos paginados, filtros, ordenação e índices | Listagens de Vendas, Clientes, Produtos, financeiro e Estoque |
+| [fornecedores.md](fornecedores.md) | Cadastro rapido/completo, manutencao, lookup e tenant | Fornecedor e futuras integracoes embutidas |
 | [roadmap.md](roadmap.md) | Sequência de evolução e dependências | Escolha das próximas tarefas |
 | [Producao / Cloud Run](../deploy/producao.md) | Perfil prod, secrets, probes, banco e checklist | Preparacao de deploy e publicacao |
 | [Auditorias](../audits/) | Evidências históricas e diagnósticos | Investigação de um achado específico |

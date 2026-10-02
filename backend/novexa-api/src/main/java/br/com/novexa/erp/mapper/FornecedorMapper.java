@@ -32,6 +32,16 @@ public class FornecedorMapper {
         response.setEndereco(fornecedor.getEndereco());
         response.setAtivo(fornecedor.getAtivo());
         response.setDataCadastro(fornecedor.getDataCadastro());
+        response.setTipoPessoa(fornecedor.getTipoPessoa());
+        response.setCep(fornecedor.getCep());
+        response.setLogradouro(fornecedor.getLogradouro());
+        response.setNumero(fornecedor.getNumero());
+        response.setComplemento(fornecedor.getComplemento());
+        response.setBairro(fornecedor.getBairro());
+        response.setCidade(fornecedor.getCidade());
+        response.setUf(fornecedor.getUf());
+        response.setObservacao(fornecedor.getObservacao());
+        response.setDataAtualizacao(fornecedor.getDataAtualizacao());
 
         return response;
     }
@@ -45,5 +55,13 @@ public class FornecedorMapper {
         fornecedor.setTelefone(request.getTelefone());
         fornecedor.setEndereco(request.getEndereco());
         fornecedor.setAtivo(request.getAtivo());
+        fornecedor.setCep(request.getCep());
+        fornecedor.setLogradouro(request.getLogradouro());
+        fornecedor.setNumero(request.getNumero());
+        fornecedor.setComplemento(request.getComplemento());
+        fornecedor.setBairro(request.getBairro());
+        fornecedor.setCidade(request.getCidade());
+        fornecedor.setUf(request.getUf());
+        fornecedor.setObservacao(request.getObservacao());
     }
 }

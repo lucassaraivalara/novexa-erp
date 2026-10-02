@@ -14,6 +14,8 @@ Perfil `prod` isola configuracao local, valida propriedades criticas, preserva H
 
 ## Consultas paginadas
 
+Fornecedor e dominio proprio por empresa; evolui o cadastro/tabela existentes, sem criar ProdutoFornecedor ou Compras. A mesma API cria cadastro minimo/completo e retorna objeto selecionavel; manutencao paginada e lookup limitado compartilham filtro tenant. V33 aditiva preserva referencias legadas e adiciona endereco estruturado/timestamps e unicidade parcial de documento normalizado por empresa. Contrato e compatibilidade em [fornecedores.md](fornecedores.md).
+
 As consultas de crescimento contínuo usam Page/Pageable e PaginaResponseDTO, com tenant, filtros, ordenação e paginação no banco. Contratos e exceções List em [paginacao.md](paginacao.md).
 
 ## Usuários

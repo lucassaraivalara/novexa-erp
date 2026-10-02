@@ -10,6 +10,9 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
@@ -32,6 +35,7 @@ public class FornecedorEntity {
     @JoinColumn(
             name = "empresa_id",
             nullable = false,
+            updatable = false,
             foreignKey = @ForeignKey(name = "fk_fornecedor_empresa")
     )
     private EmpresaEntity empresa;
@@ -52,6 +56,19 @@ public class FornecedorEntity {
     private String telefone;
     private String endereco;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_pessoa", length = 20)
+    private TipoPessoa tipoPessoa;
+    @Column(length = 8) private String cep;
+    @Column(length = 150) private String logradouro;
+    @Column(length = 20) private String numero;
+    @Column(length = 100) private String complemento;
+    @Column(length = 100) private String bairro;
+    @Column(length = 100) private String cidade;
+    @Column(length = 2) private String uf;
+    @Column(length = 2000) private String observacao;
+    @Column(name = "data_atualizacao") private LocalDateTime dataAtualizacao;
+
     @Column(nullable = false)
     private Boolean ativo = true;
 
@@ -68,9 +85,35 @@ public class FornecedorEntity {
         }
 
         if (dataCadastro == null) {
-            dataCadastro = LocalDateTime.now();
+            dataCadastro = LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         }
+        dataAtualizacao = dataCadastro;
     }
+
+    @PreUpdate
+    private void atualizarData() {
+        dataAtualizacao = LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+    }
+
+    public TipoPessoa getTipoPessoa() { return tipoPessoa; }
+    public void setTipoPessoa(TipoPessoa valor) { tipoPessoa = valor; }
+    public String getCep() { return cep; }
+    public void setCep(String valor) { cep = valor; }
+    public String getLogradouro() { return logradouro; }
+    public void setLogradouro(String valor) { logradouro = valor; }
+    public String getNumero() { return numero; }
+    public void setNumero(String valor) { numero = valor; }
+    public String getComplemento() { return complemento; }
+    public void setComplemento(String valor) { complemento = valor; }
+    public String getBairro() { return bairro; }
+    public void setBairro(String valor) { bairro = valor; }
+    public String getCidade() { return cidade; }
+    public void setCidade(String valor) { cidade = valor; }
+    public String getUf() { return uf; }
+    public void setUf(String valor) { uf = valor; }
+    public String getObservacao() { return observacao; }
+    public void setObservacao(String valor) { observacao = valor; }
+    public LocalDateTime getDataAtualizacao() { return dataAtualizacao; }
 
     public Long getId() {
         return id;

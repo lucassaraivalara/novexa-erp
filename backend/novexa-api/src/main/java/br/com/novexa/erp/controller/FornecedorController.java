@@ -2,6 +2,8 @@ package br.com.novexa.erp.controller;
 
 import br.com.novexa.erp.dto.FornecedorRequestDTO;
 import br.com.novexa.erp.dto.FornecedorResponseDTO;
+import br.com.novexa.erp.dto.FornecedorBuscaResponseDTO;
+import br.com.novexa.erp.dto.PaginaResponseDTO;
 import br.com.novexa.erp.entity.FornecedorEntity;
 import br.com.novexa.erp.mapper.FornecedorMapper;
 import br.com.novexa.erp.security.UsuarioAutenticado;
@@ -18,6 +20,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 
@@ -53,15 +58,27 @@ public class FornecedorController {
     }
 
     @GetMapping
-    public ResponseEntity<List<FornecedorResponseDTO>> listar(
+    public PaginaResponseDTO<FornecedorResponseDTO> listar(
+            @RequestParam(required = false) String termo,
+            @RequestParam(required = false) Boolean ativo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "razaoSocial,asc") String sort,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return PaginaResponseDTO.de(fornecedorService.listarPagina(usuario.empresaId(), termo, ativo, page, size, sort),
+                fornecedorMapper::toResponse);
+    }
 
-        List<FornecedorResponseDTO> fornecedores = fornecedorService.listar(usuario.empresaId())
-                .stream()
-                .map(fornecedorMapper::toResponse)
-                .toList();
+    @GetMapping("/buscar")
+    public List<FornecedorBuscaResponseDTO> buscarPorTermo(
+            @RequestParam(defaultValue = "") String termo,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return fornecedorService.buscarPorTermo(usuario.empresaId(), termo).stream().map(FornecedorBuscaResponseDTO::de).toList();
+    }
 
-        return ResponseEntity.ok(fornecedores);
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<String> tratarConflito() {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body("CPF ou CNPJ ja cadastrado para um fornecedor desta empresa.");
     }
 
     @GetMapping("/{id}")

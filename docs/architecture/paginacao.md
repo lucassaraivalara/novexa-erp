@@ -11,6 +11,7 @@ Implementacao na branch `feat/contas-pagar-integracao-backend`, sobre `4d84785`,
 | `/vendas` | status, dataInicial, dataFinal, clienteId | id, dataHora, total, status | dataHora,desc; id,desc |
 | `/clientes` | situacao, busca, campoBusca | id, nome, nomeFantasia, cpfCnpj, cidadeUf, telefone, ativo | nome,asc; id,asc |
 | `/produtos` | busca, campoBusca, situacao, situacaoEstoque | id, codigoInterno, nome, precoVenda, estoqueAtual, estoqueMinimo, ativo | nome,asc; id,asc |
+| `/fornecedores` | termo, ativo | id, razaoSocial, nomeFantasia, cpfCnpj, ativo, dataCadastro, dataAtualizacao | razaoSocial,asc; id,asc |
 | `/financeiro/contas-pagar` | busca, status, fornecedor (ID), categoria, vencimentoDe, vencimentoAte, emissaoDe, emissaoAte | id, dataVencimento, dataEmissao, valor, status, categoria | dataVencimento,asc; id,asc |
 | `/financeiro/movimentacoes-financeiras` | contaFinanceiraId, tipo, origem, dataInicial, dataFinal, estornada | id, dataMovimento, tipo, origem, valor | dataMovimento,desc; id,desc |
 | `/estoque/movimentacoes/produto/{produtoId}` | tipo, origem, dataInicial, dataFinal | id, dataHora, tipo, origem, quantidade | dataHora,desc; id,desc |
@@ -32,8 +33,8 @@ Dashboard pede cinco vendas. Caixa usa `/vendas/por-sessao/{sessaoId}`, tenant +
 
 | Classe | Recursos | Justificativa |
 |---|---|---|
-| A: agora | Nenhum secundario adicional | Recursos transacionais desta etapa ja migrados |
-| B: pode esperar | Usuarios, Fornecedores | Podem crescer; mantidos List para evitar ampliar contratos/seletores nesta etapa |
+| A: agora | Fornecedores | Manutencao paginada; lookup /fornecedores/buscar separado e limitado. Contrato/compatibilidade em fornecedores.md |
+| B: pode esperar | Usuarios | Pode crescer; mantido List para evitar ampliar contratos nesta etapa |
 | C: continuar List | Contas Financeiras, Configuracoes de Pagamento, Contas Bancarias, Caixas, Agencias, Bancos, Formas de Pagamento | Baixo volume esperado e uso em seletores; nao paginar apenas por uniformidade |
 
 ## Indices existentes
