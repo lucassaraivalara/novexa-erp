@@ -914,7 +914,7 @@ class VendaHttpTest {
                 .andExpect(jsonPath("$.usuarioConfirmacaoFinanceiraId").value(operador.getId()))
                 .andExpect(jsonPath("$.dataConfirmacaoFinanceira").isNotEmpty())
                 .andExpect(jsonPath("$.movimentacaoFinanceiraId").isNumber()).andReturn().getResponse().getContentAsString();
-        String outroOperador = "Bearer " + jwt.gerarToken(segundo);
+        String outroOperador = tokenAdminSegundo();
         var segunda = confirmarPix(pagamentoId, outroOperador).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         assertThat(json.readTree(segunda)).isEqualTo(json.readTree(primeira));
@@ -939,6 +939,39 @@ class VendaHttpTest {
         vendaConfigurada(configuracao(empresa, forma, true), forma);
         confirmarPix(pagamentos.findAll().getFirst().getId(), authorization).andExpect(status().isConflict());
         assertThat(movimentosFinanceiros.count()).isZero();
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"ADMIN", "GERENTE", "OPERADOR", "USUARIO"})
+    void confirmacaoPixRespeitaPerfil(String perfil) throws Exception {
+        var config = configuracao(empresa, 2, true);
+        vendaConfigurada(config, 2);
+        long pagamento = pagamentos.findAll().getFirst().getId();
+        segundo.setPerfil(PerfilUsuario.valueOf(perfil));
+        segundo = usuarios.saveAndFlush(segundo);
+        var resposta = confirmarPix(pagamento, "Bearer " + jwt.gerarToken(segundo));
+        boolean autorizado = perfil.equals("ADMIN") || perfil.equals("GERENTE");
+        resposta.andExpect(autorizado ? status().isOk() : status().isForbidden());
+        assertThat(movimentosFinanceiros.count()).isEqualTo(autorizado ? 1 : 0);
+        assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual())
+                .isEqualByComparingTo(autorizado ? "120" : "100");
+    }
+
+    @Test void confirmacaoPixExigeAutenticacao() throws Exception {
+        vendaConfigurada(configuracao(empresa, 2, true), 2);
+        mvc.perform(post("/financeiro/pagamentos/" + pagamentos.findAll().getFirst().getId() + "/confirmar-recebimento"))
+                .andExpect(status().isUnauthorized());
+        assertThat(movimentosFinanceiros.count()).isZero();
+    }
+
+    @Test void confirmacaoPixSemSnapshotNaoUsaConfiguracaoAtual() throws Exception {
+        var config = configuracao(empresa, 2, true);
+        vendaConfigurada(config, 2);
+        long pagamento = pagamentos.findAll().getFirst().getId();
+        jdbc.update("update pagamentos set configuracao_conta_financeira_destino_id=null where id=?", pagamento);
+        confirmarPix(pagamento, authorization).andExpect(status().isConflict());
+        assertThat(movimentosFinanceiros.count()).isZero();
+        assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual())
+                .isEqualByComparingTo("100");
     }
 
     @Test void confirmacaoPixRejeitaCanceladoEOutroTenant() throws Exception {
@@ -1064,7 +1097,7 @@ class VendaHttpTest {
         var config = configuracao(empresa, 2, true);
         vendaConfigurada(config, 2);
         long pagamento = pagamentos.findAll().getFirst().getId();
-        var outroToken = "Bearer " + jwt.gerarToken(segundo);
+        var outroToken = tokenAdminSegundo();
         var respostas = simultaneas(
                 () -> confirmarPix(pagamento, authorization).andReturn().getResponse().getStatus(),
                 () -> confirmarPix(pagamento, outroToken).andReturn().getResponse().getStatus());
@@ -1077,7 +1110,7 @@ class VendaHttpTest {
         var config = configuracao(empresa, 2, true);
         long venda = vendaConfigurada(config, 2);
         long pagamento = pagamentos.findAll().getFirst().getId();
-        var outroToken = "Bearer " + jwt.gerarToken(segundo);
+        var outroToken = tokenAdminSegundo();
         var respostas = simultaneas(
                 () -> confirmarPix(pagamento, outroToken).andReturn().getResponse().getStatus(),
                 () -> cancelarPix(venda).andReturn().getResponse().getStatus());
@@ -1112,6 +1145,12 @@ class VendaHttpTest {
     }
     private org.springframework.test.web.servlet.ResultActions confirmarPix(long id, String auth) throws Exception {
         return mvc.perform(post("/financeiro/pagamentos/" + id + "/confirmar-recebimento").header(HttpHeaders.AUTHORIZATION, auth));
+    }
+
+    private String tokenAdminSegundo() {
+        segundo.setPerfil(PerfilUsuario.ADMIN);
+        segundo = usuarios.saveAndFlush(segundo);
+        return "Bearer " + jwt.gerarToken(segundo);
     }
 
     private ConfiguracaoFormaPagamentoEmpresaEntity configuracao(EmpresaEntity e, long formaId, boolean ativo) {

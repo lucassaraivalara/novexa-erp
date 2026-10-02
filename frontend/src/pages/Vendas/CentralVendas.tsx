@@ -30,6 +30,10 @@ import { listarClientes } from "../../services/clienteService";
 import {
     buscarVenda,
     cancelarVenda,
+    confirmarRecebimentoPix,
+    listarPagamentosVenda,
+    mensagemConfirmacaoPix,
+    type PagamentoVenda,
     listarVendasPaginado,
     mensagemVenda,
     type VendaDetalhe,
@@ -77,6 +81,12 @@ export default function CentralVendas() {
     const [cancelando, setCancelando] = useState<number | null>(null);
     const [totalItems, setTotalItems] = useState(0);
     const [sucesso, setSucesso] = useState(false);
+    const [pagamentos, setPagamentos] = useState<PagamentoVenda[]>([]);
+    const [erroPagamentos, setErroPagamentos] = useState("");
+    const [pixParaConfirmar, setPixParaConfirmar] = useState<PagamentoVenda | null>(null);
+    const [confirmandoPix, setConfirmandoPix] = useState(false);
+    const [erroPix, setErroPix] = useState("");
+    const [sucessoPix, setSucessoPix] = useState(false);
 
     const carregarVendas = useCallback(async (signal?: AbortSignal) => {
         setCarregando(true);
@@ -123,15 +133,45 @@ export default function CentralVendas() {
     async function visualizar(venda: VendaResumo) {
         setSelecionada(venda);
         setDetalhe(null);
+        setPagamentos([]);
+        setErroPagamentos("");
         setCarregandoDetalhe(true);
         setErro("");
         try {
             setDetalhe(await buscarVenda(venda.id));
+            try {
+                setPagamentos(await listarPagamentosVenda(venda.id));
+            } catch (e) {
+                setErroPagamentos(mensagemVenda(e, "Não foi possível carregar os pagamentos."));
+            }
         } catch (e) {
             setErro(mensagemVenda(e, "Não foi possível carregar os detalhes da venda."));
             setSelecionada(null);
         } finally {
             setCarregandoDetalhe(false);
+        }
+    }
+
+    async function confirmarPix() {
+        if (!pixParaConfirmar || confirmandoPix) return;
+        setConfirmandoPix(true);
+        setErroPix("");
+        try {
+            const confirmado = await confirmarRecebimentoPix(pixParaConfirmar.id);
+            setPagamentos(atuais => atuais.map(p => p.id === confirmado.id ? confirmado : p));
+            setPixParaConfirmar(null);
+            setSucessoPix(true);
+            try {
+                setPagamentos(await listarPagamentosVenda(confirmado.vendaId));
+                setDetalhe(await buscarVenda(confirmado.vendaId));
+                setErroPagamentos("");
+            } catch (e) {
+                setErroPagamentos(mensagemVenda(e, "Recebimento confirmado, mas não foi possível atualizar os detalhes."));
+            }
+        } catch (e) {
+            setErroPix(mensagemConfirmacaoPix(e));
+        } finally {
+            setConfirmandoPix(false);
         }
     }
 
@@ -264,7 +304,7 @@ export default function CentralVendas() {
         </Dialog>
 
         <Dialog open={selecionada !== null} fullWidth maxWidth="md"
-            onClose={carregandoDetalhe ? undefined : () => setSelecionada(null)} aria-labelledby="detalhe-venda-titulo">
+            onClose={carregandoDetalhe || confirmandoPix ? undefined : () => setSelecionada(null)} aria-labelledby="detalhe-venda-titulo">
             <DialogTitle id="detalhe-venda-titulo">Venda #{selecionada?.id}</DialogTitle>
             <DialogContent dividers>
                 {carregandoDetalhe || !detalhe ? <Typography color="text.secondary">Carregando detalhes…</Typography> : <Stack spacing={2}>
@@ -293,10 +333,49 @@ export default function CentralVendas() {
                         {detalhe.valorRecebido !== null && <> · Recebido: <strong>{moedaVenda(detalhe.valorRecebido)}</strong></>}
                         {detalhe.troco !== null && <> · Troco: <strong>{moedaVenda(detalhe.troco)}</strong></>}
                     </Alert>
+                    <Typography variant="h6">Pagamentos</Typography>
+                    {erroPagamentos && <Alert severity="error">{erroPagamentos}</Alert>}
+                    {pagamentos.map(pagamento => {
+                        const pix = pagamento.formaPagamento === "PIX";
+                        const cancelado = pagamento.status === "CANCELADO" || detalhe.status === "CANCELADA";
+                        return <Stack key={pagamento.id} spacing={1}>
+                            <Typography>{rotulosPagamento[pagamento.formaPagamento]} · {pagamento.configuracaoNomeExibicao || "Configuração histórica não informada"} · <strong>{moedaVenda(pagamento.valor)}</strong></Typography>
+                            {pagamento.configuracaoContaFinanceiraDestinoNome && <Typography variant="body2" color="text.secondary">Conta de destino: {pagamento.configuracaoContaFinanceiraDestinoNome}</Typography>}
+                            {pix && <Typography variant="body2">{cancelado ? "Pagamento cancelado" : pagamento.confirmadoFinanceiramente ? "Recebimento confirmado" : "Aguardando confirmação"}</Typography>}
+                            {pix && pagamento.confirmadoFinanceiramente && <Typography variant="caption" color="text.secondary">
+                                Confirmado em {pagamento.dataConfirmacaoFinanceira ? dataHoraVenda(pagamento.dataConfirmacaoFinanceira) : "—"} · Movimento #{pagamento.movimentacaoFinanceiraId}
+                            </Typography>}
+                            {pix && !cancelado && !pagamento.confirmadoFinanceiramente && podeCancelar && <Button
+                                sx={{ alignSelf: "flex-start" }} disabled={confirmandoPix} onClick={() => { setErroPix(""); setPixParaConfirmar(pagamento); }}>
+                                Confirmar recebimento
+                            </Button>}
+                        </Stack>;
+                    })}
                 </Stack>}
             </DialogContent>
-            <DialogActions><Button onClick={() => setSelecionada(null)} disabled={carregandoDetalhe}>Fechar</Button></DialogActions>
+            <DialogActions><Button onClick={() => setSelecionada(null)} disabled={carregandoDetalhe || confirmandoPix}>Fechar</Button></DialogActions>
         </Dialog>
+
+        <Dialog open={pixParaConfirmar !== null} fullWidth maxWidth="xs"
+            onClose={confirmandoPix ? undefined : () => setPixParaConfirmar(null)} aria-labelledby="confirmar-pix-titulo">
+            <DialogTitle id="confirmar-pix-titulo">Confirmar recebimento PIX?</DialogTitle>
+            <DialogContent dividers><Stack spacing={2}>
+                <Typography>Valor: <strong>{moedaVenda(pixParaConfirmar?.valor ?? 0)}</strong></Typography>
+                <Typography>Configuração: {pixParaConfirmar?.configuracaoNomeExibicao || "Não informada"}</Typography>
+                <Typography>Esta ação registrará a entrada financeira.</Typography>
+                {erroPix && <Alert severity="error">{erroPix}</Alert>}
+            </Stack></DialogContent>
+            <DialogActions>
+                <Button disabled={confirmandoPix} onClick={() => setPixParaConfirmar(null)}>Cancelar</Button>
+                <Button variant="contained" disabled={confirmandoPix} onClick={() => void confirmarPix()}
+                    startIcon={confirmandoPix ? <CircularProgress size={18} color="inherit" /> : undefined}>
+                    {confirmandoPix ? "Confirmando…" : "Confirmar recebimento"}
+                </Button>
+            </DialogActions>
+        </Dialog>
+        <Snackbar open={sucessoPix} autoHideDuration={4000} onClose={() => setSucessoPix(false)}>
+            <Alert severity="success" onClose={() => setSucessoPix(false)}>Recebimento PIX confirmado com sucesso.</Alert>
+        </Snackbar>
 
         <Snackbar open={sucesso} autoHideDuration={4000} onClose={() => setSucesso(false)}>
             <Alert severity="success" onClose={() => setSucesso(false)}>Venda cancelada com sucesso.</Alert>

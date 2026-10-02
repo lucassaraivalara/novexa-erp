@@ -3,6 +3,13 @@ import axios from "axios";
 import type { PaginaResponse } from "../types/paginacao";
 
 export type FormaPagamento = "DINHEIRO" | "PIX" | "CARTAO_DEBITO" | "CARTAO_CREDITO";
+export type PagamentoVenda = {
+    id: number; vendaId: number; formaPagamento: FormaPagamento; valor: number;
+    status: "REGISTRADO" | "CANCELADO"; configuracaoNomeExibicao: string | null;
+    configuracaoTipo: string | null; configuracaoContaFinanceiraDestinoNome: string | null;
+    confirmadoFinanceiramente: boolean; dataConfirmacaoFinanceira: string | null;
+    usuarioConfirmacaoFinanceiraId: number | null; movimentacaoFinanceiraId: number | null;
+};
 export type StatusVenda = "ABERTA" | "FATURADA" | "CANCELADA";
 export type VendaInput = {
     chaveRequisicao: string;
@@ -75,6 +82,20 @@ export async function buscarVenda(id: number, signal?: AbortSignal): Promise<Ven
 
 export async function cancelarVenda(id: number): Promise<VendaDetalhe> {
     return (await api.post<VendaDetalhe>(`/vendas/${id}/cancelar`)).data;
+}
+
+export async function listarPagamentosVenda(vendaId: number, signal?: AbortSignal): Promise<PagamentoVenda[]> {
+    return (await api.get<PagamentoVenda[]>(`/vendas/${vendaId}/pagamentos`, { signal })).data;
+}
+
+export async function confirmarRecebimentoPix(pagamentoId: number): Promise<PagamentoVenda> {
+    return (await api.post<PagamentoVenda>(`/financeiro/pagamentos/${pagamentoId}/confirmar-recebimento`)).data;
+}
+
+export function mensagemConfirmacaoPix(erro: unknown): string {
+    if (axios.isAxiosError(erro) && erro.response?.status === 403)
+        return "Acesso não permitido para confirmar recebimento PIX.";
+    return mensagemVenda(erro, "Não foi possível confirmar o recebimento PIX.");
 }
 
 function mensagemResposta(data: unknown): string | null {

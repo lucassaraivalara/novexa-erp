@@ -91,6 +91,8 @@ A configuração é identificação operacional. ContaFinanceira não é movimen
 
 ### Bloco 4C-A1: confirmação financeira explícita do PIX
 
+No MVP 02, o endpoint existente permite apenas ADMIN/GERENTE (OPERADOR/USUARIO: 403; sem autenticacao: 401), usando a autorizacao atual do Spring Security. A Central de Vendas, no detalhe da venda/seccao Pagamentos, apresenta o estado real e permite confirmacao explicita com dialog, sem conta/valor/empresa no payload. Atualiza detalhe e auditoria apos sucesso; 403 e conflitos funcionais sao apresentados, com bloqueio de clique durante a request. Nao ha acao no PDV. Snapshot, idempotencia, locks e reversao por cancelamento abaixo permanecem inalterados; PIX antigo sem destino retorna conflito, sem fallback.
+
 `POST /financeiro/pagamentos/{id}/confirmar-recebimento`, sem payload, usa empresa e usuário do JWT. Exige pagamento não cancelado, configuracaoTipo PIX, destino histórico e valor positivo; pagamentos legados sem snapshot válido não são reinterpretados. O destino vem exclusivamente do snapshot, mesmo após alteração da configuração ou inativação da conta histórica. Conta deve existir no tenant; não há redirecionamento.
 
 Uma transação segue a ordem de locks operador, Venda, Pagamento e ContaFinanceira com PESSIMISTIC_WRITE, verifica confirmação existente, credita o saldo e cria ENTRADA/PAGAMENTO_PIX. A V28 acrescenta pagamento_id em movimentacoes_financeiras, FK composta por empresa, UNIQUE por pagamento e CHECK de origem/vínculo/tipo. A confirmação deriva do movimento único: PagamentoResponseDTO expõe confirmadoFinanceiramente, dataConfirmacaoFinanceira, usuarioConfirmacaoFinanceiraId e movimentacaoFinanceiraId. Retry preserva saldo, movimento e auditoria originais.

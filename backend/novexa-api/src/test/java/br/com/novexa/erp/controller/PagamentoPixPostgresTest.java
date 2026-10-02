@@ -56,6 +56,10 @@ class PagamentoPixPostgresTest {
     @RepeatedTest(3) void cicloPixConfirmacaoECancelamentoConcorrentes() throws Exception { fluxo.cicloPixConfirmacaoECancelamentoConcorrentes(); }
     @Test void confirmacaoPixFalhaDePersistenciaReverteSaldoEMovimento() throws Exception { fluxo.confirmacaoPixFalhaDePersistenciaReverteSaldoEMovimento(); }
     @Test void confirmacaoPixRejeitaCanceladoEOutroTenant() throws Exception { fluxo.confirmacaoPixRejeitaCanceladoEOutroTenant(); }
+    @ParameterizedTest @ValueSource(strings = {"ADMIN", "GERENTE", "OPERADOR", "USUARIO"})
+    void confirmacaoPixRespeitaPerfil(String perfil) throws Exception { fluxo.confirmacaoPixRespeitaPerfil(perfil); }
+    @Test void confirmacaoPixExigeAutenticacao() throws Exception { fluxo.confirmacaoPixExigeAutenticacao(); }
+    @Test void confirmacaoPixSemSnapshotNaoUsaConfiguracaoAtual() throws Exception { fluxo.confirmacaoPixSemSnapshotNaoUsaConfiguracaoAtual(); }
     private static final String SCHEMA = "teste_ciclo_pix_" + UUID.randomUUID().toString().replace("-", "");
     private static final String URL = System.getProperty("novexa.test.pagamento-pix.jdbc-url");
     private static final String USER = System.getProperty("novexa.test.pagamento-pix.jdbc-user", "postgres");
