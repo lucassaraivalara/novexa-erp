@@ -1,3 +1,6 @@
+import type { Fornecedor } from "./fornecedor";
+import type { Produto } from "./produto";
+
 export type StatusEntradaMercadoria = "RASCUNHO" | "CONFIRMADA" | "CANCELADA";
 export type OrigemEntradaMercadoria = "MANUAL" | "XML";
 
@@ -56,3 +59,22 @@ export type EntradaMercadoriaInput = {
     chaveRequisicao?: string;
     chaveAcessoNfe?: string | null;
 };
+
+export type FornecedorXml = Pick<Fornecedor, "cpfCnpj" | "razaoSocial" | "nomeFantasia">;
+export type ProdutoMatch = Pick<Produto, "id" | "nome" | "codigoBarras">;
+export type EntradaXmlPreviewItem = Omit<ItemEntradaMercadoriaInput, "produtoId"> & {
+    valorTotal: number;
+    produtoMatch: ProdutoMatch | null;
+};
+export type EntradaXmlPreview = {
+    fornecedorXml: FornecedorXml;
+    fornecedorMatch: Pick<Fornecedor, "id" | "razaoSocial" | "ativo"> | null;
+    numeroNota: string;
+    serie: string;
+    chaveAcessoNfe: string;
+    dataEmissao: string;
+    valorProdutos: number;
+    valorTotal: number;
+    itens: EntradaXmlPreviewItem[];
+};
+export type EntradaXmlInput = EntradaMercadoriaInput & { chaveAcessoNfe: string };

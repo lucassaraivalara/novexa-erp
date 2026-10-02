@@ -8,6 +8,7 @@ import { formatarDocumentoEmpresa } from "../../utils/validators/documentoEmpres
 type Props = {
     modo: "completo" | "rapido";
     fornecedor?: FornecedorCompleto | null;
+    dadosIniciais?: Pick<FornecedorInput, "razaoSocial" | "nomeFantasia" | "cpfCnpj">;
     onFechar: () => void;
     onSalvo: (fornecedor: FornecedorCompleto) => void;
 };
@@ -24,11 +25,11 @@ function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
 const grade = (colunas: string) => ({ display: "grid", gridTemplateColumns: { xs: "1fr", sm: colunas }, gap: 2 });
 
 // Formulário único: "rapido" usado em outros fluxos (devolve o fornecedor criado em onSalvo); "completo" na manutenção.
-export default function FornecedorForm({ modo, fornecedor = null, onFechar, onSalvo }: Props) {
+export default function FornecedorForm({ modo, fornecedor = null, dadosIniciais, onFechar, onSalvo }: Props) {
     const rapido = modo === "rapido";
     const [form, setForm] = useState<Campos>(() => ({
-        razaoSocial: texto(fornecedor?.razaoSocial), nomeFantasia: texto(fornecedor?.nomeFantasia),
-        cpfCnpj: formatarDocumentoEmpresa(texto(fornecedor?.cpfCnpj), true), telefone: texto(fornecedor?.telefone),
+        razaoSocial: texto(fornecedor?.razaoSocial ?? dadosIniciais?.razaoSocial), nomeFantasia: texto(fornecedor?.nomeFantasia ?? dadosIniciais?.nomeFantasia),
+        cpfCnpj: formatarDocumentoEmpresa(texto(fornecedor?.cpfCnpj ?? dadosIniciais?.cpfCnpj), true), telefone: texto(fornecedor?.telefone),
         email: texto(fornecedor?.email), cep: texto(fornecedor?.cep), logradouro: texto(fornecedor?.logradouro),
         numero: texto(fornecedor?.numero), complemento: texto(fornecedor?.complemento), bairro: texto(fornecedor?.bairro),
         cidade: texto(fornecedor?.cidade), uf: texto(fornecedor?.uf), observacao: texto(fornecedor?.observacao),

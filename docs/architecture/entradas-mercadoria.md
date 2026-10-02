@@ -60,7 +60,7 @@ Validacao frontend direcionada usa navegador real com respostas HTTP simuladas, 
 
 ## Importacao XML NF-e - backend
 
-Fluxo: XML -> preview -> resolucao de fornecedor/produtos no frontend futuro -> criacao RASCUNHO -> confirmacao existente. Preview nao cria Entrada, fornecedor, produto ou movimento, nem altera saldo/custo. `from-xml` exige IDs validos e ativos no tenant; nao cadastra entidades implicitamente. Origem/status/tenant/totais sao determinados pelo backend. Dados historicos dos itens ficam no mesmo ItemEntradaMercadoria.
+Fluxo: XML -> preview -> resolucao de fornecedor/produtos -> criacao RASCUNHO -> confirmacao existente. Preview nao cria Entrada, fornecedor, produto ou movimento, nem altera saldo/custo. `from-xml` exige IDs validos e ativos no tenant; nao cadastra entidades implicitamente. Origem/status/tenant/totais sao determinados pelo backend. Dados historicos dos itens ficam no mesmo ItemEntradaMercadoria.
 
 Parser StAX aceita `NFe` ou `nfeProc`, com namespace `http://www.portalfiscal.inf.br/nfe` e prefixo livre; uma nota por arquivo. Rejeita DTD, entidades, resolucao externa, campos duplicados e profundidade acima de 32; limita campos e 200 itens. Filename/content-type nao determinam validade. Limite de leitura segue `spring.servlet.multipart.max-file-size` (2MB atual), inclusive por leitura limitada do stream. Arquivo vazio/XML malformado/inseguro retorna 400, NF-e incompleta/conteudo inadequado 422, tamanho excedido 413 e duplicidade 409, sem expor erro interno.
 
@@ -74,6 +74,16 @@ Duplicidade por empresa/chave e verificada no preview e na criacao; unique parci
 
 Validacao backend: 100 testes direcionados aprovados (30 parser, 13 XML HTTP/H2, 43 Entrada HTTP/H2 e 14 XML PostgreSQL 18.6). Banco local dedicado/schema descartavel, Flyway V1..V34 e Hibernate validate, query exata de documento/GTIN, unicidade estrutural da chave, tenant e ciclo XML -> rascunho -> confirmacao/cancelamento. Package backend e diff check aprovados. Sem frontend, E2E geral ou suite financeira.
 
+## Frontend XML
+
+Importar XML esta na aba Entradas existente. Aceita um arquivo .xml de ate 2 MB, enviado como multipart `arquivo` pelo service, sem parser frontend. Mostra cabecalho, emitente, totais originais e itens. Reutiliza EntradaMercadoriaForm/CadastroDialog e a mesma revisao/confirmacao manual; mobile usa dialog full screen e itens empilhados com scroll vertical.
+
+Fornecedor ativo encontrado fica selecionado; ausente permite cadastro rapido no FornecedorForm real, pre-preenchido com os dados do emitente, e seleciona o retorno. Inativo exige escolher fornecedor ativo pelo autocomplete remoto; nao reativa implicitamente nem cadastra duplicado. Produto encontrado vem selecionado; pendentes usam busca remota existente, sem matching por nome ou carregar catalogo completo. Cadastro embutido de produto nao foi adicionado: selecionar produto existente, ou cadastra-lo previamente na manutencao atual.
+
+Sem fornecedor ou itens vinculados, salvar/confirmar fica bloqueado. Quantidade/custo podem ser revisados explicitamente para as escalas de 3/2 casas; selecionar produto nao sobrescreve o custo do XML. Total operacional local e apenas preview, separado dos totais originais da NF-e; backend recalcula os valores persistidos. Salvar como rascunho chama `from-xml`; confirmar cria rascunho e chama o endpoint existente pelo ID, com protecao contra clique duplo, reconciliacao e preservacao do ID em falha. Nenhum update de estoque/custo ocorre no frontend.
+
+Erros de preview 400/422/409/413 exibem mensagens amigaveis sem detalhes tecnicos; erros de criacao/confirmacao preservam o tratamento existente. Validacao: 33 testes direcionados de Entrada/XML e Fornecedor, TypeScript/build e lint dos arquivos alterados; navegador real desktop/mobile com HTTP simulado, sem homologacao integrada com backend nesta etapa.
+
 ## Fora desta etapa
 
-Frontend XML/upload/revisao de matches, ProdutoFornecedor, matching por nome, Pedido/Ordem de Compra, Cotacao, recebimento parcial, custo medio, tributacao e geracao automatica de Conta a Pagar nao foram implementados. Entrada nao altera Caixa, Contas Financeiras, PIX, Recebiveis ou Transferencias.
+ProdutoFornecedor, matching por nome, Pedido/Ordem de Compra, Cotacao, recebimento parcial, custo medio, tributacao e geracao automatica de Conta a Pagar nao foram implementados. Entrada nao altera Caixa, Contas Financeiras, PIX, Recebiveis ou Transferencias.

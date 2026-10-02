@@ -4,6 +4,7 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import PageFilters from "../../components/ui/PageFilters";
@@ -14,6 +15,7 @@ import { buscarEntradaPorId, cancelarEntrada, listarEntradas } from "../../servi
 import { obterMensagemDaApi } from "../../services/produtoService";
 import type { EntradaMercadoria, StatusEntradaMercadoria } from "../../types/entradaMercadoria";
 import EntradaMercadoriaForm from "./EntradaMercadoriaForm";
+import EntradaXmlImportacao from "./EntradaXmlImportacao";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const data = (valor: string) => new Intl.DateTimeFormat("pt-BR").format(new Date(`${valor}T12:00:00`));
@@ -35,6 +37,7 @@ export default function EntradasMercadoria() {
     const [erro, setErro] = useState("");
     const [sucesso, setSucesso] = useState("");
     const [formulario, setFormulario] = useState<{ entrada: EntradaMercadoria | null } | null>(null);
+    const [importandoXml, setImportandoXml] = useState(false);
     const [cancelamento, setCancelamento] = useState<EntradaMercadoria | null>(null);
     const atualizar = () => setRevisao(n => n + 1);
 
@@ -84,6 +87,8 @@ export default function EntradasMercadoria() {
     ];
     return <PageContainer>
         <PageHeader titulo="Entradas de mercadoria" descricao="Registre e acompanhe o recebimento de mercadorias."
+            acoesSecundarias={<Button variant="outlined" startIcon={<UploadFileOutlinedIcon />} disabled={ocupado}
+                onClick={() => { setSucesso(""); setImportandoXml(true); }}>Importar XML</Button>}
             acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} disabled={ocupado}
                 onClick={() => { setSucesso(""); setFormulario({ entrada: null }); }}>Entrada manual</Button>} />
         {erro && <Alert severity="error" onClose={() => setErro("")}>{erro}</Alert>}
@@ -107,6 +112,9 @@ export default function EntradasMercadoria() {
                 onRowsPerPageChange: valor => { setPagina(0); setSize(valor); }, opcoesLinhasPorPagina: [10, 25, 50] }} />
         {formulario && <EntradaMercadoriaForm entrada={formulario.entrada} onFechar={() => { setFormulario(null); atualizar(); }}
             onAtualizar={atualizar} onConcluido={e => { setFormulario(null); atualizar();
+                setSucesso(e.status === "CONFIRMADA" ? "Entrada confirmada. Estoque atualizado." : e.status === "CANCELADA" ? "Entrada já cancelada." : "Rascunho salvo."); }} />}
+        {importandoXml && <EntradaXmlImportacao onFechar={() => { setImportandoXml(false); atualizar(); }} onAtualizar={atualizar}
+            onConcluido={e => { setImportandoXml(false); atualizar();
                 setSucesso(e.status === "CONFIRMADA" ? "Entrada confirmada. Estoque atualizado." : e.status === "CANCELADA" ? "Entrada já cancelada." : "Rascunho salvo."); }} />}
         <Dialog open={cancelamento !== null} onClose={ocupado ? undefined : () => setCancelamento(null)} fullWidth maxWidth="xs" aria-labelledby="entrada-cancelamento-titulo">
             <DialogTitle id="entrada-cancelamento-titulo">Cancelar esta entrada?</DialogTitle>
