@@ -76,6 +76,7 @@ Leia somente os documentos necessários ao escopo da tarefa.
 | [frontend.md](frontend.md) | Padrões de cadastros, ações por ícones, busca/debounce e formulários/feedback | Implementação ou revisão do frontend |
 | [paginacao.md](paginacao.md) | Contratos paginados, filtros, ordenação e índices | Listagens de Vendas, Clientes, Produtos, financeiro e Estoque |
 | [fornecedores.md](fornecedores.md) | Cadastro rapido/completo, manutencao, lookup e tenant | Fornecedor e futuras integracoes embutidas |
+| [entradas-mercadoria.md](entradas-mercadoria.md) | Entrada manual, confirmacao, reversao, custos e contrato | Recebimento manual de mercadoria e futura importacao XML |
 | [roadmap.md](roadmap.md) | Sequência de evolução e dependências | Escolha das próximas tarefas |
 | [Producao / Cloud Run](../deploy/producao.md) | Perfil prod, secrets, probes, banco e checklist | Preparacao de deploy e publicacao |
 | [Auditorias](../audits/) | Evidências históricas e diagnósticos | Investigação de um achado específico |

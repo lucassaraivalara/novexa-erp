@@ -1,5 +1,9 @@
 # Estoque — Arquitetura e Regras de Negócio
 
+## Entrada de Mercadoria manual implementada
+
+Entrada/Itens preservam nota, fornecedor e custo historico. RASCUNHO nao movimenta; CONFIRMADA aplica ENTRADA/COMPRA e ultimo precoCusto; CANCELADA gera SAIDA/CANCELAMENTO pelo servico existente. Locks de Entrada e Produtos em ordem crescente, idempotencia de operacoes e transacao unica preservam saldo/historico; saldo insuficiente bloqueia reversao integral. Contrato e detalhes em [entradas-mercadoria.md](entradas-mercadoria.md). Nao ha custo medio, importacao XML ou geracao financeira automatica nesta etapa. As referencias futuras a Compras neste documento nao representam implementacao de Pedido/Ordem de Compra.
+
 ## 1. Objetivo do módulo
 
 O módulo de Estoque do Novexa ERP é responsável por controlar a quantidade disponível dos produtos da empresa e manter histórico rastreável de todas as alterações de saldo.

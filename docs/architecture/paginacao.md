@@ -12,6 +12,7 @@ Implementacao na branch `feat/contas-pagar-integracao-backend`, sobre `4d84785`,
 | `/clientes` | situacao, busca, campoBusca | id, nome, nomeFantasia, cpfCnpj, cidadeUf, telefone, ativo | nome,asc; id,asc |
 | `/produtos` | busca, campoBusca, situacao, situacaoEstoque | id, codigoInterno, nome, precoVenda, estoqueAtual, estoqueMinimo, ativo | nome,asc; id,asc |
 | `/fornecedores` | termo, ativo | id, razaoSocial, nomeFantasia, cpfCnpj, ativo, dataCadastro, dataAtualizacao | razaoSocial,asc; id,asc |
+| `/estoque/entradas` | termo (nota/fornecedor), status, origem, fornecedorId, dataInicial, dataFinal (dataEntrada) | id, dataEntrada, dataEmissao, numeroNota, status, origem, valorTotal, dataCadastro | dataEntrada,desc; id,desc |
 | `/financeiro/contas-pagar` | busca, status, fornecedor (ID), categoria, vencimentoDe, vencimentoAte, emissaoDe, emissaoAte | id, dataVencimento, dataEmissao, valor, status, categoria | dataVencimento,asc; id,asc |
 | `/financeiro/movimentacoes-financeiras` | contaFinanceiraId, tipo, origem, dataInicial, dataFinal, estornada | id, dataMovimento, tipo, origem, valor | dataMovimento,desc; id,desc |
 | `/estoque/movimentacoes/produto/{produtoId}` | tipo, origem, dataInicial, dataFinal | id, dataHora, tipo, origem, quantidade | dataHora,desc; id,desc |

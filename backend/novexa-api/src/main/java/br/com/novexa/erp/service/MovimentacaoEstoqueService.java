@@ -88,6 +88,21 @@ public class MovimentacaoEstoqueService {
         return movimentacaoRepository.save(movimentacao);
     }
 
+    // Reversao historica sob lock da Entrada, inclusive apos inativacao/mudanca do cadastro.
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    MovimentacaoEstoqueEntity reverterEntradaCompra(MovimentacaoEstoqueEntity original,
+            Long usuarioId, String motivo) {
+        if (original.getTipo() != TipoMovimentacaoEstoque.ENTRADA
+                || original.getOrigem() != OrigemMovimentacaoEstoque.COMPRA)
+            throw new IllegalArgumentException("Somente uma entrada de compra pode ser revertida.");
+        Long empresaId = original.getEmpresa().getId();
+        ProdutoEntity produto = buscarProdutoComLock(original.getProduto().getId(), empresaId);
+        UsuarioEntity usuario = buscarUsuario(usuarioId, empresaId);
+        validarEmpresaUsuario(produto, usuario, original.getEmpresa());
+        return aplicarMovimentacao(original.getEmpresa(), produto, usuario, TipoMovimentacaoEstoque.SAIDA,
+                OrigemMovimentacaoEstoque.CANCELAMENTO, original.getQuantidade(), motivo);
+    }
+
     private void validarParametrosObrigatorios(
             Long empresaId, Long produtoId, Long usuarioId,
             TipoMovimentacaoEstoque tipo, OrigemMovimentacaoEstoque origem,

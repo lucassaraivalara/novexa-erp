@@ -1,6 +1,6 @@
 # Publicacao do Novexa: backend / Cloud Run
 
-Perfil implementado: `prod`, Java 21 / Spring Boot 3.5.4, PostgreSQL e Flyway V1..V33. Este guia prepara a publicacao; nao comprova deploy nem homologacao do piloto. Frontend, regras financeiras e migrations existentes nao sao alterados.
+Perfil implementado: `prod`, Java 21 / Spring Boot 3.5.4, PostgreSQL e Flyway V1..V34. Este guia prepara a publicacao; nao comprova deploy nem homologacao do piloto. Frontend, regras financeiras e migrations existentes nao sao alterados.
 
 ## Configuracao e secrets
 
@@ -89,7 +89,7 @@ Publicar primeiro sem trafego em servico de staging com banco isolado. Mesmo uma
 - [ ] Build Docker, scan e execucao como non-root aprovados no ambiente com Docker.
 - [ ] Secrets fora do Git/imagem/frontend; service account e IAM minimo revisados; versoes de secrets fixadas.
 - [ ] Banco correto, backup/restauracao, rede/TLS, permissoes, CPFs e capacidade de conexoes conferidos.
-- [ ] Flyway V1..V33 e Hibernate validate aprovados em staging; nenhuma alteracao de migration antiga.
+- [ ] Flyway V1..V34 e Hibernate validate aprovados em staging; nenhuma alteracao de migration antiga.
 - [ ] Empresa e ADMIN inicial provisionados por procedimento autorizado, sem seed de senha/secrets em Git; login e acesso administrativo conferidos.
 - [ ] CORS permite apenas dominio aprovado; origem nao permitida negada; header X-Request-ID acessivel no browser.
 - [ ] Probes 200 em banco disponivel; readiness 503 com banco indisponivel e liveness nao reinicia por falha compartilhada de banco.

@@ -10,6 +10,14 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Estoque: Entrada de Mercadoria manual backend (2026-10-02)
+
+Entrada manual implementada sobre 039526f, na branch feat/contas-pagar-integracao-backend: dominio unico Entrada/Itens, RASCUNHO editavel sem efeito, confirmacao atomica ENTRADA/COMPRA, cancelamento atomico SAIDA/CANCELAMENTO e historico preservado. Fornecedor obrigatorio, ativo e do tenant; produtos ativos com controle de estoque. Quantidades/custos/totais calculados e validados no backend, ultimo precoCusto atualizado somente na confirmacao. Locks de Entrada e Produtos por ID crescente; retries e rollback integral. Listagem/filtros/ordenacao/paginacao no banco, tenant do JWT. V34 aditiva com FKs tenant-safe, unicidade de nota/chave NF-e e auditoria.
+
+Contrato, payloads, locks e limites em [entradas-mercadoria.md](entradas-mercadoria.md). Nao implementados: frontend, parser/upload/preview XML, matching automatico, ProdutoFornecedor, Pedido/Ordem de Compra e geracao automatica de Conta a Pagar. Financeiro permanece intacto.
+
+Validacao direcionada: 199 testes aprovados, sem falhas/erros/ignorados (144 H2/unidade, 55 PostgreSQL). Inclui Entrada HTTP, estoque, JWT e seis casos selecionados de Venda/cancelamento/PIX. PostgreSQL 18.6 em schemas descartaveis: Flyway V1..V34, upgrade V33->V34, Hibernate validate, FKs/uniques/CHECKs, rollback e disputas repetidas de confirmacao, edicao, cancelamento e Venda sobre o mesmo produto. Package backend e diff check aprovados; sem suite financeira ampla/frontend/E2E geral.
+
 ## Compras / Cadastros Auxiliares: Fornecedor backend (2026-10-02)
 
 Cadastro existente evoluido sobre 5a65042: uma unica API aceita cadastro rapido (somente nome) e completo. razaoSocial permanece canonico, com nomeRazaoSocial como alias de entrada; CPF/CNPJ opcional, normalizado/validado e tipoPessoa inferido. Endereco estruturado, observacao e dataAtualizacao acrescentados sem backfill. Empresa vem do JWT e permanece imutavel na edicao; POST cria ativo, DELETE inativa sem excluir e PUT permite reativacao explicita. Documento unico dentro do tenant, inclusive em inativo; nomes iguais e mesmo documento entre empresas permitidos.
@@ -18,9 +26,9 @@ GET /fornecedores usa PaginaResponseDTO com termo/ativo/page/size/sort aplicados
 
 Validacao direcionada: 157 casos distintos aprovados (115 H2/unidade e 42 PostgreSQL), sem falhas, erros ou ignorados nas ultimas execucoes selecionadas. Inclui Fornecedor HTTP/isolamento, JWT, regressao minima da referencia em Contas a Pagar e perfil prod. PostgreSQL 18.6 descartavel: Flyway V1..V33, upgrade V32->V33, Hibernate validate, constraint normalizada por tenant, multiplos documentos null/vazios, historico mascarado preservado e migration bloqueada diante de duplicidade legada. Package backend e diff check aprovados. Sem suite financeira ampla ou E2E/frontend.
 
-**Bloqueio de publicacao:** o frontend atual de Contas a Pagar espera array em GET /fornecedores e usa fornecedores.map. O novo contrato paginado exige ajuste do consumidor, ainda nao autorizado neste escopo backend-only. Nao publicar a mudanca de contrato junto ao frontend atual sem resolver/aceitar explicitamente essa compatibilidade. Nenhum frontend ou codigo financeiro de producao foi alterado.
+Compatibilidade posteriormente resolvida por 116d00a e 039526f: consumidor frontend adaptado ao contrato paginado e filtro financeiro por ID alinhado ao backend. Esses commits sao anteriores a Entrada de Mercadoria e foram preservados; nao houve nova alteracao do frontend ou Financeiro nesta tarefa.
 
-Nao implementados: ProdutoFornecedor, fornecedor principal, Ordem de Compra, Cotacao, Entrada, historico/tabela de precos e modulo Compras no frontend.
+Nao implementados: ProdutoFornecedor, fornecedor principal, Ordem de Compra, Cotacao, historico/tabela de precos e modulo Compras no frontend. Entrada manual backend descrita acima.
 
 ## Preparacao do backend para producao (2026-10-02)
 

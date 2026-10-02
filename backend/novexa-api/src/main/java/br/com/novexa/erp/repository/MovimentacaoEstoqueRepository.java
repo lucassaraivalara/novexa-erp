@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface MovimentacaoEstoqueRepository extends JpaRepository<MovimentacaoEstoqueEntity, Long> {
+    java.util.Optional<MovimentacaoEstoqueEntity> findByIdAndEmpresaId(Long id, Long empresaId);
     @org.springframework.data.jpa.repository.Query("""
         select m from MovimentacaoEstoqueEntity m where m.empresa.id = :empresaId and m.produto.id = :produtoId
          and (:tipo is null or m.tipo = :tipo) and (:origem is null or m.origem = :origem)
