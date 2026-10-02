@@ -91,7 +91,7 @@ class LiquidacaoRecebivelHttpTest extends RecebivelHttpTest {
             contas.save((ContaFinanceiraEntity) i.getArgument(0)); contas.flush();
             throw new IllegalStateException("falha depois do credito liquido");
         }).when(contas).saveAndFlush(any(ContaFinanceiraEntity.class));
-        assertThatThrownBy(() -> liquidar(id)).hasRootCauseMessage("falha depois do credito liquido");
+        liquidar(id).andExpect(status().isInternalServerError());
         assertThat(saldo()).isEqualByComparingTo("100"); assertThat(fluxo.movimentosFinanceiros.count()).isZero();
         var r = recebiveis.findById(id).orElseThrow();
         assertThat(r.getStatus()).isEqualTo(StatusRecebivel.PENDENTE);
@@ -291,7 +291,7 @@ class LiquidacaoRecebivelHttpTest extends RecebivelHttpTest {
         }).when(contas).saveAndFlush(any(ContaFinanceiraEntity.class));
         if (etapa.equals("status")) doThrow(new IllegalStateException("falha " + etapa))
                 .when(recebiveis).saveAndFlush(any(RecebivelEntity.class));
-        assertThatThrownBy(() -> liquidar(id)).hasRootCauseMessage("falha " + etapa);
+        liquidar(id).andExpect(status().isInternalServerError());
         assertThat(saldo()).isEqualByComparingTo("100"); assertThat(fluxo.movimentosFinanceiros.count()).isZero();
         var r = recebiveis.findById(id).orElseThrow(); assertThat(r.getStatus()).isEqualTo(StatusRecebivel.PENDENTE);
         assertThat(r.getDataLiquidacao()).isNull(); assertThat(r.getValorLiquidoRecebido()).isNull();
@@ -302,7 +302,8 @@ class LiquidacaoRecebivelHttpTest extends RecebivelHttpTest {
             fluxo.movimentosFinanceiros.save((MovimentacaoFinanceiraEntity)i.getArgument(0)); fluxo.movimentosFinanceiros.flush();
             throw new IllegalStateException("falha estorno");
         }).when(fluxo.movimentosFinanceiros).saveAndFlush(any(MovimentacaoFinanceiraEntity.class));
-        assertThatThrownBy(() -> cancelar(vendaId)).hasRootCauseMessage("falha estorno");
+        fluxo.mvc.perform(post("/vendas/" + vendaId + "/cancelar").header("Authorization", fluxo.authorization))
+                .andExpect(status().isInternalServerError());
         assertThat(saldo()).isEqualByComparingTo("120"); assertLiquidadoSemEstorno(id);
         assertThat(fluxo.produtos.findById(fluxo.produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
     }

@@ -6,6 +6,8 @@
 # Local environment and credential files
 .env
 .env.*
+env-prod.yaml
+env-prod.yml
 !.env.example
 !**/.env.example
 **/application-local.properties

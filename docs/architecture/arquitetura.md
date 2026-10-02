@@ -8,6 +8,10 @@ docs/
 ├── AGENTES.md
 └── ROADMAP.md
 
+## Execucao em producao
+
+Perfil `prod` isola configuracao local, valida propriedades criticas, preserva Hibernate validate/Flyway e usa pool limitado por instancia. A API publica somente probes de health sem detalhes; JWT/perfis/tenant continuam na cadeia existente. Request ID em MDC/header e logs JSON permitem correlacao sem payload/PII. Container Java 21 non-root, PORT dinamica e shutdown graceful preparados para Cloud Run. Procedimento, limites e checklist em [producao.md](../deploy/producao.md); preparacao nao equivale a deploy homologado.
+
 ## Consultas paginadas
 
 As consultas de crescimento contínuo usam Page/Pageable e PaginaResponseDTO, com tenant, filtros, ordenação e paginação no banco. Contratos e exceções List em [paginacao.md](paginacao.md).

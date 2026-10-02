@@ -275,13 +275,15 @@ class VendaHttpTest {
     }
 
     @Test
-    void falhaFinanceiraReverteVendaMovimentoESaldo() {
+    void falhaFinanceiraReverteVendaMovimentoESaldo() throws Exception {
         doAnswer(invocation -> {
             pagamentos.saveAndFlush(invocation.getArgument(0));
             assertThat(pagamentos.count()).isEqualTo(1);
             throw new IllegalStateException("falha simulada");
         }).when(pagamentos).save(any(PagamentoEntity.class));
-        assertThatThrownBy(() -> enviar(pedido())).hasRootCauseMessage("falha simulada");
+        mvc.perform(post("/vendas").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pedido())))
+                .andExpect(status().isInternalServerError());
         assertThat(vendas.count()).isZero();
         assertThat(financeiro.count()).isZero();
         assertThat(pagamentos.count()).isZero();
@@ -488,9 +490,9 @@ class VendaHttpTest {
             throw new IllegalStateException("falha simulada");
         }).when(pagamentos).save(any(PagamentoEntity.class));
         var pagamento = pagamento();
-        assertThatThrownBy(() -> mvc.perform(post("/vendas/" + id + "/faturar")
+        mvc.perform(post("/vendas/" + id + "/faturar")
                 .header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsBytes(pagamento)))).hasRootCauseMessage("falha simulada");
+                .content(json.writeValueAsBytes(pagamento))).andExpect(status().isInternalServerError());
         assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.ABERTA);
         assertThat(movimentos.count()).isZero();
         assertThat(financeiro.count()).isZero();
@@ -623,9 +625,9 @@ class VendaHttpTest {
             assertThat(pagamentos.count()).isEqualTo(1);
             throw new IllegalStateException("falha ao gravar pagamento");
         }).when(pagamentos).save(any(PagamentoEntity.class));
-        assertThatThrownBy(() -> mvc.perform(post("/vendas/" + id + "/faturar")
+        mvc.perform(post("/vendas/" + id + "/faturar")
                 .header(HttpHeaders.AUTHORIZATION, authorization).contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsBytes(pagamento())))).hasRootCauseMessage("falha ao gravar pagamento");
+                .content(json.writeValueAsBytes(pagamento()))).andExpect(status().isInternalServerError());
         assertThat(pagamentos.count()).isZero();
         assertThat(financeiro.count()).isZero();
         assertThat(movimentos.count()).isZero();
@@ -1016,7 +1018,7 @@ class VendaHttpTest {
             movimentosFinanceiros.flush();
             throw new IllegalStateException("falha persistencia PIX");
         }).when(movimentosFinanceiros).saveAndFlush(any(MovimentacaoFinanceiraEntity.class));
-        assertThatThrownBy(() -> confirmarPix(id, authorization)).hasRootCauseMessage("falha persistencia PIX");
+        confirmarPix(id, authorization).andExpect(status().isInternalServerError());
         assertThat(movimentosFinanceiros.count()).isZero();
         assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("100");
         reset(movimentosFinanceiros);
@@ -1057,7 +1059,7 @@ class VendaHttpTest {
             movimentosFinanceiros.save(invocation.getArgument(0)); movimentosFinanceiros.flush();
             throw new IllegalStateException("falha estorno PIX");
         }).when(movimentosFinanceiros).saveAndFlush(any(MovimentacaoFinanceiraEntity.class));
-        assertThatThrownBy(() -> cancelarPix(venda)).hasRootCauseMessage("falha estorno PIX");
+        cancelarPix(venda).andExpect(status().isInternalServerError());
         assertThat(vendas.findById(venda).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
         assertThat(pagamentos.findAll().getFirst().getStatus()).isEqualTo(StatusPagamento.REGISTRADO);
         assertThat(movimentosFinanceiros.findAll().getFirst().isEstornada()).isFalse();

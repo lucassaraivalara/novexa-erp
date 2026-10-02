@@ -10,6 +10,16 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Preparacao do backend para producao (2026-10-02)
+
+Perfil `prod` configurado exclusivamente por ambiente, sem importar o arquivo local de desenvolvimento. Secrets obrigatorios, CORS HTTPS explicito e guard de configuracao executado antes de inicializar datasource/Flyway. Hibernate validate, Flyway sem baseline automatico/clean, pool Hikari limitado, SQL desabilitado e erros inesperados sanitizados. Headers de seguranca e X-Request-ID/MDC com log de metodo, template de rota, status e duracao sem payload/credenciais. Probes publicas sem detalhes internos; demais actuators nao expostos em producao. Nenhuma migration, dependencia, frontend ou regra financeira alterada.
+
+Dockerfile Java 21 multi-stage/non-root, PORT dinamica, bind 0.0.0.0 e configuracao de shutdown graceful de 8s. Checklist, Secret Manager, capacidade de conexoes, rollout/backup e limites em [producao.md](../deploy/producao.md). Deploy real nao realizado; preparar configuracao nao equivale a homologacao/publicacao do piloto.
+
+Validacao: regressao agregada e reexecucoes finais somam 989 casos distintos aprovados, sem falhas/erros na ultima execucao de cada classe selecionada; oito testes condicionais de migrations nao executados. EstoqueConcorrenciaTest (15 casos) explicitamente excluido pelo contexto Storage preexistente documentado abaixo; nao declarar suite completa verde. Testes de rollback HTTP agora verificam resposta 500 sanitizada mantendo assertions de integridade. Teste especifico de upgrade V30->V31 passou a fixar target 31, pois sem alvo aplicava tambem V32 e falhava na contagem; sem alterar migrations nem semantica financeira.
+
+PostgreSQL 18.6 local, schemas descartaveis: Flyway V1..V32 e Hibernate validate em perfil prod; regressoes reais PIX/recebiveis, concorrencia, paginacao e administracao/comercial aprovadas. JAR empacotado executado com secrets sinteticos via ambiente na porta 18081: readiness 200, banco parado -> readiness 503 e liveness 200, banco restaurado -> readiness 200. Package e diff check aprovados; processos/schema de smoke encerrados/removidos. Docker indisponivel: build/scan da imagem e graceful shutdown sob SIGTERM ainda exigem validacao no ambiente de publicacao. Permanece aviso existente de Flyway com suporte oficial ate PostgreSQL 17, apesar da execucao PostgreSQL 18 aprovada; nenhuma dependencia atualizada.
+
 ## Fechamento backend administrativo/comercial do MVP (2026-10-02)
 
 Implementado sobre 1c6cb1d, preservando Financeiro e frontend. JWT agora revalida usuario, vinculo com empresa, perfil e situacao persistidos em cada request: inativacao, exclusao, troca de empresa/perfil invalidam acesso anterior (401); ativo NULL legado segue a compatibilidade do login. Escrita administrativa de Empresa exige ADMIN, como Usuarios; leitura tenant-safe preservada. DELETE de Empresa/Usuario inativa sem apagar historico; PUT/DELETE de Usuario nao contornam a protecao contra auto-inativacao, e edicao sem ativo nao reativa um usuario inativo.

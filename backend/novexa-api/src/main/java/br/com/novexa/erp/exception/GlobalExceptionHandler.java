@@ -8,6 +8,32 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler({org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+            org.springframework.validation.BindException.class})
+    public ResponseEntity<String> tratarRequisicaoMalformada(Exception exception) {
+        return ResponseEntity.badRequest().body("Requisicao invalida.");
+    }
+
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<String> tratarStatusFuncional(org.springframework.web.server.ResponseStatusException exception) throws Exception {
+        if (exception.getStatusCode().is5xxServerError()) return tratarErroNaoPrevisto(exception);
+        return ResponseEntity.status(exception.getStatusCode()).headers(exception.getHeaders())
+                .body(exception.getReason() == null ? "Requisicao invalida." : exception.getReason());
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<String> tratarErroNaoPrevisto(Exception exception) throws Exception {
+        if (exception instanceof org.springframework.security.access.AccessDeniedException
+                || exception instanceof org.springframework.security.core.AuthenticationException) throw exception;
+        if (exception instanceof org.springframework.web.ErrorResponse error && !error.getStatusCode().is5xxServerError())
+            return ResponseEntity.status(error.getStatusCode()).body("Requisicao invalida.");
+        log.error("Erro nao tratado tipo={}", exception.getClass().getName());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Nao foi possivel concluir a operacao. Informe o X-Request-ID ao suporte.");
+    }
 
     // Trata quando uma empresa não é encontrada.
     @ExceptionHandler(EmpresaNotFoundException.class)

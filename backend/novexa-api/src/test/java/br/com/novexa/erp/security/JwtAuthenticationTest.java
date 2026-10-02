@@ -140,7 +140,7 @@ class JwtAuthenticationTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"/empresas", "/usuarios", "/produtos?empresaId=10", "/clientes?empresaId=10",
-            "/fornecedores?empresaId=10", "/auth/login", "/actuator/health"})
+            "/fornecedores?empresaId=10", "/auth/login", "/actuator/env"})
     void endpointsSemTokenRetornam401(String url) throws Exception {
         mvc.perform(get(url)).andExpect(status().isUnauthorized())
                 .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"));
@@ -249,6 +249,26 @@ class JwtAuthenticationTest {
         mvc.perform(post("/usuarios").header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isForbidden());
     }
+
+    @Test void erroInternoNaoVazaDadosERecebeRequestId() throws Exception {
+        mvc.perform(get("/teste/falha").header(HttpHeaders.AUTHORIZATION, "Bearer " + token())
+                        .header("X-Request-ID", "erro-teste-123"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(header().string("X-Request-ID", "erro-teste-123"))
+                .andExpect(content().string(not(containsString("senha-interna"))))
+                .andExpect(content().string(not(containsString("Exception"))))
+                .andExpect(content().string(containsString("X-Request-ID")));
+    }
+
+    @Test void headersProtegemRespostaENegacaoTambemRecebeId() throws Exception {
+        mvc.perform(get("/usuarios").secure(true))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().exists("X-Request-ID"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("X-Frame-Options", "DENY"))
+                .andExpect(header().string("Referrer-Policy", "no-referrer"))
+                .andExpect(header().string("Strict-Transport-Security", containsString("max-age=")));
+    }
     @ParameterizedTest @EnumSource(value = PerfilUsuario.class, names = {"GERENTE", "OPERADOR", "USUARIO"})
     void somenteAdminAlteraEmpresa(PerfilUsuario perfil) throws Exception {
         usuario(perfil);
@@ -306,6 +326,8 @@ class JwtAuthenticationTest {
     // Endpoints exclusivos do teste; nenhuma rota ou regra de perfil é adicionada à aplicação.
     @RestController
     static class ContextoController {
+        @GetMapping("/teste/falha")
+        void falha() { throw new IllegalStateException("jdbc:postgresql://interno senha-interna"); }
         @GetMapping("/teste/contexto")
         Map<String, Object> contexto(@AuthenticationPrincipal UsuarioAutenticado principal, Authentication authentication) {
             assertThat(authentication.isAuthenticated()).isTrue();

@@ -1,0 +1,16 @@
+target
+config
+.git
+.idea
+.env
+.env.*
+env-prod.yaml
+env-prod.yml
+*.properties.local
+**/application-local.properties
+**/credentials/**
+**/secrets/**
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx

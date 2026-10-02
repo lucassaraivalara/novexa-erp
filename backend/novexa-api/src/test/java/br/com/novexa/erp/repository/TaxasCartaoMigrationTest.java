@@ -25,7 +25,7 @@ class TaxasCartaoMigrationTest {
                 s.execute("INSERT INTO vendas(id,empresa_id,usuario_id,data_hora,status) VALUES (1,1,1,CURRENT_TIMESTAMP,'FATURADA')");
                 s.execute("INSERT INTO pagamentos(id,empresa_id,venda_id,usuario_id,sequencia,chave_requisicao,forma_pagamento,forma_pagamento_id,valor,status,data_hora) VALUES (1,1,1,1,1,'" + UUID.randomUUID() + "','CARTAO_DEBITO',3,20,'REGISTRADO',CURRENT_TIMESTAMP)");
                 s.execute("INSERT INTO recebiveis(id,empresa_id,pagamento_id,venda_id,tipo,numero_parcela,total_parcelas,valor_bruto,valor_liquido_previsto,data_venda,status,criado_em) VALUES (1,1,1,1,'DEBITO',1,1,20,18.50,CURRENT_TIMESTAMP,'PENDENTE',CURRENT_TIMESTAMP)");
-                var resultado = Flyway.configure().dataSource(url, user, password).schemas(schema).defaultSchema(schema).load().migrate();
+                var resultado = Flyway.configure().dataSource(url, user, password).schemas(schema).defaultSchema(schema).target("31").load().migrate();
                 assertThat(resultado.migrationsExecuted).isEqualTo(1);
                 assertThat(resultado.targetSchemaVersion).isEqualTo("31");
                 try (var r = s.executeQuery("SELECT valor_bruto,valor_liquido_previsto,data_prevista_recebimento,taxa_percentual_snapshot,taxa_fixa_snapshot,valor_taxas_previsto,prazo_recebimento_dias_snapshot,status FROM recebiveis")) {

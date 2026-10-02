@@ -93,13 +93,15 @@ class RecebivelHttpTest {
         });
         assertThat(fluxo.movimentosFinanceiros.count()).isZero();
     }
-    @Test void falhaAposCriacaoReverteVendaPagamentoRecebivelEEstoque() {
+    @Test void falhaAposCriacaoReverteVendaPagamentoRecebivelEEstoque() throws Exception {
         doAnswer(invocation -> {
             recebiveis.save((RecebivelEntity) invocation.getArgument(0)); recebiveis.flush();
             throw new IllegalStateException("falha recebivel");
         })
                 .when(recebiveis).saveAndFlush(any(RecebivelEntity.class));
-        assertThatThrownBy(() -> enviar(pedido("CARTAO_DEBITO"))).hasRootCauseMessage("falha recebivel");
+        fluxo.mvc.perform(post("/vendas").header("Authorization", fluxo.authorization)
+                .contentType("application/json").content(fluxo.json.writeValueAsBytes(pedido("CARTAO_DEBITO"))))
+                .andExpect(status().isInternalServerError());
         assertThat(recebiveis.count()).isZero(); assertThat(fluxo.vendas.count()).isZero();
         assertThat(fluxo.pagamentos.count()).isZero(); assertThat(fluxo.movimentos.count()).isZero();
         assertThat(fluxo.financeiro.count()).isZero();

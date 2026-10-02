@@ -75,6 +75,7 @@ Leia somente os documentos necessários ao escopo da tarefa.
 | [frontend.md](frontend.md) | Padrões de cadastros, ações por ícones, busca/debounce e formulários/feedback | Implementação ou revisão do frontend |
 | [paginacao.md](paginacao.md) | Contratos paginados, filtros, ordenação e índices | Listagens de Vendas, Clientes, Produtos, financeiro e Estoque |
 | [roadmap.md](roadmap.md) | Sequência de evolução e dependências | Escolha das próximas tarefas |
+| [Producao / Cloud Run](../deploy/producao.md) | Perfil prod, secrets, probes, banco e checklist | Preparacao de deploy e publicacao |
 | [Auditorias](../audits/) | Evidências históricas e diagnósticos | Investigação de um achado específico |
 
 Os documentos devem distinguir comportamento implementado de arquitetura alvo. Um item descrito no roadmap ou na arquitetura alvo não comprova implementação.

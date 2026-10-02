@@ -28,6 +28,10 @@ public class SecurityConfig {
                 .httpBasic(basic -> basic.disable())
                 .logout(logout -> logout.disable())
                 .requestCache(cache -> cache.disable())
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'none'; frame-ancestors 'none'; base-uri 'none'"))
+                        .referrerPolicy(referrer -> referrer.policy(
+                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint(errorHandler)
                         .accessDeniedHandler(errorHandler))
@@ -35,6 +39,8 @@ public class SecurityConfig {
                         // Preserva o status original no despacho interno de erro do servlet.
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/liveness",
+                                "/actuator/health/readiness").permitAll()
                         .requestMatchers(HttpMethod.POST, "/financeiro/formas-pagamento", "/financeiro/formas-pagamento/**").denyAll()
                         .requestMatchers(HttpMethod.PUT, "/financeiro/formas-pagamento", "/financeiro/formas-pagamento/**").denyAll()
                         .requestMatchers("/usuarios", "/usuarios/**").hasRole("ADMIN")
