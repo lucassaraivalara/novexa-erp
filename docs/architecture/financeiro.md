@@ -14,13 +14,14 @@ V31 adiciona colunas nullable com CHECKs; sem alterar migrations anteriores, val
 
 POST /financeiro/recebiveis/{id}/liquidar permanece sem body, ADMIN/GERENTE, com locks operador -> Venda -> Pagamento -> Recebivel -> ContaFinanceira e UNIQUE do movimento. Credita somente valorLiquidoPrevisto; cancelamento reverte o valor original creditado e preserva auditoria, idempotencia e rollback por saldo insuficiente. Configuracao atual nunca muda destino, taxa, prazo, liquido ou data de venda anterior. Exemplo: R$100, 3%, 30 dias -> R$3 taxas, R$97 liquido; com R$0,50 fixa -> R$3,50 taxas e R$96,50 liquido.
 
-### Contrato para frontend (aditivo, sem implementacao nesta tarefa)
+### Contrato para frontend (implementado)
 
 - POST/PUT /financeiro/configuracoes-formas-pagamento: taxaPercentual decimal 0..100, ate quatro casas; taxaFixa decimal >=0, ate duas casas; prazoRecebimentoDias inteiro >=0. Exclusivos de DEBITO/CREDITO. Na criacao, omissao/NULL usa zero para compatibilidade; na edicao preserva vigente. Enviar explicitamente 0 para zerar. Destino financeiro continua obrigatorio conforme regras do 5B.
 - Resposta da configuracao adiciona os mesmos tres campos (NULL quando desconhecidos no legado ou nao aplicaveis).
 - Pagamento adiciona taxaPercentualSnapshot, taxaFixaSnapshot, prazoRecebimentoDiasSnapshot.
 - GET /financeiro/recebiveis e POST /financeiro/recebiveis/{id}/liquidar adicionam taxaPercentualSnapshot, taxaFixaSnapshot, valorTaxasPrevisto, prazoRecebimentoDiasSnapshot; preservam valorBruto, valorLiquidoPrevisto, dataPrevistaRecebimento e toda paginacao existente. Snapshots historicos desconhecidos retornam NULL.
-- Sem frontend, parcelamento real, antecipacao, conciliacao, prazo por dias uteis, PSP, taxas por bandeira, parcial ou lote.
+- O formulario frontend exibe e envia os tres campos somente para DEBITO/CREDITO. Novas configuracoes iniciam com zero; valores nulos de configuracoes antigas permanecem em branco e campos nao informados sao omitidos. Recebiveis exibe bruto, taxas, liquido e data diretamente dos snapshots/valores retornados; confirmacao usa valorLiquidoPrevisto sem recalculo.
+- Fora do 5C: parcelamento real, antecipacao, conciliacao, prazo por dias uteis, PSP, taxas por bandeira, liquidacao parcial ou em lote.
 
 ## Bloco 5B: liquidacao backend de cartao
 

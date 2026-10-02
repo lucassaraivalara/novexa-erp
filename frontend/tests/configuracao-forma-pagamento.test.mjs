@@ -51,6 +51,9 @@ test("service de configuração de pagamento envia payload correto e trata respo
                         : null,
                     dataCriacao: "2026-09-30T10:00:00",
                     dataAtualizacao: "2026-09-30T10:00:00",
+                    taxaPercentual: JSON.parse(config.data).taxaPercentual ?? null,
+                    taxaFixa: JSON.parse(config.data).taxaFixa ?? null,
+                    prazoRecebimentoDias: JSON.parse(config.data).prazoRecebimentoDias ?? null,
                 },
                 status: 201,
                 statusText: "Created",
@@ -82,4 +85,7 @@ test("service de configuração de pagamento envia payload correto e trata respo
     assert.ok(resposta.contaFinanceiraDestino?.ativo === true);
     assert.ok("dataCriacao" in resposta);
     assert.ok("dataAtualizacao" in resposta);
+    assert.equal(resposta.taxaPercentual, null);
+    assert.equal(resposta.taxaFixa, null);
+    assert.equal(resposta.prazoRecebimentoDias, null);
 });

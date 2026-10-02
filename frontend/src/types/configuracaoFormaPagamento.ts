@@ -27,6 +27,9 @@ export type ConfiguracaoFormaPagamento = {
     contaFinanceiraDestino: ContaFinanceiraDestinoResumo | null;
     dataCriacao: string;
     dataAtualizacao: string;
+    taxaPercentual: number | null;
+    taxaFixa: number | null;
+    prazoRecebimentoDias: number | null;
 };
 
 export type ConfiguracaoFormaPagamentoInput = {
@@ -34,6 +37,9 @@ export type ConfiguracaoFormaPagamentoInput = {
     formaPagamentoId: number;
     ativo: boolean;
     contaFinanceiraDestinoId?: number | null;
+    taxaPercentual?: number | null;
+    taxaFixa?: number | null;
+    prazoRecebimentoDias?: number | null;
 };
 
 export type FormaPagamentoCatalogo = {

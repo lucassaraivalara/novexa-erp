@@ -13,6 +13,7 @@ import { podeExecutarAcaoGerencial } from "../../utils/auth/perfis";
 import { obterSessao } from "../../utils/auth/sessao";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const percentual = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 });
 const tipos: Record<TipoRecebivel, string> = { DEBITO: "Débito", CREDITO: "Crédito" };
 const statusLabels: Record<StatusRecebivel, string> = {
     PENDENTE: "Pendente",
@@ -128,7 +129,9 @@ export default function Recebiveis() {
             render: (_, item) => `${item.numeroParcela}/${item.totalParcelas}` },
         { campo: "valorBruto", cabecalho: "Valor bruto", largura: 130, alinhar: "right", ordenavel: true,
             render: (_, item) => moeda.format(item.valorBruto) },
-        { campo: "valorLiquidoPrevisto", cabecalho: "Líquido previsto", largura: 145, alinhar: "right",
+        { campo: "valorTaxasPrevisto", cabecalho: "Taxas previstas", largura: 135, alinhar: "right",
+            render: (_, item) => item.valorTaxasPrevisto === null ? "—" : moeda.format(item.valorTaxasPrevisto) },
+        { campo: "valorLiquidoPrevisto", cabecalho: "Valor líquido previsto", largura: 155, alinhar: "right",
             render: (_, item) => item.valorLiquidoPrevisto === null ? "—" : moeda.format(item.valorLiquidoPrevisto) },
         { campo: "dataPrevistaRecebimento", cabecalho: "Previsão", largura: 120, ordenavel: true,
             render: (_, item) => formatarData(item.dataPrevistaRecebimento) },
@@ -200,8 +203,18 @@ export default function Recebiveis() {
                 <DialogTitle id="liquidar-recebivel-titulo">Liquidar recebível?</DialogTitle>
                 <DialogContent><Stack spacing={1.5} sx={{ pt: 0.5 }}>
                     <Typography variant="body2">Venda: #{confirmacao?.vendaId}</Typography>
-                    <Typography variant="body2">Valor: {confirmacao?.valorLiquidoPrevisto === null || !confirmacao
+                    <Typography variant="body2">Valor bruto: {confirmacao ? moeda.format(confirmacao.valorBruto) : "—"}</Typography>
+                    <Typography variant="body2">Taxa percentual: {confirmacao?.taxaPercentualSnapshot == null
+                        ? "—" : `${percentual.format(confirmacao.taxaPercentualSnapshot)}%`}</Typography>
+                    <Typography variant="body2">Taxa fixa: {confirmacao?.taxaFixaSnapshot == null
+                        ? "—" : moeda.format(confirmacao.taxaFixaSnapshot)}</Typography>
+                    <Typography variant="body2">Taxas previstas: {confirmacao?.valorTaxasPrevisto == null
+                        ? "—" : moeda.format(confirmacao.valorTaxasPrevisto)}</Typography>
+                    <Typography variant="body2">Prazo de recebimento: {confirmacao?.prazoRecebimentoDiasSnapshot == null
+                        ? "—" : `${confirmacao.prazoRecebimentoDiasSnapshot} dias`}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>Valor a creditar: {confirmacao?.valorLiquidoPrevisto == null
                         ? "—" : moeda.format(confirmacao.valorLiquidoPrevisto)}</Typography>
+                    <Typography variant="body2">Data prevista: {formatarData(confirmacao?.dataPrevistaRecebimento ?? null)}</Typography>
                     <Typography variant="body2">Forma: {formaConfirmacao}{confirmacao?.configuracaoNomeExibicao
                         ? ` · ${confirmacao.configuracaoNomeExibicao}` : ""}</Typography>
                     <Typography variant="body2" color="text.secondary">

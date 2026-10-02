@@ -24,17 +24,21 @@ createRoot(document.getElementById('root')).render(
 
 const recebiveisBase = [
     { id: 1, vendaId: 123, pagamentoId: 501, tipo: "CREDITO", numeroParcela: 1, totalParcelas: 1,
-        valorBruto: 150, valorLiquidoPrevisto: 150, dataVenda: "2026-10-01T12:00:00", dataPrevistaRecebimento: null,
+        valorBruto: 100, valorLiquidoPrevisto: 96.5, taxaPercentualSnapshot: 3, taxaFixaSnapshot: 0.5,
+        valorTaxasPrevisto: 3.5, prazoRecebimentoDiasSnapshot: 30,
+        dataVenda: "2026-09-30T12:00:00", dataPrevistaRecebimento: "2026-10-30",
         status: "PENDENTE", configuracaoNomeExibicao: "Crédito Loja", valorLiquidoRecebido: null,
         dataLiquidacao: null, usuarioLiquidacaoId: null, dataCancelamento: null, usuarioCancelamentoId: null,
         movimentacaoFinanceiraId: null },
     { id: 2, vendaId: 124, pagamentoId: 502, tipo: "DEBITO", numeroParcela: 1, totalParcelas: 1,
         valorBruto: 75.5, valorLiquidoPrevisto: 75.5, dataVenda: "2026-09-30T12:00:00", dataPrevistaRecebimento: "2026-10-02",
+        taxaPercentualSnapshot: null, taxaFixaSnapshot: null, valorTaxasPrevisto: null, prazoRecebimentoDiasSnapshot: null,
         status: "LIQUIDADO", configuracaoNomeExibicao: "Débito Loja", valorLiquidoRecebido: 75.5,
         dataLiquidacao: "2026-10-01T13:00:00", usuarioLiquidacaoId: 8, dataCancelamento: null,
         usuarioCancelamentoId: null, movimentacaoFinanceiraId: 901 },
     { id: 3, vendaId: 125, pagamentoId: 503, tipo: "CREDITO", numeroParcela: 1, totalParcelas: 1,
-        valorBruto: 30, valorLiquidoPrevisto: 30, dataVenda: "2026-09-29T12:00:00", dataPrevistaRecebimento: "2026-10-05",
+        valorBruto: 30, valorLiquidoPrevisto: 30, dataVenda: "2026-09-29T12:00:00", dataPrevistaRecebimento: null,
+        taxaPercentualSnapshot: null, taxaFixaSnapshot: null, valorTaxasPrevisto: null, prazoRecebimentoDiasSnapshot: null,
         status: "CANCELADO", configuracaoNomeExibicao: null, valorLiquidoRecebido: null,
         dataLiquidacao: null, usuarioLiquidacaoId: null, dataCancelamento: "2026-09-30T13:00:00",
         usuarioCancelamentoId: 8, movimentacaoFinanceiraId: null },
@@ -259,6 +263,22 @@ test("ADMIN vê Liquidar em PENDENTE e não vê a ação em LIQUIDADO/CANCELADO"
     assert.equal(await page.getByRole("button", { name: "Liquidar recebível #3" }).count(), 0);
 }, { rows: recebiveisBase, perfil: "ADMIN" }));
 
+test("Recebíveis exibem valores previstos do backend e mantêm legado sem snapshots", () => comTela(async (page) => {
+    const venda = page.getByRole("row").filter({ hasText: "#123" });
+    const textoVenda = (await venda.innerText()).replace(/\u00a0/g, " ").replace(/\s+/g, " ");
+    assert.match(textoVenda, /R\$ 100,00/);
+    assert.match(textoVenda, /R\$ 3,50/);
+    assert.match(textoVenda, /R\$ 96,50/);
+    assert.match(textoVenda, /30\/10\/2026/);
+
+    const legado = page.getByRole("row").filter({ hasText: "#125" });
+    assert.ok(await legado.getByText("—", { exact: true }).count() >= 3);
+    const fonte = await readFile(new URL("../src/pages/Financeiro/Recebiveis.tsx", import.meta.url), "utf8");
+    assert.match(fonte, /moeda\.format\(item\.valorTaxasPrevisto\)/);
+    assert.match(fonte, /moeda\.format\(item\.valorLiquidoPrevisto\)/);
+    assert.doesNotMatch(fonte, /valorBruto\s*-\s*(?:item\.)?(?:valorTaxasPrevisto|taxas)/);
+}, { rows: recebiveisBase }));
+
 test("GERENTE vê Liquidar para recebível PENDENTE", () => comTela(async (page) => {
     await page.getByText("Pendente", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Liquidar recebível #1" }).count(), 1);
@@ -277,7 +297,14 @@ test("confirmação liquida sem payload, recarrega a lista e remove a ação ap�
     await page.getByRole("button", { name: "Liquidar recebível #1" }).click();
     const dialog = page.getByRole("dialog", { name: "Liquidar recebível?" });
     await dialog.getByText("Venda: #123").waitFor();
-    await dialog.getByText("Valor: R$ 150,00").waitFor();
+    const textoConfirmacao = (await dialog.innerText()).replace(/\u00a0/g, " ").replace(/\s+/g, " ");
+    assert.match(textoConfirmacao, /Valor bruto: R\$ 100,00/);
+    assert.match(textoConfirmacao, /Taxa percentual: 3%/);
+    assert.match(textoConfirmacao, /Taxa fixa: R\$ 0,50/);
+    assert.match(textoConfirmacao, /Taxas previstas: R\$ 3,50/);
+    assert.match(textoConfirmacao, /Prazo de recebimento: 30 dias/);
+    assert.match(textoConfirmacao, /Valor a creditar: R\$ 96,50/);
+    assert.match(textoConfirmacao, /Data prevista: 30\/10\/2026/);
     await dialog.getByText("Forma: Crédito · Crédito Loja").waitFor();
     await dialog.getByText(/snapshot histórico do Pagamento/).waitFor();
 

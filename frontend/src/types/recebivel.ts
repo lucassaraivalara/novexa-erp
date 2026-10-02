@@ -12,6 +12,10 @@ export type Recebivel = {
     totalParcelas: number;
     valorBruto: number;
     valorLiquidoPrevisto: number | null;
+    taxaPercentualSnapshot: number | null;
+    taxaFixaSnapshot: number | null;
+    valorTaxasPrevisto: number | null;
+    prazoRecebimentoDiasSnapshot: number | null;
     dataVenda: string;
     dataPrevistaRecebimento: string | null;
     status: StatusRecebivel;

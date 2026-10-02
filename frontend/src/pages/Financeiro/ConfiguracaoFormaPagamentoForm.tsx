@@ -23,6 +23,15 @@ const tiposCatalogo: FormaPagamentoCatalogo[] = [
     { id: 6, tipo: "TRANSFERENCIA", descricao: "Transferência" },
 ];
 
+const ehTipoCartao = (id: number) => {
+    const tipo = tiposCatalogo.find((item) => item.id === id)?.tipo;
+    return tipo === "DEBITO" || tipo === "CREDITO";
+};
+
+const numeroOpcional = () => yup.number().transform((valor, original) =>
+    original === "" || original === null || original === undefined || Number.isNaN(valor) ? null : valor,
+).nullable();
+
 const criarSchema = (legadaSemDestino: boolean) => yup.object({
     nomeExibicao: yup.string().trim().required("O nome de exibição é obrigatório.").max(150, "O nome deve ter no máximo 150 caracteres."),
     formaPagamentoId: yup.number().required("O tipo é obrigatório.").oneOf(tiposCatalogo.map((t) => t.id)),
@@ -34,6 +43,20 @@ const criarSchema = (legadaSemDestino: boolean) => yup.object({
             ) && !(legadaSemDestino && !ativo),
             then: (campo) => campo.required("A conta financeira de destino é obrigatória para este tipo."),
         }),
+    taxaPercentual: numeroOpcional().when("formaPagamentoId", {
+        is: ehTipoCartao,
+        then: (campo) => campo.min(0, "A taxa percentual não pode ser negativa.")
+            .max(100, "A taxa percentual não pode ultrapassar 100%.").typeError("Informe uma taxa percentual válida."),
+    }),
+    taxaFixa: numeroOpcional().when("formaPagamentoId", {
+        is: ehTipoCartao,
+        then: (campo) => campo.min(0, "A taxa fixa não pode ser negativa.").typeError("Informe uma taxa fixa válida."),
+    }),
+    prazoRecebimentoDias: numeroOpcional().when("formaPagamentoId", {
+        is: ehTipoCartao,
+        then: (campo) => campo.integer("O prazo deve ser um número inteiro.")
+            .min(0, "O prazo não pode ser negativo.").typeError("Informe um prazo válido."),
+    }),
 });
 
 type ConfiguracaoFormaPagamentoFormProps = {
@@ -52,13 +75,15 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
 
     const { register, handleSubmit, reset, control, watch, setValue, formState: { errors } } = useForm<ConfiguracaoFormaPagamentoInput>({
         resolver: yupResolver(criarSchema(legadaSemDestino)),
-        defaultValues: { nomeExibicao: "", formaPagamentoId: 1, ativo: true, contaFinanceiraDestinoId: null },
+        defaultValues: { nomeExibicao: "", formaPagamentoId: 1, ativo: true, contaFinanceiraDestinoId: null,
+            taxaPercentual: 0, taxaFixa: 0, prazoRecebimentoDias: 0 },
         mode: "onBlur",
     });
 
     const formaPagamentoIdSelecionado = watch("formaPagamentoId");
     const tipoSelecionado = tiposCatalogo.find((t) => t.id === formaPagamentoIdSelecionado)?.tipo;
     const exigeContaDestino = tipoSelecionado ? tiposFormaPagamentoComContaDestino.includes(tipoSelecionado) : false;
+    const ehCartao = tipoSelecionado === "DEBITO" || tipoSelecionado === "CREDITO";
     const ativo = watch("ativo");
 
     useEffect(() => {
@@ -86,9 +111,13 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                 formaPagamentoId: formaCatalogo?.id ?? 1,
                 ativo: config.ativo,
                 contaFinanceiraDestinoId: config.contaFinanceiraDestino?.id ?? null,
+                taxaPercentual: config.taxaPercentual ?? null,
+                taxaFixa: config.taxaFixa ?? null,
+                prazoRecebimentoDias: config.prazoRecebimentoDias ?? null,
             });
         } else {
-            reset({ nomeExibicao: "", formaPagamentoId: 1, ativo: true, contaFinanceiraDestinoId: null });
+            reset({ nomeExibicao: "", formaPagamentoId: 1, ativo: true, contaFinanceiraDestinoId: null,
+                taxaPercentual: 0, taxaFixa: 0, prazoRecebimentoDias: 0 });
         }
     }, [config, reset]);
 
@@ -99,12 +128,18 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
         setSalvando(true);
         setErro("");
         try {
-            onSalvo(await salvarConfiguracaoFormaPagamento({
+            const payload: ConfiguracaoFormaPagamentoInput = {
                 nomeExibicao: dados.nomeExibicao,
                 formaPagamentoId: dados.formaPagamentoId,
                 ativo: dados.ativo,
                 contaFinanceiraDestinoId: exigeContaDestino ? dados.contaFinanceiraDestinoId ?? null : null,
-            }, config?.id));
+            };
+            if (ehCartao) {
+                if (dados.taxaPercentual != null) payload.taxaPercentual = dados.taxaPercentual;
+                if (dados.taxaFixa != null) payload.taxaFixa = dados.taxaFixa;
+                if (dados.prazoRecebimentoDias != null) payload.prazoRecebimentoDias = dados.prazoRecebimentoDias;
+            }
+            onSalvo(await salvarConfiguracaoFormaPagamento(payload, config?.id));
         } catch (e) {
             setErro(mensagemConfiguracaoFormaPagamento(e, "Não foi possível salvar a configuração."));
         } finally {
@@ -205,6 +240,29 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                                 {!carregandoContas && !erroContas && contasFiltradas.length === 0 && (
                                     <Alert severity="info">Nenhuma conta financeira ativa disponível. Cadastre uma Conta Financeira do tipo Banco ou Carteira digital para selecionar um novo destino.</Alert>
                                 )}
+                                {ehCartao && <>
+                                    <Controller name="taxaPercentual" control={control} render={({ field }) => (
+                                        <TextField {...field} value={field.value ?? ""}
+                                            onChange={(evento) => field.onChange(evento.target.value === "" ? null : Number(evento.target.value))}
+                                            fullWidth type="number" label="Taxa percentual (%)" error={!!errors.taxaPercentual}
+                                            helperText={errors.taxaPercentual?.message}
+                                            slotProps={{ htmlInput: { min: 0, max: 100, step: "0.0001" } }} />
+                                    )} />
+                                    <Controller name="taxaFixa" control={control} render={({ field }) => (
+                                        <TextField {...field} value={field.value ?? ""}
+                                            onChange={(evento) => field.onChange(evento.target.value === "" ? null : Number(evento.target.value))}
+                                            fullWidth type="number" label="Taxa fixa (R$)" error={!!errors.taxaFixa}
+                                            helperText={errors.taxaFixa?.message}
+                                            slotProps={{ htmlInput: { min: 0, step: "0.01" } }} />
+                                    )} />
+                                    <Controller name="prazoRecebimentoDias" control={control} render={({ field }) => (
+                                        <TextField {...field} value={field.value ?? ""}
+                                            onChange={(evento) => field.onChange(evento.target.value === "" ? null : Number(evento.target.value))}
+                                            fullWidth type="number" label="Prazo de recebimento (dias)" error={!!errors.prazoRecebimentoDias}
+                                            helperText={errors.prazoRecebimentoDias?.message}
+                                            slotProps={{ htmlInput: { min: 0, step: 1 } }} />
+                                    )} />
+                                </>}
                             </>
                         )}
 
