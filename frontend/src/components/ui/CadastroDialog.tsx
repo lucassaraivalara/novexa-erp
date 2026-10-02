@@ -22,6 +22,7 @@ type CadastroDialogProps = {
     descricao?: string;
     children: ReactNode;
     navegacao?: ReactNode;
+    acoesSecundarias?: ReactNode;
     salvando?: boolean;
     desabilitarSalvar?: boolean;
     textoSalvar?: string;
@@ -37,6 +38,7 @@ export default function CadastroDialog({
     descricao,
     children,
     navegacao,
+    acoesSecundarias,
     salvando = false,
     desabilitarSalvar = false,
     textoSalvar = "Salvar",
@@ -97,7 +99,8 @@ export default function CadastroDialog({
                 {children}
             </DialogContent>
 
-            <DialogActions sx={{ flex: "0 0 auto", gap: layoutTokens.spacing.sm, px: { xs: layoutTokens.spacing.lg, sm: layoutTokens.spacing.xxl }, py: layoutTokens.spacing.md, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
+            <DialogActions sx={{ flex: "0 0 auto", flexWrap: acoesSecundarias ? "wrap" : undefined, gap: layoutTokens.spacing.sm, px: { xs: layoutTokens.spacing.lg, sm: layoutTokens.spacing.xxl }, py: layoutTokens.spacing.md, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
+                {acoesSecundarias}
                 <Button onClick={onFechar} disabled={salvando}>{textoCancelar}</Button>
                 <Button type="submit" variant="contained" disableElevation disabled={salvando || desabilitarSalvar} aria-busy={salvando}
                     startIcon={salvando ? <CircularProgress size={16} color="inherit" /> : undefined}>

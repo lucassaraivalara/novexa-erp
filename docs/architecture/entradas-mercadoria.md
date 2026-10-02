@@ -1,4 +1,4 @@
-# Entrada de Mercadoria - backend manual
+# Entrada de Mercadoria - fluxo manual
 
 Dominio unico `EntradaMercadoriaEntity -> ItemEntradaMercadoriaEntity`, implementado na branch `feat/contas-pagar-integracao-backend`, sobre `039526f`. Origem possui MANUAL/XML; as APIs desta etapa sempre criam MANUAL. XML e apenas capacidade do modelo, sem parser/upload/endpoint de importacao.
 
@@ -48,6 +48,14 @@ V34 aditiva cria entradas_mercadoria e itens_entrada_mercadoria, sem alterar V1.
 
 Nota identificada e unica por empresa/fornecedor/numero/serie, com serie null equivalente a vazia; inclui rascunhos e canceladas para preservar identificacao historica. Numero igual em outro fornecedor/tenant e permitido; multiplas entradas sem numero/chave sao permitidas. Chave NF-e e unica por empresa quando preenchida. IDs de movimentos originais/inversos sao unicos por item. CHECKs validam valores, quantidade, status/origem, chave e auditoria. Indices de empresa/data/id e empresa/fornecedor atendem listagem e referencia; nao ha pg_trgm nem tuning especulativo.
 
+## Frontend manual
+
+Disponivel nas abas Saldo/Entradas da tela Estoque existente, sem nova rota ou item de menu. Listagem administrativa paginada usa termo, status, fornecedorId, periodo e sort no backend. FornecedorAutocomplete/FornecedorForm rapido sao reutilizados; cadastro rapido retorna o fornecedor ja selecionado. Produto usa /produtos/buscar com useRemoteSearch somente para termos de pelo menos dois caracteres, evitando carregar o catalogo completo.
+
+Formulario permite salvar RASCUNHO ou revisar e confirmar (POST de criacao seguido de POST de confirmacao pelo ID, ou PUT de rascunho existente). Origem MANUAL e definida pelo backend, nao enviada pelo frontend. Payload nao envia tenant, estoque ou totais; total local e apenas preview. Falha de confirmacao mantem o ID conhecido e o rascunho para nova tentativa, com reconciliacao do detalhe. Confirmadas/canceladas sao somente leitura; cancelar exige confirmacao e recarrega dados canonicos. CadastroDialog ganhou apenas uma acao secundaria opcional; consumidores anteriores preservam comportamento.
+
+Validacao frontend direcionada usa navegador real com respostas HTTP simuladas, incluindo mobile, sem E2E geral ou homologacao com banco/backend nesta etapa.
+
 ## Fora desta etapa
 
-Frontend, XML/preview/matching, ProdutoFornecedor, Pedido/Ordem de Compra, Cotacao, recebimento parcial, custo medio, tributacao e geracao automatica de Conta a Pagar nao foram implementados. Entrada nao altera Caixa, Contas Financeiras, PIX, Recebiveis ou Transferencias.
+XML/preview/matching, ProdutoFornecedor, Pedido/Ordem de Compra, Cotacao, recebimento parcial, custo medio, tributacao e geracao automatica de Conta a Pagar nao foram implementados. Entrada nao altera Caixa, Contas Financeiras, PIX, Recebiveis ou Transferencias.

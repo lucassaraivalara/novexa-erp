@@ -5,7 +5,7 @@ import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import { useEffect, useState } from "react";
 import {
     Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-    Divider, MenuItem, Stack, TablePagination, TextField, Typography,
+    Divider, MenuItem, Stack, Tab, Tabs, TablePagination, TextField, Typography,
 } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
@@ -18,6 +18,7 @@ import {
     type TipoMovimentacaoEstoque,
 } from "../../services/estoqueService";
 import { novoSaldoEsperado, situacaoEstoque, type SituacaoEstoque } from "./estoqueRegras";
+import EntradasMercadoria from "./EntradasMercadoria";
 
 const quantidadeFormatada = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
 const dataFormatada = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -40,6 +41,17 @@ function codigoProduto(produto: Produto): string {
 }
 
 export default function Estoque() {
+    const [aba, setAba] = useState<"saldo" | "entradas">("saldo");
+    return <Stack spacing={2}>
+        <Tabs value={aba} onChange={(_, valor) => setAba(valor)} aria-label="Área de estoque"
+            sx={{ borderBottom: 1, borderColor: "divider" }}>
+            <Tab value="saldo" label="Saldo" /><Tab value="entradas" label="Entradas" />
+        </Tabs>
+        {aba === "saldo" ? <SaldoEstoque /> : <EntradasMercadoria />}
+    </Stack>;
+}
+
+function SaldoEstoque() {
     const [produtos, setProdutos] = useState<Produto[]>([]);
     const [busca, setBusca] = useState("");
     const [campoBusca, setCampoBusca] = useState<CampoBuscaEstoque | null>(null);
