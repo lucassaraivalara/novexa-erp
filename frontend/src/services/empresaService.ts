@@ -1,6 +1,11 @@
 import axios from "axios";
 import api from "./api";
 import type { CoordenadaEmpresa, EmpresaCompleta, EmpresaInput, EmpresaResumo } from "../types/empresa";
+import type { PaginaResponse } from "../types/paginacao";
+
+export type FiltrosEmpresa = { page?: number; size?: number; sort?: string; termo?: string; ativo?: boolean };
+export const listarEmpresasPaginado = async (params: FiltrosEmpresa = {}, signal?: AbortSignal) =>
+    (await api.get<PaginaResponse<EmpresaResumo>>("/empresas/pagina", { params, signal })).data;
 
 export const listarEmpresas = async (signal?: AbortSignal) =>
     (await api.get<EmpresaResumo[]>("/empresas", { signal })).data;

@@ -28,6 +28,8 @@ export type ContaFinanceira = {
 
 export type ContaFinanceiraInput = { nome: string; tipo: TipoContaFinanceira; saldoInicial?: number; contaBancariaId: number | null };
 
+export type ContaFinanceiraResumo = { tipo: TipoContaFinanceira; quantidade: number; saldoAtual: number };
+
 export type MovimentacaoFinanceira = {
     transferenciaId: number | null;
     contaContraparteNome: string | null;

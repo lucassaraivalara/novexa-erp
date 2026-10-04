@@ -21,6 +21,23 @@ public class ContaFinanceiraController {
         return service.listarContas(usuario.empresaId());
     }
 
+    @GetMapping("/pagina")
+    public PaginaResponseDTO<ContaFinanceiraResponseDTO> listarPagina(
+            @AuthenticationPrincipal UsuarioAutenticado usuario,
+            @RequestParam(required = false) String termo,
+            @RequestParam(required = false) Boolean ativo,
+            @RequestParam(required = false) br.com.novexa.erp.entity.TipoContaFinanceira tipo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "nome,asc") String sort) {
+        return service.listarContasPagina(usuario.empresaId(), termo, ativo, tipo, page, size, sort);
+    }
+
+    @GetMapping("/resumo")
+    public List<ContaFinanceiraResumoDTO> resumo(@AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return service.resumirContas(usuario.empresaId());
+    }
+
     @PostMapping
     public ResponseEntity<ContaFinanceiraResponseDTO> criar(@Valid @RequestBody ContaFinanceiraCriacaoDTO pedido,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {

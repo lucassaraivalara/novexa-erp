@@ -44,6 +44,19 @@ public class ContaFinanceiraService {
         return contas.findByEmpresaIdOrderByNomeAscIdAsc(empresaId).stream().map(ContaFinanceiraResponseDTO::de).toList();
     }
 
+    public PaginaResponseDTO<ContaFinanceiraResponseDTO> listarContasPagina(Long empresaId, String termo,
+            Boolean ativo, TipoContaFinanceira tipo, int page, int size, String sort) {
+        var pageable = br.com.novexa.erp.util.Paginacao.criar(page, size, sort,
+                java.util.Set.of("id", "nome", "tipo", "saldoAtual", "ativo", "dataCriacao"),
+                org.springframework.data.domain.Sort.Direction.ASC);
+        return PaginaResponseDTO.de(contas.listarPagina(empresaId, opcional(termo), ativo, tipo, pageable),
+                ContaFinanceiraResponseDTO::de);
+    }
+
+    public List<ContaFinanceiraResumoDTO> resumirContas(Long empresaId) {
+        return contas.resumir(empresaId);
+    }
+
     @Transactional
     public ContaFinanceiraResponseDTO criarConta(Long empresaId, Long usuarioId, ContaFinanceiraCriacaoDTO pedido) {
         var empresa = empresas.findById(empresaId).orElseThrow(() ->

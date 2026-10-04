@@ -7,6 +7,15 @@ import org.springframework.data.repository.query.Param;
 
 public interface EmpresaRepository extends JpaRepository<EmpresaEntity, Long> {
 
+    @Query("select e from EmpresaEntity e where e.id = :empresaId " +
+            "and (:ativo is null or e.ativo = :ativo) " +
+            "and (:termo is null or lower(e.razaoSocial) like lower(concat('%', :termo, '%')) " +
+            "or lower(e.nomeFantasia) like lower(concat('%', :termo, '%')) " +
+            "or lower(replace(replace(replace(replace(e.cnpj, '.', ''), '/', ''), '-', ''), ' ', '')) " +
+            "like lower(concat('%', :documento, '%')))")
+    org.springframework.data.domain.Page<EmpresaEntity> listarPagina(Long empresaId, String termo,
+            String documento, Boolean ativo, org.springframework.data.domain.Pageable pageable);
+
     // Verifica se já existe uma empresa com o CNPJ informado.
     boolean existsByCnpj(String cnpj);
 

@@ -52,6 +52,17 @@ public class EmpresaService {
         return empresaRepository.findById(empresaId).stream().toList();
     }
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<EmpresaEntity> listarPagina(Long empresaId, String termo,
+            Boolean ativo, int page, int size, String sort) {
+        var pageable = br.com.novexa.erp.util.Paginacao.criar(page, size, sort,
+                java.util.Set.of("id", "razaoSocial", "nomeFantasia", "cnpj", "ativo"),
+                org.springframework.data.domain.Sort.Direction.ASC);
+        String busca = termo == null || termo.isBlank() ? null : termo.trim();
+        String documento = busca == null ? null : busca.replaceAll("[. /-]", "");
+        return empresaRepository.listarPagina(empresaId, busca, documento, ativo, pageable);
+    }
+
     public EmpresaEntity buscarPorId(Long id, Long empresaId) {
         if (!id.equals(empresaId)) {
             throw new EmpresaNotFoundException("Empresa não encontrada com o ID: " + id);

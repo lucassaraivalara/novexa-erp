@@ -5,13 +5,11 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type Coluna, type AcaoTabela } from "../../components/ui/AppTable";
-import { buscarEmpresa, listarEmpresas, mensagemEmpresa } from "../../services/empresaService";
+import { buscarEmpresa, listarEmpresasPaginado, mensagemEmpresa } from "../../services/empresaService";
 import type { EmpresaCompleta, EmpresaResumo } from "../../types/empresa";
 import EmpresaForm from "./EmpresaForm";
 import { regimes } from "./empresaFormulario";
 import { formatarDocumentoEmpresa } from "../../utils/validators/documentoEmpresa";
-
-const normalizar = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
 
 export default function Empresa() {
     const [empresas, setEmpresas] = useState<EmpresaResumo[]>([]);
@@ -22,6 +20,7 @@ export default function Empresa() {
     const [situacao, setSituacao] = useState("ativas");
     const [pagina, setPagina] = useState(0);
     const [porPagina, setPorPagina] = useState(10);
+    const [totalItems, setTotalItems] = useState(0);
     const [ordenacao, setOrdenacao] = useState<{ campo: string; direcao: "asc" | "desc" }>({ campo: "razaoSocial", direcao: "asc" });
     const [abrindo, setAbrindo] = useState<number | null>(null);
     const [editor, setEditor] = useState<{ empresa: EmpresaCompleta | null; aba: number } | null>(null);
@@ -30,19 +29,27 @@ export default function Empresa() {
 
     useEffect(() => {
         const controller = new AbortController();
-        listarEmpresas(controller.signal)
-            .then(setEmpresas)
-            .catch((e) => {
-                if (!controller.signal.aborted) setErro(mensagemEmpresa(e, "Não foi possível carregar as empresas."));
-            })
-            .finally(() => {
-                if (!controller.signal.aborted) setCarregando(false);
-            });
-        return () => {
-            controller.abort();
-            abertura.current?.abort();
-        };
-    }, [tentativa]);
+        const timer = setTimeout(() => {
+            setCarregando(true);
+            let ajustandoPagina = false;
+            listarEmpresasPaginado({ page: pagina, size: porPagina, sort: `${ordenacao.campo},${ordenacao.direcao}`,
+                termo: busca.trim() || undefined, ativo: situacao === "todas" ? undefined : situacao === "ativas" }, controller.signal)
+                .then((resposta) => {
+                    if (controller.signal.aborted) return;
+                    setEmpresas(resposta.items); setTotalItems(resposta.totalItems); setErro("");
+                    setPorPagina(resposta.size);
+                    if (resposta.page > 0 && !resposta.items.length) {
+                        ajustandoPagina = true;
+                        setPagina(Math.max(0, resposta.totalPages - 1));
+                    } else setPagina(resposta.page);
+                })
+                .catch((e) => { if (!controller.signal.aborted) setErro(mensagemEmpresa(e, "Não foi possível carregar as empresas.")); })
+                .finally(() => { if (!controller.signal.aborted && !ajustandoPagina) setCarregando(false); });
+        }, busca.trim() ? 350 : 0);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [tentativa, pagina, porPagina, ordenacao, busca, situacao]);
+
+    useEffect(() => () => abertura.current?.abort(), []);
 
     async function editar(id: number, aba = 0) {
         abertura.current?.abort();
@@ -60,19 +67,12 @@ export default function Empresa() {
         }
     }
 
-    function salvo(empresa: EmpresaCompleta) {
-        setEmpresas((atuais) => atuais.some((e) => e.id === empresa.id) ? atuais.map((e) => (e.id === empresa.id ? empresa : e)) : [...atuais, empresa]);
+    function salvo() {
+        setCarregando(true);
+        setTentativa((t) => t + 1);
         setEditor(null);
         setSucesso(true);
     }
-
-    const termo = normalizar(busca);
-    const filtradas = empresas.filter(
-        (e) =>
-            (!termo || normalizar(e.razaoSocial).includes(termo) || normalizar(e.cnpj).includes(termo)) &&
-            (situacao === "todas" || e.ativo === (situacao === "ativas"))
-    );
-    const paginaAtual = Math.min(pagina, Math.max(0, Math.ceil(filtradas.length / porPagina) - 1));
 
     const renderFantasia = (valor: unknown): React.ReactNode => String(valor ?? "—");
     const renderCnpj = (valor: unknown): React.ReactNode => <span style={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{formatarDocumentoEmpresa(String(valor), String(valor).replace(/\D/g, "").length === 11)}</span>;
@@ -124,7 +124,7 @@ export default function Empresa() {
 
             <AppTable
                 colunas={colunas}
-                linhas={filtradas}
+                linhas={empresas}
                 carregando={carregando}
                 obterChaveLinha={(e) => e.id}
                 busca={{
@@ -147,11 +147,15 @@ export default function Empresa() {
                     descricao: erro ? "Listagem indisponível." : "Cadastre uma nova empresa para começar.",
                 }}
                 acoes={acoes}
-                ordenacao={{ campo: ordenacao.campo, direcao: ordenacao.direcao, onSort: (campo) => setOrdenacao((atual) => ({ campo, direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc" })) }}
+                ordenacaoRemota
+                ordenacao={{ campo: ordenacao.campo, direcao: ordenacao.direcao, onSort: (campo) => {
+                    setPagina(0);
+                    setOrdenacao((atual) => ({ campo, direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc" }));
+                } }}
                 paginacao={{
-                    pagina: paginaAtual,
+                    pagina,
                     linhasPorPagina: porPagina,
-                    total: filtradas.length,
+                    total: totalItems,
                     onPageChange: setPagina,
                     onRowsPerPageChange: (linhas: number) => { setPorPagina(linhas); setPagina(0); },
                     opcoesLinhasPorPagina: [10, 25, 50],

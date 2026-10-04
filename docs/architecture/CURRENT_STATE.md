@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Listagens administrativas — Empresa e Contas Financeiras
+
+Na branch feat/contas-pagar-integracao-backend, ambas as telas usam PaginaResponse e filtros/paginacao/ordenacao server-side, sem carregar o universo para consulta administrativa. Consultas aditivas /empresas/pagina e /financeiro/contas-financeiras/pagina preservam listas simples e tenant do JWT; Empresa continua restrita a propria empresa. Cards financeiros mantem saldos globais pelo resumo agregado por tipo (incluindo inativas/legados), nunca pela pagina. Seletor de transferencia preservado sob demanda. ContaPagar frontend declara movimentacaoFinanceiraId opcional ja retornado pela API. Sem migration, redesign ou mudanca financeira. Contratos em [paginacao.md](paginacao.md).
+
+Validacao: 39 testes HTTP backend/H2 e 27 frontend direcionados aprovados; package backend, build/TypeScript, lint direcionado e diff check. Navegador com HTTP simulado; sem PostgreSQL, suite completa ou E2E geral neste ajuste.
+
 ## Estoque: Entrada de Mercadoria manual backend (2026-10-02)
 
 Entrada manual implementada sobre 039526f, na branch feat/contas-pagar-integracao-backend: dominio unico Entrada/Itens, RASCUNHO editavel sem efeito, confirmacao atomica ENTRADA/COMPRA, cancelamento atomico SAIDA/CANCELAMENTO e historico preservado. Fornecedor obrigatorio, ativo e do tenant; produtos ativos com controle de estoque. Quantidades/custos/totais calculados e validados no backend, ultimo precoCusto atualizado somente na confirmacao. Locks de Entrada e Produtos por ID crescente; retries e rollback integral. Listagem/filtros/ordenacao/paginacao no banco, tenant do JWT. V34 aditiva com FKs tenant-safe, unicidade de nota/chave NF-e e auditoria.

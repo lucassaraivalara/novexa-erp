@@ -8,6 +8,8 @@ Implementacao na branch `feat/contas-pagar-integracao-backend`, sobre `4d84785`,
 
 | GET | Filtros | Allowlist sort | Default; desempate |
 |---|---|---|---|
+| `/empresas/pagina` | termo (razao social, fantasia, documento), ativo | id, razaoSocial, nomeFantasia, cnpj, ativo | razaoSocial,asc; id,asc |
+| `/financeiro/contas-financeiras/pagina` | termo (nome/tipo), ativo, tipo | id, nome, tipo, saldoAtual, ativo, dataCriacao | nome,asc; id,asc |
 | `/vendas` | status, dataInicial, dataFinal, clienteId | id, dataHora, total, status | dataHora,desc; id,desc |
 | `/clientes` | situacao, busca, campoBusca | id, nome, nomeFantasia, cpfCnpj, cidadeUf, telefone, ativo | nome,asc; id,asc |
 | `/produtos` | busca, campoBusca, situacao, situacaoEstoque | id, codigoInterno, nome, precoVenda, estoqueAtual, estoqueMinimo, ativo | nome,asc; id,asc |
@@ -30,13 +32,18 @@ Dashboard pede cinco vendas. Caixa usa `/vendas/por-sessao/{sessaoId}`, tenant +
 
 `/produtos/buscar?termo=...` permanece List para PDV/autocomplete, inclusive termo vazio. `/clientes/opcoes` permanece List para seletores. useRemoteSearch trabalha com arrays; os efeitos paginados mantem o envelope e debounce/cancelamento na propria tela.
 
+Empresa e Contas Financeiras usam os endpoints administrativos `/pagina`, items/totalItems e AppTable.ordenacaoRemota. Busca tem debounce de 350 ms e cancelamento; filtro/sort/tamanho retornam a pagina zero, mutations recarregam e pagina esvaziada volta a ultima valida. Empresa continua consultando somente o ID da empresa do JWT (nao e um catalogo multiempresa). O backend anterior mantinha apenas List; a consulta paginada e aditiva, sem ampliar acesso. Documento informado com mascara e pesquisado sem pontuacao.
+
+As listas simples `/empresas` e `/financeiro/contas-financeiras` permanecem compativeis. Contas a Pagar e configuracoes mantem seus seletores; a tela administrativa carrega a lista simples somente ao abrir o seletor de transferencia, nao para listar/filtrar/paginar. `/financeiro/contas-financeiras/resumo` agrega por tipo `{tipo, quantidade, saldoAtual}` no banco, para o tenant inteiro, incluindo inativas e legados como antes, independente de pagina/busca. Cards combinam somente esses grupos; falha do resumo exibe indisponibilidade, nunca totais da pagina como globais. Sem mudanca em saldo, locks ou movimentos e sem migration.
+
 ## Cadastros secundarios
 
 | Classe | Recursos | Justificativa |
 |---|---|---|
 | A: agora | Fornecedores | Manutencao paginada; lookup /fornecedores/buscar separado e limitado. Contrato/compatibilidade em fornecedores.md |
 | B: pode esperar | Usuarios | Pode crescer; mantido List para evitar ampliar contratos nesta etapa |
-| C: continuar List | Contas Financeiras, Configuracoes de Pagamento, Contas Bancarias, Caixas, Agencias, Bancos, Formas de Pagamento | Baixo volume esperado e uso em seletores; nao paginar apenas por uniformidade |
+| A: agora | Empresa, Contas Financeiras (administracao) | Consulta paginada em /pagina; listas simples preservadas para compatibilidade/seletores |
+| C: continuar List | Configuracoes de Pagamento, Contas Bancarias, Caixas, Agencias, Bancos, Formas de Pagamento | Baixo volume esperado e uso em seletores; nao paginar apenas por uniformidade |
 
 ## Indices existentes
 
@@ -55,6 +62,8 @@ Conferidos nas migrations e aplicados no PostgreSQL descartavel. Nenhum indice/m
 Nao houve evidencia de plano/volume que justificasse indice novo. LIKE '%termo%' nao aproveita B-tree comum apenas por adicionar indice de nome. Avaliar EXPLAIN ANALYZE com dados representativos antes de ampliar indices.
 
 ## Validacao
+
+Alinhamento administrativo Empresa/Contas Financeiras: 39 testes HTTP backend (H2, queries reais), 27 testes frontend direcionados, package backend, build/TypeScript, lint direcionado e diff check. Testes de navegador usam HTTP simulado; verificam requests, ordem preservada, totais, pagina esvaziada, busca antiga cancelada, resumo global e destino de transferencia fora da pagina. Sem suite completa ou E2E geral; PostgreSQL nao executado neste ajuste sem migration. Evidencias abaixo pertencem ao bloco inicial de paginacao.
 
 PaginacaoHttpTest/PaginacaoPostgresTest verificam paginas 0/1, totais, filtros combinados, allowlists, parametros invalidos, tenant, desempate e cidade/UF. PostgreSQL usa schema UUID descartavel, Flyway ate V28 e Hibernate validate. `npx playwright test e2e/paginacao.spec.mjs` verifica UI/requests com HTTP simulado; consultas reais sao verificadas no PostgreSQL.
 

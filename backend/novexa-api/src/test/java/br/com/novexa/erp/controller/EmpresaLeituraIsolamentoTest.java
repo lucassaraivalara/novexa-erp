@@ -84,9 +84,50 @@ class EmpresaLeituraIsolamentoTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"/empresas", "/empresas/1"})
+    @ValueSource(strings = {"/empresas", "/empresas/1", "/empresas/pagina"})
     void leiturasExigemAutenticacao(String url) throws Exception {
         mvc.perform(get(url)).andExpect(status().isUnauthorized());
+    }
+
+    @org.junit.jupiter.api.Test
+    void paginaFiltraNoBancoSemAmpliarAcessoAoTenant() throws Exception {
+        mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization)
+                        .param("page", "0").param("size", "1").param("sort", "id,desc")
+                        .param("ativo", "true").param("termo", "empresa a")
+                        .param("empresaId", empresaB.getId().toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(empresaA.getId()))
+                .andExpect(jsonPath("$.totalItems").value(1)).andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.page").value(0)).andExpect(jsonPath("$.size").value(1));
+        mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization).param("page", "1").param("size", "1"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0))
+                .andExpect(jsonPath("$.totalItems").value(1));
+        for (var termo : new String[]{"Empresa B", "12345678000190"})
+            mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization).param("termo", termo))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(0));
+    }
+
+    @org.junit.jupiter.api.Test
+    void paginaBuscaDocumentoMascaradoFantasiaESituacao() throws Exception {
+        empresaA.setNomeFantasia("Loja Teste"); empresas.saveAndFlush(empresaA);
+        for (var termo : new String[]{"11.222.333/0001-81", "loja teste"})
+            mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization).param("termo", termo))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(1));
+        mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization).param("ativo", "false"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(0));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"cnpj,desc", "razaoSocial,asc", "nomeFantasia,desc", "ativo,asc"})
+    void paginaAceitaCamposPermitidos(String sort) throws Exception {
+        mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization).param("sort", sort))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(empresaA.getId()));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"cadastro.uf,asc", "razaoSocial,xxx", "id", "id,asc,desc"})
+    void paginaRejeitaOrdenacaoInvalida(String sort) throws Exception {
+        mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization).param("sort", sort))
+                .andExpect(status().isBadRequest());
     }
 
     private EmpresaEntity empresa(String nome, String cnpj) {

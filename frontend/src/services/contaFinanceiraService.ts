@@ -2,7 +2,8 @@ import axios from "axios";
 import api from "./api";
 import type { PaginaResponse } from "../types/paginacao";
 import type { ContaFinanceira, ContaFinanceiraInput, MovimentacaoFinanceira,
-    MovimentacaoFinanceiraInput, TransferenciaFinanceira, TransferenciaFinanceiraInput } from "../types/contaFinanceira";
+    MovimentacaoFinanceiraInput, TransferenciaFinanceira, TransferenciaFinanceiraInput,
+    ContaFinanceiraResumo, TipoContaFinanceira } from "../types/contaFinanceira";
 
 const contasUrl = "/financeiro/contas-financeiras";
 const movimentosUrl = "/financeiro/movimentacoes-financeiras";
@@ -23,6 +24,14 @@ export const estornarTransferenciaFinanceira = async (id: number, motivoEstorno:
 
 export const listarContasFinanceiras = async (signal?: AbortSignal) =>
     (await api.get<ContaFinanceira[]>(contasUrl, { signal })).data;
+
+export type FiltrosContaFinanceira = {
+    page?: number; size?: number; sort?: string; termo?: string; ativo?: boolean; tipo?: TipoContaFinanceira;
+};
+export const listarContasFinanceirasPaginado = async (params: FiltrosContaFinanceira = {}, signal?: AbortSignal) =>
+    (await api.get<PaginaResponse<ContaFinanceira>>(`${contasUrl}/pagina`, { params, signal })).data;
+export const resumirContasFinanceiras = async (signal?: AbortSignal) =>
+    (await api.get<ContaFinanceiraResumo[]>(`${contasUrl}/resumo`, { signal })).data;
 
 export const salvarContaFinanceira = async (dados: ContaFinanceiraInput, id?: number) =>
     (await api.request<ContaFinanceira>({ method: id ? "PUT" : "POST",

@@ -169,6 +169,19 @@ public class EmpresaController {
         return ResponseEntity.ok(responseDTO);
     }
 
+    @GetMapping("/pagina")
+    public br.com.novexa.erp.dto.PaginaResponseDTO<EmpresaResponseDTO> listarPagina(
+            @AuthenticationPrincipal UsuarioAutenticado autenticado,
+            @RequestParam(required = false) String termo,
+            @RequestParam(required = false) Boolean ativo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "razaoSocial,asc") String sort) {
+        return br.com.novexa.erp.dto.PaginaResponseDTO.de(
+                empresaService.listarPagina(autenticado.empresaId(), termo, ativo, page, size, sort),
+                empresaMapper::paraResponseDTO);
+    }
+
     /*
      * =========================================================
      * ATUALIZAR EMPRESA

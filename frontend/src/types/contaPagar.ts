@@ -13,6 +13,7 @@ export type ContaPagar = {
     status: StatusContaPagar;
     dataPagamento: string | null;
     valorPago: number | null;
+    movimentacaoFinanceiraId?: number;
     observacao: string | null;
 };
 

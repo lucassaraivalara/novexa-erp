@@ -245,6 +245,79 @@ class ContaFinanceiraHttpTest {
         return json.readTree(resposta.getResponse().getContentAsString()).get("id").asLong();
     }
 
+    @Test void paginaUsaTotaisDoTenantEOrdenacaoComDesempate() throws Exception {
+        var primeira = contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Mesmo nome", TipoContaFinanceira.COFRE, java.math.BigDecimal.TEN));
+        var segunda = contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Mesmo nome", TipoContaFinanceira.COFRE, java.math.BigDecimal.ONE));
+        contas.saveAndFlush(new ContaFinanceiraEntity(empresaB, "Mesmo nome", TipoContaFinanceira.COFRE, java.math.BigDecimal.valueOf(900)));
+        for (int pagina = 0; pagina < 2; pagina++) {
+            mvc.perform(get("/financeiro/contas-financeiras/pagina").header("Authorization", tokenA)
+                            .param("page", String.valueOf(pagina)).param("size", "1").param("sort", "nome,desc")
+                            .param("empresaId", empresaB.getId().toString()))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.page").value(pagina))
+                    .andExpect(jsonPath("$.size").value(1)).andExpect(jsonPath("$.totalItems").value(2))
+                    .andExpect(jsonPath("$.totalPages").value(2))
+                    .andExpect(jsonPath("$.items[0].id").value(pagina == 0 ? primeira.getId() : segunda.getId()));
+        }
+        mvc.perform(get("/financeiro/contas-financeiras/pagina").header("Authorization", tokenB))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(1));
+    }
+
+    @Test void paginaAplicaBuscaTipoEAtivoAntesDaContagem() throws Exception {
+        var cofre = contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Reserva", TipoContaFinanceira.COFRE, java.math.BigDecimal.TEN));
+        var carteira = contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Reserva digital", TipoContaFinanceira.CARTEIRA_DIGITAL, java.math.BigDecimal.ONE));
+        carteira.situacao(false); contas.saveAndFlush(carteira);
+        mvc.perform(get("/financeiro/contas-financeiras/pagina").header("Authorization", tokenA)
+                        .param("termo", "RESERVA").param("ativo", "true").param("tipo", "COFRE"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(cofre.getId()));
+        mvc.perform(get("/financeiro/contas-financeiras/pagina").header("Authorization", tokenA)
+                        .param("termo", "carteira digital").param("ativo", "false"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(carteira.getId()));
+        mvc.perform(get("/financeiro/contas-financeiras/pagina").header("Authorization", tokenA).param("tipo", "BANCO"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(0));
+    }
+
+    @Test void resumoGlobalIndependeDaPaginaEBuscaIncluindoInativasELegados() throws Exception {
+        contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Cofre", TipoContaFinanceira.COFRE, java.math.BigDecimal.TEN));
+        var inativa = contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Inativa", TipoContaFinanceira.COFRE, java.math.BigDecimal.ONE));
+        inativa.situacao(false); contas.saveAndFlush(inativa);
+        contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Legado", TipoContaFinanceira.CAIXA, java.math.BigDecimal.valueOf(2)));
+        contas.saveAndFlush(new ContaFinanceiraEntity(empresaB, "Outro tenant", TipoContaFinanceira.COFRE, java.math.BigDecimal.valueOf(900)));
+        mvc.perform(get("/financeiro/contas-financeiras/resumo").header("Authorization", tokenA)
+                        .param("termo", "nao existe").param("size", "1"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[?(@.tipo == 'COFRE')].quantidade").value(2))
+                .andExpect(jsonPath("$[?(@.tipo == 'COFRE')].saldoAtual").value(11.0));
+    }
+
+    @Test void paginaPreservaVinculoBancarioEListaSimplesDosSeletores() throws Exception {
+        long id = criarConta(tokenA, 100);
+        mvc.perform(get("/financeiro/contas-financeiras/pagina").header("Authorization", tokenA))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(id))
+                .andExpect(jsonPath("$.items[0].contaBancaria.bancoNome").value("Sicredi"));
+        mvc.perform(get("/financeiro/contas-financeiras").header("Authorization", tokenA))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(id));
+        assertThat(movimentos.count()).isEqualTo(1);
+    }
+
+    @Test void paginaValidaParametrosEAutenticacao() throws Exception {
+        for (var params : new String[][]{{"page", "-1"}, {"size", "0"}, {"size", "101"},
+                {"sort", "empresa.id,asc"}, {"sort", "nome,invalido"}, {"tipo", "INVALIDO"}, {"ativo", "invalido"}}) {
+            mvc.perform(get("/financeiro/contas-financeiras/pagina").header("Authorization", tokenA).param(params[0], params[1]))
+                    .andExpect(status().isBadRequest());
+        }
+        for (var endpoint : new String[]{"pagina", "resumo"})
+            mvc.perform(get("/financeiro/contas-financeiras/" + endpoint)).andExpect(status().isUnauthorized());
+    }
+
+    @Test void paginaOrdenaSaldoNoBanco() throws Exception {
+        var menor = contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Zulu", TipoContaFinanceira.COFRE, java.math.BigDecimal.ONE));
+        var maior = contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Alfa", TipoContaFinanceira.COFRE, java.math.BigDecimal.TEN));
+        mvc.perform(get("/financeiro/contas-financeiras/pagina").header("Authorization", tokenA).param("sort", "saldoAtual,desc"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(maior.getId()))
+                .andExpect(jsonPath("$.items[1].id").value(menor.getId()));
+    }
+
     private ContaBancariaEntity bancaria(EmpresaEntity empresa, boolean ativo) {
         return bancarias.saveAndFlush(new ContaBancariaEntity(empresa, agencia,
                 String.valueOf(bancarias.count() + 1), "0", "Titular", TipoContaBancaria.CORRENTE, ativo));
