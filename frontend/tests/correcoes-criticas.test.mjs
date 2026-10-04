@@ -266,7 +266,7 @@ test("formulários seguem o padrão de submit, feedback e autofocus", async () =
     assert.match(cadastroDialog, /maxHeight: \{ xs: "100%", sm: "84vh" \}/);
     assert.match(cadastroDialog, /overflowY: "auto"/);
     assert.match(cadastroDialog, /disabled=\{salvando \|\| desabilitarSalvar\}/);
-    assert.match(produto, /<CadastroDialog[\s\S]*variante="full"/);
+    assert.match(produto, /<CadastroDialog[\s\S]*variante=\{rapido \? "compact" : "full"\}/);
     assert.match(cliente, /<CadastroDialog[\s\S]*variante="full"/);
 });
 

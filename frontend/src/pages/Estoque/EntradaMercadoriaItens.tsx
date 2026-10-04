@@ -6,7 +6,8 @@ import { useRemoteSearch } from "../../hooks/useRemoteSearch";
 import { pesquisarProdutos } from "../../services/produtoService";
 import type { Produto } from "../../types/produto";
 import StatusChip from "../../components/ui/StatusChip";
-import { novoItemEntrada, type ItemFormularioEntrada, type ProdutoEntrada } from "./entradaMercadoriaRegras";
+import ProdutoForm from "../Produtos/ProdutoForm";
+import { novoItemEntrada, numeroEntrada, type ItemFormularioEntrada, type ProdutoEntrada } from "./entradaMercadoriaRegras";
 
 function ProdutoAutocomplete({ value, onChange, disabled }: {
     value: ProdutoEntrada | null; onChange: (produto: ProdutoEntrada | null) => void; disabled: boolean;
@@ -35,10 +36,11 @@ function ProdutoAutocomplete({ value, onChange, disabled }: {
 export default function EntradaMercadoriaItens({ itens, onChange, disabled = false, somenteLeitura = false }: {
     itens: ItemFormularioEntrada[]; onChange: (itens: ItemFormularioEntrada[]) => void; disabled?: boolean; somenteLeitura?: boolean;
 }) {
+    const [cadastro, setCadastro] = useState<ItemFormularioEntrada | null>(null);
     function alterar(indice: number, dados: Partial<ItemFormularioEntrada>) {
         onChange(itens.map((item, i) => i === indice ? { ...item, ...dados } : item));
     }
-    return <Stack spacing={1.5}>
+    return <><Stack spacing={1.5}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Itens</Typography>
         {itens.map((item, indice) => <Stack key={item.chave} spacing={1} sx={item.historico?.descricaoOriginal ? { py: 1.5, borderBottom: 1, borderColor: "divider", minWidth: 0 } : undefined}>
             {item.historico?.descricaoOriginal && <Box sx={{ overflowWrap: "anywhere" }}>
@@ -49,8 +51,17 @@ export default function EntradaMercadoriaItens({ itens, onChange, disabled = fal
             gridTemplateColumns: { xs: "1fr 1fr", sm: "minmax(0, 1fr) 120px 140px 40px" } }}>
             <Box sx={{ minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
                 {somenteLeitura ? <TextField fullWidth size="small" label="Produto" value={item.produto?.nome ?? ""}
-                    slotProps={{ input: { readOnly: true } }} /> : <ProdutoAutocomplete value={item.produto} disabled={disabled}
-                    onChange={produto => alterar(indice, { produto, custo: !item.historico?.descricaoOriginal && produto?.precoCusto !== undefined ? String(produto.precoCusto) : item.custo })} />}
+                    slotProps={{ input: { readOnly: true } }} /> : <>
+                    {item.historico?.descricaoOriginal && <Typography variant="caption" color="text.secondary">Produto Novexa</Typography>}
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) auto" }, gap: 0.75, alignItems: "start" }}>
+                        <ProdutoAutocomplete value={item.produto} disabled={disabled}
+                            onChange={produto => alterar(indice, { produto, custo: !item.historico?.descricaoOriginal && produto?.precoCusto !== undefined ? String(produto.precoCusto) : item.custo })} />
+                        {(!item.historico?.descricaoOriginal || !item.produto) && <Button type="button" size="small" disabled={disabled}
+                            sx={{ justifySelf: "start" }} startIcon={<AddRoundedIcon />}
+                            aria-label={`${item.historico?.descricaoOriginal ? "Cadastrar" : "Novo"} produto para item ${indice + 1}`}
+                            onClick={() => setCadastro(item)}>{item.historico?.descricaoOriginal ? "Cadastrar" : "Novo"}</Button>}
+                    </Box>
+                </>}
                 {item.historico?.descricaoOriginal && !somenteLeitura && <Box sx={{ mt: 0.5 }}>
                     <StatusChip status={item.produto ? "ATIVO" : "PENDENTE"} label={item.produto ? "Produto vinculado" : "Vincular produto"} />
                 </Box>}
@@ -67,5 +78,15 @@ export default function EntradaMercadoriaItens({ itens, onChange, disabled = fal
         </Stack>)}
         {!somenteLeitura && <Button sx={{ alignSelf: "flex-start" }} disabled={disabled || itens.length >= 200}
             startIcon={<AddRoundedIcon />} onClick={() => onChange([...itens, novoItemEntrada()])}>Adicionar item</Button>}
-    </Stack>;
+    </Stack>
+        {cadastro && <ProdutoForm aberto modo="rapido" onFechar={() => setCadastro(null)}
+            dadosIniciais={{ nome: cadastro.historico?.descricaoOriginal ?? "", codigoBarras: cadastro.historico?.gtin ?? null,
+                unidadeMedida: cadastro.historico?.unidade ?? "UN",
+                precoCusto: Number.isFinite(numeroEntrada(cadastro.custo)) ? numeroEntrada(cadastro.custo) : 0 }}
+            onSalvo={produto => {
+                onChange(itens.map(item => item.chave === cadastro.chave ? { ...item, produto,
+                    custo: item.historico?.descricaoOriginal ? item.custo : String(produto.precoCusto) } : item));
+                setCadastro(null);
+            }} />}
+    </>;
 }

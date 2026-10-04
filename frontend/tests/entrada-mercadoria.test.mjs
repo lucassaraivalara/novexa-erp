@@ -36,17 +36,43 @@ before(async () => {
         cacheDir: "node_modules/.vite-entrada-tests", server: { host: "127.0.0.1", port: 0, hmr: false },
         plugins: [{
             name: "entrada-fixture",
-            resolveId(id) { if (id === "/fixture-entrada.js") return `\0${id}`; },
-            load(id) { if (id === "\0/fixture-entrada.js") return `
+            resolveId(id) { if (id === "/fixture-entrada.js" || id === "/fixture-produto.js") return `\0${id}`; },
+            load(id) {
+                if (id === "\0/fixture-produto.js") return `
+                    import React, { useState } from 'react'; import { createRoot } from 'react-dom/client';
+                    import { CssBaseline, ThemeProvider } from '@mui/material'; import theme from '/src/theme/theme.ts';
+                    import ProdutoForm from '/src/pages/Produtos/ProdutoForm.tsx';
+                    import { cadastrarProduto, atualizarProduto, obterMensagemDaApi } from '/src/services/produtoService.ts';
+                    const original = new URLSearchParams(location.search).has('editar') ? {
+                        id: 55, nome: 'Produto existente', codigoInterno: 'INT55', codigoBarras: '78955', descricao: 'Descricao existente',
+                        unidadeMedida: 'KG', precoCusto: 4.5, precoVenda: 8, estoqueMinimo: 2.5, estoqueAtual: 17.25,
+                        controlaEstoque: true, ativo: true, imagemUrl: null } : null;
+                    function Pagina() {
+                        const [salvando, setSalvando] = useState(false), [erro, setErro] = useState('');
+                        return React.createElement(ProdutoForm, { aberto: true, produto: original, carregandoProduto: false, salvando,
+                            erroExterno: erro, onFechar: () => {}, onSalvar: async (dados, imagem, remover) => {
+                                window.__argsProduto = { dados, imagem, remover }; setSalvando(true); setErro('');
+                                try { window.__produtoSalvo = original ? await atualizarProduto(original.id, dados) : await cadastrarProduto(dados); }
+                                catch(e) { setErro(obterMensagemDaApi(e, 'Falha no cadastro.')); } finally { setSalvando(false); }
+                            } });
+                    }
+                    createRoot(document.getElementById('root')).render(React.createElement(ThemeProvider, { theme },
+                        React.createElement(CssBaseline), React.createElement(Pagina)));`;
+                if (id === "\0/fixture-entrada.js") return `
                 import React from 'react'; import { createRoot } from 'react-dom/client';
                 import { CssBaseline, ThemeProvider } from '@mui/material';
                 import theme from '/src/theme/theme.ts'; import Estoque from '/src/pages/Estoque/Estoque.tsx';
                 createRoot(document.getElementById('root')).render(React.createElement(ThemeProvider, { theme },
-                    React.createElement(CssBaseline), React.createElement(Estoque)));`; },
+                    React.createElement(CssBaseline), React.createElement(Estoque)));`;
+            },
             configureServer(vite) {
                 vite.middlewares.use("/__entrada", async (_req, res) => {
                     res.setHeader("Content-Type", "text/html");
                     res.end(await vite.transformIndexHtml("/__entrada", '<div id="root"></div><script type="module" src="/fixture-entrada.js"></script>'));
+                });
+                vite.middlewares.use("/__produto", async (_req, res) => {
+                    res.setHeader("Content-Type", "text/html");
+                    res.end(await vite.transformIndexHtml("/__produto", '<div id="root"></div><script type="module" src="/fixture-produto.js"></script>'));
                 });
             },
         }],
@@ -57,7 +83,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); await server?.close(); });
 
-async function abrir(estado, largura = 1440) {
+async function abrir(estado, largura = 1440, rota = "/__entrada") {
     const page = await browser.newPage({ viewport: { width: largura, height: 900 } });
     page.setDefaultTimeout(6000);
     page.on("pageerror", e => console.error("Erro no navegador:", e.message));
@@ -99,11 +125,19 @@ async function abrir(estado, largura = 1440) {
             estado.nomeNovo = corpo.razaoSocial; return responder(201, { ...fornecedor, ...corpo, id: 77 });
         }
         if (u.pathname === "/produtos/buscar") return responder(200, [produto]);
+        if (u.pathname === "/produtos" && req.method() === "POST") {
+            if (estado.atrasarProduto) await new Promise(r => setTimeout(r, 500));
+            if (estado.erroProduto) return responder(estado.erroProduto, estado.erroProduto === 409
+                ? "Já existe um produto com este código de barras na empresa informada." : "O preço informado é inválido.");
+            const criada = { ...produto, ...corpo, id: 2000 + (estado.produtosCriados?.length ?? 0), estoqueAtual: 0 };
+            (estado.produtosCriados ??= []).push(criada); return responder(201, criada);
+        }
+        if (u.pathname === "/produtos/55" && req.method() === "PUT") return responder(200, { ...produto, ...corpo, id: 55, estoqueAtual: 17.25 });
         if (u.pathname === "/produtos") return responder(200, { items: [], page: 0, size: 25, totalItems: 0, totalPages: 0 });
         throw new Error(`Chamada inesperada: ${req.method()} ${u.pathname}`);
     });
-    await page.goto(`${url}/__entrada`);
-    await page.getByRole("tab", { name: "Saldo", exact: true }).waitFor();
+    await page.goto(`${url}${rota}`);
+    if (rota === "/__entrada") await page.getByRole("tab", { name: "Saldo", exact: true }).waitFor();
     return page;
 }
 async function entradas(page) {
@@ -559,5 +593,199 @@ test("XML: cadastro de fornecedor pendente no mobile permanece acessivel e sem o
         await rapido.waitFor();
         assert.ok(await rapido.evaluate(el => el.scrollWidth <= el.clientWidth + 1));
         assert.equal(await rapido.getByLabel("Razão Social / Nome").inputValue(), "Emitente XML Ltda");
+    } finally { await page.close(); }
+});
+
+const postsProduto = estado => estado.chamadas.filter(c => c.caminho === "/produtos" && c.metodo === "POST");
+async function abrirProdutoXml(page, estado) {
+    const form = await selecionarXml(page, estado);
+    await form.getByRole("button", { name: "Cadastrar produto para item 1", exact: true }).click();
+    const rapido = page.getByRole("dialog").filter({ has: page.getByRole("heading", { name: "Novo produto", exact: true }) });
+    await rapido.waitFor();
+    return { form, rapido };
+}
+const xmlSemProduto = () => {
+    const p = previewXml(); p.itens[0] = { ...p.itens[0], produtoMatch: null, unidade: "KG" }; return p;
+};
+
+test("Produto rapido: XML preenche somente nome, GTIN, unidade e custo; venda nao e inferida", async () => {
+    const estado = { ...novoEstado(), preview: xmlSemProduto() }, page = await abrir(estado);
+    try {
+        const { rapido } = await abrirProdutoXml(page, estado);
+        for (const [campo, valor] of [["Nome", "Descrição da NF-e"], ["Código de barras", "4006381333931"],
+            ["Unidade de medida", "KG"], ["Preço de custo", "3,5"], ["Preço de venda", ""]])
+            assert.equal(await rapido.getByLabel(campo, { exact: false }).inputValue(), valor, campo);
+        assert.equal(await rapido.locator("input").count(), 5);
+        for (const campo of ["Código interno", "Descrição", "Estoque mínimo", "Controla estoque", "Produto ativo", "Selecionar imagem do produto"])
+            assert.equal(await rapido.getByLabel(campo, { exact: true }).count(), 0, campo);
+        await rapido.getByRole("button", { name: "Cadastrar e selecionar" }).click();
+        await rapido.getByText("Use um valor não negativo com até 2 casas decimais.").waitFor();
+        assert.equal(postsProduto(estado).length, 0);
+        await rapido.getByLabel("Nome", { exact: false }).fill("");
+        await rapido.getByRole("button", { name: "Cadastrar e selecionar" }).click();
+        await rapido.getByText("Informe o nome do produto.").waitFor();
+        await rapido.getByLabel("Nome", { exact: false }).fill("Novo produto XML");
+        await rapido.getByLabel("Preço de venda").fill("10");
+        await rapido.getByLabel("Preço de custo").fill("-1");
+        await rapido.getByRole("button", { name: "Cadastrar e selecionar" }).click();
+        assert.equal(postsProduto(estado).length, 0);
+        await rapido.screenshot({ path: "node_modules/.vite-entrada-tests/produto-rapido-desktop.png", animations: "disabled" });
+    } finally { await page.close(); }
+});
+
+test("Produto rapido: retorno do POST resolve item XML sem busca, saldo ou matching local", async () => {
+    const estado = { ...novoEstado(), preview: xmlSemProduto() }, page = await abrir(estado);
+    try {
+        const { form, rapido } = await abrirProdutoXml(page, estado);
+        const buscasAntes = estado.chamadas.filter(c => c.caminho === "/produtos/buscar").length;
+        await rapido.getByLabel("Preço de venda").fill("12,50");
+        await rapido.getByRole("button", { name: "Cadastrar e selecionar" }).click();
+        await form.getByText("Produto vinculado").waitFor();
+        assert.equal(await form.getByRole("combobox", { name: "Produto", exact: true }).inputValue(), "Descrição da NF-e");
+        assert.equal(await form.getByLabel("Quantidade").inputValue(), "2");
+        assert.equal(await form.getByLabel("Custo unitário").inputValue(), "3.5");
+        const corpo = postsProduto(estado)[0].corpo;
+        assert.deepEqual(corpo, { codigoInterno: null, codigoBarras: "4006381333931", nome: "Descrição da NF-e", descricao: null,
+            unidadeMedida: "KG", precoCusto: 3.5, precoVenda: 12.5, estoqueMinimo: 0, controlaEstoque: true, ativo: true });
+        assert.equal(estado.produtosCriados[0].estoqueAtual, 0);
+        assert.equal(estado.chamadas.filter(c => c.caminho === "/produtos/buscar").length, buscasAntes);
+        assert.deepEqual(estado.chamadas.filter(c => c.metodo === "POST").map(c => c.caminho), ["/estoque/entradas/importar-xml", "/produtos"]);
+        await form.getByRole("button", { name: "Confirmar entrada", exact: true }).click();
+        await page.getByRole("dialog", { name: "Confirmar entrada?" }).getByRole("button", { name: "Confirmar entrada", exact: true }).click();
+        await page.getByText("Entrada confirmada. Estoque atualizado.").waitFor();
+        assert.equal(criacoesXml(estado)[0].corpo.itens[0].produtoId, 2000);
+        assert.equal(criacoesXml(estado)[0].corpo.itens[0].quantidade, 2);
+        assert.equal(estado.chamadas.filter(c => /\/confirmar$/.test(c.caminho)).length, 1);
+    } finally { await page.close(); }
+});
+
+test("Produto rapido: Entrada Manual usa o mesmo formulario e seleciona somente o item correto", async () => {
+    const estado = novoEstado(), page = await abrir(estado);
+    try {
+        await entradas(page); await page.getByRole("button", { name: "Entrada manual", exact: true }).click();
+        const form = page.getByRole("dialog", { name: /^Entrada manual/ });
+        await form.getByLabel("Quantidade").fill("3");
+        await form.getByRole("button", { name: "Adicionar item", exact: true }).click();
+        await form.getByLabel("Quantidade").nth(1).fill("7");
+        await form.getByRole("button", { name: "Novo produto para item 2", exact: true }).click();
+        const rapido = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "Cadastrar e selecionar" }) });
+        assert.equal(await rapido.getByLabel("Nome", { exact: false }).inputValue(), "");
+        assert.equal(await rapido.getByLabel("Preço de venda").inputValue(), "");
+        assert.equal(await rapido.getByLabel("Unidade de medida").inputValue(), "UN");
+        await rapido.getByLabel("Nome", { exact: false }).fill("Produto manual novo");
+        await rapido.getByLabel("Preço de custo").fill("4,50");
+        await rapido.getByLabel("Preço de venda").fill("8");
+        await rapido.getByRole("button", { name: "Cadastrar e selecionar" }).click();
+        await page.waitForFunction(() => document.querySelector('input[value="Produto manual novo"]'));
+        assert.equal(await form.getByRole("combobox", { name: "Produto", exact: true }).first().inputValue(), "");
+        assert.equal(await form.getByRole("combobox", { name: "Produto", exact: true }).nth(1).inputValue(), "Produto manual novo");
+        assert.equal(await form.getByLabel("Quantidade").nth(1).inputValue(), "7");
+        assert.equal(await form.getByLabel("Custo unitário").nth(1).inputValue(), "4.5");
+        assert.equal(estado.produtosCriados[0].estoqueAtual, 0);
+        assert.equal(postsProduto(estado)[0].corpo.estoqueAtual, undefined);
+        assert.equal(estado.chamadas.some(c => /\/estoque\/movimentacoes|\/confirmar$/.test(c.caminho)), false);
+    } finally { await page.close(); }
+});
+
+for (const status of [409, 400]) {
+    test(`Produto rapido: erro ${status} preserva formulario e dados; cancelar nao resolve item`, async () => {
+        const estado = { ...novoEstado(), preview: xmlSemProduto(), erroProduto: status }, page = await abrir(estado);
+        try {
+            const { form, rapido } = await abrirProdutoXml(page, estado);
+            await rapido.getByLabel("Preço de venda").fill("10");
+            await rapido.getByRole("button", { name: "Cadastrar e selecionar" }).click();
+            await rapido.getByText(status === 409 ? /Já existe um produto com este código de barras/ : "O preço informado é inválido.").waitFor();
+            assert.equal(await rapido.getByLabel("Código de barras").inputValue(), "4006381333931");
+            assert.equal(await rapido.getByLabel("Nome", { exact: false }).inputValue(), "Descrição da NF-e");
+            assert.equal(estado.produtosCriados, undefined);
+            await rapido.getByRole("button", { name: "Cancelar", exact: true }).click();
+            assert.equal(await form.getByRole("combobox", { name: "Produto", exact: true }).inputValue(), "");
+            assert.equal(await form.getByRole("button", { name: "Confirmar entrada", exact: true }).isDisabled(), true);
+            assert.equal(criacoesXml(estado).length, 0);
+        } finally { await page.close(); }
+    });
+}
+
+test("Produto rapido: custo XML com precisao superior nao e arredondado sem revisao", async () => {
+    const p = xmlSemProduto(); p.itens[0].valorUnitario = 3.567;
+    const estado = { ...novoEstado(), preview: p }, page = await abrir(estado);
+    try {
+        const { rapido } = await abrirProdutoXml(page, estado);
+        assert.equal(await rapido.getByLabel("Preço de custo").inputValue(), "3,567");
+        await rapido.getByLabel("Preço de venda").fill("10");
+        await rapido.getByRole("button", { name: "Cadastrar e selecionar" }).click();
+        await rapido.getByText("Use um valor não negativo com até 2 casas decimais.").waitFor();
+        assert.equal(postsProduto(estado).length, 0);
+    } finally { await page.close(); }
+});
+
+test("Produto rapido: duplo submit cria um produto; fechamento bloqueado durante request", async () => {
+    const estado = { ...novoEstado(), preview: xmlSemProduto(), atrasarProduto: true }, page = await abrir(estado);
+    try {
+        const { form, rapido } = await abrirProdutoXml(page, estado);
+        await rapido.getByLabel("Preço de venda").fill("10");
+        await rapido.getByRole("button", { name: "Cadastrar e selecionar" }).evaluate(el => { el.click(); el.click(); });
+        await rapido.getByRole("button", { name: "Salvando…", exact: true }).waitFor();
+        assert.equal(await rapido.getByRole("button", { name: "Fechar", exact: true }).isDisabled(), true);
+        assert.equal(await rapido.getByRole("button", { name: "Cancelar", exact: true }).isDisabled(), true);
+        await form.getByText("Produto vinculado").waitFor();
+        assert.equal(postsProduto(estado).length, 1);
+        assert.equal(estado.produtosCriados.length, 1);
+    } finally { await page.close(); }
+});
+
+test("Produto rapido: cadastro mobile sem overflow; XML sem GTIN nao inventa codigo", async () => {
+    const p = xmlSemProduto(); p.itens[0].gtin = null;
+    const estado = { ...novoEstado(), preview: p }, page = await abrir(estado, 390);
+    try {
+        const { form, rapido } = await abrirProdutoXml(page, estado);
+        assert.ok(await rapido.evaluate(el => el.scrollWidth <= el.clientWidth + 1));
+        assert.equal(await rapido.getByLabel("Código de barras").inputValue(), "");
+        await rapido.getByLabel("Preço de venda").fill("0");
+        await rapido.screenshot({ path: "node_modules/.vite-entrada-tests/produto-rapido-mobile.png", animations: "disabled" });
+        await rapido.getByRole("button", { name: "Cadastrar e selecionar" }).click();
+        await form.getByText("Produto vinculado").waitFor();
+        assert.equal(postsProduto(estado)[0].corpo.codigoBarras, null);
+        assert.equal(postsProduto(estado)[0].corpo.precoVenda, 0);
+    } finally { await page.close(); }
+});
+
+test("Produto completo: API anterior, campos e callback de criacao permanecem", async () => {
+    const estado = novoEstado(), page = await abrir(estado, 1440, "/__produto");
+    try {
+        const form = page.getByRole("dialog", { name: /^Novo produto/ });
+        for (const campo of ["Código interno", "Código de barras", "Nome", "Descrição", "Unidade de medida", "Preço de custo", "Preço de venda", "Estoque mínimo", "Controla estoque", "Produto ativo"])
+            assert.ok(await form.getByLabel(campo, { exact: false }).count(), campo);
+        assert.ok(await form.getByRole("button", { name: "Selecionar imagem do produto" }).count());
+        await form.getByLabel("Nome", { exact: false }).fill("Produto completo novo");
+        await form.getByLabel("Código interno").fill("COD1");
+        await form.getByLabel("Descrição").fill("Descricao completa");
+        await form.getByLabel("Preço de custo").fill("4");
+        await form.getByLabel("Preço de venda").fill("8");
+        await form.getByLabel("Estoque mínimo").fill("2,500");
+        await form.getByRole("button", { name: "Cadastrar produto", exact: true }).click();
+        await page.waitForFunction(() => window.__produtoSalvo?.id === 2000);
+        assert.equal(postsProduto(estado)[0].corpo.codigoInterno, "COD1");
+        assert.equal(postsProduto(estado)[0].corpo.descricao, "Descricao completa");
+        assert.equal(postsProduto(estado)[0].corpo.estoqueMinimo, 2.5);
+        assert.deepEqual(await page.evaluate(() => [window.__argsProduto.imagem, window.__argsProduto.remover]), [null, false]);
+    } finally { await page.close(); }
+});
+
+test("Produto completo: edicao preserva dados, saldo somente leitura e callback existente", async () => {
+    const estado = novoEstado(), page = await abrir(estado, 1440, "/__produto?editar");
+    try {
+        const form = page.getByRole("dialog", { name: /^Editar produto/ });
+        assert.equal(await form.getByLabel("Nome", { exact: false }).inputValue(), "Produto existente");
+        assert.equal(await form.getByLabel("Preço de custo").inputValue(), "4,50");
+        assert.match(await form.innerText(), /Saldo atual:\s*17,250/);
+        await form.getByLabel("Nome", { exact: false }).fill("Produto atualizado");
+        await form.getByRole("button", { name: "Salvar alterações", exact: true }).click();
+        await page.waitForFunction(() => window.__produtoSalvo?.id === 55);
+        const put = estado.chamadas.find(c => c.metodo === "PUT");
+        assert.equal(put.caminho, "/produtos/55"); assert.equal(put.corpo.nome, "Produto atualizado");
+        assert.equal(put.corpo.codigoInterno, "INT55"); assert.equal(put.corpo.estoqueAtual, undefined);
+        assert.equal(await page.evaluate(() => window.__produtoSalvo.estoqueAtual), 17.25);
+        assert.equal(postsProduto(estado).length, 0);
     } finally { await page.close(); }
 });

@@ -1,4 +1,4 @@
-import {useState, type ChangeEvent, type FormEvent} from "react";
+import {useRef, useState, type ChangeEvent, type FormEvent} from "react";
 import {
     Alert,
     Button,
@@ -12,16 +12,30 @@ import {
 } from "@mui/material";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import type {Produto, ProdutoInput} from "../../types/produto";
+import {cadastrarProduto, obterMensagemDaApi} from "../../services/produtoService";
 
 type ProdutoFormProps = {
     aberto: boolean;
+    onFechar: () => void;
+} & ({
+    modo?: "completo";
     produto: Produto | null;
     carregandoProduto: boolean;
     salvando: boolean;
     erroExterno: string;
-    onFechar: () => void;
     onSalvar: (dados: ProdutoInput, arquivoImagem: File | null, removerImagem: boolean) => Promise<void>;
-};
+    dadosIniciais?: never;
+    onSalvo?: never;
+} | {
+    modo: "rapido";
+    dadosIniciais?: Partial<Pick<ProdutoInput, "nome" | "codigoBarras" | "unidadeMedida" | "precoCusto">>;
+    onSalvo: (produto: Produto) => void;
+    produto?: never;
+    carregandoProduto?: never;
+    salvando?: never;
+    erroExterno?: never;
+    onSalvar?: never;
+});
 
 type EstadoFormulario = {
     codigoInterno: string;
@@ -93,16 +107,31 @@ function campoParaNumero(
 
 function ProdutoForm({
                          aberto,
-                         produto,
-                         carregandoProduto,
-                         salvando,
-                         erroExterno,
+                         modo = "completo",
+                         produto = null,
+                         carregandoProduto = false,
+                         salvando: salvandoExterno = false,
+                         erroExterno = "",
+                         dadosIniciais,
                          onFechar,
                          onSalvar,
+                         onSalvo,
                      }: ProdutoFormProps) {
+    const rapido = modo === "rapido";
     const [formulario, setFormulario] = useState<EstadoFormulario>(() =>
-        criarEstadoFormulario(produto)
+        rapido ? {
+            ...estadoInicial,
+            nome: dadosIniciais?.nome ?? "",
+            codigoBarras: dadosIniciais?.codigoBarras ?? "",
+            unidadeMedida: dadosIniciais?.unidadeMedida ?? "UN",
+            precoCusto: String(dadosIniciais?.precoCusto ?? 0).replace(".", ","),
+        } : criarEstadoFormulario(produto)
     );
+    const [salvandoRapido, setSalvandoRapido] = useState(false);
+    const [erroRapido, setErroRapido] = useState("");
+    const ocupado = useRef(false);
+    const salvando = salvandoExterno || salvandoRapido;
+    const mensagemErro = erroExterno || erroRapido;
 
     const [erros, setErros] = useState<
         Partial<Record<keyof EstadoFormulario, string>>
@@ -253,12 +282,16 @@ function ProdutoForm({
     ) {
         evento.preventDefault();
 
-        if (salvando || carregandoProduto) return;
+        if (salvando || carregandoProduto || ocupado.current) return;
 
         const dados = validar();
 
         if (dados) {
-            await onSalvar(dados, arquivoImagem, imagemRemovida);
+            if (!rapido) { await onSalvar?.(dados, arquivoImagem, imagemRemovida); return; }
+            ocupado.current = true; setSalvandoRapido(true); setErroRapido("");
+            try { onSalvo?.(await cadastrarProduto(dados)); }
+            catch (e) { setErroRapido(obterMensagemDaApi(e, "Não foi possível cadastrar o produto.")); }
+            finally { ocupado.current = false; setSalvandoRapido(false); }
         }
     }
 
@@ -267,17 +300,17 @@ function ProdutoForm({
     return (
         <CadastroDialog
             aberto={aberto}
-            variante="full"
+            variante={rapido ? "compact" : "full"}
             titulo={editando ? "Editar produto" : "Novo produto"}
             descricao={
-                editando
+                rapido ? "Cadastro rápido: só o essencial." : editando
                     ? "Revise os dados e salve as alterações."
                     : "Preencha os dados para cadastrar um produto."
             }
             salvando={salvando}
             desabilitarSalvar={carregandoProduto}
             textoSalvar={
-                editando
+                rapido ? "Cadastrar e selecionar" : editando
                     ? "Salvar alterações"
                     : "Cadastrar produto"
             }
@@ -296,9 +329,9 @@ function ProdutoForm({
                 </Box>
             ) : (
                 <Stack spacing={2.25}>
-                    {erroExterno && (
+                    {mensagemErro && (
                         <Alert severity="error">
-                            {erroExterno}
+                            {mensagemErro}
                         </Alert>
                     )}
 
@@ -314,7 +347,7 @@ function ProdutoForm({
                                 display: "grid",
                                 gridTemplateColumns: {
                                     xs: "1fr",
-                                    md: "minmax(0, 1fr) 160px",
+                                    md: rapido ? "1fr" : "minmax(0, 1fr) 160px",
                                 },
                                 gap: 2,
                                 alignItems: "start",
@@ -326,12 +359,12 @@ function ProdutoForm({
                                         display: "grid",
                                         gridTemplateColumns: {
                                             xs: "1fr",
-                                            sm: "1fr 1fr",
+                                            sm: rapido ? "1fr" : "1fr 1fr",
                                         },
                                         gap: 1.5,
                                     }}
                                 >
-                                    <TextField
+                                    {!rapido && <TextField
                                         label="Código interno"
                                         name="codigoInterno"
                                         autoComplete="off"
@@ -353,7 +386,7 @@ function ProdutoForm({
                                                 maxLength: 60,
                                             },
                                         }}
-                                    />
+                                    />}
 
                                     <TextField
                                         label="Código de barras"
@@ -402,7 +435,7 @@ function ProdutoForm({
                                     }}
                                 />
 
-                                <TextField
+                                {!rapido && <TextField
                                     label="Descrição"
                                     name="descricao"
                                     autoComplete="off"
@@ -427,10 +460,10 @@ function ProdutoForm({
                                             maxLength: 2000,
                                         },
                                     }}
-                                />
+                                />}
                             </Stack>
 
-                            <Stack spacing={0.75}>
+                            {!rapido && <Stack spacing={0.75}>
                                 <Box
                                     component="label"
                                     role="button"
@@ -521,7 +554,7 @@ function ProdutoForm({
                                         Remover imagem
                                     </Button>
                                 )}
-                            </Stack>
+                            </Stack>}
                         </Box>
                     </Stack>
 
@@ -537,7 +570,7 @@ function ProdutoForm({
                                 display: "grid",
                                 gridTemplateColumns: {
                                     xs: "1fr",
-                                    sm: "180px 1fr 1fr",
+                                    sm: rapido ? "1fr 1fr" : "180px 1fr 1fr",
                                 },
                                 gap: 1.5,
                             }}
@@ -629,7 +662,7 @@ function ProdutoForm({
                         </Box>
                     </Stack>
 
-                    <Stack spacing={1.5}>
+                    {!rapido && <><Stack spacing={1.5}>
                         <Typography variant="subtitle2">
                             Estoque
                         </Typography>
@@ -808,7 +841,7 @@ function ProdutoForm({
                                 }}
                             />
                         </Box>
-                    </Stack>
+                    </Stack></>}
                 </Stack>
             )}
         </CadastroDialog>

@@ -78,11 +78,15 @@ Validacao backend: 100 testes direcionados aprovados (30 parser, 13 XML HTTP/H2,
 
 Importar XML esta na aba Entradas existente. Aceita um arquivo .xml de ate 2 MB, enviado como multipart `arquivo` pelo service, sem parser frontend. Mostra cabecalho, emitente, totais originais e itens. Reutiliza EntradaMercadoriaForm/CadastroDialog e a mesma revisao/confirmacao manual; mobile usa dialog full screen e itens empilhados com scroll vertical.
 
-Fornecedor ativo encontrado fica selecionado; ausente permite cadastro rapido no FornecedorForm real, pre-preenchido com os dados do emitente, e seleciona o retorno. Inativo exige escolher fornecedor ativo pelo autocomplete remoto; nao reativa implicitamente nem cadastra duplicado. Produto encontrado vem selecionado; pendentes usam busca remota existente, sem matching por nome ou carregar catalogo completo. Cadastro embutido de produto nao foi adicionado: selecionar produto existente, ou cadastra-lo previamente na manutencao atual.
+Fornecedor ativo encontrado fica selecionado; ausente permite cadastro rapido no FornecedorForm real, pre-preenchido com os dados do emitente, e seleciona o retorno. Inativo exige escolher fornecedor ativo pelo autocomplete remoto; nao reativa implicitamente nem cadastra duplicado. Produto encontrado vem selecionado; pendentes usam busca remota existente, sem matching por nome ou carregar catalogo completo.
+
+Entrada manual e XML reutilizam ProdutoForm em modo rapido: nome, codigo de barras, unidade, preco de custo e preco de venda. No XML, descricaoOriginal/gtin/unidade/valorUnitario preenchem nome/codigo/unidade/custo; preco de venda nao e inferido. O POST existente retorna o produto, imediatamente selecionado no item sem nova busca. Produto nasce com estoque zero: quantidade da entrada nunca e enviada no cadastro. Custo XML preserva sua precisao para revisao explicita; cadastro nao arredonda silenciosamente nem substitui o custo do documento. Erros 400/409 usam o tratamento existente. Modo completo permanece compativel; nenhuma regra backend foi alterada.
 
 Sem fornecedor ou itens vinculados, salvar/confirmar fica bloqueado. Quantidade/custo podem ser revisados explicitamente para as escalas de 3/2 casas; selecionar produto nao sobrescreve o custo do XML. Total operacional local e apenas preview, separado dos totais originais da NF-e; backend recalcula os valores persistidos. Salvar como rascunho chama `from-xml`; confirmar cria rascunho e chama o endpoint existente pelo ID, com protecao contra clique duplo, reconciliacao e preservacao do ID em falha. Nenhum update de estoque/custo ocorre no frontend.
 
 Erros de preview 400/422/409/413 exibem mensagens amigaveis sem detalhes tecnicos; erros de criacao/confirmacao preservam o tratamento existente. Validacao: 33 testes direcionados de Entrada/XML e Fornecedor, TypeScript/build e lint dos arquivos alterados; navegador real desktop/mobile com HTTP simulado, sem homologacao integrada com backend nesta etapa.
+
+Cadastro rapido validado com 37 testes direcionados de Entrada/XML/Produto e 3 verificacoes diretamente afetadas do formulario completo, build/TypeScript e lint. Navegador desktop/mobile com API simulada cobre selecao por item, ausencia de estoque no payload, erros, precisao e bloqueio de clique duplo; nao substitui homologacao com backend real.
 
 ## Fora desta etapa
 
