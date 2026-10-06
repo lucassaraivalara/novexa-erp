@@ -9,26 +9,34 @@ type Props = {
     onChange: (cliente: Cliente | null) => void;
     disabled?: boolean;
     inputRef?: Ref<HTMLInputElement>;
+    label?: string;
+    placeholder?: string;
+    size?: "small" | "medium";
+    minWidth?: number;
+    incluirInativos?: boolean;
 };
 
-export default function ClienteAutocomplete({ value, onChange, disabled, inputRef }: Props) {
+export default function ClienteAutocomplete({ value, onChange, disabled, inputRef, label = "Cliente (opcional)",
+    placeholder, size, minWidth, incluirInativos = false }: Props) {
     const [opcoes, setOpcoes] = useState<Cliente[]>([]);
     const [erro, setErro] = useState("");
     const { setTerm, loading } = useRemoteSearch<Cliente>({
-        enabled: !disabled, search: pesquisarClientes,
+        enabled: !disabled, search: (termo, signal) => pesquisarClientes(termo, signal, incluirInativos),
         onResults: resultados => { setOpcoes(resultados); setErro(""); },
         onError: e => { setOpcoes([]); setErro(mensagemCliente(e, "Não foi possível buscar os clientes.")); },
         onInvalidTerm: () => setOpcoes([]),
     });
     const visiveis = value && !opcoes.some(c => c.id === value.id) ? [value, ...opcoes] : opcoes;
     return <Autocomplete options={visiveis} value={value} disabled={disabled} autoHighlight loading={loading}
-        filterOptions={lista => lista} getOptionLabel={c => c.nome + (c.cpfCnpj ? " · " + c.cpfCnpj : "")}
+        size={size} sx={minWidth ? { minWidth } : undefined}
+        filterOptions={lista => lista} getOptionLabel={c => c.nome + (c.cpfCnpj ? " · " + c.cpfCnpj : "")
+            + (incluirInativos && !c.ativo ? " (inativo)" : "")}
         isOptionEqualToValue={(a, b) => a.id === b.id}
-        noOptionsText="Nenhum cliente ativo encontrado" loadingText="Buscando clientes…"
+        noOptionsText={incluirInativos ? "Nenhum cliente encontrado" : "Nenhum cliente ativo encontrado"} loadingText="Buscando clientes…"
         onInputChange={(_, texto, motivo) => {
             if (motivo === "input" || motivo === "clear") { setOpcoes([]); setErro(""); setTerm(texto); }
         }}
         onChange={(_, cliente) => onChange(cliente)}
-        renderInput={params => <TextField {...params} inputRef={inputRef} label="Cliente (opcional)"
+        renderInput={params => <TextField {...params} inputRef={inputRef} label={label} placeholder={placeholder}
             error={!!erro} helperText={erro} />} />;
 }

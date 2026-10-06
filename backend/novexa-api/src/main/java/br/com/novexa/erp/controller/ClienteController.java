@@ -80,8 +80,9 @@ public class ClienteController {
 
     @GetMapping("/buscar")
     public List<ClienteResponseDTO> buscar(@RequestParam(defaultValue = "") String termo,
+            @RequestParam(defaultValue = "false") boolean incluirInativos,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return clienteService.buscarPorTermo(usuario.empresaId(), termo).stream()
+        return clienteService.buscarPorTermo(usuario.empresaId(), termo, incluirInativos).stream()
                 .map(clienteMapper::toResponse).toList();
     }
 

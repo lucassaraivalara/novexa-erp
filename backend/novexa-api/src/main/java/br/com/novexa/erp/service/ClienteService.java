@@ -45,11 +45,11 @@ public class ClienteService {
     }
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    public List<ClienteEntity> buscarPorTermo(Long empresaId, String termo) {
+    public List<ClienteEntity> buscarPorTermo(Long empresaId, String termo, boolean incluirInativos) {
         buscarEmpresa(empresaId);
         if (termo == null || termo.isBlank()) return List.of();
         String busca = termo.trim();
-        return clienteRepository.buscarPorTermo(empresaId, busca, busca.replaceAll("\\D", ""),
+        return clienteRepository.buscarPorTermo(empresaId, busca, busca.replaceAll("\\D", ""), incluirInativos,
                 org.springframework.data.domain.PageRequest.of(0, 10));
     }
 

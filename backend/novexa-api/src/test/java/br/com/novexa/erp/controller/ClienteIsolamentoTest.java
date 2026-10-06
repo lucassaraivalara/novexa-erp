@@ -188,6 +188,17 @@ class ClienteIsolamentoTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(16));
     }
 
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void buscaHistoricaIncluiInativoSomenteExplicitamenteESempreNoTenant(boolean incluirInativos) throws Exception {
+        clienteA.setAtivo(false); clienteB.setAtivo(false); entityManager.flush();
+        var resultado = mvc.perform(get("/clientes/buscar").param("termo", "Cliente")
+                        .param("incluirInativos", String.valueOf(incluirInativos))
+                        .param("empresaId", empresaB.getId().toString()).header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(incluirInativos ? 1 : 0));
+        if (incluirInativos) resultado.andExpect(jsonPath("$[0].id").value(clienteA.getId()))
+                .andExpect(jsonPath("$[0].ativo").value(false));
+    }
+
     private EmpresaEntity empresa(String nome, String cnpj) {
         EmpresaEntity empresa = new EmpresaEntity();
         empresa.setRazaoSocial(nome);

@@ -13,9 +13,11 @@ export async function listarClientes(signal?: AbortSignal) {
     return (await api.get<Cliente[]>("/clientes/opcoes", { signal })).data;
 }
 
-export async function pesquisarClientes(termo: string, signal?: AbortSignal): Promise<Cliente[]> {
+export async function pesquisarClientes(termo: string, signal?: AbortSignal, incluirInativos = false): Promise<Cliente[]> {
     if (!termo.trim()) return [];
-    return (await api.get<Cliente[]>("/clientes/buscar", { params: { termo }, signal })).data;
+    return (await api.get<Cliente[]>("/clientes/buscar", {
+        params: { termo, ...(incluirInativos ? { incluirInativos: true } : {}) }, signal,
+    })).data;
 }
 
 export async function listarClientesPaginado(filtros: FiltrosCliente, page: number, size: number, sort: string, signal?: AbortSignal) {

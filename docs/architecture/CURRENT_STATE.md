@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Central de Vendas: filtro remoto de Cliente (2026-10-06)
+
+Preload de /clientes/opcoes removido somente da Central. Filtro reutiliza ClienteAutocomplete/useRemoteSearch, com debounce de 350 ms, cancelamento e resultados limitados; selecionar/trocar/limpar envia clienteId na consulta paginada existente e reseta page=0, preservando status/periodo/sort/totalItems. Historico de clientes inativos preservado pelo opt-in incluirInativos=true em /clientes/buscar; default false mantem busca operacional somente de ativos. Tenant do JWT e limite 10 preservados. Sem alteracao de regras de Venda, PDV, Financeiro, permissoes, layout ou migrations.
+
+Validacao: 24 testes HTTP/H2 de Cliente/tenant e 12 frontend direcionados (navegador com HTTP simulado), package backend, build/TypeScript, lint direcionado e diff check. Sem suite completa, PostgreSQL ou E2E geral.
+
 ## PDV: buscas remotas de Produto e Cliente (2026-10-06)
 
 Preload/local search de catalogos removidos do PDV. /produtos/buscar e /clientes/buscar retornam ate 10 ativos do tenant; vazio retorna lista vazia. Produto prioriza codigo exato, seguido de nome/id; Cliente busca nome, fantasia e documento normalizado, com nome/id. /clientes/opcoes preservado para outros consumidores. Digitacao usa useRemoteSearch (350 ms, minimo 2), AbortController e descarte de respostas antigas; Enter/leitor consulta codigo imediatamente sem debounce/minimo textual e adiciona somente match exato. Cliente continua opcional, selecionavel e removivel. Sem mudanca de layout, regras de Venda, Estoque ou Financeiro e sem migration. Contratos em [paginacao.md](paginacao.md) e [frontend.md](frontend.md).

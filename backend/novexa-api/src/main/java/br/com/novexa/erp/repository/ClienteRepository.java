@@ -14,14 +14,15 @@ public interface ClienteRepository extends JpaRepository<ClienteEntity, Long> {
 
     @Query("""
             select c from ClienteEntity c
-            where c.empresa.id = :empresaId and c.ativo = true
+            where c.empresa.id = :empresaId and (:incluirInativos = true or c.ativo = true)
               and (lower(c.nome) like lower(concat('%', :termo, '%'))
                 or lower(c.nomeFantasia) like lower(concat('%', :termo, '%'))
                 or (:documento <> '' and c.cpfCnpj like concat('%', :documento, '%')))
             order by c.nome asc, c.id asc
             """)
     List<ClienteEntity> buscarPorTermo(@Param("empresaId") Long empresaId,
-            @Param("termo") String termo, @Param("documento") String documento, Pageable pageable);
+            @Param("termo") String termo, @Param("documento") String documento,
+            @Param("incluirInativos") boolean incluirInativos, Pageable pageable);
 
     List<ClienteEntity> findAllByEmpresaIdOrderByNomeAsc(Long empresaId);
 

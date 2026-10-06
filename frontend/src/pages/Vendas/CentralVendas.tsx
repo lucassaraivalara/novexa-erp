@@ -26,7 +26,7 @@ import {
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
-import { listarClientes } from "../../services/clienteService";
+import ClienteAutocomplete from "../../components/clientes/ClienteAutocomplete";
 import {
     buscarVenda,
     cancelarVenda,
@@ -60,10 +60,9 @@ const corStatus = (status: VendaResumo["status"]) =>
 type CampoOrdenacaoVenda = "id" | "dataHora" | "total" | "status";
 
 export default function CentralVendas() {
-    const empresaId = obterSessao()?.empresa.id;
     const podeCancelar = podeExecutarAcaoGerencial(obterSessao()?.perfil);
     const [vendas, setVendas] = useState<VendaResumo[]>([]);
-    const [clientes, setClientes] = useState<Cliente[]>([]);
+    const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
     const [filtros, setFiltros] = useState<FiltrosCentralVendas>(filtrosIniciais);
     const [pagina, setPagina] = useState(0);
     const [porPagina, setPorPagina] = useState(25);
@@ -115,15 +114,6 @@ export default function CentralVendas() {
         const timer = setTimeout(() => void carregarVendas(controller.signal), 0);
         return () => { clearTimeout(timer); controller.abort(); };
     }, [carregarVendas]);
-
-    useEffect(() => {
-        if (!empresaId) return;
-        const controller = new AbortController();
-        listarClientes(controller.signal)
-            .then(setClientes)
-            .catch(() => { /* O filtro continua utilizável sem a lista de clientes. */ });
-        return () => controller.abort();
-    }, [empresaId]);
 
     function alterarFiltro<K extends keyof FiltrosCentralVendas>(campo: K, valor: FiltrosCentralVendas[K]) {
         setFiltros(atuais => ({ ...atuais, [campo]: valor }));
@@ -268,11 +258,11 @@ export default function CentralVendas() {
                 <TextField size="small" type="date" label="Data final" value={filtros.dataFinal}
                     slotProps={{ inputLabel: { shrink: true } }}
                     onChange={evento => alterarFiltro("dataFinal", evento.target.value)} />
-                <TextField select size="small" label="Cliente" value={filtros.clienteId} sx={{ minWidth: 220 }}
-                    onChange={evento => alterarFiltro("clienteId", evento.target.value)}>
-                    <MenuItem value="">Todos</MenuItem>
-                    {clientes.map(cliente => <MenuItem key={cliente.id} value={String(cliente.id)}>{cliente.nome}</MenuItem>)}
-                </TextField>
+                <ClienteAutocomplete size="small" label="Cliente" placeholder="Buscar cliente..." minWidth={220}
+                    incluirInativos value={clienteSelecionado} onChange={cliente => {
+                        setClienteSelecionado(cliente);
+                        alterarFiltro("clienteId", cliente ? String(cliente.id) : "");
+                    }} />
             </Stack>}
             vazio={{ titulo: "Nenhuma venda encontrada", descricao: "Ajuste os filtros ou inicie uma nova venda." }}
             paginacao={{ pagina, linhasPorPagina: porPagina, total: totalItems,
