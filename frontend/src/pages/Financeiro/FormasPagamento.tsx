@@ -80,7 +80,7 @@ export default function FormasPagamento() {
     return (
         <PageContainer>
             <PageHeader
-                titulo="Configurações de Pagamento"
+                titulo="Formas de Pagamento"
                 descricao="Configure as formas de pagamento da sua empresa."
                 acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setEditor({ config: null })}>Nova Configuração</Button>}
             />

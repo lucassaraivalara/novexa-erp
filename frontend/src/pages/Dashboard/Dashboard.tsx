@@ -73,7 +73,7 @@ export default function Dashboard() {
     return <Stack spacing={2}>
         <PageHeader titulo="Dashboard" descricao="Resumo operacional de hoje." acaoPrincipal={
             <Stack direction="row" sx={{ flexWrap: "wrap", gap: 0.75 }}>
-                <Button size="small" variant="contained" component={Link} to="/pdv" startIcon={<AddShoppingCartRoundedIcon fontSize="small" />}>Nova venda</Button>
+                <Button size="small" variant="contained" component={Link} to="/pdv" startIcon={<AddShoppingCartRoundedIcon fontSize="small" />}>Vender</Button>
                 <Button size="small" variant="outlined" component={Link} to="/produtos">Produtos</Button>
                 <Button size="small" variant="outlined" component={Link} to="/clientes">Clientes</Button>
                 <Button size="small" variant="outlined" component={Link} to="/estoque">Estoque</Button>
@@ -105,7 +105,7 @@ export default function Dashboard() {
                     <Typography color="text.secondary">Nenhum caixa aberto no momento.</Typography>
                     <Stack direction="row" spacing={1}>
                         <Button size="small" variant="outlined" component={Link} to="/financeiro/caixas">Ver caixas</Button>
-                        <Button size="small" variant="contained" component={Link} to="/pdv">Abrir PDV</Button>
+                        <Button size="small" variant="contained" component={Link} to="/pdv">Vender</Button>
                     </Stack>
                 </Stack> : <Table size="small" aria-label="Sessões de caixa abertas">
                     <TableHead><TableRow><TableCell>Caixa</TableCell><TableCell align="right">Saldo inicial</TableCell>

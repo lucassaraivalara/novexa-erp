@@ -2,6 +2,12 @@
 
 Este documento define os padrões do frontend do Novexa ERP, preservando a densidade e a velocidade operacional.
 
+## Navegacao por tarefa
+
+Sidebar oferece Dashboard, Vender (/pdv), Central de Vendas (/vendas), Clientes, Produtos e Estoque. Financeiro agrupa Caixas, Contas a Pagar, Recebimentos de cartao (dominio Recebivel) e Contas e saldos (dominio ContaFinanceira); Formas de Pagamento e Dados Bancarios ficam no subgrupo Configuracoes. Administracao preserva Empresas e Usuarios, este ultimo somente ADMIN. Item indisponivel Padroes p/ Novo Cliente nao e apresentado.
+
+URLs, layout operacional independente do PDV, permissoes e componentes visuais preservados. Produtos mantem Produtos/Fornecedores; Estoque mantem Saldo/Entradas; Caixas e Dados Bancarios preservam suas abas. Entrada avulsa identifica a movimentacao isolada de produto, distinta da Entrada manual de mercadoria. Nomes apresentados nao renomeiam dominios, services ou endpoints.
+
 ## Fundacao visual Novexa
 
 Theme e a fonte principal da identidade: base neutra #F6F8F7/#FFFFFF, texto #101828/#5D6B7A, divider #E4E8EC e primary #0E7C66. Inter existente preservada, sem novas fontes/dependencias. Tipografia fixa h4 28px/600, h6 18px/600, body 15/14px e caption/overline 12px, sem tracking negativo ou dimensionamento por viewport. visualTokens.numeric disponibiliza tabular-nums.

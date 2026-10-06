@@ -178,7 +178,7 @@ test("configurações de pagamento possuem rota, menu, service e listagem empres
     const service = await readFile(new URL("../src/services/configuracaoFormaPagamentoService.ts", import.meta.url), "utf8");
 
     assert.match(navegacao, /financeiro\/formas-pagamento/);
-    assert.match(navegacao, /Configurações de Pagamento/);
+    assert.match(navegacao, /titulo: "Formas de Pagamento"/);
     assert.match(service, /configuracoes-formas-pagamento/);
     assert.match(service, /api\.get<ConfiguracaoFormaPagamento\[\]>/);
     assert.match(pagina, /cabecalho: "Nome"/);

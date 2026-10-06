@@ -191,7 +191,8 @@ test("rota de Recebíveis está registrada em AppRoutes e no grupo Financeiro", 
     const routes = await readFile(new URL("../src/routes/AppRoutes.tsx", import.meta.url), "utf8");
 
     assert.match(navigation, /caminho: "financeiro\/recebiveis"/);
-    assert.match(navigation, /id: "recebiveis", titulo: "Recebíveis", rota: rotaRecebiveis/);
+    assert.match(navigation, /id: "recebiveis", rota: rotaRecebiveis/);
+    assert.match(navigation, /titulo: "Recebimentos de cartão"/);
     assert.match(routes, /rotasInternas\.map\(\(rota\)/);
 });
 

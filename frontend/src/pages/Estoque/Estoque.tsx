@@ -162,14 +162,14 @@ function SaldoEstoque() {
     ];
 
     const acoes: AcaoTabela<ProdutoEstoque>[] = [
-        { rotulo: "Entrada", icone: <InputRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "ENTRADA"), desabilitado: (produto) => !produto.controlaEstoque || !produto.ativo, tooltip: "Registrar entrada" },
+        { rotulo: "Entrada avulsa", icone: <InputRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "ENTRADA"), desabilitado: (produto) => !produto.controlaEstoque || !produto.ativo, tooltip: "Registrar entrada avulsa" },
         { rotulo: "Saída", icone: <OutputRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "SAIDA"), desabilitado: (produto) => !produto.controlaEstoque || !produto.ativo, cor: "error", tooltip: "Registrar saída" },
         { rotulo: "Ajuste", icone: <TuneRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "AJUSTE"), desabilitado: (produto) => !produto.controlaEstoque || !produto.ativo, tooltip: "Ajustar novo saldo físico" },
         { rotulo: "Histórico", icone: <HistoryRoundedIcon fontSize="small" />, onClick: (produto) => void abrirHistorico(produto), tooltip: "Consultar histórico" },
     ];
 
     const operacao = dialogo?.operacao;
-    const tituloOperacao = operacao === "AJUSTE" ? "Ajustar estoque" : operacao === "ENTRADA" ? "Registrar entrada" : "Registrar saída";
+    const tituloOperacao = operacao === "AJUSTE" ? "Ajustar estoque" : operacao === "ENTRADA" ? "Registrar entrada avulsa" : "Registrar saída";
     const valor = Number(quantidade.replace(",", "."));
     const saldoEsperado = dialogo && quantidade.trim() !== "" && Number.isFinite(valor) && valor >= 0
         ? novoSaldoEsperado(operacao!, dialogo.produto.estoqueAtual, valor) : null;

@@ -273,7 +273,7 @@ export default function Vendas() {
             onVoltar={fecharFinalizacao}
             onTentarNovamente={finalizacao.podeTentarNovamente ? () => void finalizar() : undefined} />}
         <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
-            <Stack direction="row" spacing={2} sx={{ alignItems: "baseline", flexWrap: "wrap" }}><Typography component="h1" variant="h6">Frente de caixa</Typography>
+            <Stack direction="row" spacing={2} sx={{ alignItems: "baseline", flexWrap: "wrap" }}><Typography component="h1" variant="h6">Vender</Typography>
                 <Typography variant="body2" color="text.secondary">{sessao?.empresa.nomeFantasia || sessao?.empresa.razaoSocial} · {sessao?.nomeUsuario}</Typography></Stack>
             <Button component={Link} to="/dashboard" size="small" disabled={salvando}>Voltar ao ERP</Button>
         </Stack>

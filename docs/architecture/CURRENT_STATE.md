@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Navegacao por tarefa do usuario (2026-10-06)
+
+PDV acessivel diretamente por Vender; consulta identificada como Central de Vendas. Financeiro separa operacoes de Configuracoes, com labels Recebimentos de cartao e Contas e saldos; Formas de Pagamento padronizado. Padroes p/ Novo Cliente indisponivel removido somente da navegacao. Entrada avulsa distingue a movimentacao isolada do recebimento de mercadoria. URLs, ADMIN de Usuarios, abas existentes, visual, backend e regras preservados; estrutura em [frontend.md](frontend.md).
+
+Validacao: 26 testes direcionados de navegacao, paginas/titulos e Estoque aprovados; build/TypeScript, lint dos arquivos alterados e diff check. Sidebar conferida em 1440/1024/390px sem overflow horizontal; navegacao com componentes reais e HTTP simulado nos testes, sem homologacao backend/E2E geral ou suite completa.
+
 ## Frontend: erros de lint preexistentes corrigidos (2026-10-06)
 
 Quatro erros de react-hooks/set-state-in-effect corrigidos em Dashboard, Caixa e SessaoCaixaPDVDialog: atualizacoes da carga inicial nos callbacks das respostas, resets preservados nas acoes de recarga e reset redundante da sessao nula removido. Sem eslint-disable, mudanca de endpoints, regras, visual, dependencias ou backend.

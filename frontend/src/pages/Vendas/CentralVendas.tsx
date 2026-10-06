@@ -229,7 +229,7 @@ export default function CentralVendas() {
     return <PageContainer>
         <PageHeader titulo="Central de Vendas" descricao="Consulte vendas, confira detalhes e execute cancelamentos."
             acaoPrincipal={<Button component={Link} to="/pdv" variant="contained"
-                startIcon={<AddShoppingCartRoundedIcon />}>Nova Venda</Button>} />
+                startIcon={<AddShoppingCartRoundedIcon />}>Vender</Button>} />
 
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregarVendas()}>Tentar novamente</Button>}>{erro}</Alert>}
 

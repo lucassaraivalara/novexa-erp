@@ -138,7 +138,7 @@ export default function ContasFinanceiras() {
     const contaExtrato = contas.find((conta) => conta.id === extratoId);
 
     return <PageContainer>
-        <PageHeader titulo="Contas Financeiras"
+        <PageHeader titulo="Contas e saldos"
             acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setEditor(null)}>Nova conta</Button>} />
         {erro && !situacao && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErro("")}
             action={contas.length === 0 ? <Button color="inherit" onClick={() => { setCarregando(true); setTentativa((n) => n + 1); }}>Tentar novamente</Button> : undefined}>{erro}</Alert>}

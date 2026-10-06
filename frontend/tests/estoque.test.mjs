@@ -113,7 +113,7 @@ test("tela de estoque preserva busca, ações e diálogos acessíveis", async ()
     assert.match(fonte, /nome: \{ rotulo: "Produto", placeholder: "Pesquisar por produto…" \}/);
     assert.match(fonte, /codigoEstoque: \{ rotulo: "Código", placeholder: "Pesquisar por código…" \}/);
     assert.equal((fonte.match(/pesquisavel: true/g) ?? []).length, 2);
-    assert.match(fonte, /tooltip: "Registrar entrada"/);
+    assert.match(fonte, /tooltip: "Registrar entrada avulsa"/);
     assert.match(fonte, /tooltip: "Registrar saída"/);
     assert.match(fonte, /tooltip: "Ajustar novo saldo físico"/);
     assert.match(fonte, /tooltip: "Consultar histórico"/);

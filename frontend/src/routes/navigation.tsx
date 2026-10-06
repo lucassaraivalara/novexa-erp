@@ -8,7 +8,6 @@ import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
 import WarehouseRoundedIcon from "@mui/icons-material/WarehouseRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import PaymentsRoundedIcon from "@mui/icons-material/PaymentsRounded";
-import PersonAddAltRoundedIcon from "@mui/icons-material/PersonAddAltRounded";
 import type { ReactNode } from "react";
 import Caixa from "../pages/Financeiro/Caixa";
 import Clientes from "../pages/Clientes/Clientes";
@@ -17,6 +16,7 @@ import Empresa from "../pages/Empresa/Empresa";
 import Estoque from "../pages/Estoque/Estoque";
 import Produtos from "../pages/Produtos/ProdutosArea";
 import CentralVendas from "../pages/Vendas/CentralVendas";
+import Vendas from "../pages/Vendas/Vendas";
 import DadosBancarios from "../pages/Financeiro/DadosBancarios";
 import FormasPagamento from "../pages/Financeiro/FormasPagamento";
 import Usuarios from "../pages/Usuarios/Usuarios";
@@ -32,6 +32,14 @@ export type RotaInterna = {
     titulo: string;
     icone: ReactNode;
     elemento: ReactNode;
+};
+
+// O PDV preserva seu layout operacional, fora do MainLayout.
+export const rotaPdv: RotaInterna = {
+    caminho: "pdv",
+    titulo: "Vender",
+    icone: <PointOfSaleRoundedIcon />,
+    elemento: <Vendas />,
 };
 
 export const rotasInternas: RotaInterna[] = [
@@ -61,7 +69,7 @@ export const rotasInternas: RotaInterna[] = [
     },
     {
         caminho: "vendas",
-        titulo: "Vendas",
+        titulo: "Central de Vendas",
         icone: <PointOfSaleRoundedIcon />,
         elemento: <CentralVendas />,
     },
@@ -79,7 +87,7 @@ export const rotasInternas: RotaInterna[] = [
     },
     {
         caminho: "financeiro/contas-financeiras",
-        titulo: "Contas Financeiras",
+        titulo: "Contas e saldos",
         icone: <SavingsRoundedIcon />,
         elemento: <ContasFinanceiras />,
     },
@@ -91,7 +99,7 @@ export const rotasInternas: RotaInterna[] = [
     },
     {
         caminho: "financeiro/recebiveis",
-        titulo: "Recebíveis",
+        titulo: "Recebimentos de cartão",
         icone: <CreditCardRoundedIcon />,
         elemento: <Recebiveis />,
     },
@@ -103,7 +111,7 @@ export const rotasInternas: RotaInterna[] = [
     },
     {
         caminho: "financeiro/formas-pagamento",
-        titulo: "Configurações de Pagamento",
+        titulo: "Formas de Pagamento",
         icone: <PaymentsRoundedIcon />,
         elemento: <FormasPagamento />,
     },
@@ -115,8 +123,7 @@ export const rotasInternas: RotaInterna[] = [
     },
 ];
 
-// A navegação pode agrupar rotas existentes ou reservar itens sem destino.
-// Apenas rotasInternas gera páginas em AppRoutes.
+// A navegação agrupa rotas existentes; o PDV mantém sua rota independente.
 export type ItemMenu =
     | { tipo: "rota"; id: string; rota: RotaInterna; titulo?: string }
     | { tipo: "grupo"; id: string; titulo: string; icone: ReactNode; filhos: ItemMenu[]; abertoInicialmente?: boolean }
@@ -132,7 +139,9 @@ const rotaDadosBancarios = rotasInternas.find(r => r.caminho === "financeiro/dad
 const rotaFormasPagamento = rotasInternas.find(r => r.caminho === "financeiro/formas-pagamento")!;
 
 export const menuPrincipal: ItemMenu[] = [
-    ...["dashboard", "vendas", "produtos", "clientes", "estoque"].map(caminho => ({
+    { tipo: "rota", id: "dashboard", rota: rotasInternas.find(rota => rota.caminho === "dashboard")! },
+    { tipo: "rota", id: "pdv", rota: rotaPdv },
+    ...["vendas", "clientes", "produtos", "estoque"].map(caminho => ({
         tipo: "rota" as const,
         id: caminho,
         rota: rotasInternas.find(rota => rota.caminho === caminho)!,
@@ -143,13 +152,22 @@ export const menuPrincipal: ItemMenu[] = [
         titulo: "Financeiro",
         icone: <AccountBalanceWalletRoundedIcon />,
         abertoInicialmente: true,
-filhos: [
+        filhos: [
             { tipo: "rota", id: "caixas", titulo: "Caixas", rota: rotaCaixas },
             { tipo: "rota", id: "contas-pagar", titulo: "Contas a Pagar", rota: rotaContasPagar },
-            { tipo: "rota", id: "recebiveis", titulo: "Recebíveis", rota: rotaRecebiveis },
-            { tipo: "rota", id: "contas-financeiras", titulo: "Contas Financeiras", rota: rotaContasFinanceiras },
-            { tipo: "rota", id: "formas-pagamento", titulo: "Formas de Pagamento", rota: rotaFormasPagamento },
-            { tipo: "rota", id: "dados-bancarios", titulo: "Dados Bancários", rota: rotaDadosBancarios },
+            { tipo: "rota", id: "recebiveis", rota: rotaRecebiveis },
+            { tipo: "rota", id: "contas-financeiras", rota: rotaContasFinanceiras },
+            {
+                tipo: "grupo",
+                id: "configuracoes-financeiro",
+                titulo: "Configurações",
+                icone: <SettingsRoundedIcon />,
+                abertoInicialmente: true,
+                filhos: [
+                    { tipo: "rota", id: "formas-pagamento", rota: rotaFormasPagamento },
+                    { tipo: "rota", id: "dados-bancarios", rota: rotaDadosBancarios },
+                ],
+            },
         ],
     },
     {
@@ -161,7 +179,6 @@ filhos: [
         filhos: [
             { tipo: "rota", id: "empresas", titulo: "Empresas", rota: rotaEmpresas },
             { tipo: "rota", id: "usuarios", titulo: "Usuários", rota: rotaUsuarios },
-            { tipo: "indisponivel", id: "padroes-novo-cliente", titulo: "Padrões p/ Novo Cliente", icone: <PersonAddAltRoundedIcon /> },
         ],
     },
 ];

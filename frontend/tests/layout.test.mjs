@@ -1,5 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 import { chromium } from "@playwright/test";
 
@@ -12,11 +13,12 @@ import {createRoot} from 'react-dom/client';
 import {ThemeProvider,CssBaseline} from '@mui/material';
 import {BrowserRouter,Routes,Route,useLocation} from 'react-router-dom';
 import MainLayout from '/src/components/layout/MainLayout.tsx';
+import AppRoutes from '/src/routes/AppRoutes.tsx';
 import theme from '/src/theme/theme.ts';
 function Content(){const location=useLocation();return React.createElement('h2',null,'Conteudo '+location.pathname);}
 createRoot(document.getElementById('root')).render(React.createElement(ThemeProvider,{theme},
     React.createElement(CssBaseline),React.createElement(BrowserRouter,null,
-    React.createElement(Routes,null,
+    new URLSearchParams(location.search).has('real') ? React.createElement(AppRoutes) : React.createElement(Routes,null,
         React.createElement(Route,{path:'/login',element:React.createElement('h2',null,'Login') }),
         React.createElement(Route,{element:React.createElement(MainLayout)},
             React.createElement(Route,{path:'*',element:React.createElement(Content)}))))));
@@ -32,7 +34,7 @@ before(async () => {
             load(id) { if (id === "\0layout-fixture.js") return fixture; },
             configureServer(vite) {
                 vite.middlewares.use(async (req,res,next) => {
-                    if (!["/clientes","/produtos","/usuarios","/financeiro/contas-pagar","/financeiro/recebiveis","/login"].includes(req.url)) return next();
+                    if (!["/dashboard","/pdv","/vendas","/estoque","/clientes","/produtos","/usuarios","/financeiro/contas-pagar","/financeiro/recebiveis","/financeiro/contas-financeiras","/financeiro/formas-pagamento","/financeiro/dados-bancarios","/login"].includes(req.url.split('?')[0])) return next();
                     res.setHeader("Content-Type","text/html");
                     res.end(await vite.transformIndexHtml(req.url,'<div id="root"></div><script type="module" src="/layout-fixture.js"></script>'));
                 });
@@ -58,19 +60,93 @@ async function withLayout(run, options = {}) {
     } finally { await page.close(); }
 }
 
-test("Sidebar preserva grupos, ordem, item ativo e indisponibilidade", () => withLayout(async page => {
+test("Sidebar organiza tarefas, configuracoes e remove item indisponivel", () => withLayout(async page => {
     const nav = page.getByRole("navigation");
-    assert.deepEqual(await nav.getByRole("link").allTextContents(), ["Dashboard","Vendas","Produtos","Clientes","Estoque","Caixas","Contas a Pagar","Receb\u00edveis","Contas Financeiras","Formas de Pagamento","Dados Bancarios","Empresas","Usuarios"].map(x => x === "Dados Bancarios" ? "Dados Banc\u00e1rios" : x === "Usuarios" ? "Usu\u00e1rios" : x));
+    assert.deepEqual(await nav.getByRole("link").allTextContents(), ["Dashboard","Vender","Central de Vendas","Clientes","Produtos","Estoque","Caixas","Contas a Pagar","Recebimentos de cartão","Contas e saldos","Formas de Pagamento","Dados Bancários","Empresas","Usuários"]);
     assert.equal(await nav.getByRole("button",{name:"Financeiro",exact:true}).getAttribute("aria-expanded"),"true");
     assert.equal(await nav.getByRole("button",{name:"Administra\u00e7\u00e3o",exact:true}).count(),1);
     const active = nav.getByRole("link",{name:"Clientes",exact:true});
     assert.equal(await active.getAttribute("aria-current"),"page");
     assert.equal(await active.evaluate(el => getComputedStyle(el,"::before").width),"3px");
-    const unavailable = nav.getByRole("button",{name:/Novo Cliente/});
-    assert.equal(await unavailable.getAttribute("aria-disabled"),"true");
-    assert.equal(await unavailable.isDisabled(),true);
+    assert.equal(await nav.getByRole("button",{name:/Novo Cliente/}).count(),0);
+    const config = nav.getByRole("list",{name:"Configurações",exact:true});
+    assert.deepEqual(await config.getByRole("link").allTextContents(),["Formas de Pagamento","Dados Bancários"]);
+    assert.equal(await config.getByRole("link",{name:"Contas a Pagar"}).count(),0);
     assert.equal(new URL(page.url()).pathname,"/clientes");
 }));
+
+test("Novos labels preservam URLs e titulos da topbar", () => withLayout(async page => {
+    for (const [label,path] of [
+        ["Central de Vendas","/vendas"], ["Recebimentos de cartão","/financeiro/recebiveis"],
+        ["Contas e saldos","/financeiro/contas-financeiras"], ["Formas de Pagamento","/financeiro/formas-pagamento"],
+        ["Dados Bancários","/financeiro/dados-bancarios"],
+    ]) {
+        const link = page.getByRole("navigation").getByRole("link",{name:label,exact:true});
+        assert.equal(await link.getAttribute("href"),path);
+        await link.click();
+        await page.getByRole("heading",{name:label,exact:true}).waitFor();
+        assert.equal(new URL(page.url()).pathname,path);
+        assert.equal(await link.getAttribute("aria-current"),"page");
+    }
+    const group = page.getByRole("button",{name:"Configurações",exact:true});
+    await group.click();
+    assert.equal(await group.getAttribute("aria-expanded"),"false");
+    await group.click();
+    assert.equal(await group.getAttribute("aria-expanded"),"true");
+}));
+
+async function mockCatalogs(page) {
+    await page.route("http://localhost:8080/**",route => {
+        const path = new URL(route.request().url()).pathname;
+        const data = path === "/dashboard/resumo"
+            ? {faturamentoHoje:0,quantidadeVendasHoje:0,ticketMedioHoje:0,quantidadeProdutosEstoqueBaixo:0,quantidadeClientesAtivos:0,sessoesCaixaAbertas:[]}
+            : path.endsWith("/pagina") || ["/clientes","/produtos","/fornecedores","/vendas","/estoque/entradas"].includes(path)
+                ? {items:[],page:0,size:25,totalItems:0,totalPages:0} : [];
+        return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(data)});
+    });
+}
+
+test("Vender abre o PDV real na rota protegida e sem duplicar layout", () => withLayout(async page => {
+    await mockCatalogs(page);
+    await page.goto(`${url}/clientes?real`);
+    const sell = page.getByRole("navigation").getByRole("link",{name:"Vender",exact:true});
+    assert.equal(await sell.getAttribute("href"),"/pdv");
+    await sell.click();
+    // Sem caixa aberto, o dialog operacional existente oculta o conteudo de fundo do leitor de tela.
+    await page.getByRole("heading",{name:"Vender",exact:true,includeHidden:true}).waitFor();
+    assert.equal(new URL(page.url()).pathname,"/pdv");
+    assert.equal(await page.getByRole("navigation",{name:"Menu principal"}).count(),0);
+}));
+
+test("Produtos e Estoque preservam abas contextuais reais", () => withLayout(async page => {
+    await mockCatalogs(page);
+    await page.goto(`${url}/produtos?real`);
+    const products = page.getByRole("tablist",{name:"Cadastros de produtos"});
+    await products.waitFor();
+    assert.deepEqual(await products.getByRole("tab").allTextContents(),["Produtos","Fornecedores"]);
+    await products.getByRole("tab",{name:"Fornecedores",exact:true}).click();
+    assert.equal(await products.getByRole("tab",{name:"Fornecedores",exact:true}).getAttribute("aria-selected"),"true");
+    assert.equal(await page.getByRole("navigation").getByRole("link",{name:"Fornecedores",exact:true}).count(),0);
+    await page.goto(`${url}/estoque?real`);
+    const stock = page.getByRole("tablist",{name:"Área de estoque"});
+    await stock.waitFor();
+    assert.deepEqual(await stock.getByRole("tab").allTextContents(),["Saldo","Entradas"]);
+    await stock.getByRole("tab",{name:"Entradas",exact:true}).click();
+    await page.getByRole("button",{name:"Entrada manual",exact:true}).waitFor();
+    assert.equal(await stock.getByRole("tab",{name:"Entradas",exact:true}).getAttribute("aria-selected"),"true");
+}));
+
+test("Cabecalhos de pagina e atalhos usam a nomenclatura da navegacao", async () => {
+    for (const [file,title] of [["Financeiro/Recebiveis","Recebimentos de cartão"],["Financeiro/ContasFinanceiras","Contas e saldos"],["Financeiro/FormasPagamento","Formas de Pagamento"],["Vendas/CentralVendas","Central de Vendas"]]) {
+        const source = await readFile(new URL(`../src/pages/${file}.tsx`,import.meta.url),"utf8");
+        assert.ok(source.includes(`titulo="${title}"`));
+    }
+    for (const file of ["Dashboard/Dashboard","Vendas/CentralVendas"]) {
+        const source = await readFile(new URL(`../src/pages/${file}.tsx`,import.meta.url),"utf8");
+        assert.match(source,/to="\/pdv"/);
+        assert.match(source,/>Vender<\/Button>/);
+    }
+});
 
 test("Sidebar preserva navegacao, expansao e foco de teclado", () => withLayout(async page => {
     const nav = page.getByRole("navigation");
@@ -87,10 +163,13 @@ test("Sidebar preserva navegacao, expansao e foco de teclado", () => withLayout(
     await page.getByRole("heading",{name:"Contas a Pagar",exact:true}).waitFor();
 }));
 
-test("Sidebar preserva restricao de Usuarios por perfil", () => withLayout(async page => {
+for (const perfil of ["GERENTE","OPERADOR","USUARIO"]) test(`Sidebar e rota preservam restricao de Usuarios para ${perfil}`, () => withLayout(async page => {
     assert.equal(await page.getByRole("navigation").getByRole("link",{name:"Usu\u00e1rios",exact:true}).count(),0);
     assert.equal(await page.getByRole("navigation").getByRole("link",{name:"Clientes",exact:true}).count(),1);
-}, {perfil:"OPERADOR"}));
+    await mockCatalogs(page);
+    await page.goto(`${url}/usuarios?real`);
+    await page.waitForURL(`${url}/dashboard`);
+}, {perfil}));
 
 test("Sidebar mostra tooltip somente quando os labels estao ocultos", () => withLayout(async page => {
     const clients = page.getByRole("navigation").getByRole("link",{name:"Clientes",exact:true});
@@ -144,5 +223,8 @@ test("MainLayout preserva Outlet e estrutura fluida nos tres breakpoints", () =>
         assert.equal(sizes.padding,width < 600 ? "16px" : "24px");
         assert.equal(await page.getByText("Loja Novexa",{exact:true}).isVisible(),width >= 900);
         assert.equal(await page.getByRole("button",{name:"Sair",exact:true}).isVisible(),true);
+        const config = page.getByRole("button",{name:"Configurações",exact:true});
+        assert.equal(await config.isVisible(),true);
+        if (process.env.NOVEXA_NAV_SCREENSHOTS) await page.screenshot({path:`node_modules/.vite-layout-tests/navigation-${width}.png`,fullPage:true});
     }
 }));

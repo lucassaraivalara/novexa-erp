@@ -147,7 +147,7 @@ export default function Recebiveis() {
     const formaConfirmacao = confirmacao ? tipos[confirmacao.tipo] : "";
 
     return <PageContainer>
-        <PageHeader titulo="Recebíveis" descricao="Acompanhe os recebíveis de cartão e registre liquidações." />
+        <PageHeader titulo="Recebimentos de cartão" descricao="Acompanhe os recebimentos de cartão e registre liquidações." />
         {erro && <Alert severity="error" sx={{ mb: 2 }} action={items.length === 0
             ? <Button color="inherit" onClick={() => { setCarregando(true); setTentativa((atual) => atual + 1); }}>Tentar novamente</Button>
             : undefined}>{erro}</Alert>}
@@ -190,7 +190,7 @@ export default function Recebiveis() {
             compacta
             vazio={{
                 titulo: "Nenhum recebível encontrado",
-                descricao: filtroAtivo ? "Ajuste os filtros para consultar outros recebíveis." : "Recebíveis de cartão aparecerão aqui após o faturamento das vendas.",
+                descricao: filtroAtivo ? "Ajuste os filtros para consultar outros recebimentos de cartão." : "Recebimentos de cartão aparecerão aqui após o faturamento das vendas.",
             }}
             paginacao={{ pagina, linhasPorPagina: porPagina, total: totalItems,
                 onPageChange: (valor) => { setCarregando(true); setPagina(valor); },

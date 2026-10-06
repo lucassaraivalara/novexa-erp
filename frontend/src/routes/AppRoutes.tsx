@@ -2,10 +2,9 @@ import { type ReactNode } from "react";
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import Login from "../pages/Login/Login";
-import Vendas from "../pages/Vendas/Vendas";
 import { obterSessao, possuiSessao } from "../utils/auth/sessao";
 import { podeGerenciarUsuarios } from "../utils/auth/perfis";
-import { rotasInternas } from "./navigation";
+import { rotaPdv, rotasInternas } from "./navigation";
 
 type RotaPublicaProps = {
     children: ReactNode;
@@ -41,7 +40,7 @@ function AppRoutes() {
             />
 
             <Route element={<RotaProtegida />}>
-                <Route path="pdv" element={<Vendas />} />
+                <Route path={rotaPdv.caminho} element={rotaPdv.elemento} />
                 <Route element={<MainLayout />}>
                     {rotasInternas.map((rota) => (
                         <Route
