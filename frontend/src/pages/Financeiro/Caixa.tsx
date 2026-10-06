@@ -85,24 +85,27 @@ export default function Caixa() {
 
     const sessaoAtual = abertas.find((sessao) => sessao.sessaoId === sessaoId) ?? null;
 
-    async function carregar(signal?: AbortSignal) {
-        setCarregando(true);
-        setErro("");
-        try {
-            const [sessoes, cadastros, fechadas] = await Promise.all([
-                listarSessoesAbertas(signal), listarCaixas(signal), listarSessoesFechadas(signal),
-            ]);
+    function carregar(signal?: AbortSignal) {
+        return Promise.all([
+            listarSessoesAbertas(signal), listarCaixas(signal), listarSessoesFechadas(signal),
+        ]).then(([sessoes, cadastros, fechadas]) => {
             if (signal?.aborted) return;
             setAbertas(sessoes);
             setCaixas(cadastros);
             setHistorico(fechadas);
             setSessaoId((atual) => sessoes.some((sessao) => sessao.sessaoId === atual) ? atual : sessoes[0]?.sessaoId ?? null);
             if (sessoes.length === 0) { setResumo(null); setTimeline([]); }
-        } catch (e) {
+        }).catch((e) => {
             if (!signal?.aborted) setErro(mensagemCaixa(e, "Não foi possível carregar o Caixa operacional."));
-        } finally {
+        }).finally(() => {
             if (!signal?.aborted) setCarregando(false);
-        }
+        });
+    }
+
+    function recarregar() {
+        setCarregando(true);
+        setErro("");
+        return carregar();
     }
 
     async function carregarSessao(id: number, signal?: AbortSignal) {
@@ -121,7 +124,7 @@ export default function Caixa() {
     }, []);
 
     useEffect(() => {
-        if (sessaoId === null) { setResumo(null); setTimeline([]); return; }
+        if (sessaoId === null) return;
         const controller = new AbortController();
         const atualizar = () => carregarSessao(sessaoId, controller.signal).catch((e) => {
             if (!controller.signal.aborted) setErro(mensagemCaixa(e, "Não foi possível carregar o resumo do Caixa."));
@@ -156,7 +159,7 @@ export default function Caixa() {
         setProcessando(true); setErroModal("");
         try {
             await acao();
-            await carregar();
+            await recarregar();
             if (atualizarSessaoId !== null && atualizarSessaoId !== undefined) await carregarSessao(atualizarSessaoId);
         } catch (e) {
             setErroModal(mensagemCaixa(e, mensagem));
@@ -196,7 +199,7 @@ export default function Caixa() {
         try {
             await fecharSessaoCaixa(sessaoAtual.caixaId, sessaoId, { saldoFinal: final, conferencia });
             setModalFechamento(false); setSaldo(""); setObservacaoFechamento(""); setValoresConferidos({});
-            await carregar();
+            await recarregar();
         } catch (e) {
             if (axios.isAxiosError(e) && e.response?.status === 409) {
                 setErroModal(`${mensagemCaixa(e, "O resumo do Caixa mudou.")} Atualize o resumo e confira os valores novamente.`);
@@ -264,7 +267,7 @@ export default function Caixa() {
         <PageHeader titulo="Caixas" descricao="Acompanhe a operação do PDV e o histórico de sessões."
             acaoPrincipal={<Button variant="contained" startIcon={<AccountBalanceWalletRoundedIcon />} onClick={() => setModalAbertura(true)} disabled={abertas.length > 0}>Abrir Caixa</Button>}
             acoesSecundarias={<Button variant="outlined" startIcon={<SettingsRoundedIcon />} onClick={() => setGerenciando(true)}>Gerenciar caixas</Button>} />
-        {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregar()}>Tentar novamente</Button>}>{erro}</Alert>}
+        {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void recarregar()}>Tentar novamente</Button>}>{erro}</Alert>}
         <Paper variant="outlined"><Tabs value={aba} onChange={(_, valor) => setAba(valor)} aria-label="Visões do Caixa" variant="scrollable" scrollButtons="auto" sx={{ minHeight: 44 }}><Tab id="caixa-atual-tab" aria-controls="caixa-atual-painel" label="Caixa atual" sx={{ minHeight: 44, py: 1 }} /><Tab id="caixas-anteriores-tab" aria-controls="caixas-anteriores-painel" label="Caixas anteriores" sx={{ minHeight: 44, py: 1 }} /></Tabs></Paper>
         {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} podeMovimentar={podeMovimentar} podeFechar={podeFecharSessao(usuarioAtual?.perfil, usuarioAtual?.id, resumo.operadorAbertura.id)} onSuprimento={() => { setErroModal(""); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setObservacaoFechamento(""); setValoresConferidos(Object.fromEntries((resumo?.totaisPorFormaPagamento ?? []).filter((forma) => forma.tipo !== "DINHEIRO").map((forma) => [forma.formaPagamentoId, valorEditavel(forma.total)]))); setModalFechamento(true); }} /></Box>)}
         {aba === 1 && <Box id="caixas-anteriores-painel" role="tabpanel" aria-labelledby="caixas-anteriores-tab"><AppTable colunas={[

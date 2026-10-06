@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Frontend: erros de lint preexistentes corrigidos (2026-10-06)
+
+Quatro erros de react-hooks/set-state-in-effect corrigidos em Dashboard, Caixa e SessaoCaixaPDVDialog: atualizacoes da carga inicial nos callbacks das respostas, resets preservados nas acoes de recarga e reset redundante da sessao nula removido. Sem eslint-disable, mudanca de endpoints, regras, visual, dependencias ou backend.
+
+Validacao: 27 testes direcionados de Dashboard/Caixa/PDV aprovados, TypeScript/build e diff check. Lint global sem erros; permanecem dois warnings de react-hooks/incompatible-library pelo watch() em ConfiguracaoFormaPagamentoForm e ContaBancariaForm. Sem suite completa ou E2E geral.
+
 ## Central de Vendas: filtro remoto de Cliente (2026-10-06)
 
 Preload de /clientes/opcoes removido somente da Central. Filtro reutiliza ClienteAutocomplete/useRemoteSearch, com debounce de 350 ms, cancelamento e resultados limitados; selecionar/trocar/limpar envia clienteId na consulta paginada existente e reseta page=0, preservando status/periodo/sort/totalItems. Historico de clientes inativos preservado pelo opt-in incluirInativos=true em /clientes/buscar; default false mantem busca operacional somente de ativos. Tenant do JWT e limite 10 preservados. Sem alteracao de regras de Venda, PDV, Financeiro, permissoes, layout ou migrations.

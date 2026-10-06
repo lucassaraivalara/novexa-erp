@@ -38,27 +38,31 @@ export default function Dashboard() {
     const [erro, setErro] = useState("");
     const [erroVendas, setErroVendas] = useState("");
 
-    const carregar = useCallback(async (signal?: AbortSignal) => {
+    const carregar = useCallback((signal?: AbortSignal) => {
+        return buscarResumoDashboard(signal).then(async (dadosResumo) => {
+            setResumo(dadosResumo);
+            if (!signal?.aborted) setCarregando(false);
+
+            try {
+                const vendas = await listarVendasPaginado({}, 0, 5, "dataHora,desc", signal);
+                setUltimasVendas(vendas.items);
+            } catch {
+                if (!signal?.aborted) setErroVendas("Não foi possível carregar as últimas vendas.");
+            }
+        }, (e) => {
+            if (!signal?.aborted) {
+                setErro(mensagemDashboard(e));
+                setCarregando(false);
+            }
+        });
+    }, []);
+
+    function recarregar() {
         setCarregando(true);
         setErro("");
         setErroVendas("");
-        try {
-            const dadosResumo = await buscarResumoDashboard(signal);
-            setResumo(dadosResumo);
-        } catch (e) {
-            if (!signal?.aborted) setErro(mensagemDashboard(e));
-            return;
-        } finally {
-            if (!signal?.aborted) setCarregando(false);
-        }
-
-        try {
-            const vendas = await listarVendasPaginado({}, 0, 5, "dataHora,desc", signal);
-            setUltimasVendas(vendas.items);
-        } catch {
-            if (!signal?.aborted) setErroVendas("Não foi possível carregar as últimas vendas.");
-        }
-    }, []);
+        void carregar();
+    }
 
     useEffect(() => {
         const controller = new AbortController();
@@ -77,7 +81,7 @@ export default function Dashboard() {
             </Stack>
         } />
 
-        {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregar()}>Tentar novamente</Button>}>{erro}</Alert>}
+        {erro && <Alert severity="error" action={<Button color="inherit" onClick={recarregar}>Tentar novamente</Button>}>{erro}</Alert>}
 
         {carregando && !resumo ? <Paper variant="outlined"><LoadingState mensagem="Carregando resumo operacional…" /></Paper> : resumo && <>
             <Box sx={{ display: "grid", gap: 2,

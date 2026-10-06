@@ -39,11 +39,8 @@ export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) 
     const [erro, setErro] = useState("");
     const [processando, setProcessando] = useState(false);
 
-    const carregar = useCallback(async (signal?: AbortSignal) => {
-        setModo("CARREGANDO");
-        setErro("");
-        try {
-            const abertas = await listarSessoesAbertas(signal);
+    const carregar = useCallback((signal?: AbortSignal) => {
+        return listarSessoesAbertas(signal).then(async (abertas) => {
             const decisao = decidirSessaoCaixa(abertas);
             if (decisao.fluxo === "USAR_UNICA") {
                 onResolvida(decisao.sessao.sessaoId);
@@ -59,12 +56,18 @@ export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) 
             setCaixas(ativas);
             setCaixaId(ativas.length === 1 ? ativas[0].id : null);
             setModo("ABRIR");
-        } catch (e) {
+        }).catch((e) => {
             if (signal?.aborted) return;
             setErro(mensagemCaixa(e, "Não foi possível identificar o Caixa operacional."));
             setModo("ERRO");
-        }
+        });
     }, [onResolvida]);
+
+    function recarregar() {
+        setModo("CARREGANDO");
+        setErro("");
+        void carregar();
+    }
 
     useEffect(() => {
         if (resolvida) return;
@@ -112,7 +115,7 @@ export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) 
                 <DialogContent><Alert severity="error">{erro}</Alert></DialogContent>
                 <DialogActions>
                     <Button component={Link} to="/dashboard">Voltar ao ERP</Button>
-                    <Button variant="contained" onClick={() => void carregar()}>Tentar novamente</Button>
+                    <Button variant="contained" onClick={recarregar}>Tentar novamente</Button>
                 </DialogActions>
             </>}
 
