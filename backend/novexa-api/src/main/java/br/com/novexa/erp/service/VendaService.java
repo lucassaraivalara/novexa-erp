@@ -307,7 +307,7 @@ public class VendaService {
         if (codigoFechamento != FormaPagamento.DINHEIRO && recebido.compareTo(total) != 0) {
             throw conflito("PIX e cartão devem corresponder ao total da venda, sem troco.");
         }
-        venda.vincularSessaoCaixa(caixaOperacional.resolverSessao(pedido.sessaoCaixaId(), autenticado.empresaId()));
+        venda.vincularSessaoCaixa(caixaOperacional.resolverSessao(pedido.sessaoCaixaId(), autenticado.empresaId(), autenticado.usuarioId()));
         for (var item : venda.getItens()) {
             if (Boolean.TRUE.equals(produtosMap.get(item.getProduto().getId()).getControlaEstoque())) {
                 var movimento = estoque.movimentar(autenticado.empresaId(), item.getProduto().getId(),

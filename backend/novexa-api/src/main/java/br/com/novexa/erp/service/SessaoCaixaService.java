@@ -35,8 +35,8 @@ public class SessaoCaixaService {
     @Transactional
     public SessaoCaixaResponseDTO abrir(Long caixaId, BigDecimal saldoInicial, UsuarioAutenticado autenticado) {
         validarSaldo(saldoInicial);
-        CaixaEntity caixa = bloquearCaixa(caixaId, autenticado.empresaId());
         UsuarioEntity usuario = operador(autenticado);
+        CaixaEntity caixa = bloquearCaixa(caixaId, autenticado.empresaId());
         if (!Boolean.TRUE.equals(caixa.getAtivo()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Caixa inativo não pode ser aberto.");
         if (sessoes.findByCaixaIdAndEmpresaIdAndStatus(caixaId, autenticado.empresaId(), StatusSessaoCaixa.ABERTO).isPresent())
@@ -63,8 +63,8 @@ public class SessaoCaixaService {
     public SessaoCaixaResponseDTO fechar(Long caixaId, Long sessaoId, FechamentoCaixaDTO pedido, UsuarioAutenticado autenticado) {
         BigDecimal saldoFinal = pedido.saldoFinal();
         validarSaldo(saldoFinal);
-        bloquearCaixa(caixaId, autenticado.empresaId());
         UsuarioEntity usuario = operador(autenticado);
+        bloquearCaixa(caixaId, autenticado.empresaId());
         SessaoCaixaEntity sessao = operacional.bloquear(sessaoId, autenticado.empresaId());
         if (!sessao.getCaixa().getId().equals(caixaId)) throw naoEncontrado();
         if (autenticado.perfil() != PerfilUsuario.ADMIN && autenticado.perfil() != PerfilUsuario.GERENTE
@@ -148,7 +148,7 @@ public class SessaoCaixaService {
     }
 
     private UsuarioEntity operador(UsuarioAutenticado autenticado) {
-        UsuarioEntity usuario = usuarios.findByIdAndEmpresaId(autenticado.usuarioId(), autenticado.empresaId())
+        UsuarioEntity usuario = usuarios.buscarComLock(autenticado.usuarioId(), autenticado.empresaId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Operador não pertence à empresa."));
         if (!Boolean.TRUE.equals(usuario.getAtivo()) || !Boolean.TRUE.equals(usuario.getEmpresa().getAtivo()))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Operador ou empresa inativa.");

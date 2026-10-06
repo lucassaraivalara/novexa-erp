@@ -16,6 +16,7 @@ import java.util.*;
 @Service
 @Transactional
 public class CaixaOperacionalService {
+    private final CaixaRepository caixas;
     private final SessaoCaixaRepository sessoes;
     private final PagamentoRepository pagamentos;
     private final MovimentacaoCaixaRepository movimentos;
@@ -24,10 +25,10 @@ public class CaixaOperacionalService {
     private final ConferenciaFechamentoCaixaRepository conferencias;
     private final EntityManager em;
 
-    public CaixaOperacionalService(SessaoCaixaRepository sessoes, PagamentoRepository pagamentos,
+    public CaixaOperacionalService(CaixaRepository caixas, SessaoCaixaRepository sessoes, PagamentoRepository pagamentos,
             MovimentacaoCaixaRepository movimentos, UsuarioRepository usuarios, VendaRepository vendas,
             ConferenciaFechamentoCaixaRepository conferencias, EntityManager em) {
-        this.sessoes = sessoes; this.pagamentos = pagamentos; this.movimentos = movimentos;
+        this.caixas = caixas; this.sessoes = sessoes; this.pagamentos = pagamentos; this.movimentos = movimentos;
         this.usuarios = usuarios; this.vendas = vendas; this.conferencias = conferencias; this.em = em;
     }
 
@@ -99,13 +100,19 @@ public class CaixaOperacionalService {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public SessaoCaixaEntity resolverSessao(Long id, Long empresaId) {
+    public SessaoCaixaEntity resolverSessao(Long id, Long empresaId, Long usuarioId) {
         if (id == null) {
-            var abertas = sessoes.findByEmpresaIdAndStatusOrderByDataAberturaAscIdAsc(empresaId, StatusSessaoCaixa.ABERTO);
+            var abertas = sessoes.findByEmpresaIdAndUsuarioAberturaIdAndStatus(empresaId, usuarioId, StatusSessaoCaixa.ABERTO);
             if (abertas.isEmpty()) throw conflito("Abra uma sessão de Caixa antes de faturar a venda.");
-            if (abertas.size() != 1) throw conflito("Há mais de uma sessão aberta. Informe sessaoCaixaId.");
+            if (abertas.size() != 1) throw conflito("Há mais de uma sessão aberta para este operador. Informe sessaoCaixaId.");
             id = abertas.getFirst().getId();
         }
+        var referencia = sessoes.findByIdAndEmpresaId(id, empresaId).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão de Caixa não encontrada."));
+        if (!referencia.getUsuarioAbertura().getId().equals(usuarioId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "A sessão de Caixa deve pertencer ao operador autenticado.");
+        caixas.buscarComLock(referencia.getCaixa().getId(), empresaId).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Caixa não encontrado."));
         var sessao = bloquear(id, empresaId);
         exigirAberta(sessao);
         return sessao;
@@ -117,7 +124,7 @@ public class CaixaOperacionalService {
         var sessao = pagamento.getVenda().getSessaoCaixa();
         exigirAberta(sessao);
         UUID chave = UUID.nameUUIDFromBytes(("pagamento:" + pagamento.getId()).getBytes(StandardCharsets.UTF_8));
-        movimentos.save(new MovimentacaoCaixaEntity(sessao, pagamento.getUsuario(), pagamento,
+        movimentos.saveAndFlush(new MovimentacaoCaixaEntity(sessao, pagamento.getUsuario(), pagamento,
                 chave, TipoMovimentacaoCaixa.VENDA, pagamento.getValor(), null));
     }
 

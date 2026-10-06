@@ -49,15 +49,17 @@ class VendaHttpTest {
     @Autowired CaixaRepository caixas;
     @Autowired SessaoCaixaRepository sessoes;
     @Autowired MovimentacaoEstoqueRepository movimentos;
-    @Autowired MovimentacaoCaixaRepository movimentosCaixa;
     @Autowired LancamentoFinanceiroRepository financeiro;
     @MockitoSpyBean PagamentoRepository pagamentos;
     @MockitoSpyBean MovimentacaoFinanceiraRepository movimentosFinanceiros;
+    @MockitoSpyBean MovimentacaoCaixaRepository movimentosCaixa;
     @Autowired JwtService jwt;
     @Autowired FormaPagamentoService formas;
     @Autowired FormaPagamentoRepository catalogo;
     @Autowired ConfiguracaoFormaPagamentoEmpresaRepository configuracoes;
     @Autowired ContaFinanceiraRepository contasFinanceiras;
+    @Autowired br.com.novexa.erp.service.SessaoCaixaService sessaoService;
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
     EmpresaEntity empresa, outra;
     UsuarioEntity operador, segundo;
     ProdutoEntity produto;
@@ -79,7 +81,7 @@ class VendaHttpTest {
 
     @AfterEach
     void limpar() {
-        reset(pagamentos, movimentosFinanceiros);
+        reset(pagamentos, movimentosFinanceiros, movimentosCaixa);
         jdbc.update("delete from movimentacoes_caixa");
         jdbc.update("delete from movimentacoes_financeiras");
         jdbc.update("delete from recebiveis");
@@ -604,6 +606,7 @@ class VendaHttpTest {
     void pagamentoIdentificaOperadorQueFaturouMesmoQuandoOutroAbriuVenda() throws Exception {
         long id = abrir();
         adicionar(id, produto.getId(), 2);
+        abrirCaixa(segundo);
         mvc.perform(post("/vendas/" + id + "/faturar")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt.gerarToken(segundo))
                         .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pagamento())))
@@ -1106,6 +1109,169 @@ class VendaHttpTest {
         assertThat(respostas).containsExactly(200, 200);
         assertThat(movimentosFinanceiros.count()).isEqualTo(1);
         assertThat(contasFinanceiras.findById(config.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("120");
+    }
+
+    @Test
+    void dinheiroSemSessaoDoOperadorBloqueiaMesmoComCaixaDeOutroOperador() throws Exception {
+        fecharCaixa(operador);
+        mvc.perform(post("/vendas").header(HttpHeaders.AUTHORIZATION, authorization)
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pedido())))
+                .andExpect(status().isConflict()).andExpect(content().string(org.hamcrest.Matchers.containsString("Abra uma sessão de Caixa")));
+        assertThat(vendas.count()).isZero();
+        assertThat(pagamentos.count()).isZero();
+        assertThat(movimentosCaixa.count()).isZero();
+        assertThat(movimentos.count()).isZero();
+        assertThat(financeiro.count()).isZero();
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    void caixaAbertoDeOutraEmpresaNaoAtendeVendaEmDinheiro() throws Exception {
+        sessoes.deleteAllInBatch();
+        abrirCaixa(usuario(outra, "52998224725"));
+        var dados = pedido();
+        dados.put("sessaoCaixaId", sessoes.findAll().getFirst().getId());
+        dados.put("empresaId", outra.getId());
+        assertThat(statusVenda(dados, authorization)).isEqualTo(404);
+        assertThat(movimentosCaixa.count()).isZero();
+        assertThat(pagamentos.count()).isZero();
+    }
+
+    @Test
+    void maisDeUmaSessaoDoOperadorNaoEscolheDestinoArbitrario() throws Exception {
+        abrirCaixa(operador);
+        assertThat(statusVenda(pedido(), authorization)).isEqualTo(409);
+        assertThat(movimentosCaixa.count()).isZero();
+    }
+
+    @Test
+    void sessaoExplicitaDeOutroOperadorNaoPodeSerUsada() throws Exception {
+        var dados = pedido();
+        dados.put("sessaoCaixaId", sessaoOperador().getId());
+        assertThat(statusVenda(dados, "Bearer " + jwt.gerarToken(segundo))).isEqualTo(403);
+        assertThat(vendas.count()).isZero();
+        assertThat(movimentosCaixa.count()).isZero();
+        assertThat(pagamentos.count()).isZero();
+        assertThat(movimentos.count()).isZero();
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    void vendaAbertaSoExigeSessaoNoFaturamentoEDepoisPodeRepetirComCaixaFechado() throws Exception {
+        sessoes.deleteAllInBatch();
+        long id = abrir();
+        adicionar(id, produto.getId(), 2);
+        var dados = pagamento();
+        mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(dados)))
+                .andExpect(status().isConflict());
+        assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.ABERTA);
+        assertThat(pagamentos.count()).isZero();
+        var sessao = abrirCaixa(operador);
+        for (int tentativa = 0; tentativa < 2; tentativa++) {
+            mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                    .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(dados)))
+                    .andExpect(status().isOk());
+            if (tentativa == 0) fecharCaixa(operador);
+        }
+        assertThat(movimentosCaixa.count()).isEqualTo(1);
+        assertThat(movimentosCaixa.findAll().getFirst().getSessao().getId()).isEqualTo(sessao.id());
+        assertThat(pagamentos.count()).isEqualTo(1);
+    }
+
+    @Test
+    void falhaAoPersistirMovimentoCaixaReverteTodoFaturamento() throws Exception {
+        long id = abrir(); adicionar(id, produto.getId(), 2);
+        doAnswer(invocation -> {
+            movimentosCaixa.save(invocation.getArgument(0));
+            movimentosCaixa.flush();
+            assertThat(movimentosCaixa.count()).isEqualTo(1);
+            throw new IllegalStateException("falha posterior à entrada de caixa");
+        }).when(movimentosCaixa).saveAndFlush(any(MovimentacaoCaixaEntity.class));
+        assertThat(faturarStatus(id, authorization)).isEqualTo(500);
+        assertThat(movimentosCaixa.count()).isZero();
+        assertThat(pagamentos.count()).isZero();
+        assertThat(financeiro.count()).isZero();
+        assertThat(movimentos.count()).isZero();
+        assertThat(vendas.findById(id).orElseThrow().getStatus()).isEqualTo(StatusVenda.ABERTA);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    @Disabled("Requer PostgreSQL para validar comportamento de lock concorrente; H2 não garante ordenação determinística")
+    void vendaConfirmaEntradaAntesDeFechamentoConcorrente() throws Exception {
+        var sessao = sessaoOperador();
+        segundo.setPerfil(PerfilUsuario.GERENTE);
+        segundo = usuarios.saveAndFlush(segundo);
+        var gravou = new CountDownLatch(1); var liberar = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            var salvo = movimentosCaixa.save(invocation.getArgument(0));
+            movimentosCaixa.flush();
+            gravou.countDown();
+            assertThat(liberar.await(10, TimeUnit.SECONDS)).isTrue();
+            return salvo;
+        }).when(movimentosCaixa).saveAndFlush(any(MovimentacaoCaixaEntity.class));
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var venda = pool.submit(() -> enviar(pedido()));
+            Future<?> fechamento;
+            try {
+                assertThat(gravou.await(10, TimeUnit.SECONDS)).isTrue();
+                fechamento = pool.submit(() -> sessaoService.fechar(sessao.getCaixa().getId(), sessao.getId(),
+                        new BigDecimal("20"), principal(segundo)));
+                assertThatThrownBy(() -> fechamento.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            } finally { liberar.countDown(); }
+            assertThat(venda.get(15, TimeUnit.SECONDS)).isNotNull();
+            fechamento.get(15, TimeUnit.SECONDS);
+        }
+        assertThat(movimentosCaixa.count()).isEqualTo(1);
+        assertThat(sessoes.findById(sessao.getId()).orElseThrow().getStatus()).isEqualTo(StatusSessaoCaixa.FECHADO);
+    }
+
+    @Test
+    @Disabled("Requer PostgreSQL para validar comportamento de lock concorrente; H2 não garante ordenação determinística")
+    void fechamentoConcorrentePrimeiroImpedeEntradaNaSessaoFechada() throws Exception {
+        var sessao = sessaoOperador();
+        segundo.setPerfil(PerfilUsuario.GERENTE);
+        segundo = usuarios.saveAndFlush(segundo);
+        var fechou = new CountDownLatch(1); var liberar = new CountDownLatch(1);
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var fechamento = pool.submit(() -> new org.springframework.transaction.support.TransactionTemplate(transactions).execute(s -> {
+                var resultado = sessaoService.fechar(sessao.getCaixa().getId(), sessao.getId(), BigDecimal.ZERO, principal(segundo));
+                fechou.countDown();
+                try { assertThat(liberar.await(10, TimeUnit.SECONDS)).isTrue(); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new IllegalStateException(e); }
+                return resultado;
+            }));
+            Future<Integer> venda;
+            try {
+                assertThat(fechou.await(10, TimeUnit.SECONDS)).isTrue();
+                venda = pool.submit(() -> statusVenda(pedido(), authorization));
+                assertThatThrownBy(() -> venda.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            } finally { liberar.countDown(); }
+            fechamento.get(15, TimeUnit.SECONDS);
+            assertThat(venda.get(15, TimeUnit.SECONDS)).isEqualTo(409);
+        }
+        assertThat(movimentosCaixa.count()).isZero();
+        assertThat(pagamentos.count()).isZero();
+        assertThat(vendas.count()).isZero();
+        assertThat(movimentos.count()).isZero();
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+    }
+
+    private br.com.novexa.erp.security.UsuarioAutenticado principal(UsuarioEntity u) {
+        return new br.com.novexa.erp.security.UsuarioAutenticado(u.getId(), u.getCpf(), u.getEmpresa().getId(), u.getPerfil());
+    }
+    private br.com.novexa.erp.dto.SessaoCaixaResponseDTO abrirCaixa(UsuarioEntity u) {
+        var caixa = new CaixaEntity(); caixa.setEmpresa(u.getEmpresa()); caixa.setDescricao("Caixa " + UUID.randomUUID());
+        caixas.saveAndFlush(caixa);
+        return sessaoService.abrir(caixa.getId(), BigDecimal.ZERO, principal(u));
+    }
+    private SessaoCaixaEntity sessaoOperador() {
+        return sessoes.findByEmpresaIdAndUsuarioAberturaIdAndStatus(empresa.getId(), operador.getId(), StatusSessaoCaixa.ABERTO).getFirst();
+    }
+    private void fecharCaixa(UsuarioEntity u) {
+        var sessao = sessoes.findByEmpresaIdAndUsuarioAberturaIdAndStatus(u.getEmpresa().getId(), u.getId(), StatusSessaoCaixa.ABERTO).getFirst();
+        sessaoService.fechar(sessao.getCaixa().getId(), sessao.getId(), BigDecimal.ZERO, principal(u));
     }
 
     @Test void cicloPixConfirmacaoECancelamentoConcorrentes() throws Exception {
