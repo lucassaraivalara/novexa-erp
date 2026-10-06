@@ -100,7 +100,7 @@ class ProdutoIsolamentoTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"Produto", "SKU-001", "7891234567890", " "})
+    @ValueSource(strings = {"Produto", "SKU-001", "7891234567890"})
     void buscarPorTermoMantemEscopoDaEmpresaEmTodasAsConsultas(String termo) throws Exception {
         mvc.perform(get("/produtos/buscar").param("termo", termo)
                         .param("empresaId", empresa2.getId().toString())
@@ -205,6 +205,30 @@ class ProdutoIsolamentoTest {
 
     private Map<String, Object> dados() {
         return new HashMap<>(Map.of("nome", "Produto alterado", "unidadeMedida", "UN", "precoVenda", 25));
+    }
+    @ParameterizedTest @ValueSource(strings = {"", " "})
+    void termoVazioNaoCarregaCatalogo(String termo) throws Exception {
+        mvc.perform(get("/produtos/buscar").param("termo", termo).header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void buscaLimitadaPriorizaCodigoExatoMesmoDepoisDeDezNomes(boolean codigoInterno) throws Exception {
+        String termo = codigoInterno ? "sku-001" : "7891234567890";
+        for (int i = 0; i < 15; i++) {
+            ProdutoEntity p = new ProdutoEntity();
+            p.setEmpresa(empresa1); p.setNome("A " + termo + " " + String.format("%02d", i));
+            p.setUnidadeMedida("UN"); p.setPrecoVenda(BigDecimal.ONE);
+            produtos.save(p);
+        }
+        entityManager.flush();
+        var resultado = mvc.perform(get("/produtos/buscar").param("termo", termo)
+                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(10))
+                .andExpect(jsonPath("$[0].id").value(produto1.getId())).andReturn();
+        var lista = json.readTree(resultado.getResponse().getContentAsString());
+        assertThat(lista.get(1).get("nome").asText()).endsWith("00");
+        assertThat(lista.get(9).get("nome").asText()).endsWith("08");
     }
     @Test void buscaRapidaNaoRetornaInativosNemProdutoDeOutroTenant() throws Exception {
         produto1.setAtivo(false); entityManager.flush();

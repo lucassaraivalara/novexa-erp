@@ -71,11 +71,14 @@ public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
                     or lower(produto.codigoInterno) = lower(:termo)
                     or produto.codigoBarras = :termo
               )
-            order by produto.nome asc, produto.id asc
+            order by case when produto.codigoBarras = :termo
+                or lower(produto.codigoInterno) = lower(:termo) then 0 else 1 end,
+                produto.nome asc, produto.id asc
             """)
     List<ProdutoEntity> buscarPorTermo(
             @Param("empresaId") Long empresaId,
-            @Param("termo") String termo
+            @Param("termo") String termo,
+            org.springframework.data.domain.Pageable pageable
     );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -48,7 +48,7 @@ class ComercialPostgresTest extends VendaServiceTest {
         assertThat(produtoService.buscarPorTermo(empresa.getId(), "Produto"))
                 .extracting(p -> p.getId()).containsExactly(produto.getId());
         assertThat(produtoService.buscarPorTermo(empresa.getId(), ""))
-                .extracting(p -> p.getId()).containsExactly(produto.getId());
+                .isEmpty();
     }
 
     @AfterAll static void limparSchema() throws Exception {

@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## PDV: buscas remotas de Produto e Cliente (2026-10-06)
+
+Preload/local search de catalogos removidos do PDV. /produtos/buscar e /clientes/buscar retornam ate 10 ativos do tenant; vazio retorna lista vazia. Produto prioriza codigo exato, seguido de nome/id; Cliente busca nome, fantasia e documento normalizado, com nome/id. /clientes/opcoes preservado para outros consumidores. Digitacao usa useRemoteSearch (350 ms, minimo 2), AbortController e descarte de respostas antigas; Enter/leitor consulta codigo imediatamente sem debounce/minimo textual e adiciona somente match exato. Cliente continua opcional, selecionavel e removivel. Sem mudanca de layout, regras de Venda, Estoque ou Financeiro e sem migration. Contratos em [paginacao.md](paginacao.md) e [frontend.md](frontend.md).
+
+Validacao: 60 testes backend/H2 direcionados e 22 testes frontend (incluindo navegador com HTTP simulado), package backend, build/TypeScript, lint direcionado e diff check. Sem suite completa, regressao financeira, PostgreSQL ou E2E geral nesta tarefa.
+
 ## Listagens administrativas — Empresa e Contas Financeiras
 
 Na branch feat/contas-pagar-integracao-backend, ambas as telas usam PaginaResponse e filtros/paginacao/ordenacao server-side, sem carregar o universo para consulta administrativa. Consultas aditivas /empresas/pagina e /financeiro/contas-financeiras/pagina preservam listas simples e tenant do JWT; Empresa continua restrita a propria empresa. Cards financeiros mantem saldos globais pelo resumo agregado por tipo (incluindo inativas/legados), nunca pela pagina. Seletor de transferencia preservado sob demanda. ContaPagar frontend declara movimentacaoFinanceiraId opcional ja retornado pela API. Sem migration, redesign ou mudanca financeira. Contratos em [paginacao.md](paginacao.md).

@@ -78,6 +78,13 @@ public class ClienteController {
         return clienteService.listar(usuario.empresaId()).stream().map(clienteMapper::toResponse).toList();
     }
 
+    @GetMapping("/buscar")
+    public List<ClienteResponseDTO> buscar(@RequestParam(defaultValue = "") String termo,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return clienteService.buscarPorTermo(usuario.empresaId(), termo).stream()
+                .map(clienteMapper::toResponse).toList();
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ClienteResponseDTO> buscarPorId(
             @PathVariable Long id,

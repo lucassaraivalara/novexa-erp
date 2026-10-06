@@ -24,7 +24,7 @@ As ações de linha em `AppTable` usam `IconButton` compacto com `Tooltip` e `ar
 
 - **Filtro local:** usado em catálogos pequenos mantidos como List, como Empresas e Caixas. A filtragem é imediata, sem HTTP e sem debounce.
 - **Busca textual remota:** consultas paginadas usam debounce de 350 ms, filtros e ordenação no banco. Clientes, Produtos, Estoque e Contas a Pagar aceitam os termos previstos nos seus contratos, sem mínimo adicional de tamanho. useRemoteSearch mantém o mínimo de 2 caracteres nos consumidores de busca por array.
-- **Busca operacional:** deve priorizar velocidade e pode usar debounce de 300 ms quando a consulta for remota. A busca do PDV atual é local e imediata sobre o catálogo carregado, com prioridade para código de barras e código interno.
+- **Busca operacional:** PDV usa consultas remotas limitadas de Produto/Cliente, sem preload de catalogos. Digitacao usa useRemoteSearch (350 ms, minimo 2 caracteres), cancelamento e protecao contra respostas antigas. Enter/leitor cancela o debounce e consulta imediatamente qualquer codigo nao vazio, mesmo curto; adiciona somente codigo de barras/interno exato, em memoria ou na resposta. Resultados por nome sao selecionados na lista, sem matching local.
 - **Identificador:** usa o `minLength` definido pelo contrato da tela; não deve herdar automaticamente o limite de uma busca textual.
 - **Código de barras:** quando houver leitura direta, pode executar imediatamente, sem debounce, desde que o contrato da tela reconheça o valor.
 
@@ -45,7 +45,7 @@ As constantes compartilhadas ficam em `frontend/src/config/search.ts`. A infraes
 
 Não converter um filtro local correto em busca remota apenas para aplicar debounce. Não colocar debounce dentro de `AppTable`: a página proprietária da busca conhece a origem dos dados e o contrato do endpoint. Mensagens de erro devem continuar sendo convertidas pelas funções de serviço existentes e não devem expor detalhes técnicos.
 
-Clientes, Produtos, Estoque, Central de Vendas, Contas a Pagar e Extrato usam paginação server-side. `AppTable.ordenacaoRemota` mantém a ordem enviada pelo banco. Após alterações, recarregar a página atual. Contratos e consumidores que permanecem List em [paginacao.md](paginacao.md). O catálogo atual do PDV mantém seu comportamento operacional.
+Clientes, Produtos, Estoque, Central de Vendas, Contas a Pagar e Extrato usam paginação server-side. `AppTable.ordenacaoRemota` mantém a ordem enviada pelo banco. Após alterações, recarregar a página atual. Contratos e consumidores que permanecem List em [paginacao.md](paginacao.md). PDV usa buscas remotas limitadas e preserva cliente opcional, limpeza/selecao e leitor imediato, sem carregar catalogos completos.
 
 ## Busca por coluna em Produtos, Clientes e Estoque
 

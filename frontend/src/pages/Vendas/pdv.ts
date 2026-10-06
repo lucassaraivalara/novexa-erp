@@ -66,13 +66,11 @@ export function criarPedido(r: RascunhoPDV, chave: string): VendaInput {
         sessaoCaixaId: r.sessaoCaixaId ?? undefined,
         configuracaoFormaPagamentoId: r.configuracaoFormaPagamentoId ?? undefined };
 }
-const normalizar = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-export function buscarProdutosPDV(produtos: Produto[], termo: string, listarSemTermo = false): Produto[] {
-    const busca = normalizar(termo.trim());
-    const ativos = produtos.filter(p => p.ativo);
-    if (!busca) return listarSemTermo ? ativos.slice(0, 8) : [];
-    const exatos = ativos.filter(p => p.codigoBarras === termo.trim() || normalizar(p.codigoInterno ?? "") === busca);
-    return [...exatos, ...ativos.filter(p => !exatos.includes(p) && normalizar(p.nome).includes(busca))].slice(0, 8);
+export function encontrarProdutoPorCodigo(produtos: Produto[], termo: string): Produto | undefined {
+    const codigo = termo.trim();
+    if (!codigo) return undefined;
+    return produtos.find(p => p.ativo && (p.codigoBarras === codigo
+        || p.codigoInterno?.toLowerCase() === codigo.toLowerCase()));
 }
 export function moverIndiceProduto(indice: number, total: number, direcao: "PROXIMO" | "ANTERIOR"): number {
     if (total <= 0) return 0;

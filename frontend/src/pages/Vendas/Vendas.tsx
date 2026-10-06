@@ -3,17 +3,17 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import SearchIcon from "@mui/icons-material/Search";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import { Alert, Autocomplete, Box, Button, Divider, IconButton, InputAdornment, Stack, Table, TableBody, TableCell,
+import { Alert, Box, Button, Divider, IconButton, InputAdornment, Stack, Table, TableBody, TableCell,
     TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
-import { listarProdutos, obterMensagemDaApi } from "../../services/produtoService";
-import { listarClientes } from "../../services/clienteService";
+import { pesquisarProdutos, obterMensagemDaApi } from "../../services/produtoService";
+import { useRemoteSearch } from "../../hooks/useRemoteSearch";
+import ClienteAutocomplete from "../../components/clientes/ClienteAutocomplete";
 import { finalizarVenda, type FormaPagamento } from "../../services/vendaService";
 import { listarConfiguracoesParaPDV } from "../../services/configuracaoFormaPagamentoService";
 import { obterSessao } from "../../utils/auth/sessao";
 import type { Produto } from "../../types/produto";
-import type { Cliente } from "../../types/cliente";
 import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
-import { buscarProdutosPDV, criarPedido, moeda, moverIndiceProduto, novoRascunho, subtotalItem, totais, type RascunhoPDV } from "./pdv";
+import { encontrarProdutoPorCodigo, criarPedido, moeda, moverIndiceProduto, novoRascunho, subtotalItem, totais, type RascunhoPDV } from "./pdv";
 import SessaoCaixaPDVDialog from "./SessaoCaixaPDVDialog";
 import VendaFinalizacaoDialog, { type EstadoFinalizacao } from "./VendaFinalizacaoDialog";
 
@@ -55,19 +55,18 @@ export default function Vendas() {
             return salvo && Array.isArray(salvo.itens) ? { ...novoRascunho(), ...salvo } : novoRascunho();
         } catch { return novoRascunho(); }
     });
-    const [produtos, setProdutos] = useState<Produto[]>([]);
-    const [clientes, setClientes] = useState<Cliente[]>([]);
+    const [resultados, setResultados] = useState<Produto[]>([]);
     const [configuracoes, setConfiguracoes] = useState<ConfiguracaoFormaPagamento[]>([]);
     const [carregandoConfig, setCarregandoConfig] = useState(true);
     const [erroConfig, setErroConfig] = useState("");
-    const [busca, setBusca] = useState("");
     const [listaAberta, setListaAberta] = useState(false);
     const [indice, setIndice] = useState(0);
     const [selecionado, setSelecionado] = useState<number | null>(null);
     const [opcional, setOpcional] = useState<Opcional>(null);
     const [erro, setErro] = useState("");
     const [erroCatalogo, setErroCatalogo] = useState("");
-    const [carregando, setCarregando] = useState(true);
+    const [buscandoCodigo, setBuscandoCodigo] = useState(false);
+    const scannerRef = useRef<AbortController | null>(null);
     const [salvando, setSalvando] = useState(false);
     const [sessaoCaixaResolvida, setSessaoCaixaResolvida] = useState(false);
     const [finalizacao, setFinalizacao] = useState<Finalizacao | null>(null);
@@ -77,9 +76,46 @@ export default function Vendas() {
     const recebidoRef = useRef<HTMLInputElement>(null);
     const opcionalRef = useRef<HTMLInputElement>(null);
     const quantidadesRef = useRef<Record<number, HTMLInputElement | null>>({});
-    const resultados = buscarProdutosPDV(produtos, busca, listaAberta && !busca.trim());
     const t = totais(rascunho);
     const bloqueado = !sessaoCaixaResolvida || salvando || !!rascunho.pendente;
+    const { term: busca, setTerm, loading, cancel, refresh } = useRemoteSearch<Produto>({
+        enabled: !bloqueado, search: pesquisarProdutos,
+        onResults: lista => { setResultados(lista); setErroCatalogo(""); },
+        onError: e => { setResultados([]); setErroCatalogo(obterMensagemDaApi(e, "Não foi possível buscar os produtos.")); },
+        onInvalidTerm: () => setResultados([]),
+    });
+    const carregando = loading || buscandoCodigo;
+
+    useEffect(() => {
+        if (bloqueado) { cancel(); scannerRef.current?.abort(); }
+        return () => scannerRef.current?.abort();
+    }, [bloqueado, cancel]);
+
+    function setBusca(termo: string) {
+        scannerRef.current?.abort(); scannerRef.current = null; setBuscandoCodigo(false);
+        setResultados([]); setErroCatalogo(""); setTerm(termo);
+    }
+
+    async function adicionarPorCodigo() {
+        const termo = busca.trim();
+        if (!termo || bloqueado || scannerRef.current) return;
+        cancel();
+        const encontrado = encontrarProdutoPorCodigo(resultados, termo);
+        if (encontrado) { adicionar(encontrado); return; }
+        // O leitor não espera o debounce e nunca seleciona um nome parcial por Enter.
+        const controller = new AbortController(); scannerRef.current = controller; setBuscandoCodigo(true);
+        try {
+            const lista = await pesquisarProdutos(termo, controller.signal);
+            if (controller.signal.aborted) return;
+            const produto = encontrarProdutoPorCodigo(lista, termo);
+            if (produto) adicionar(produto);
+            else { setResultados(lista); setListaAberta(true); setErro("Código exato não encontrado. Selecione o produto na lista."); }
+        } catch (e) {
+            if (!controller.signal.aborted) setErroCatalogo(obterMensagemDaApi(e, "Não foi possível buscar os produtos."));
+        } finally {
+            if (scannerRef.current === controller) { scannerRef.current = null; setBuscandoCodigo(false); }
+        }
+    }
 
     const configuracaoSelecionada = configuracoes.find(c => c.id === rascunho.configuracaoFormaPagamentoId);
     const tipoLegadoSelecionado = configuracaoSelecionada ? tipoConfigParaLegado[configuracaoSelecionada.tipo] : rascunho.formaPagamento;
@@ -103,14 +139,6 @@ export default function Vendas() {
     }, [chaveRascunho, rascunho]);
 
     useEffect(() => {
-        let ativo = true;
-        if (empresaId) listarProdutos().then(p => { if (ativo) setProdutos(p); })
-            .catch(e => { if (ativo) setErroCatalogo(obterMensagemDaApi(e, "Não foi possível carregar os produtos.")); })
-            .finally(() => { if (ativo) setCarregando(false); });
-        return () => { ativo = false; };
-    }, [empresaId]);
-
-    useEffect(() => {
         const controller = new AbortController();
         listarConfiguracoesParaPDV(controller.signal)
             .then(list => { if (!controller.signal.aborted) { setConfiguracoes(list); setErroConfig(""); } })
@@ -122,11 +150,6 @@ export default function Vendas() {
     useEffect(() => {
         if (!opcional) return;
         opcionalRef.current?.focus();
-        if (opcional !== "cliente" || !empresaId) return;
-        const abort = new AbortController();
-        listarClientes(abort.signal).then(c => setClientes(c.filter(c => c.ativo)))
-            .catch(e => { if (!abort.signal.aborted) setErro(obterMensagemDaApi(e, "Não foi possível carregar os clientes.")); });
-        return () => abort.abort();
     }, [opcional, empresaId]);
 
     function focarBusca() { requestAnimationFrame(() => buscaRef.current?.focus()); }
@@ -148,13 +171,6 @@ export default function Vendas() {
     function remover(id: number) {
         alterar({ itens: rascunho.itens.filter(i => i.produto.id !== id) });
         setSelecionado(null); focarBusca();
-    }
-    async function recarregarCatalogo(focarAoConcluir = true) {
-        if (!empresaId) return;
-        setCarregando(true);
-        try { setProdutos(await listarProdutos()); setErroCatalogo(""); }
-        catch (e) { setErroCatalogo(obterMensagemDaApi(e, "Não foi possível carregar os produtos.")); }
-        finally { setCarregando(false); if (focarAoConcluir) focarBusca(); }
     }
     function fecharFinalizacao() {
         if (finalizacao?.estado === "processing") return;
@@ -197,7 +213,6 @@ export default function Vendas() {
             setFinalizacao(atual => atual ? { ...atual, estado: "success" } : atual);
             setRascunho(proximoRascunho); setOpcional(null); setBusca("");
             try { sessionStorage.setItem(chaveRascunho, JSON.stringify(proximoRascunho)); } catch { /* Venda já confirmada pelo servidor. */ }
-            void recarregarCatalogo(false);
             finalizacaoTimerRef.current = setTimeout(() => {
                 setFinalizacao(null);
                 finalizacaoTimerRef.current = null;
@@ -210,7 +225,7 @@ export default function Vendas() {
                 setRascunho(r => ({ ...r, pendente: null }));
                 mensagemFalha = obterMensagemDaApi(e, "Venda não concluída. Revise os dados e tente novamente.");
                 setErro(mensagemFalha);
-                if (status === 409) void recarregarCatalogo(false);
+                if (status === 409) setResultados([]);
             } else {
                 mensagemFalha = "Não foi possível confirmar a venda. Tente novamente com segurança, sem duplicá-la.";
                 podeTentarNovamente = true;
@@ -269,11 +284,11 @@ export default function Vendas() {
             <Stack spacing={1.5} sx={{ minHeight: 0, minWidth: 0 }}>
                 <Box sx={{ position: "relative" }}>
                     <TextField fullWidth autoFocus inputRef={buscaRef} disabled={!sessaoCaixaResolvida || salvando} value={busca}
-                        label="Buscar produto ou ler código de barras" placeholder={carregando ? "Carregando catálogo…" : "Nome, código interno ou código de barras"}
+                        label="Buscar produto ou ler código de barras" placeholder={carregando ? "Buscando produtos…" : "Nome, código interno ou código de barras"}
                         onChange={e => { setBusca(e.target.value); setListaAberta(true); setIndice(0); }}
                         slotProps={{ input: {
                             startAdornment: <InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>,
-                            endAdornment: <InputAdornment position="end"><Tooltip title="Listar produtos ativos"><IconButton
+                            endAdornment: <InputAdornment position="end"><Tooltip title="Buscar produtos"><IconButton
                                 edge="end" size="small" aria-label="Abrir lista de produtos" aria-expanded={listaAberta}
                                 onMouseDown={e => e.preventDefault()} onClick={() => { setListaAberta(aberta => !aberta); setIndice(0); focarBusca(); }}>
                                 <ArrowDropDownIcon /></IconButton></Tooltip></InputAdornment>,
@@ -287,9 +302,7 @@ export default function Vendas() {
                             }
                             if (e.key === "Enter") {
                                 e.preventDefault();
-                                const produto = resultados[indice] ?? resultados[0];
-                                if (produto && !carregando) adicionar(produto);
-                                else if (busca.trim()) setErro(carregando ? "Aguarde o carregamento do catálogo." : "Produto não encontrado ou inativo.");
+                                void adicionarPorCodigo();
                             }
                         }} />
                     {listaAberta && !!resultados.length && !bloqueado && <Box id="pdv-resultados" role="listbox" sx={{ position: "absolute", zIndex: 10, top: "100%", width: "100%", bgcolor: "background.paper", border: 1, borderColor: "divider" }}>
@@ -300,7 +313,7 @@ export default function Vendas() {
                         </Box>)}
                     </Box>}
                 </Box>
-                {erroCatalogo && <Alert severity="error" action={<Button onClick={() => void recarregarCatalogo()}>Recarregar</Button>}>{erroCatalogo}</Alert>}
+                {erroCatalogo && <Alert severity="error" action={<Button onClick={() => { refresh(); focarBusca(); }}>Recarregar</Button>}>{erroCatalogo}</Alert>}
                 <Box sx={{ flex: 1, overflow: "auto", border: 1, borderColor: "divider", bgcolor: "background.paper", borderRadius: "10px", boxShadow: "0 1px 3px rgba(16,24,40,.06)" }}>
                     <Table stickyHeader size="small" aria-label="Itens da venda" sx={{ minWidth: 560, "& td, & th": { py: 0.25, px: 1, height: 30 }, "& input": { p: "3px 6px", fontSize: 14 } }}>
                         <TableHead><TableRow><TableCell>Produto</TableCell><TableCell width={105}>Quantidade</TableCell><TableCell align="right">Unitário</TableCell><TableCell align="right">Subtotal</TableCell><TableCell width={65} /></TableRow></TableHead>
@@ -316,7 +329,7 @@ export default function Vendas() {
                             <TableCell><Button size="small" color="inherit" aria-label={"Remover " + item.produto.nome} disabled={bloqueado} onClick={e => { e.stopPropagation(); remover(item.produto.id); }}>×</Button></TableCell>
                         </TableRow>)}</TableBody>
                     </Table>
-                    {!rascunho.itens.length && <Box sx={{ p: 5, textAlign: "center", color: "text.secondary" }}><Typography>Leia o primeiro produto para começar</Typography><Typography variant="body2">Busque pelo nome e pressione Enter para adicionar.</Typography></Box>}
+                    {!rascunho.itens.length && <Box sx={{ p: 5, textAlign: "center", color: "text.secondary" }}><Typography>Leia o primeiro produto para começar</Typography><Typography variant="body2">Busque pelo nome e selecione o produto, ou leia o código de barras.</Typography></Box>}
                 </Box>
                 <Typography variant="caption" color="text.secondary">Enter adicionar · ↑ ↓ selecionar · F2 pagar · F4 desconto · F8 cliente · Ctrl+Delete remover item · Esc fechar opção</Typography>
             </Stack>
@@ -381,10 +394,8 @@ export default function Vendas() {
                     {([["desconto", "F4 Desconto"], ["cliente", "F8 Cliente"], ["entrega", "F7 Entrega"], ["observacoes", "F9 Observações"]] as const).map(([campo, label]) =>
                         <Button key={campo} size="small" disabled={bloqueado} color={opcional === campo ? "primary" : "inherit"} onClick={() => setOpcional(opcional === campo ? null : campo)}>{label}</Button>)}
                 </Box>
-                {opcional === "cliente" && <Autocomplete options={clientes} value={rascunho.cliente} disabled={bloqueado} autoHighlight
-                    getOptionLabel={c => c.nome + (c.cpfCnpj ? " · " + c.cpfCnpj : "")} isOptionEqualToValue={(a, b) => a.id === b.id}
-                    onChange={(_, cliente) => { alterar({ cliente }); setOpcional(null); focarBusca(); }}
-                    renderInput={params => <TextField {...params} inputRef={opcionalRef} label="Cliente (opcional)" />} />}
+                {opcional === "cliente" && <ClienteAutocomplete value={rascunho.cliente} disabled={bloqueado} inputRef={opcionalRef}
+                    onChange={cliente => { alterar({ cliente }); setOpcional(null); focarBusca(); }} />}
                 {opcional && opcional !== "cliente" && <TextField inputRef={opcionalRef} disabled={bloqueado}
                     label={opcional === "desconto" ? "Desconto em R$" : opcional === "entrega" ? "Endereço / instruções de entrega" : "Observações"}
                     value={rascunho[opcional]} multiline={opcional !== "desconto"} minRows={opcional !== "desconto" ? 2 : undefined}

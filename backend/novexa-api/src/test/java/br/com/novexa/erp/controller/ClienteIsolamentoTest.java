@@ -149,7 +149,7 @@ class ClienteIsolamentoTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"GET,/clientes", "GET,/clientes/1", "POST,/clientes", "PUT,/clientes/1", "DELETE,/clientes/1"})
+    @CsvSource({"GET,/clientes", "GET,/clientes/buscar?termo=Cliente", "GET,/clientes/1", "POST,/clientes", "PUT,/clientes/1", "DELETE,/clientes/1"})
     void todosOsEndpointsExigemAutenticacao(String metodo, String url) throws Exception {
         mvc.perform(request(HttpMethod.valueOf(metodo), url)).andExpect(status().isUnauthorized());
         assertThat(clientes.count()).isEqualTo(2);
@@ -157,6 +157,35 @@ class ClienteIsolamentoTest {
 
     private Map<String, Object> dados() {
         return new HashMap<>(Map.of("nome", "Cliente alterado", "tipoPessoa", "FISICA", "cpfCnpj", "529.982.247-25"));
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"Cliente", "LOJA", "023.606.846-63"})
+    void buscaRapidaPorNomeFantasiaEDocumentoRespeitaTenant(String termo) throws Exception {
+        clienteA.setNomeFantasia("Loja teste"); clienteB.setNomeFantasia("Loja teste");
+        entityManager.flush();
+        mvc.perform(get("/clientes/buscar").param("termo", termo).param("empresaId", empresaB.getId().toString())
+                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(clienteA.getId()));
+    }
+
+    @org.junit.jupiter.api.Test
+    void buscaRapidaLimitadaOrdenadaSomenteAtivosSemCarregarTermoVazio() throws Exception {
+        clienteA.setAtivo(false);
+        for (int i = 0; i < 15; i++) {
+            ClienteEntity c = new ClienteEntity(); c.setEmpresa(empresaA);
+            c.setNome("Cliente " + String.format("%02d", i)); c.setTipoPessoa(TipoPessoa.FISICA);
+            clientes.save(c);
+        }
+        entityManager.flush();
+        mvc.perform(get("/clientes/buscar?termo=Cliente").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(10))
+                .andExpect(jsonPath("$[0].nome").value("Cliente 00"))
+                .andExpect(jsonPath("$[9].nome").value("Cliente 09"));
+        mvc.perform(get("/clientes/buscar?termo= ").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/clientes/opcoes").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(16));
     }
 
     private EmpresaEntity empresa(String nome, String cnpj) {

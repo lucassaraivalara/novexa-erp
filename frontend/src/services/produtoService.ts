@@ -21,6 +21,7 @@ export async function pesquisarProdutos(
     termo: string,
     signal?: AbortSignal,
 ): Promise<Produto[]> {
+    if (!termo.trim()) return [];
     const resposta = await api.get<Produto[]>("/produtos/buscar", {
         params: { termo },
         signal,

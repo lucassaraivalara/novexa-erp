@@ -77,14 +77,16 @@ public class ProdutoService {
                 ));
     }
 
+    @Transactional(readOnly = true)
     public List<ProdutoEntity> buscarPorTermo(Long empresaId, String termo) {
         buscarEmpresa(empresaId);
 
         if (termo == null || termo.isBlank()) {
-            return produtoRepository.findAllByEmpresaIdAndAtivoTrueOrderByNomeAscIdAsc(empresaId);
+            return List.of();
         }
 
-        return produtoRepository.buscarPorTermo(empresaId, termo.trim());
+        return produtoRepository.buscarPorTermo(empresaId, termo.trim(),
+                org.springframework.data.domain.PageRequest.of(0, 10));
     }
     public ProdutoEntity salvarImagem(
             Long produtoId,

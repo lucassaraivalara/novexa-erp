@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 
 const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
-const { novoRascunho, decimal, subtotalItem, totais, criarPedido, buscarProdutosPDV, decidirSessaoCaixa, moverIndiceProduto } = await server.ssrLoadModule("/src/pages/Vendas/pdv.ts");
+const { novoRascunho, decimal, subtotalItem, totais, criarPedido, encontrarProdutoPorCodigo, decidirSessaoCaixa, moverIndiceProduto } = await server.ssrLoadModule("/src/pages/Vendas/pdv.ts");
 await server.close();
 const fontePDV = await readFile(new URL("../src/pages/Vendas/Vendas.tsx", import.meta.url), "utf8");
 const fonteFinalizacao = await readFile(new URL("../src/pages/Vendas/VendaFinalizacaoDialog.tsx", import.meta.url), "utf8");
@@ -22,13 +22,13 @@ test("pedido envia configuracao empresarial e conserva enum legado e troco", () 
     }
 });
 
-test("scanner prioriza código exato; nome ignora acentos; inativos não aparecem", () => {
+test("scanner usa somente código exato entre resultados remotos; nunca nome parcial", () => {
     const outro = { ...produto, id: 2, nome: "7890001 oferta", codigoBarras: "outra", codigoInterno: "outro" };
-    assert.equal(buscarProdutosPDV([outro, produto], "7890001")[0].id, 1);
-    assert.equal(buscarProdutosPDV([produto], "cafe")[0].id, 1);
-    assert.equal(buscarProdutosPDV([{ ...produto, ativo: false }], "7890001").length, 0);
-    assert.deepEqual(buscarProdutosPDV([produto], ""), []);
-    assert.deepEqual(buscarProdutosPDV([produto], "", true), [produto]);
+    assert.equal(encontrarProdutoPorCodigo([outro, produto], "7890001").id, 1);
+    assert.equal(encontrarProdutoPorCodigo([produto], " cafe ").id, 1);
+    assert.equal(encontrarProdutoPorCodigo([produto], "Caf"), undefined);
+    assert.equal(encontrarProdutoPorCodigo([{ ...produto, ativo: false }], "7890001"), undefined);
+    assert.equal(encontrarProdutoPorCodigo([produto], ""), undefined);
 });
 test("setas navegam pela lista sem ultrapassar seus limites", () => {
     assert.equal(moverIndiceProduto(0, 3, "PROXIMO"), 1);
@@ -38,7 +38,7 @@ test("setas navegam pela lista sem ultrapassar seus limites", () => {
     assert.equal(moverIndiceProduto(0, 3, "ANTERIOR"), 0);
 });
 test("PDV conecta seleção, sequência de foco, Escape, F2 e atalhos sem conflito com o navegador", () => {
-    assert.match(fontePDV, /if \(produto && !carregando\) adicionar\(produto\)/);
+    assert.match(fontePDV, /void adicionarPorCodigo\(\)/);
     assert.match(fontePDV, /quantidadesRef\.current\[produto\.id\]\?\.focus\(\)/);
     assert.match(fontePDV, /if \(e\.key === "Enter"\) \{ e\.preventDefault\(\); focarBusca\(\); \}/);
     assert.match(fontePDV, /if \(listaAberta\).*setListaAberta\(false\)/s);

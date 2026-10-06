@@ -45,6 +45,15 @@ public class ClienteService {
     }
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<ClienteEntity> buscarPorTermo(Long empresaId, String termo) {
+        buscarEmpresa(empresaId);
+        if (termo == null || termo.isBlank()) return List.of();
+        String busca = termo.trim();
+        return clienteRepository.buscarPorTermo(empresaId, busca, busca.replaceAll("\\D", ""),
+                org.springframework.data.domain.PageRequest.of(0, 10));
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public PaginaResponseDTO<ClienteResponseDTO> listarPaginado(Long empresaId,
             String situacao,
             String busca,
