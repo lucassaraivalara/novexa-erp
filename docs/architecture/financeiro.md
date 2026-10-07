@@ -1,5 +1,30 @@
 FINANCEIRO NOVEXA
 
+## Conta a Receber - backend independente (Bloco 1)
+
+Dominio do Cliente, distinto de Recebivel de cartao. V35 cria contas_receber e vinculo 1:N nos movimentos financeiros existentes; criacao nao credita saldo. Somente baixa gera ENTRADA/CONTA_RECEBER, com destino escolhido por recebimento. Nenhuma integracao com Venda/PDV/frontend neste bloco.
+
+Base: `/financeiro/contas-receber` (usuario autenticado, tenant do JWT):
+
+| Metodo | Rota relativa | Contrato |
+|---|---|---|
+| POST | / | ContaReceberRequestDTO, retorna 201 com conta criada |
+| GET | /pagina | PaginaResponseDTO; termo, status, clienteId, origem, vencimentoDe/Ate, page, size, sort |
+| GET | /{id} | Detalhe com historico completo de recebimentos |
+| PUT | /{id} | Mesmo DTO de criacao; somente antes de qualquer baixa |
+| POST | /{id}/receber | Baixa parcial/total, UUID idempotente |
+| POST | /{id}/recebimentos/{movimentacaoId}/estornar | `{ "motivoEstorno": "Correcao" }` |
+| POST | /{id}/cancelar | Sem body; exige valorRecebido zero |
+| GET | /resumo | vencidas, seteDias, trintaDias, emAberto, recebidasMes (total/quantidade) |
+
+Criacao/edicao: `clienteId`, `descricao`, `valorOriginal`, `dataVencimento` obrigatorios; `dataEmissao`, `observacao`, `numeroParcela`, `totalParcelas` opcionais (parcelas default 1/1). Origem/venda/empresa nao sao campos de input. Valores positivos com no maximo duas casas, sem arredondamento silencioso.
+
+Baixa: `{ "contaFinanceiraId": 1, "valor": 40.00, "dataRecebimento": "2026-10-06", "observacao": "Opcional", "chaveRequisicao": "uuid" }`. Soma acumulada nao pode ultrapassar o saldo; reutilizar chave com dados diferentes retorna 409. Retry apos estorno nao recria dinheiro. Estorno identifica recebimento especifico, preserva original/auditoria e exige saldo suficiente no destino historico.
+
+Resposta: id, cliente {id/nome/cpfCnpj/ativo}, vendaId nullable, descricao, valorOriginal, valorRecebido, saldo, dataEmissao/Vencimento, status, origem, parcelas, observacao, dataCriacao/Atualizacao e recebimentos. Historico usa MovimentacaoFinanceiraResponseDTO, agora com contaReceberId/chaveRequisicao aditivos. Detalhe/mutacoes incluem todas as baixas; pagina retorna recebimentos=[] intencionalmente. Filtros/sort server-side: id, descricao, valorOriginal, valorRecebido, dataEmissao, dataVencimento, status, dataCriacao; desempate id,asc, default dataVencimento,asc. Page>=0, size 1..100.
+
+Resumo em aberto considera saldo restante PENDENTE/PARCIAL, vencidas ate ontem, proximos 7/30 dias desde hoje. Recebidas no mes soma movimentos nao estornados pela data do recebimento; quantidade corresponde ao numero de baixas. Regras/locks e politica de acesso em [FINANCEIRO_RULES.md](FINANCEIRO_RULES.md).
+
 ## LancamentoFinanceiro: LEGADO / READ-ONLY HISTORICO
 
 Novas vendas NAO geram LancamentoFinanceiroEntity. VendaService nao injeta o repository legado; PagamentoService.cancelarFaturamento valida os Pagamentos e reverte Caixa/PIX, sem buscar ou alterar lancamentos_financeiros. CancelamentoVendaService/LiquidacaoRecebivelService continuam responsaveis pelos Recebiveis, inclusive pela reversao de LIQUIDADO no 5B.

@@ -33,6 +33,7 @@ class RecebivelHttpTest {
     @MockitoSpyBean RecebivelRepository recebiveis;
     @MockitoSpyBean PagamentoRepository pagamentos;
     @MockitoSpyBean MovimentacaoFinanceiraRepository movimentosFinanceiros;
+    @MockitoSpyBean MovimentacaoCaixaRepository movimentosCaixa;
     VendaHttpTest fluxo;
 
     @BeforeEach void preparar() {
@@ -40,6 +41,7 @@ class RecebivelHttpTest {
         fluxo.financeiro = beans.getBean(LancamentoFinanceiroRepository.class);
         fluxo.pagamentos = beans.getBean(PagamentoRepository.class);
         fluxo.movimentosFinanceiros = beans.getBean(MovimentacaoFinanceiraRepository.class);
+        fluxo.movimentosCaixa = movimentosCaixa;
         fluxo.preparar();
     }
     @AfterEach void limpar() { reset(recebiveis); fluxo.limpar(); }

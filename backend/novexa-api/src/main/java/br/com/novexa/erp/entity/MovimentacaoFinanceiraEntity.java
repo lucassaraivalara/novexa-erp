@@ -24,6 +24,9 @@ public class MovimentacaoFinanceiraEntity {
     private PagamentoEntity pagamento;
     @OneToOne(fetch = FetchType.LAZY) @JoinColumn(name = "recebivel_id", unique = true, updatable = false)
     private RecebivelEntity recebivel;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "conta_receber_id", updatable = false)
+    private ContaReceberEntity contaReceber;
+    @Column(updatable = false) private java.util.UUID chaveRequisicao;
     @Column(nullable = false, length = 200, updatable = false) private String descricao;
     @Column(nullable = false, precision = 19, scale = 2, updatable = false) private BigDecimal valor;
     @Column(nullable = false, updatable = false) private LocalDate dataMovimento;
@@ -68,6 +71,13 @@ public class MovimentacaoFinanceiraEntity {
     }
     @PrePersist @PreUpdate
     private void validarTransferencia() {
+        if ((origem == OrigemMovimentacaoFinanceira.CONTA_RECEBER) != (contaReceber != null)
+                || (contaReceber != null) != (chaveRequisicao != null))
+            throw new IllegalStateException("Origem e vinculo de conta a receber incompativeis.");
+        if (contaReceber != null && (tipo != TipoMovimentacaoFinanceira.ENTRADA
+                || !empresa.getId().equals(contaReceber.getEmpresa().getId())
+                || !empresa.getId().equals(usuario.getEmpresa().getId())))
+            throw new IllegalStateException("Recebimento financeiro incompativel com o tenant.");
         if ((origem == OrigemMovimentacaoFinanceira.RECEBIVEL_LIQUIDACAO) != (recebivel != null))
             throw new IllegalStateException("Origem e vinculo de recebivel incompativeis.");
         if (recebivel != null && (tipo != TipoMovimentacaoFinanceira.ENTRADA
@@ -117,6 +127,17 @@ public class MovimentacaoFinanceiraEntity {
         this.usuarioEstorno = usuario;
         this.motivoEstorno = motivo;
     }
+    public static MovimentacaoFinanceiraEntity daContaReceber(ContaReceberEntity contaReceber,
+            ContaFinanceiraEntity conta, UsuarioEntity usuario, BigDecimal valor, LocalDate data,
+            String observacao, java.util.UUID chaveRequisicao) {
+        var movimento = new MovimentacaoFinanceiraEntity(conta, TipoMovimentacaoFinanceira.ENTRADA,
+                OrigemMovimentacaoFinanceira.CONTA_RECEBER, contaReceber.getDescricao(), valor, data, observacao, usuario);
+        movimento.contaReceber = contaReceber;
+        movimento.chaveRequisicao = chaveRequisicao;
+        return movimento;
+    }
+    public ContaReceberEntity getContaReceber() { return contaReceber; }
+    public java.util.UUID getChaveRequisicao() { return chaveRequisicao; }
     public Long getId() { return id; }
     public EmpresaEntity getEmpresa() { return empresa; }
     public ContaFinanceiraEntity getContaFinanceira() { return contaFinanceira; }

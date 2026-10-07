@@ -7,6 +7,18 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MovimentacaoFinanceiraRepository extends JpaRepository<MovimentacaoFinanceiraEntity, Long> {
+    Optional<MovimentacaoFinanceiraEntity> findByEmpresaIdAndChaveRequisicao(Long empresaId, java.util.UUID chaveRequisicao);
+    boolean existsByContaReceberIdAndEmpresaId(Long contaReceberId, Long empresaId);
+    boolean existsByIdAndContaReceberIdAndEmpresaId(Long id, Long contaReceberId, Long empresaId);
+    @EntityGraph(attributePaths = {"contaFinanceira", "usuario", "usuarioEstorno"})
+    List<MovimentacaoFinanceiraEntity> findByContaReceberIdAndEmpresaIdOrderByIdAsc(Long contaReceberId, Long empresaId);
+    @Query("""
+        select coalesce(sum(m.valor), 0) as total, count(m) as quantidade
+        from MovimentacaoFinanceiraEntity m where m.empresa.id = :empresaId
+          and m.origem = 'CONTA_RECEBER' and m.estornada = false
+          and m.dataMovimento >= :de and m.dataMovimento <= :ate
+        """)
+    ContaReceberRepository.Total resumirRecebimentos(Long empresaId, java.time.LocalDate de, java.time.LocalDate ate);
     @org.springframework.data.jpa.repository.Query("""
         select m from MovimentacaoFinanceiraEntity m where m.empresa.id = :empresaId
          and (:contaFinanceiraId is null or m.contaFinanceira.id = :contaFinanceiraId)

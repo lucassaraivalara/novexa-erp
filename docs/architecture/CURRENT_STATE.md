@@ -10,6 +10,14 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Conta a Receber: backend independente - Bloco 1 (2026-10-06)
+
+ContaReceber manual de Cliente separada de Recebivel de cartao, sem integracao com Venda/PDV/frontend. Criacao sem dinheiro; baixas parciais/totais geram N MovimentacoesFinanceiras ENTRADA vinculadas, com destino por baixa, UUID idempotente e saldo/estado atomicos. Historico completo no detalhe, estorno individual auditado, cancelamento somente sem baixas ativas e edicao somente antes de qualquer baixa (inclusive estornada). Cliente historico inativo permanece legivel. Pagina/filtros/sort e resumo por saldo/movimentos efetivos no backend; autorizacao autenticada atual de Contas a Pagar preservada.
+
+V35 aditiva com FKs tenant-safe, constraints monetarias/status/parcelas e unicidade de chave por empresa. Validacao direcionada: 40 casos HTTP H2 e 57 no PostgreSQL 18.6 em schemas descartaveis, Flyway V1-V35, upgrade V34-V35/Hibernate validate, rollback, constraints e concorrencia (baixas, retry, mesmo destino, baixa x estorno). Schemas removidos ao concluir; sem dados da aplicacao alterados. Contrato em [financeiro.md](financeiro.md), regras em [FINANCEIRO_RULES.md](FINANCEIRO_RULES.md).
+
+Regressao curta: 28 casos de Contas a Pagar/Contas Financeiras/Transferencias/PIX/cartao/pagamento misto aprovados (68 H2 incluindo o novo dominio); fixture de RecebivelHttpTest passou a injetar o spy de movimentos de Caixa no auxiliar existente de Venda. Package e diff check aprovados. Nenhuma regra de Venda/PDV/cartao ou frontend foi alterada por este bloco.
+
 ## PDV: pagamento misto (2026-10-06)
 
 PDV envia pagamentos[] e suporta uma ou varias configuracoes ativas com valores aplicados, recebido/troco em dinheiro e total informado/restante. Backend valida soma exata, tenant, valores e configuracoes, cria Pagamentos em sequencias 1..N e reutiliza Caixa/PIX/Recebiveis na mesma transacao, com estoque uma vez. Cancelamento reverte todos, inclusive PIX confirmado e cartao liquidado pelo liquido, preservando historico. Payload unico/hash legado, retry e locks Operador -> Caixa -> Sessao preservados. Sem migration, pagamento parcial, Conta a Receber ou mudanca de navegacao/design. Contrato em [financeiro.md](financeiro.md).

@@ -18,6 +18,8 @@ public class ContaFinanceiraService {
     private final EmpresaRepository empresas;
     private final UsuarioRepository usuarios;
     private final ContaBancariaRepository bancarias;
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public br.com.novexa.erp.dto.PaginaResponseDTO<MovimentacaoFinanceiraResponseDTO> listarMovimentosPagina(Long empresaId, Long contaFinanceiraId, br.com.novexa.erp.entity.TipoMovimentacaoFinanceira tipo, br.com.novexa.erp.entity.OrigemMovimentacaoFinanceira origem, java.time.LocalDate dataInicial, java.time.LocalDate dataFinal, Boolean estornada, int page, int size, String sort) {
@@ -143,11 +145,31 @@ public class ContaFinanceiraService {
         estornarMovimento(id, empresaId, usuarioId, motivo, OrigemMovimentacaoFinanceira.CONTAS_A_PAGAR);
     }
 
+    @Transactional
+    public void registrarEntradaContaReceber(ContaReceberEntity receber, Long usuarioId, ContaReceberBaixaDTO pedido) {
+        var conta = buscarConta(pedido.contaFinanceiraId(), receber.getEmpresa().getId());
+        entityManager.refresh(conta);
+        if (!conta.isAtivo())
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Conta financeira inativa nao aceita recebimentos.");
+        validarSaldo(conta.getSaldoAtual().add(pedido.valor()));
+        var usuario = buscarUsuario(usuarioId, receber.getEmpresa().getId());
+        conta.aplicar(pedido.valor());
+        contas.saveAndFlush(conta);
+        movimentos.saveAndFlush(MovimentacaoFinanceiraEntity.daContaReceber(receber, conta, usuario,
+                pedido.valor(), pedido.dataRecebimento(), opcional(pedido.observacao()), pedido.chaveRequisicao()));
+    }
+
+    @Transactional
+    public BigDecimal estornarEntradaContaReceber(Long id, Long empresaId, Long usuarioId, String motivo) {
+        return estornarMovimento(id, empresaId, usuarioId, motivo, OrigemMovimentacaoFinanceira.CONTA_RECEBER).getValor();
+    }
+
     private MovimentacaoFinanceiraEntity estornarMovimento(Long id, Long empresaId, Long usuarioId,
             String motivo, OrigemMovimentacaoFinanceira origemEsperada) {
         Long contaId = movimentos.buscarContaId(id, empresaId).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Movimentação financeira não encontrada."));
         var conta = buscarConta(contaId, empresaId);
+        if (origemEsperada == OrigemMovimentacaoFinanceira.CONTA_RECEBER) entityManager.refresh(conta);
         var movimento = movimentos.buscarParaEstornar(id, empresaId).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Movimentação financeira não encontrada."));
         if (movimento.getOrigem() == OrigemMovimentacaoFinanceira.TRANSFERENCIA)

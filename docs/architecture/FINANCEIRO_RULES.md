@@ -1,5 +1,17 @@
 # Regras oficiais do Financeiro
 
+## Conta a Receber independente - Bloco 1
+
+- ContaReceber representa direito contra Cliente, separado de Recebivel de cartao. Criacao manual nao movimenta dinheiro; cliente ativo do tenant e obrigatorio, venda permanece NULL e origem MANUAL. VENDA_A_PRAZO e apenas reserva do modelo, sem integracao ou input publico neste bloco.
+- Valor original positivo, centavos exatos (BigDecimal, escala 2, sem arredondamento implicito), recebido entre zero e original, saldo derivado. Parcela/total >=1 e numero<=total, default 1/1. Status PENDENTE/PARCIAL/RECEBIDA deriva do acumulado; CANCELADA e terminal com recebido zero.
+- Cada baixa escolhe ContaFinanceira ativa do tenant e cria uma ENTRADA/CONTA_RECEBER. Relacao ContaReceber 1:N MovimentacaoFinanceira, sem entidade de recebimento ou ultimo movimento como fonte de historico. Destinos diferentes e N baixas parciais sao permitidos; saldo/estado/movimento/credito ficam na mesma transacao.
+- Estorno exige movimento especifico da conta/tenant e motivo; reutiliza o mecanismo financeiro existente, reverte exatamente seu valor e marca o original estornado com data/usuario/motivo, sem DELETE. Conta financeira historica inativa permite estorno, mas saldo insuficiente causa 409 e rollback integral. Estorno duplicado e endpoint generico sao bloqueados. Estado volta PARCIAL ou PENDENTE.
+- Edicao somente antes de qualquer baixa, inclusive quando o historico foi totalmente estornado. Cancelamento exige nenhuma baixa ativa (valorRecebido=0); repetir cancelamento nao repete efeitos. Cliente posteriormente inativo permanece legivel e permite baixa da conta historica.
+- Locks: ContaReceber -> ContaFinanceira -> MovimentacaoFinanceira no estorno; baixas/edicao/cancelamento serializam no agregado. Nao altera locks de Venda/Caixa/cartao/transferencias. Chave UUID obrigatoria na baixa, unica por empresa no movimento: retry com mesmo payload nao credita de novo, mesmo apos estorno; dados/conta diferentes com a mesma chave retornam 409. Constraint protege colisoes entre agregados, com rollback da tentativa perdedora.
+- Autorizacao segue a politica atual autenticada de ContaPagar/ContaFinanceira (ADMIN/GERENTE/OPERADOR/USUARIO); sem autenticacao 401. Nao modifica as restricoes ADMIN/GERENTE especificas de PIX/cartao. Tenant exclusivamente do JWT; FKs compostas cliente/venda/conta/movimento e CHECKs na V35, aditiva e sem backfill.
+- Consulta /pagina usa busca, filtros, allowlist de sort e paginacao no banco. Detalhe e respostas de mutacao incluem todas as baixas, inclusive estornadas; /pagina retorna recebimentos=[] sem carregar historico por item. Resumo usa saldo aberto de PENDENTE/PARCIAL; recebidasMes soma baixas efetivas nao estornadas pela dataRecebimento, contando movimentos, nao titulos.
+- API/payloads em [financeiro.md](financeiro.md). Sem frontend, A_PRAZO, Venda/PDV, cancelamento de Venda, juros/multa ou geracao automatica de parcelas.
+
 ## Lancamento financeiro legado
 
 - LancamentoFinanceiroEntity e LEGADO / READ-ONLY HISTORICO: entidade, repository, tabela lancamentos_financeiros e dados antigos permanecem intactos.
