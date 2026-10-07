@@ -9,15 +9,16 @@ await server.close();
 const fontePDV = await readFile(new URL("../src/pages/Vendas/Vendas.tsx", import.meta.url), "utf8");
 const fonteFinalizacao = await readFile(new URL("../src/pages/Vendas/VendaFinalizacaoDialog.tsx", import.meta.url), "utf8");
 const produto = { id: 1, nome: "Café", precoVenda: 10.10, ativo: true, codigoBarras: "7890001", codigoInterno: "CAFE" };
-const venda = () => ({ ...novoRascunho(), itens: [{ produto, quantidade: "2" }], recebido: "30" });
+const venda = () => ({ ...novoRascunho(), itens: [{ produto, quantidade: "2" }], recebido: "30", configuracaoFormaPagamentoId: 42 });
 
-test("pedido envia configuracao empresarial e conserva enum legado e troco", () => {
+test("pedido envia pagamentos e preserva configuracao empresarial e troco por forma", () => {
     for (const formaPagamento of ["DINHEIRO", "PIX", "CARTAO_DEBITO", "CARTAO_CREDITO"]) {
         const r = { ...venda(), formaPagamento, configuracaoFormaPagamentoId: 42 };
         const pedido = criarPedido(r, "chave");
-        assert.equal(pedido.configuracaoFormaPagamentoId, 42);
-        assert.equal(pedido.formaPagamento, formaPagamento);
-        assert.equal(pedido.valorRecebido, formaPagamento === "DINHEIRO" ? 30 : 20.2);
+        assert.equal(pedido.pagamentos[0].configuracaoFormaPagamentoId, 42);
+        assert.equal(pedido.pagamentos[0].valor, 20.2);
+        assert.equal(pedido.pagamentos[0].valorRecebido, formaPagamento === "DINHEIRO" ? 30 : undefined);
+        assert.equal("formaPagamento" in pedido, false);
         assert.equal(totais(r).troco, formaPagamento === "DINHEIRO" ? 980 : 0);
     }
 });
@@ -84,7 +85,7 @@ test("desconto, total, pagamento e troco correspondem ao pedido sem empresa/pre�
     assert.equal(totais(r).troco, 1100);
     const pedido = criarPedido(r, "chave");
     assert.equal(pedido.totalEsperado, 19);
-    assert.equal(pedido.valorRecebido, 30);
+    assert.equal(pedido.pagamentos[0].valorRecebido, 30);
     assert.equal(pedido.itens[0].precoUnitarioEsperado, 10.1);
     assert.equal("empresaId" in pedido, false);
     assert.equal("usuarioId" in pedido, false);
@@ -94,7 +95,8 @@ test("PIX e cartões usam o total exato e não carregam troco anterior", () => {
     for (const formaPagamento of ["PIX", "CARTAO_DEBITO", "CARTAO_CREDITO"]) {
         const r = { ...venda(), formaPagamento };
         assert.equal(totais(r).troco, 0);
-        assert.equal(criarPedido(r, "chave").valorRecebido, 20.2);
+        assert.equal(criarPedido(r, "chave").pagamentos[0].valor, 20.2);
+        assert.equal(criarPedido(r, "chave").pagamentos[0].valorRecebido, undefined);
     }
 });
 test("bloqueia vazio, pagamento insuficiente, quantidade inválida e desconto excessivo", () => {
@@ -124,4 +126,43 @@ test("mantém a sessão no próximo rascunho e a envia na venda", () => {
     const rascunho = { ...venda(), sessaoCaixaId: 42 };
     assert.equal(criarPedido(rascunho, "chave").sessaoCaixaId, 42);
     assert.equal(novoRascunho(42).sessaoCaixaId, 42);
+});
+
+const parcela = (id, formaPagamento, valor, recebido = "") => ({ configuracaoFormaPagamentoId: id,
+    nomeExibicao: formaPagamento, formaPagamento, valor, recebido });
+
+test("pagamento misto soma somente valores aplicados, preserva troco e envia lista sem tenant", () => {
+    const r = { ...venda(), itens: [{ produto: { ...produto, precoVenda: 100 }, quantidade: "1" }],
+        pagamentos: [parcela(1, "DINHEIRO", "40", "50"), parcela(2, "PIX", "30"), parcela(3, "CARTAO_CREDITO", "30")] };
+    const t = totais(r);
+    assert.equal(t.totalInformado, 10000); assert.equal(t.restante, 0); assert.equal(t.troco, 1000);
+    const pedido = criarPedido(r, "misto");
+    assert.deepEqual(pedido.pagamentos, [
+        { configuracaoFormaPagamentoId: 1, valor: 40, valorRecebido: 50 },
+        { configuracaoFormaPagamentoId: 2, valor: 30 }, { configuracaoFormaPagamentoId: 3, valor: 30 },
+    ]);
+    assert.equal(pedido.valorRecebido, undefined); assert.equal(pedido.tenantId, undefined);
+    assert.equal(pedido.empresaId, undefined); assert.equal(pedido.itens.length, 1);
+});
+
+test("pagamentos bloqueiam soma diferente, parcela invalida e configuracao repetida", () => {
+    for (const valor of ["19", "21"]) {
+        const r = { ...venda(), pagamentos: [parcela(1, "PIX", valor)] };
+        assert.notEqual(totais(r).restante, 0);
+        assert.throws(() => criarPedido(r, "chave"), /soma/);
+    }
+    for (const valor of ["0", "-1", "10.001", "NaN"]) {
+        const r = { ...venda(), pagamentos: [parcela(1, "PIX", valor)] };
+        assert.equal(totais(r).pagamentosValidos, false);
+        assert.throws(() => criarPedido(r, "chave"));
+    }
+    assert.throws(() => criarPedido({ ...venda(), pagamentos: [parcela(1, "PIX", "10"), parcela(1, "PIX", "10.20")] }, "chave"), /repita/);
+    assert.throws(() => criarPedido({ ...venda(), pagamentos: [parcela(null, "PIX", "20.20")] }, "chave"), /Selecione/);
+});
+
+test("pagamento unico automatico acompanha total e dinheiro sem recebido assume valor aplicado", () => {
+    const r = { ...venda(), pagamentos: [parcela(1, "DINHEIRO", "")] };
+    assert.equal(criarPedido(r, "chave").pagamentos[0].valorRecebido, 20.2);
+    assert.equal(criarPedido({ ...r, desconto: "1.20" }, "chave").pagamentos[0].valor, 19);
+    assert.equal(totais(r).troco, 0);
 });

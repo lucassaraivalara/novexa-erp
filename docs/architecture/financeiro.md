@@ -100,7 +100,19 @@ A V25 adiciona nome_normalizado gerado e armazenado, preenchendo automaticamente
 
 Nenhum destino cadastrado gera lançamento financeiro neste bloco. Venda, Pagamento, Caixa, transferências entre contas e snapshots não mudam. Frontend e uso das configurações no PDV ficam pendentes; a tela antiga não poderá gravar no catálogo global até sua adaptação.
 
-### Vínculo operacional em Venda/Pagamento (backend)
+### Pagamento misto no PDV (2026-10-06)
+
+`POST /vendas` e `POST /vendas/{id}/faturar` aceitam `pagamentos` com 1 a 20 itens: `configuracaoFormaPagamentoId`, `valor` e `valorRecebido` opcional para DINHEIRO. O backend deriva a forma da configuracao ativa do tenant autenticado, exige parcelas positivas com ate duas casas decimais e soma exatamente igual ao total da venda. A mesma configuracao nao pode ser repetida; configuracoes distintas do mesmo tipo sao permitidas. Nao ha pagamento parcial ou Conta a Receber.
+
+O contrato anterior (formaPagamento/formaPagamentoId, configuracaoFormaPagamentoId opcional, valorRecebido) permanece aceito, convertido em uma unica parcela pelo mesmo processamento. Nao misturar campos singulares com pagamentos[]. Os formatos legados do hash permanecem intactos. Reenvio identico nao repete efeitos; alteracao do payload na mesma chave retorna conflito.
+
+Venda -> N Pagamentos em sequencias 1..N conforme payload, dentro de uma unica transacao: baixa de estoque uma vez, DINHEIRO no Caixa pelo valor aplicado, PIX pendente de confirmacao posterior, DEBITO/CREDITO com Recebivel individual e snapshots existentes de destino/taxas/prazo. Dinheiro aplicado 40 e recebido 50 gera movimento 40 e troco 10; recebido omitido assume o aplicado. Troco nunca integra a soma das parcelas. A ordem de locks do Caixa continua Operador -> Caixa -> Sessao; configuracoes usam os locks existentes por ID crescente.
+
+Na venda mista, forma/configuracao singulares de Venda ficam nulas; a fonte de detalhe e `GET /vendas/{id}/pagamentos`. Venda conserva total recebido operacional e troco agregado. Cada Pagamento preserva seu proprio valor/configuracao/snapshot. Cancelamento percorre todos os pagamentos/recebiveis pela infraestrutura existente, incluindo PIX confirmado e cartao liquidado pelo liquido, com estorno de dinheiro e estoque uma vez. Qualquer falha desfaz toda a operacao; historico permanece.
+
+O PDV inicia com uma forma e valor automatico do total, permite adicionar/remover formas, mostra total informado/restante/troco e impede finalizar com diferenca. HTTP continua no service; tenant vem do JWT. Sem migration, arquitetura financeira paralela ou mudanca nas permissoes de confirmacao/liquidacao. As secoes abaixo registram as etapas anteriores de evolucao.
+
+### Vínculo operacional em Venda/Pagamento (contrato singular V26)
 
 `POST /vendas` e `POST /vendas/{id}/faturar` aceitam `configuracaoFormaPagamentoId` opcional, além de exatamente uma forma global (`formaPagamentoId` ou código legado `formaPagamento`). Não substitui a forma global: a configuração deve estar ativa, ser da empresa autenticada e ter o mesmo tipo técnico, embora possa referenciar outro registro global do mesmo tipo. Inexistente/outro tenant retorna 404; inativa/tipo divergente retorna 409, sem efeitos parciais. O lock da configuração é mantido até o commit para serializar alterações cadastrais concorrentes.
 
@@ -122,7 +134,7 @@ Não há confirmação automática no faturamento ou fechamento do Caixa. Efeito
 
 Cancelamento da Venda integra o estorno do PIX à mesma transação de estoque/Pagamento/lançamento legado. Debita o valor na conta histórica (inclusive inativa) e preserva o movimento original com estornada, dataEstorno, usuarioEstorno e motivoEstorno. Sem confirmação não inventa movimento. Retry de cancelamento não repete débito nem altera auditoria; saldo insuficiente retorna 409 e desfaz toda a tentativa. A confirmação ocorrida e sua auditoria continuam históricas; status CANCELADO e movimento estornado registram sua reversão.
 
-Confirmação e cancelamento usam a mesma ordem operador → Venda → Pagamento → ContaFinanceira. Cancelamento mantém os locks existentes de produtos antes dos pagamentos, adquiridos por ID; pagamentos também são bloqueados em ordem de ID. A confirmação nunca tenta bloquear Venda depois de Pagamento. O saldo da conta é relido sob lock para evitar entidades previamente carregadas com saldo desatualizado. O fluxo atual possui um pagamento por venda; pagamento misto permanece fora do escopo.
+Confirmação e cancelamento usam a mesma ordem operador → Venda → Pagamento → ContaFinanceira. Cancelamento mantém os locks existentes de produtos antes dos pagamentos, adquiridos por ID; pagamentos também são bloqueados em ordem de ID. A confirmação nunca tenta bloquear Venda depois de Pagamento. O saldo da conta é relido sob lock para evitar entidades previamente carregadas com saldo desatualizado. Pagamento misto percorre cada pagamento pela mesma infraestrutura, sem confirmar PIX automaticamente.
 
 Dupla confirmação serializa e mantém uma única entrada, também protegida pelo UNIQUE da V28. Se confirmar primeiro, cancelamento estorna; se cancelar primeiro, confirmação retorna conflito. Falha em qualquer etapa provoca rollback integral. Estorno individual de PAGAMENTO_PIX permanece bloqueado no endpoint genérico, devendo ocorrer pelo cancelamento da venda. V27/V28 preservadas; nenhuma V29 necessária.
 

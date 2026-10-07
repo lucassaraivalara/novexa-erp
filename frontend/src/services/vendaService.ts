@@ -11,11 +11,17 @@ export type PagamentoVenda = {
     usuarioConfirmacaoFinanceiraId: number | null; movimentacaoFinanceiraId: number | null;
 };
 export type StatusVenda = "ABERTA" | "FATURADA" | "CANCELADA";
+export type PagamentoVendaInput = {
+    configuracaoFormaPagamentoId: number;
+    valor: number;
+    valorRecebido?: number;
+};
 export type VendaInput = {
     chaveRequisicao: string;
     itens: { produtoId: number; quantidade: number; precoUnitarioEsperado: number }[];
-    clienteId: number | null; desconto: number; totalEsperado: number; formaPagamento: FormaPagamento;
-    valorRecebido: number; entrega: string; observacoes: string;
+    clienteId: number | null; desconto: number; totalEsperado: number; formaPagamento?: FormaPagamento;
+    valorRecebido?: number; entrega: string; observacoes: string;
+    pagamentos?: PagamentoVendaInput[];
     formaPagamentoId?: number;
     sessaoCaixaId?: number;
     configuracaoFormaPagamentoId?: number;

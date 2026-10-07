@@ -14,13 +14,20 @@ public record VendaRequestDTO(
         @NotNull @DecimalMin("0.00") @Digits(integer = 12, fraction = 2) BigDecimal desconto,
         @NotNull @DecimalMin("0.01") @Digits(integer = 12, fraction = 2) BigDecimal totalEsperado,
         FormaPagamento formaPagamento,
-        @NotNull @DecimalMin("0.00") @Digits(integer = 12, fraction = 2) BigDecimal valorRecebido,
+        @DecimalMin("0.00") @Digits(integer = 12, fraction = 2) BigDecimal valorRecebido,
         @Size(max = 500) String entrega,
         @Size(max = 2000) String observacoes,
         @Positive Long formaPagamentoId,
         @Positive Long sessaoCaixaId,
-        @Positive Long configuracaoFormaPagamentoId
+        @Positive Long configuracaoFormaPagamentoId,
+        @Size(min = 1, max = 20) List<@NotNull @Valid PagamentoVendaRequestDTO> pagamentos
 ) {
+    public VendaRequestDTO(UUID chaveRequisicao, List<Item> itens, Long clienteId, BigDecimal desconto,
+            BigDecimal totalEsperado, FormaPagamento formaPagamento, BigDecimal valorRecebido,
+            String entrega, String observacoes, Long formaPagamentoId, Long sessaoCaixaId, Long configuracaoFormaPagamentoId) {
+        this(chaveRequisicao, itens, clienteId, desconto, totalEsperado, formaPagamento, valorRecebido,
+                entrega, observacoes, formaPagamentoId, sessaoCaixaId, configuracaoFormaPagamentoId, null);
+    }
     public VendaRequestDTO(UUID chaveRequisicao, List<Item> itens, Long clienteId, BigDecimal desconto,
             BigDecimal totalEsperado, FormaPagamento formaPagamento, BigDecimal valorRecebido,
             String entrega, String observacoes, Long formaPagamentoId, Long sessaoCaixaId) {
@@ -40,8 +47,12 @@ public record VendaRequestDTO(
                 entrega, observacoes, null);
     }
 
-    @AssertTrue(message = "Informe somente formaPagamentoId ou formaPagamento.")
-    public boolean isFormaInformadaCorretamente() { return (formaPagamento == null) != (formaPagamentoId == null); }
+    @AssertTrue(message = "Informe pagamentos ou uma forma unica com valorRecebido, sem misturar os formatos.")
+    public boolean isFormaInformadaCorretamente() {
+        return pagamentos != null
+                ? formaPagamento == null && formaPagamentoId == null && configuracaoFormaPagamentoId == null && valorRecebido == null
+                : (formaPagamento == null) != (formaPagamentoId == null) && valorRecebido != null;
+    }
 
     // Preserva o resumo usado por retries de vendas anteriores à introdução do ID.
     @Override public String toString() {
@@ -50,7 +61,8 @@ public record VendaRequestDTO(
                 + ", formaPagamento=" + formaPagamento + ", valorRecebido=" + valorRecebido
                 + ", entrega=" + entrega + ", observacoes=" + observacoes
                 + (formaPagamentoId == null ? "" : ", formaPagamentoId=" + formaPagamentoId) + (sessaoCaixaId == null ? "" : ", sessaoCaixaId=" + sessaoCaixaId)
-                + (configuracaoFormaPagamentoId == null ? "" : ", configuracaoFormaPagamentoId=" + configuracaoFormaPagamentoId) + "]";
+                + (configuracaoFormaPagamentoId == null ? "" : ", configuracaoFormaPagamentoId=" + configuracaoFormaPagamentoId)
+                + (pagamentos == null ? "" : ", pagamentos=" + pagamentos) + "]";
     }
 
     public record Item(

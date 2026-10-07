@@ -42,6 +42,13 @@ public class PagamentoEntity {
     protected PagamentoEntity() { }
 
     public PagamentoEntity(VendaEntity venda, UsuarioEntity operador, FormaPagamentoEntity forma) {
+        this(venda, operador, forma, venda.getConfiguracaoFormaPagamento(), 1, venda.getTotal(), venda.getValorRecebido());
+        if (venda.getFormaPagamento() != forma.getTipo().contratoVenda())
+            throw new IllegalArgumentException("Forma de pagamento incompatível com o fechamento.");
+    }
+
+    public PagamentoEntity(VendaEntity venda, UsuarioEntity operador, FormaPagamentoEntity forma,
+            ConfiguracaoFormaPagamentoEmpresaEntity configuracao, int sequencia, BigDecimal valor, BigDecimal recebido) {
         if (venda.getStatus() != StatusVenda.FATURADA) {
             throw new IllegalArgumentException("Pagamento exige venda faturada.");
         }
@@ -51,15 +58,16 @@ public class PagamentoEntity {
         this.empresa = venda.getEmpresa();
         this.venda = venda;
         this.usuario = operador;
-        // O contrato atual possui um pagamento. Pagamentos adicionais exigirão regra explícita.
-        this.sequencia = 1;
+        if (sequencia < 1 || valor == null || valor.signum() <= 0 || valor.stripTrailingZeros().scale() > 2)
+            throw new IllegalArgumentException("Sequencia e valor do pagamento invalidos.");
+        this.sequencia = sequencia;
         this.chaveRequisicao = Objects.requireNonNull(venda.getChaveRequisicao());
-        this.formaPagamento = Objects.requireNonNull(venda.getFormaPagamento());
-        if (!forma.isAtivo() || forma.getTipo().contratoVenda() != formaPagamento) {
+        this.formaPagamento = forma.getTipo().contratoVenda();
+        if (!forma.isAtivo() || formaPagamento == null) {
             throw new IllegalArgumentException("Forma de pagamento indisponível ou incompatível com o fechamento.");
         }
         this.forma = forma;
-        this.configuracaoFormaPagamento = venda.getConfiguracaoFormaPagamento();
+        this.configuracaoFormaPagamento = configuracao;
         if (configuracaoFormaPagamento != null && (!empresa.getId().equals(configuracaoFormaPagamento.getEmpresa().getId())
                 || configuracaoFormaPagamento.getTipo() != forma.getTipo() || !configuracaoFormaPagamento.isAtivo())) {
             throw new IllegalArgumentException("Configuracao de pagamento indisponivel ou incompativel.");
@@ -79,12 +87,14 @@ public class PagamentoEntity {
             this.taxaFixaSnapshot = c == null || c.getTaxaFixa() == null ? BigDecimal.ZERO : c.getTaxaFixa();
             this.prazoRecebimentoDiasSnapshot = c == null || c.getPrazoRecebimentoDias() == null ? 0 : c.getPrazoRecebimentoDias();
         }
-        this.valor = venda.getTotal();
+        this.valor = valor;
         this.status = StatusPagamento.REGISTRADO;
         this.dataHora = LocalDateTime.now();
         if (formaPagamento == FormaPagamento.DINHEIRO) {
-            this.valorRecebido = venda.getValorRecebido();
-            this.troco = venda.getTroco();
+            if (recebido == null || recebido.compareTo(valor) < 0)
+                throw new IllegalArgumentException("Valor recebido menor que a parcela em dinheiro.");
+            this.valorRecebido = recebido;
+            this.troco = recebido.subtract(valor);
         }
     }
 

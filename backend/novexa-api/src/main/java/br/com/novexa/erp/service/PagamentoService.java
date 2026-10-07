@@ -43,6 +43,13 @@ public class PagamentoService {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
+    PagamentoEntity registrarFaturamento(VendaEntity venda, UsuarioEntity operador, FormaPagamentoEntity forma,
+            ConfiguracaoFormaPagamentoEmpresaEntity configuracao, int sequencia, java.math.BigDecimal valor,
+            java.math.BigDecimal recebido) {
+        return pagamentos.save(new PagamentoEntity(venda, operador, forma, configuracao, sequencia, valor, recebido));
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
     FormaPagamentoEntity resolverForma(FormaPagamento legado, Long id) {
         return formas.resolverParaFaturamento(legado, id);
     }
@@ -55,7 +62,7 @@ public class PagamentoService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Configuracao de pagamento nao encontrada."));
         if (!configuracao.isAtivo())
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Configuracao de pagamento inativa.");
-        if (configuracao.getTipo() != forma.getTipo())
+        if (forma != null && configuracao.getTipo() != forma.getTipo())
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Configuracao incompativel com o tipo da forma de pagamento.");
         if (configuracao.getTipo() == br.com.novexa.erp.entity.TipoFormaPagamento.DEBITO
                 || configuracao.getTipo() == br.com.novexa.erp.entity.TipoFormaPagamento.CREDITO) {

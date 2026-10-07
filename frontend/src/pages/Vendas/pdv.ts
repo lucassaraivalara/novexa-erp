@@ -5,6 +5,13 @@ import type { SessaoCaixaAberta } from "../../types/caixa";
 import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
 
 export type ItemPDV = { produto: Produto; quantidade: string };
+export type PagamentoPDV = {
+    configuracaoFormaPagamentoId: number | null;
+    nomeExibicao: string | null;
+    formaPagamento: FormaPagamento;
+    valor: string;
+    recebido: string;
+};
 export type RascunhoPDV = {
     itens: ItemPDV[]; desconto: string; cliente: Cliente | null; entrega: string; observacoes: string;
     formaPagamento: FormaPagamento; recebido: string; pendente: VendaInput | null;
@@ -12,6 +19,7 @@ export type RascunhoPDV = {
     configuracaoFormaPagamentoId: number | null;
     configuracaoNomeExibicao: string | null;
     configuracaoTipo: ConfiguracaoFormaPagamento["tipo"] | null;
+    pagamentos?: PagamentoPDV[];
 };
 export function novoRascunho(sessaoCaixaId: number | null = null): RascunhoPDV {
     return { itens: [], desconto: "0", cliente: null, entrega: "", observacoes: "",
@@ -48,23 +56,45 @@ export function totais(r: RascunhoPDV) {
     const subtotal = valores.reduce<number>((soma, valor) => soma + (valor ?? 0), 0);
     const desconto = decimal(r.desconto, 2);
     const total = subtotal - (desconto ?? 0);
-    const recebido = r.formaPagamento === "DINHEIRO" ? decimal(r.recebido, 2) : total;
-    return { subtotal, desconto, total, recebido, troco: Math.max(0, (recebido ?? 0) - total),
+    const pagamentos = pagamentosRascunho(r);
+    const parcelas = pagamentos.map(p => {
+        const valor = p.valor === "" && pagamentos.length === 1 ? Math.max(0, total) : decimal(p.valor, 2);
+        const recebido = p.formaPagamento === "DINHEIRO" && p.recebido !== "" ? decimal(p.recebido, 2) : valor;
+        return { ...p, valorCentavos: valor, recebidoCentavos: recebido, troco: Math.max(0, (recebido ?? 0) - (valor ?? 0)) };
+    });
+    const totalInformado = parcelas.reduce((soma, p) => soma + (p.valorCentavos ?? 0), 0);
+    const troco = parcelas.reduce((soma, p) => soma + p.troco, 0);
+    const pagamentosValidos = parcelas.length > 0 && parcelas.every(p => p.configuracaoFormaPagamentoId !== null
+        && p.valorCentavos !== null && p.valorCentavos > 0 && p.recebidoCentavos !== null && p.recebidoCentavos >= p.valorCentavos)
+        && new Set(parcelas.map(p => p.configuracaoFormaPagamentoId)).size === parcelas.length;
+    return { subtotal, desconto, total, totalInformado, restante: total - totalInformado, parcelas, pagamentosValidos,
+        recebido: totalInformado + troco, troco,
         valido: valores.every(v => v !== null) && desconto !== null && total > 0 && Number.isSafeInteger(subtotal) };
+}
+
+// Rascunhos locais anteriores continuam legiveis; novos pedidos usam sempre pagamentos[].
+export function pagamentosRascunho(r: RascunhoPDV): PagamentoPDV[] {
+    return r.pagamentos ?? [{ configuracaoFormaPagamentoId: r.configuracaoFormaPagamentoId,
+        nomeExibicao: r.configuracaoNomeExibicao, formaPagamento: r.formaPagamento, valor: "", recebido: r.recebido }];
 }
 export function criarPedido(r: RascunhoPDV, chave: string): VendaInput {
     const t = totais(r);
     if (!r.itens.length) throw new Error("Adicione um produto para iniciar a venda.");
     if (!t.valido) throw new Error("Revise as quantidades e o desconto. O total deve ser maior que zero.");
-    if (t.recebido === null || t.recebido < t.total) throw new Error("Informe um valor recebido igual ou maior que o total.");
+    if (t.parcelas.some(p => p.configuracaoFormaPagamentoId === null)) throw new Error("Selecione uma forma de pagamento valida para cada parcela.");
+    if (t.parcelas.some(p => p.recebidoCentavos === null || p.recebidoCentavos < (p.valorCentavos ?? 0)))
+        throw new Error("Informe um valor recebido igual ou maior que a parcela em dinheiro.");
+    if (!t.pagamentosValidos) throw new Error("Revise os valores e nao repita a mesma configuracao de pagamento.");
+    if (t.restante !== 0) throw new Error("A soma dos pagamentos deve corresponder ao total da venda.");
     return { chaveRequisicao: chave,
         itens: r.itens.map(i => ({ produtoId: i.produto.id, quantidade: decimal(i.quantidade, 3)! / 1000,
             precoUnitarioEsperado: i.produto.precoVenda })),
         clienteId: r.cliente?.id ?? null, desconto: t.desconto! / 100, totalEsperado: t.total / 100,
-        formaPagamento: r.formaPagamento, valorRecebido: t.recebido / 100,
+        pagamentos: t.parcelas.map(p => ({ configuracaoFormaPagamentoId: p.configuracaoFormaPagamentoId!,
+            valor: p.valorCentavos! / 100,
+            ...(p.formaPagamento === "DINHEIRO" ? { valorRecebido: p.recebidoCentavos! / 100 } : {}) })),
         entrega: r.entrega.trim(), observacoes: r.observacoes.trim(),
-        sessaoCaixaId: r.sessaoCaixaId ?? undefined,
-        configuracaoFormaPagamentoId: r.configuracaoFormaPagamentoId ?? undefined };
+        sessaoCaixaId: r.sessaoCaixaId ?? undefined };
 }
 export function encontrarProdutoPorCodigo(produtos: Produto[], termo: string): Produto | undefined {
     const codigo = termo.trim();

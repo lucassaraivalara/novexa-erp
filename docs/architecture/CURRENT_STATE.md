@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## PDV: pagamento misto (2026-10-06)
+
+PDV envia pagamentos[] e suporta uma ou varias configuracoes ativas com valores aplicados, recebido/troco em dinheiro e total informado/restante. Backend valida soma exata, tenant, valores e configuracoes, cria Pagamentos em sequencias 1..N e reutiliza Caixa/PIX/Recebiveis na mesma transacao, com estoque uma vez. Cancelamento reverte todos, inclusive PIX confirmado e cartao liquidado pelo liquido, preservando historico. Payload unico/hash legado, retry e locks Operador -> Caixa -> Sessao preservados. Sem migration, pagamento parcial, Conta a Receber ou mudanca de navegacao/design. Contrato em [financeiro.md](financeiro.md).
+
+Validacao: 61 testes backend direcionados/regressao H2, 30 testes no PostgreSQL 18.6 em schema descartavel (Flyway V1-V34/Hibernate validate, sequencias, rollback e concorrencia) e 34 testes frontend aprovados. Cancelamento com falha intermediaria e rollback total revalidado separadamente em H2/PostgreSQL. Package backend, TypeScript/build, lint direcionado e diff check aprovados. PDV conferido em 1440/390px sem overflow; componentes reais com HTTP simulado nos testes frontend, sem E2E geral ou suite completa.
+
 ## Navegacao por tarefa do usuario (2026-10-06)
 
 PDV acessivel diretamente por Vender; consulta identificada como Central de Vendas. Financeiro separa operacoes de Configuracoes, com labels Recebimentos de cartao e Contas e saldos; Formas de Pagamento padronizado. Padroes p/ Novo Cliente indisponivel removido somente da navegacao. Entrada avulsa distingue a movimentacao isolada do recebimento de mercadoria. URLs, ADMIN de Usuarios, abas existentes, visual, backend e regras preservados; estrutura em [frontend.md](frontend.md).

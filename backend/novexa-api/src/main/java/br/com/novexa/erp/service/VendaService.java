@@ -235,7 +235,7 @@ public class VendaService {
         }
         return faturar(venda, new FaturamentoVendaDTO(pedido.chaveRequisicao(), pedido.totalEsperado(),
                 pedido.formaPagamento(), pedido.valorRecebido(), pedido.formaPagamentoId(), pedido.sessaoCaixaId(),
-                pedido.configuracaoFormaPagamentoId()), autenticado, operador, resumo, produtosMap);
+                pedido.configuracaoFormaPagamentoId(), pedido.pagamentos()), autenticado, operador, resumo, produtosMap);
     }
 
     public VendaResponseDTO faturar(Long vendaId, FaturamentoVendaDTO pedido, UsuarioAutenticado autenticado) {
@@ -299,14 +299,9 @@ public class VendaService {
         BigDecimal total = subtotal.subtract(desconto).setScale(2, RoundingMode.HALF_UP);
         if (subtotal.compareTo(venda.getSubtotal()) != 0 || total.compareTo(venda.getTotal()) != 0
                 || total.compareTo(pedido.totalEsperado()) != 0) throw conflito("O total mudou. Revise os itens antes de finalizar.");
-        var forma = pagamentos.resolverForma(pedido.formaPagamento(), pedido.formaPagamentoId());
-        var configuracao = pagamentos.resolverConfiguracao(pedido.configuracaoFormaPagamentoId(), autenticado.empresaId(), forma);
-        FormaPagamento codigoFechamento = forma.getTipo().contratoVenda();
-        BigDecimal recebido = pedido.valorRecebido();
-        if (recebido.compareTo(total) < 0) throw conflito("O valor recebido é menor que o total.");
-        if (codigoFechamento != FormaPagamento.DINHEIRO && recebido.compareTo(total) != 0) {
-            throw conflito("PIX e cartão devem corresponder ao total da venda, sem troco.");
-        }
+        var parcelas = prepararPagamentos(pedido, autenticado.empresaId(), total);
+        BigDecimal recebido = parcelas.stream().map(p -> p.recebido() == null ? p.valor() : p.recebido())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         venda.vincularSessaoCaixa(caixaOperacional.resolverSessao(pedido.sessaoCaixaId(), autenticado.empresaId(), autenticado.usuarioId()));
         for (var item : venda.getItens()) {
             if (Boolean.TRUE.equals(produtosMap.get(item.getProduto().getId()).getControlaEstoque())) {
@@ -316,12 +311,70 @@ public class VendaService {
                 item.setMovimentacaoEstoqueId(movimento.getId());
             }
         }
-        venda.vincularConfiguracaoFormaPagamento(configuracao);
-        venda.registrarFaturamento(pedido.chaveRequisicao(), resumo, codigoFechamento, recebido);
-        var pagamento = pagamentos.registrarFaturamento(venda, operador, forma);
-        recebiveis.gerar(pagamento);
-        caixaOperacional.registrarVenda(pagamento);
+        // Campos singulares permanecem compativeis; em venda mista os detalhes pertencem aos Pagamentos.
+        var unico = parcelas.size() == 1 ? parcelas.getFirst() : null;
+        venda.vincularConfiguracaoFormaPagamento(unico == null ? null : unico.configuracao());
+        venda.registrarFaturamento(pedido.chaveRequisicao(), resumo,
+                unico == null ? null : unico.forma().getTipo().contratoVenda(), recebido);
+        for (int i = 0; i < parcelas.size(); i++) {
+            var parcela = parcelas.get(i);
+            var pagamento = pagamentos.registrarFaturamento(venda, operador, parcela.forma(), parcela.configuracao(),
+                    i + 1, parcela.valor(), parcela.recebido());
+            recebiveis.gerar(pagamento);
+            caixaOperacional.registrarVenda(pagamento);
+        }
         return VendaResponseDTO.de(venda);
+    }
+
+    private record PagamentoPreparado(FormaPagamentoEntity forma, ConfiguracaoFormaPagamentoEmpresaEntity configuracao,
+            BigDecimal valor, BigDecimal recebido) { }
+
+    private List<PagamentoPreparado> prepararPagamentos(FaturamentoVendaDTO pedido, Long empresaId, BigDecimal total) {
+        if (!pedido.isFormaInformadaCorretamente())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe pagamentos ou uma forma unica, sem misturar os formatos.");
+        List<PagamentoPreparado> parcelas = new ArrayList<>();
+        if (pedido.pagamentos() == null) {
+            var forma = pagamentos.resolverForma(pedido.formaPagamento(), pedido.formaPagamentoId());
+            var config = pagamentos.resolverConfiguracao(pedido.configuracaoFormaPagamentoId(), empresaId, forma);
+            parcelas.add(prepararParcela(forma, config, total, pedido.valorRecebido()));
+        } else {
+            if (pedido.pagamentos().isEmpty() || pedido.pagamentos().size() > 20)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe de 1 a 20 pagamentos.");
+            var ids = pedido.pagamentos().stream().map(p -> p == null ? null : p.configuracaoFormaPagamentoId()).toList();
+            if (ids.stream().anyMatch(id -> id == null || id <= 0))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe uma configuracao valida para cada pagamento.");
+            if (new HashSet<>(ids).size() != ids.size()) throw conflito("Agrupe os valores da mesma configuracao de pagamento.");
+            // Preserva locks existentes de configuracao em ordem deterministica, sem alterar a sequencia do payload.
+            Map<Long, ConfiguracaoFormaPagamentoEmpresaEntity> configs = new HashMap<>();
+            ids.stream().sorted().forEach(id -> configs.put(id, pagamentos.resolverConfiguracao(id, empresaId, null)));
+            for (var input : pedido.pagamentos()) {
+                var config = configs.get(input.configuracaoFormaPagamentoId());
+                var forma = pagamentos.resolverForma(null, config.getFormaPagamento().getId());
+                parcelas.add(prepararParcela(forma, config, input.valor(), input.valorRecebido()));
+            }
+        }
+        BigDecimal soma = parcelas.stream().map(PagamentoPreparado::valor).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (soma.compareTo(total) != 0) throw conflito("A soma dos pagamentos deve corresponder ao total da venda.");
+        return parcelas;
+    }
+
+    private PagamentoPreparado prepararParcela(FormaPagamentoEntity forma, ConfiguracaoFormaPagamentoEmpresaEntity config,
+            BigDecimal valor, BigDecimal recebido) {
+        if (valor == null || valor.signum() <= 0 || valor.stripTrailingZeros().scale() > 2
+                || valor.precision() - valor.scale() > 12
+                || (recebido != null && (recebido.signum() < 0 || recebido.stripTrailingZeros().scale() > 2
+                    || recebido.precision() - recebido.scale() > 12)))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe valores positivos com ate duas casas decimais.");
+        valor = valor.setScale(2, RoundingMode.UNNECESSARY);
+        if (forma.getTipo() == TipoFormaPagamento.DINHEIRO) {
+            if (recebido == null) recebido = valor;
+            if (recebido.compareTo(valor) < 0) throw conflito("O valor recebido e menor que a parcela em dinheiro.");
+        } else {
+            if (recebido != null && recebido.compareTo(valor) != 0)
+                throw conflito("PIX e cartao devem corresponder ao valor da parcela, sem troco.");
+            recebido = null;
+        }
+        return new PagamentoPreparado(forma, config, valor, recebido);
     }
 
     private void validarQuantidade(BigDecimal quantidade) {

@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -142,6 +143,218 @@ class VendaHttpTest {
         assertThat(pagamento.getDataHora()).isNotNull();
         mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.itens[0].movimentacaoEstoqueId").value(movimento.getId()));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1", "1,2", "1,3", "2,4", "1,2,4", "3,4", "3,3"})
+    void mistoProcessaCadaFormaComSequenciaSnapshotEReenvioSeguro(String formas) throws Exception {
+        long[] ids = Arrays.stream(formas.split(",")).mapToLong(Long::parseLong).toArray();
+        var pedido = pedidoMisto(ids);
+        long id = enviar(pedido);
+        assertThat(enviar(pedido)).isEqualTo(id);
+        var registros = pagamentos.findByEmpresaIdAndVendaIdOrderBySequenciaAsc(empresa.getId(), id);
+        assertThat(registros).hasSize(ids.length);
+        for (int i = 0; i < ids.length; i++) {
+            var p = registros.get(i);
+            assertThat(p.getSequencia()).isEqualTo(i + 1);
+            assertThat(p.getForma().getId()).isEqualTo(ids[i]);
+            assertThat(p.getEmpresa().getId()).isEqualTo(empresa.getId());
+            assertThat(p.getConfiguracaoNomeExibicao()).isNotBlank();
+            if (ids[i] >= 3) {
+                assertThat(p.getTaxaPercentualSnapshot()).isEqualByComparingTo("3");
+                assertThat(p.getPrazoRecebimentoDiasSnapshot()).isEqualTo(30);
+                assertThat(p.getConfiguracaoContaFinanceiraDestinoId()).isNotNull();
+            }
+        }
+        assertThat(jdbc.queryForObject("select count(*) from recebiveis", Integer.class))
+                .isEqualTo((int) Arrays.stream(ids).filter(forma -> forma == 3 || forma == 4).count());
+        assertThat(jdbc.queryForObject("select count(*) from movimentacoes_financeiras", Integer.class)).isZero();
+        assertThat(movimentosCaixa.count()).isEqualTo(Arrays.stream(ids).filter(forma -> forma == 1).count());
+        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
+        mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(ids.length));
+    }
+
+    @Test
+    void mistoDinheiroPixCreditoConfirmaLiquidaECancelaTodosPeloValorDaParcela() throws Exception {
+        var pedido = pedidoMisto(1, 2, 4);
+        pedido.put("itens", List.of(Map.of("produtoId", produto.getId(), "quantidade", 10, "precoUnitarioEsperado", 10)));
+        pedido.put("totalEsperado", 100);
+        var partes = parcelas(pedido);
+        partes.get(0).put("valor", 40); partes.get(0).put("valorRecebido", 50);
+        partes.get(1).put("valor", 30); partes.get(2).put("valor", 30);
+        long venda = enviar(pedido);
+        var registros = pagamentos.findByEmpresaIdAndVendaIdOrderBySequenciaAsc(empresa.getId(), venda);
+        assertThat(registros.get(0).getValor()).isEqualByComparingTo("40");
+        assertThat(registros.get(0).getTroco()).isEqualByComparingTo("10");
+        assertThat(movimentosCaixa.findAll().getFirst().getValor()).isEqualByComparingTo("40");
+        assertThat(vendas.findById(venda).orElseThrow().getTroco()).isEqualByComparingTo("10");
+        long pix = registros.get(1).getId();
+        long cartao = registros.get(2).getId();
+        long destinoPix = registros.get(1).getConfiguracaoContaFinanceiraDestinoId();
+        long destinoCartao = registros.get(2).getConfiguracaoContaFinanceiraDestinoId();
+        long recebivel = jdbc.queryForObject("select id from recebiveis where pagamento_id=?", Long.class, cartao);
+        assertThat(jdbc.queryForObject("select valor_bruto from recebiveis where id=?", BigDecimal.class, recebivel)).isEqualByComparingTo("30");
+        assertThat(jdbc.queryForObject("select valor_liquido_previsto from recebiveis where id=?", BigDecimal.class, recebivel)).isEqualByComparingTo("29.10");
+        assertThat(jdbc.queryForObject("select data_prevista_recebimento from recebiveis where id=?", java.sql.Date.class, recebivel).toLocalDate())
+                .isEqualTo(vendas.findById(venda).orElseThrow().getDataHora().toLocalDate().plusDays(30));
+        confirmarPix(pix, authorization).andExpect(status().isOk());
+        confirmarPix(pix, authorization).andExpect(status().isOk());
+        for (int i = 0; i < 2; i++) mvc.perform(post("/financeiro/recebiveis/" + recebivel + "/liquidar")
+                .header(HttpHeaders.AUTHORIZATION, authorization)).andExpect(status().isOk());
+        assertThat(contasFinanceiras.findById(destinoPix).orElseThrow().getSaldoAtual()).isEqualByComparingTo("130");
+        assertThat(contasFinanceiras.findById(destinoCartao).orElseThrow().getSaldoAtual()).isEqualByComparingTo("129.10");
+        doThrow(new IllegalStateException("Falha controlada no estorno PIX")).when(movimentosFinanceiros)
+                .saveAndFlush(argThat(m -> m != null && m.getOrigem() == OrigemMovimentacaoFinanceira.PAGAMENTO_PIX && m.isEstornada()));
+        cancelarPix(venda).andExpect(status().isInternalServerError());
+        assertThat(vendas.findById(venda).orElseThrow().getStatus()).isEqualTo(StatusVenda.FATURADA);
+        assertThat(pagamentos.findByEmpresaIdAndVendaIdOrderBySequenciaAsc(empresa.getId(), venda))
+                .allMatch(p -> p.getStatus() == StatusPagamento.REGISTRADO);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("0");
+        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(movimentosCaixa.count()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select status from recebiveis where id=?", String.class, recebivel)).isEqualTo("LIQUIDADO");
+        assertThat(movimentosFinanceiros.findAll()).noneMatch(MovimentacaoFinanceiraEntity::isEstornada);
+        assertThat(contasFinanceiras.findById(destinoPix).orElseThrow().getSaldoAtual()).isEqualByComparingTo("130");
+        assertThat(contasFinanceiras.findById(destinoCartao).orElseThrow().getSaldoAtual()).isEqualByComparingTo("129.10");
+        reset(movimentosFinanceiros);
+        for (int i = 0; i < 2; i++) cancelarPix(venda).andExpect(status().isOk());
+        assertThat(contasFinanceiras.findById(destinoPix).orElseThrow().getSaldoAtual()).isEqualByComparingTo("100");
+        assertThat(contasFinanceiras.findById(destinoCartao).orElseThrow().getSaldoAtual()).isEqualByComparingTo("100");
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+        assertThat(pagamentos.findAll()).allMatch(p -> p.getStatus() == StatusPagamento.CANCELADO);
+        assertThat(jdbc.queryForObject("select status from recebiveis where id=?", String.class, recebivel)).isEqualTo("CANCELADO");
+        assertThat(jdbc.queryForObject("select count(*) from movimentacoes_financeiras where estornada=true", Integer.class)).isEqualTo(2);
+        assertThat(movimentosCaixa.count()).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select valor from movimentacoes_caixa where tipo='ESTORNO_VENDA'", BigDecimal.class)).isEqualByComparingTo("40");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"19,409", "21,409", "0,400", "-1,400", "0.001,400"})
+    void mistoRejeitaSomaOuValorInvalidoSemEfeitos(String valor, int esperado) throws Exception {
+        var pedido = pedidoMisto(2); parcelas(pedido).getFirst().put("valor", new BigDecimal(valor));
+        assertThat(statusVenda(pedido, authorization)).isEqualTo(esperado);
+        exigirMistoSemEfeitos();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"inativa", "tenant", "ausente", "naoSuportada"})
+    void mistoRejeitaConfiguracaoIndisponivel(String caso) throws Exception {
+        var pedido = pedidoMisto(1, 2);
+        long id = switch (caso) {
+            case "inativa" -> configuracao(empresa, 2, false).getId();
+            case "tenant" -> configuracao(outra, 2, true).getId();
+            case "naoSuportada" -> configuracao(empresa, 5, true).getId();
+            default -> Long.MAX_VALUE;
+        };
+        parcelas(pedido).get(1).put("configuracaoFormaPagamentoId", id);
+        assertThat(statusVenda(pedido, authorization)).isEqualTo(caso.equals("tenant") || caso.equals("ausente") ? 404 : 409);
+        exigirMistoSemEfeitos();
+    }
+
+    @Test
+    void mistoRejeitaDuplicidadeAmbiguidadeListaVaziaEValoresRecebidosInvalidos() throws Exception {
+        var duplicado = pedidoMisto(2, 2);
+        parcelas(duplicado).get(1).put("configuracaoFormaPagamentoId", parcelas(duplicado).get(0).get("configuracaoFormaPagamentoId"));
+        assertThat(statusVenda(duplicado, authorization)).isEqualTo(409);
+        var ambiguo = pedidoMisto(1); ambiguo.put("formaPagamento", "DINHEIRO");
+        assertThat(statusVenda(ambiguo, authorization)).isEqualTo(400);
+        var vazio = pedidoMisto(1); vazio.put("pagamentos", List.of());
+        assertThat(statusVenda(vazio, authorization)).isEqualTo(400);
+        var semValor = pedidoMisto(1); parcelas(semValor).getFirst().remove("valor");
+        assertThat(statusVenda(semValor, authorization)).isEqualTo(400);
+        var semConfig = pedidoMisto(1); parcelas(semConfig).getFirst().remove("configuracaoFormaPagamentoId");
+        assertThat(statusVenda(semConfig, authorization)).isEqualTo(400);
+        var dinheiro = pedidoMisto(1); parcelas(dinheiro).getFirst().put("valorRecebido", 19);
+        assertThat(statusVenda(dinheiro, authorization)).isEqualTo(409);
+        var pix = pedidoMisto(2); parcelas(pix).getFirst().put("valorRecebido", 21);
+        assertThat(statusVenda(pix, authorization)).isEqualTo(409);
+        exigirMistoSemEfeitos();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {2, 3})
+    void mistoFalhaNaParcelaReverteVendaEstoquePagamentosECaixa(int falha) throws Exception {
+        var pedido = pedidoMisto(1, 2, 4);
+        var contador = new java.util.concurrent.atomic.AtomicInteger();
+        doAnswer(invocation -> {
+            var salvo = pagamentos.saveAndFlush(invocation.getArgument(0));
+            if (contador.incrementAndGet() == falha) throw new IllegalStateException("Falha controlada na parcela");
+            return salvo;
+        }).when(pagamentos).save(any(PagamentoEntity.class));
+        assertThat(statusVenda(pedido, authorization)).isEqualTo(500);
+        exigirMistoSemEfeitos();
+    }
+
+    @Test
+    void mistoFalhaFinanceiraNoTerceiroPagamentoReverteTudo() throws Exception {
+        var pedido = pedidoMisto(1, 2, 4);
+        long id = ((Number) parcelas(pedido).get(2).get("configuracaoFormaPagamentoId")).longValue();
+        var config = configuracoes.findById(id).orElseThrow();
+        config.atualizarCondicoesCartao(BigDecimal.ZERO, new BigDecimal("100"), 0);
+        configuracoes.saveAndFlush(config);
+        assertThat(statusVenda(pedido, authorization)).isEqualTo(409);
+        exigirMistoSemEfeitos();
+    }
+
+    @Test
+    void mistoFaturamentoDeVendaAbertaPreservaIdempotenciaERejeitaRetryAlterado() throws Exception {
+        long id = abrir(); adicionar(id, produto.getId(), 2);
+        var pedido = pedidoMisto(1, 2);
+        for (int i = 0; i < 2; i++) mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pedido)))
+                .andExpect(status().isOk());
+        parcelas(pedido).getFirst().put("valor", 9);
+        mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pedido))).andExpect(status().isConflict());
+        assertThat(pagamentos.count()).isEqualTo(2);
+        assertThat(movimentos.count()).isEqualTo(1);
+    }
+
+    @Test
+    void mistoRetryConcorrenteNaoDuplicaPagamentosEstoqueOuCaixa() throws Exception {
+        var pedido = pedidoMisto(1, 2, 4);
+        assertThat(simultaneas(() -> statusVenda(pedido, authorization), () -> statusVenda(pedido, authorization)))
+                .containsExactly(201, 201);
+        assertThat(vendas.count()).isEqualTo(1);
+        assertThat(pagamentos.count()).isEqualTo(3);
+        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(movimentosCaixa.count()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from recebiveis", Long.class)).isEqualTo(1);
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("8");
+    }
+
+    private Map<String, Object> pedidoMisto(long... formas) {
+        var pedido = pedido(); pedido.remove("formaPagamento"); pedido.remove("valorRecebido");
+        var partes = new ArrayList<Map<String, Object>>();
+        BigDecimal restante = new BigDecimal("20");
+        BigDecimal valor = restante.divide(BigDecimal.valueOf(formas.length), 2, java.math.RoundingMode.DOWN);
+        for (int i = 0; i < formas.length; i++) {
+            var config = configuracao(empresa, formas[i], true);
+            if (formas[i] == 3 || formas[i] == 4) {
+                config.atualizarCondicoesCartao(new BigDecimal("3"), BigDecimal.ZERO, 30);
+                configuracoes.saveAndFlush(config);
+            }
+            BigDecimal parte = i == formas.length - 1 ? restante : valor;
+            partes.add(new HashMap<>(Map.of("configuracaoFormaPagamentoId", config.getId(), "valor", parte)));
+            restante = restante.subtract(parte);
+        }
+        pedido.put("pagamentos", partes);
+        return pedido;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> parcelas(Map<String, Object> pedido) {
+        return (List<Map<String, Object>>) pedido.get("pagamentos");
+    }
+
+    private void exigirMistoSemEfeitos() {
+        assertThat(vendas.count()).isZero(); assertThat(pagamentos.count()).isZero();
+        assertThat(movimentos.count()).isZero(); assertThat(movimentosCaixa.count()).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from recebiveis", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from movimentacoes_financeiras", Integer.class)).isZero();
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
     }
 
     @Test

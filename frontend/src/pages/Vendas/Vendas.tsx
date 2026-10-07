@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import SearchIcon from "@mui/icons-material/Search";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { Alert, Box, Button, Divider, IconButton, InputAdornment, Stack, Table, TableBody, TableCell,
     TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import { pesquisarProdutos, obterMensagemDaApi } from "../../services/produtoService";
@@ -13,7 +15,7 @@ import { listarConfiguracoesParaPDV } from "../../services/configuracaoFormaPaga
 import { obterSessao } from "../../utils/auth/sessao";
 import type { Produto } from "../../types/produto";
 import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
-import { encontrarProdutoPorCodigo, criarPedido, moeda, moverIndiceProduto, novoRascunho, subtotalItem, totais, type RascunhoPDV } from "./pdv";
+import { encontrarProdutoPorCodigo, criarPedido, moeda, moverIndiceProduto, novoRascunho, pagamentosRascunho, subtotalItem, totais, type PagamentoPDV, type RascunhoPDV } from "./pdv";
 import SessaoCaixaPDVDialog from "./SessaoCaixaPDVDialog";
 import VendaFinalizacaoDialog, { type EstadoFinalizacao } from "./VendaFinalizacaoDialog";
 
@@ -117,10 +119,6 @@ export default function Vendas() {
         }
     }
 
-    const configuracaoSelecionada = configuracoes.find(c => c.id === rascunho.configuracaoFormaPagamentoId);
-    const tipoLegadoSelecionado = configuracaoSelecionada ? tipoConfigParaLegado[configuracaoSelecionada.tipo] : rascunho.formaPagamento;
-    const ehDinheiro = tipoLegadoSelecionado === "DINHEIRO";
-
     const definirSessaoCaixa = useCallback((sessaoCaixaId: number) => {
         setRascunho(atual => ({ ...atual, sessaoCaixaId }));
         setSessaoCaixaResolvida(true);
@@ -141,7 +139,7 @@ export default function Vendas() {
     useEffect(() => {
         const controller = new AbortController();
         listarConfiguracoesParaPDV(controller.signal)
-            .then(list => { if (!controller.signal.aborted) { setConfiguracoes(list); setErroConfig(""); } })
+            .then(list => { if (!controller.signal.aborted) { setConfiguracoes(list.filter(c => c.ativo && ["DINHEIRO", "PIX", "DEBITO", "CREDITO"].includes(c.tipo))); setErroConfig(""); } })
             .catch(e => { if (!controller.signal.aborted) setErroConfig(obterMensagemDaApi(e, "Não foi possível carregar as configurações de pagamento.")); })
             .finally(() => { if (!controller.signal.aborted) setCarregandoConfig(false); });
         return () => controller.abort();
@@ -154,6 +152,16 @@ export default function Vendas() {
 
     function focarBusca() { requestAnimationFrame(() => buscaRef.current?.focus()); }
     function alterar(patch: Partial<RascunhoPDV>) { if (!bloqueado) setRascunho(r => ({ ...r, ...patch })); }
+    function alterarPagamento(indice: number, patch: Partial<PagamentoPDV>) {
+        alterar({ pagamentos: pagamentosRascunho(rascunho).map((p, i) => i === indice ? { ...p, ...patch } : p) });
+    }
+    function adicionarForma() {
+        alterar({ pagamentos: [
+            ...pagamentosRascunho(rascunho).map((p, i) => ({ ...p, valor: p.valor === "" ? ((t.parcelas[i].valorCentavos ?? 0) / 100).toFixed(2) : p.valor })),
+            { configuracaoFormaPagamentoId: null, nomeExibicao: null, formaPagamento: "DINHEIRO",
+                valor: (Math.max(0, t.restante) / 100).toFixed(2), recebido: "" },
+        ] });
+    }
     function adicionar(produto: Produto) {
         if (bloqueado) return;
         if (rascunho.itens.length >= 200 && !rascunho.itens.some(i => i.produto.id === produto.id)) {
@@ -184,7 +192,7 @@ export default function Vendas() {
             setErro("Aguarde a definição do Caixa antes de finalizar a venda.");
             return;
         }
-        if (!rascunho.configuracaoFormaPagamentoId) {
+        if (!rascunho.pendente && t.parcelas.some(p => !p.configuracaoFormaPagamentoId)) {
             setErro("Selecione uma forma de pagamento válida.");
             return;
         }
@@ -192,7 +200,7 @@ export default function Vendas() {
         try { pedido ??= criarPedido(rascunho, crypto.randomUUID()); }
         catch (e) {
             setErro((e as Error).message);
-            if (tipoLegadoSelecionado === "DINHEIRO" && t.valido) recebidoRef.current?.focus();
+            if (t.parcelas.some(p => p.formaPagamento === "DINHEIRO") && t.valido) recebidoRef.current?.focus();
             return;
         }
         const pendente = { ...rascunho, pendente: pedido };
@@ -203,7 +211,8 @@ export default function Vendas() {
             estado: "processing",
             quantidadeItens: rascunho.itens.length,
             total: t.total,
-            formaPagamento: configuracaoSelecionada?.nomeExibicao ?? rotulosPagamento[tipoLegadoSelecionado],
+            formaPagamento: t.parcelas.length > 1 ? "Pagamento misto"
+                : t.parcelas[0].nomeExibicao ?? rotulosPagamento[t.parcelas[0].formaPagamento],
             troco: t.troco,
         });
         emEnvio.current = true; setSalvando(true); setRascunho(pendente); setErro("");
@@ -347,46 +356,57 @@ export default function Vendas() {
                     <Alert severity="error">{erroConfig}</Alert>
                 ) : (
                     <>
-                        <TextField select label="Forma de pagamento" value={rascunho.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
+                        {t.parcelas.map((p, i) => <Stack key={i} spacing={1} role="group" aria-label={`Pagamento ${i + 1}`}>
+                        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                        <TextField fullWidth select label={i === 0 ? "Forma de pagamento" : `Forma de pagamento ${i + 1}`} value={p.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
                             slotProps={{ inputLabel: { shrink: true }, select: { native: true } }}
                             onChange={e => {
                                 const configId = e.target.value ? Number(e.target.value) : null;
                                 const config = configuracoes.find(c => c.id === configId);
                                 if (config) {
-                                    alterar({
+                                    alterarPagamento(i, {
                                         configuracaoFormaPagamentoId: config.id,
-                                        configuracaoNomeExibicao: config.nomeExibicao,
-                                        configuracaoTipo: config.tipo,
+                                        nomeExibicao: config.nomeExibicao,
                                         formaPagamento: tipoConfigParaLegado[config.tipo],
+                                        recebido: config.tipo === "DINHEIRO" ? p.recebido : "",
                                     });
                                 } else {
-                                    alterar({
+                                    alterarPagamento(i, {
                                         configuracaoFormaPagamentoId: null,
-                                        configuracaoNomeExibicao: null,
-                                        configuracaoTipo: null,
+                                        nomeExibicao: null,
                                         formaPagamento: "DINHEIRO",
                                     });
                                 }
                             }}>
                             <option value="">Selecione uma forma de pagamento</option>
                             {configuracoes.map(config => (
-                                <option key={config.id} value={config.id}>
+                                <option key={config.id} value={config.id} disabled={t.parcelas.some((outra, indice) => indice !== i && outra.configuracaoFormaPagamentoId === config.id)}>
                                     {config.nomeExibicao}
                                 </option>
                             ))}
                         </TextField>
-                        {ehDinheiro ? (
+                        {t.parcelas.length > 1 && <Tooltip title="Remover forma"><IconButton size="small" aria-label={`Remover pagamento ${i + 1}`} disabled={bloqueado}
+                            onClick={() => alterar({ pagamentos: pagamentosRascunho(rascunho).filter((_, indice) => indice !== i) })}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>}
+                        </Stack>
+                        <TextField label="Valor aplicado (R$)" value={p.valor === "" && t.parcelas.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : p.valor}
+                            disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()}
+                            onChange={e => alterarPagamento(i, { valor: e.target.value })} />
+                        {p.formaPagamento === "DINHEIRO" ? (
                             <>
-                                <TextField inputRef={recebidoRef} label="Valor recebido (R$)" value={rascunho.recebido} disabled={bloqueado}
-                                    slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()} onChange={e => alterar({ recebido: e.target.value })} />
-                                <Stack direction="row" sx={{ justifyContent: "space-between" }}><Typography>Troco</Typography><Typography sx={{ fontSize: 24, fontWeight: 700 }}>{moeda(t.troco)}</Typography></Stack>
+                                <TextField inputRef={recebidoRef} label="Valor recebido (R$)" value={p.recebido} placeholder={((p.valorCentavos ?? 0) / 100).toFixed(2)} disabled={bloqueado}
+                                    slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()} onChange={e => alterarPagamento(i, { recebido: e.target.value })} />
+                                <Stack direction="row" sx={{ justifyContent: "space-between" }}><Typography>Troco</Typography><Typography sx={{ fontSize: 24, fontWeight: 700 }}>{moeda(p.troco)}</Typography></Stack>
                             </>
                         ) : (
-                            <Typography variant="caption" color="text.secondary">Finalize após confirmar o {configuracaoSelecionada?.nomeExibicao ?? tipoLegadoSelecionado} ou a aprovação na maquininha. Registro de {moeda(Math.max(0, t.total))}.</Typography>
+                            <Typography variant="caption" color="text.secondary">{p.nomeExibicao ?? rotulosPagamento[p.formaPagamento]} · {moeda(p.valorCentavos ?? 0)}</Typography>
                         )}
+                        </Stack>)}
+                        <Button startIcon={<AddRoundedIcon />} disabled={bloqueado || t.parcelas.length >= 20} onClick={adicionarForma}>Adicionar forma</Button>
+                        <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Total informado</span><Typography aria-label="Total informado">{moeda(t.totalInformado)}</Typography></Stack>
+                        <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Restante</span><Typography aria-label="Restante" color={t.restante === 0 ? "text.primary" : "error"}>{moeda(t.restante)}</Typography></Stack>
                     </>
                 )}
-                <Button size="large" variant="contained" disableElevation disabled={!sessaoCaixaResolvida || salvando || (!rascunho.itens.length && !rascunho.pendente) || !rascunho.configuracaoFormaPagamentoId || carregandoConfig} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
+                <Button size="large" variant="contained" disableElevation disabled={!sessaoCaixaResolvida || salvando || carregandoConfig || (!rascunho.pendente && (!rascunho.itens.length || !t.valido || !t.pagamentosValidos || t.restante !== 0))} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
                     {salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado · F2" : "Pagar · F2"}
                 </Button>
                 <Divider />

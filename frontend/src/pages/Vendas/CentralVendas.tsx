@@ -319,7 +319,7 @@ export default function CentralVendas() {
                         <Typography>Total: <strong>{moedaVenda(detalhe.total)}</strong></Typography>
                     </Stack>
                     <Alert severity="info" icon={false}>
-                        Pagamento: <strong>{detalhe.formaPagamento ? rotulosPagamento[detalhe.formaPagamento] : "Não definido"}</strong>
+                        Pagamento: <strong>{detalhe.formaPagamento ? rotulosPagamento[detalhe.formaPagamento] : pagamentos.length > 1 ? "Pagamento misto" : "Não definido"}</strong>
                         {detalhe.valorRecebido !== null && <> · Recebido: <strong>{moedaVenda(detalhe.valorRecebido)}</strong></>}
                         {detalhe.troco !== null && <> · Troco: <strong>{moedaVenda(detalhe.troco)}</strong></>}
                     </Alert>
