@@ -10,6 +10,10 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## PDV: teclado de busca e quantidade (2026-10-07)
+
+Na branch `feat/contas-pagar-integracao-backend`, adicionar produto leva o foco a Quantidade e seleciona o valor atual. Enter retorna a busca; Esc restaura a quantidade anterior a edicao e retorna a busca sem sair do PDV. Setas + Enter adicionam o resultado escolhido, com prioridade para codigo exato; sem escolha pelas setas, Enter/scanner continuam exigindo codigo exato e consultando imediatamente. Tab e atalhos existentes preservados, sem alteracao de estoque, pagamentos ou backend. O fechamento desktop de `5a38dc2` permanece intacto. Cobertura direcionada em Chromium com HTTP simulado.
+
 ## PDV: correcoes funcionais antes do redesign (2026-10-07)
 
 Reproduzidos faturamento PIX sem configuracao seguido de falha tardia na confirmacao e aceite de PIX com destino inativo. Novas vendas PIX agora exigem configuracao ativa com destino BANCO/CARTEIRA_DIGITAL ativo do tenant; payload singular legado sem configuracao retorna 409. Historico, retry e confirmacao pelo snapshot original permanecem, inclusive com inativacao posterior. Cadastro de configuracao ja exigia destino, sem alteracao adicional.

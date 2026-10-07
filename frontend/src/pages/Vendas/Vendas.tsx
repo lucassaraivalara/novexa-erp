@@ -65,6 +65,7 @@ export default function Vendas() {
     const [erroConfig, setErroConfig] = useState("");
     const [listaAberta, setListaAberta] = useState(false);
     const [indice, setIndice] = useState(0);
+    const resultadoNavegadoRef = useRef(false);
     const [selecionado, setSelecionado] = useState<number | null>(null);
     const [opcional, setOpcional] = useState<Opcional>(null);
     const [erro, setErro] = useState("");
@@ -80,6 +81,7 @@ export default function Vendas() {
     const recebidoRef = useRef<HTMLInputElement>(null);
     const opcionalRef = useRef<HTMLInputElement>(null);
     const quantidadesRef = useRef<Record<number, HTMLInputElement | null>>({});
+    const quantidadeAntesRef = useRef("");
     const t = totais(rascunho);
     const bloqueado = !sessaoCaixaResolvida || salvando || !!rascunho.pendente;
     const { term: busca, setTerm, loading, cancel, refresh } = useRemoteSearch<Produto>({
@@ -96,6 +98,7 @@ export default function Vendas() {
     }, [bloqueado, cancel]);
 
     function setBusca(termo: string) {
+        resultadoNavegadoRef.current = false;
         scannerRef.current?.abort(); scannerRef.current = null; setBuscandoCodigo(false);
         setResultados([]); setBuscaConcluida(false); setErroCatalogo(""); setTerm(termo);
     }
@@ -106,7 +109,8 @@ export default function Vendas() {
         cancel();
         const encontrado = encontrarProdutoPorCodigo(resultados, termo);
         if (encontrado) { adicionar(encontrado); return; }
-        // O leitor não espera o debounce e nunca seleciona um nome parcial por Enter.
+        if (listaAberta && resultadoNavegadoRef.current && resultados[indice]) { adicionar(resultados[indice]); return; }
+        // Sem escolha pelas setas, Enter continua exigindo código exato, sem esperar o debounce.
         const controller = new AbortController(); scannerRef.current = controller; setBuscandoCodigo(true);
         try {
             const lista = await pesquisarProdutos(termo, controller.signal);
@@ -317,7 +321,7 @@ export default function Vendas() {
                             startAdornment: <InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>,
                             endAdornment: <InputAdornment position="end"><Tooltip title="Buscar produtos"><IconButton
                                 edge="end" size="small" aria-label="Abrir lista de produtos" aria-expanded={listaAberta}
-                                onMouseDown={e => e.preventDefault()} onClick={() => { setListaAberta(aberta => !aberta); setIndice(0); focarBusca(); }}>
+                                onMouseDown={e => e.preventDefault()} onClick={() => { resultadoNavegadoRef.current = false; setListaAberta(aberta => !aberta); setIndice(0); focarBusca(); }}>
                                 <ArrowDropDownIcon /></IconButton></Tooltip></InputAdornment>,
                         }, htmlInput: { role: "combobox", "aria-expanded": listaAberta && resultados.length > 0, "aria-controls": "pdv-resultados",
                             "aria-activedescendant": resultados.length ? "pdv-opcao-" + Math.min(indice, resultados.length - 1) : undefined, autoComplete: "off" } }}
@@ -325,6 +329,7 @@ export default function Vendas() {
                             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                                 e.preventDefault();
                                 setListaAberta(true);
+                                resultadoNavegadoRef.current = resultados.length > 0;
                                 setIndice(i => moverIndiceProduto(i, resultados.length, e.key === "ArrowDown" ? "PROXIMO" : "ANTERIOR"));
                             }
                             if (e.key === "Enter") {
@@ -353,7 +358,15 @@ export default function Vendas() {
                             <TableCell><TextField size="small" value={item.quantidade} disabled={bloqueado}
                                 inputRef={(el: HTMLInputElement | null) => { quantidadesRef.current[item.produto.id] = el; }}
                                 slotProps={{ htmlInput: { "aria-label": "Quantidade de " + item.produto.nome, inputMode: "decimal" } }}
-                                onFocus={() => setSelecionado(item.produto.id)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); focarBusca(); } }}
+                                onFocus={e => { quantidadeAntesRef.current = item.quantidade; setSelecionado(item.produto.id); e.target.select(); }}
+                                onKeyDown={e => {
+                                    if (e.key === "Enter") { e.preventDefault(); focarBusca(); }
+                                    if (e.key === "Escape") {
+                                        e.preventDefault(); e.stopPropagation();
+                                        alterar({ itens: rascunho.itens.map(x => x === item ? { ...x, quantidade: quantidadeAntesRef.current } : x) });
+                                        focarBusca();
+                                    }
+                                }}
                                 onChange={e => alterar({ itens: rascunho.itens.map(x => x === item ? { ...x, quantidade: e.target.value } : x) })} /></TableCell>
                             <TableCell align="right">{moeda(Math.round(item.produto.precoVenda * 100))}</TableCell>
                             <TableCell align="right">{subtotalItem(item) === null ? "—" : moeda(subtotalItem(item)!)}</TableCell>

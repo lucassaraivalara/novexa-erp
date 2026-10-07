@@ -66,7 +66,7 @@ async function abrir() {
         else if (u.pathname.endsWith("/buscar")) {
             if (estado.atrasar && registro.termo === "antiga") await new Promise(r => setTimeout(r, 1000));
             if (estado.atrasarScanner && registro.termo === "7890001") await new Promise(r => setTimeout(r, 700));
-            dados = u.pathname === "/produtos/buscar" ? (estado.semResultados ? [] : [{ ...produto(registro.termo === "antiga" ? "Resposta antiga" : "Produto remoto", registro.termo === "1" ? "1" : "P1"),
+            dados = u.pathname === "/produtos/buscar" ? (estado.semResultados ? [] : estado.produtos ?? [{ ...produto(registro.termo === "antiga" ? "Resposta antiga" : "Produto remoto", registro.termo === "1" ? "1" : "P1"),
                 controlaEstoque: estado.controlaEstoque ?? true, estoqueAtual: estado.estoqueAtual ?? 100 }])
                 : [cliente(registro.termo === "antiga" ? "Cliente antigo" : "Cliente remoto")];
         } else if (u.pathname === "/vendas" && req.method() === "POST") {
@@ -112,18 +112,77 @@ test("PDV nao pre-carrega produtos/clientes; digitar usa debounce e selecao adic
     } finally { await page.close(); }
 });
 
-test("scanner Enter consulta imediatamente codigo exato, inclusive curto, sem debounce/duplo envio", async () => {
+async function esperarFoco(page, campo) {
+    await page.waitForFunction(el => el === document.activeElement, await campo.elementHandle());
+}
+async function conferirQuantidade(page, nome, valor) {
+    const campo = page.getByLabel(`Quantidade de ${nome}`);
+    await esperarFoco(page, campo);
+    assert.equal(await campo.inputValue(), valor);
+    assert.deepEqual(await campo.evaluate(el => [el.selectionStart, el.selectionEnd]), [0, valor.length]);
+    return campo;
+}
+
+test("scanner Enter imediato seleciona quantidade; digitar substitui valor e Enter volta a busca", async () => {
     for (const codigo of ["7890001", "p1", "1"]) {
         const { page, estado, busca } = await abrir();
         try {
+            await esperarFoco(page, busca);
             await busca.fill(codigo); const inicio = Date.now(); await busca.press("Enter");
             await esperar(() => consultas(estado, "produtos").length > 0);
             await page.getByLabel("Quantidade de Produto remoto").waitFor();
             assert.equal(consultas(estado, "produtos").length, 1);
             assert.ok(consultas(estado, "produtos")[0].at - inicio < 350, "Leitor nao deve esperar o debounce");
             assert.equal(await page.getByLabel("Quantidade de Produto remoto").inputValue(), "1");
+            const quantidade = await conferirQuantidade(page, "Produto remoto", "1");
+            await quantidade.press("3");
+            assert.equal(await quantidade.inputValue(), "3");
+            await quantidade.press("Enter"); await esperarFoco(page, busca);
         } finally { await page.close(); }
     }
+});
+
+test("setas e Enter adicionam resultado escolhido; Esc restaura quantidade, Tab e Ctrl+Delete continuam livres", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        estado.produtos = [produto(), { ...produto("Segundo produto", "P2"), id: 2, codigoBarras: "7890002" }];
+        await busca.fill("Produto");
+        const opcoes = page.getByRole("listbox").getByRole("option");
+        await opcoes.nth(1).waitFor();
+        await busca.press("ArrowDown"); assert.equal(await opcoes.nth(1).getAttribute("aria-selected"), "true");
+        await busca.press("ArrowUp"); assert.equal(await opcoes.nth(0).getAttribute("aria-selected"), "true");
+        await busca.press("ArrowDown"); await busca.press("Enter");
+        const quantidade = await conferirQuantidade(page, "Segundo produto", "1");
+        assert.equal(consultas(estado, "produtos").length, 1);
+        await quantidade.press("3"); await quantidade.press("Enter"); await esperarFoco(page, busca);
+        await busca.fill("7890002"); await busca.press("Enter");
+        await conferirQuantidade(page, "Segundo produto", "4");
+        await quantidade.press("8"); await quantidade.press("Escape"); await esperarFoco(page, busca);
+        assert.equal(await quantidade.inputValue(), "4");
+        assert.equal(await page.getByRole("heading", { name: "Vender" }).count(), 1);
+        await quantidade.focus(); await quantidade.press("Tab");
+        await esperarFoco(page, page.getByRole("button", { name: "Remover Segundo produto" }));
+        await quantidade.focus(); await quantidade.press("Control+Delete"); await esperarFoco(page, busca);
+        assert.equal(await quantidade.count(), 0);
+    } finally { await page.close(); }
+});
+
+test("codigo exato tem prioridade sobre resultado navegado e novo termo limpa escolha anterior", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        estado.produtos = [produto(), { ...produto("Segundo produto", "P2"), id: 2, codigoBarras: "7890002" }];
+        await busca.fill("7890001"); await page.getByRole("listbox").getByRole("option").nth(1).waitFor();
+        await busca.press("ArrowDown"); await busca.press("Enter");
+        const quantidade = await conferirQuantidade(page, "Produto remoto", "1");
+        await quantidade.press("Enter"); await esperarFoco(page, busca);
+        await busca.fill("Produto"); await page.getByRole("listbox").getByRole("option").nth(1).waitFor();
+        await busca.press("ArrowDown"); await busca.fill("Parcial");
+        await page.getByRole("listbox").getByRole("option").nth(1).waitFor();
+        await busca.press("Enter");
+        await page.getByText("Código exato não encontrado. Selecione o produto na lista.").waitFor();
+        assert.equal(await quantidade.inputValue(), "1");
+        assert.equal(await page.getByLabel("Quantidade de Segundo produto").count(), 0);
+    } finally { await page.close(); }
 });
 
 test("Enter nunca adiciona nome parcial, nem quando resultado remoto ja esta em memoria", async () => {
