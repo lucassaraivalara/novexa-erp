@@ -71,7 +71,11 @@ export default function ContaReceberBaixaDialog({ conta, onFechar, onSalvo }: Pr
         onFechar={onFechar} onSubmit={e => void enviar(e)} salvando={salvando}>
         <Stack spacing={2}>
             <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{conta.cliente.nome} · {conta.descricao}</Typography>
-            <Typography sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>Saldo em aberto: {moeda.format(conta.saldo)}</Typography>
+            <Stack spacing={0.5} sx={{ fontVariantNumeric: "tabular-nums" }}>
+                <Typography variant="body2">Valor original: {moeda.format(conta.valorOriginal)}</Typography>
+                <Typography variant="body2">Já recebido: {moeda.format(conta.valorRecebido)}</Typography>
+                <Typography sx={{ fontWeight: 600 }}>Saldo: {moeda.format(conta.saldo)}</Typography>
+            </Stack>
             {tentativa && <Alert severity="warning">Há um recebimento aguardando confirmação. Tente novamente com os mesmos dados para evitar duplicidade.</Alert>}
             <Autocomplete value={destino} options={destino && !opcoes.some(c => c.id === destino.id) ? [destino, ...opcoes] : opcoes}
                 disabled={bloqueado} loading={loading} filterOptions={items => items}
@@ -79,7 +83,7 @@ export default function ContaReceberBaixaDialog({ conta, onFechar, onSalvo }: Pr
                 onChange={(_, c) => setDestino(c)} onInputChange={(_, texto, motivo) => { if (motivo === "input" || motivo === "clear") setTerm(texto); }}
                 noOptionsText="Nenhuma conta ativa encontrada" loadingText="Buscando contas…"
                 renderInput={params => <TextField {...params} required label="Conta de destino" error={!!erroBusca} helperText={erroBusca} />} />
-            <TextField required label="Valor recebido (R$)" value={valor} disabled={bloqueado}
+            <TextField required label="Valor recebido agora (R$)" value={valor} disabled={bloqueado}
                 onChange={e => setValor(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
             <TextField required type="date" label="Data do recebimento" value={dataRecebimento} disabled={bloqueado}
                 onChange={e => setDataRecebimento(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />

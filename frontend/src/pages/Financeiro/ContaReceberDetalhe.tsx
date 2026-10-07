@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
-import { Alert, Box, Button, CircularProgress, Divider, Drawer, IconButton, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Divider, Drawer, IconButton, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import StatusChip from "../../components/ui/StatusChip";
 import { buscarContaReceber, cancelarContaReceber, estornarRecebimentoConta, mensagemContaReceber } from "../../services/contaReceberService";
@@ -63,8 +63,8 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                         <Box><StatusChip status={conta.status} label={rotulosStatus[conta.status]} /></Box>
                     </Stack>
                     <Box component="dl" sx={{ m: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
-                        {[["Valor original", moeda.format(conta.valorOriginal)], ["Recebido", moeda.format(conta.valorRecebido)],
-                            ["Saldo em aberto", moeda.format(conta.saldo)], ["Vencimento", formatarData(conta.dataVencimento)],
+                        {[["Valor original", moeda.format(conta.valorOriginal)], ["Já recebido", moeda.format(conta.valorRecebido)],
+                            ["Saldo", moeda.format(conta.saldo)], ["Vencimento", formatarData(conta.dataVencimento)],
                             ["Emissão", formatarData(conta.dataEmissao)], ["Parcela", `${conta.numeroParcela}/${conta.totalParcelas}`],
                             ["Origem", conta.origem === "MANUAL" ? "Manual" : "Venda a prazo"],
                             ["Venda", conta.vendaId ? `#${conta.vendaId}` : "—"],
@@ -73,6 +73,7 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                                 <Typography component="dd" variant="body2" sx={{ m: 0, fontWeight: 600, overflowWrap: "anywhere", fontVariantNumeric: "tabular-nums" }}>{valor}</Typography></Box>)}
                     </Box>
                     {conta.observacao && <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{conta.observacao}</Typography>}
+                    {conta.origem === "VENDA_A_PRAZO" && <Typography variant="body2" color="text.secondary">Esta conta é controlada pela venda de origem.</Typography>}
                     <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
                         {podeEditarConta(conta) && <Button variant="outlined" startIcon={<EditOutlinedIcon />} onClick={() => onEditar(conta)}>Editar</Button>}
                         {podeReceberConta(conta) && <Button variant="contained" onClick={() => onReceber(conta)}>Receber</Button>}
@@ -91,8 +92,9 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                         {m.observacao && <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{m.observacao}</Typography>}
                         {m.estornada ? <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
                             Estorno: {formatarData(m.dataEstorno, true)} · {m.usuarioEstornoNome}<br />{m.motivoEstorno}
-                        </Typography> : conta.status !== "CANCELADA" && <Box><Button size="small" startIcon={<UndoRoundedIcon />}
-                            onClick={() => { setMotivo(""); setErroAcao(""); setAcao({ tipo: "estornar", movimento: m }); }}>Estornar recebimento</Button></Box>}
+                        </Typography> : conta.status !== "CANCELADA" && <Box><Tooltip title={`Estornar recebimento de ${moeda.format(m.valor)}`}><Button size="small" startIcon={<UndoRoundedIcon />}
+                            aria-label={`Estornar recebimento de ${moeda.format(m.valor)}`}
+                            onClick={() => { setMotivo(""); setErroAcao(""); setAcao({ tipo: "estornar", movimento: m }); }}>Estornar recebimento</Button></Tooltip></Box>}
                     </Stack>)}
                 </>}
             </Stack>

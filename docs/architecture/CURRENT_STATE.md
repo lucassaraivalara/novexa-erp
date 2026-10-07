@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Contas a Receber: correcoes funcionais e UX (2026-10-07)
+
+Na branch `feat/contas-pagar-integracao-backend`, resumo e listagem possuem blocos de erro e retries independentes. Periodo de vencimento invertido e bloqueado antes do HTTP, com mensagem inline; paginacao preserva 10/25/50 e enums sem filtro continuam omitidos pelo Axios. Conta de venda ja ocultava edicao/cancelamento individual; detalhe agora explica o controle pela venda. Baixa explicita valor original, ja recebido, saldo e valor recebido agora; estorno identifica o valor especifico. Empty state distingue cadastro vazio de filtros sem resultado. Nenhuma alteracao em backend, services, contratos ou regras financeiras: destino continua remoto, ativo e do tenant, sem restringir tipos alem do que o service backend exige.
+
+O relato de enums vazios causando erro na abertura nao se confirmou. A JVM local iniciada antes dos blocos de Contas a Receber nao havia carregado seu controller e o schema estava na V34. Reiniciar a configuracao Backend existente aplicou as migrations ja publicadas V35/V36, sem editar/criar migration; GET de resumo e pagina passaram a 200, sem alerts. Validacao: 24 testes direcionados de service/UI, build/TypeScript, lint e diff check; abertura, filtros e periodo invertido conferidos na tela real em 5173. Detalhe/baixa/estorno/retry exercitados com HTTP simulado; nenhum recebimento real registrado.
+
 ## PDV: teclado de busca e quantidade (2026-10-07)
 
 Na branch `feat/contas-pagar-integracao-backend`, adicionar produto leva o foco a Quantidade e seleciona o valor atual. Enter retorna a busca; Esc restaura a quantidade anterior a edicao e retorna a busca sem sair do PDV. Setas + Enter adicionam o resultado escolhido, com prioridade para codigo exato; sem escolha pelas setas, Enter/scanner continuam exigindo codigo exato e consultando imediatamente. Tab e atalhos existentes preservados, sem alteracao de estoque, pagamentos ou backend. O fechamento desktop de `5a38dc2` permanece intacto. Cobertura direcionada em Chromium com HTTP simulado.

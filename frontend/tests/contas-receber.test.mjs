@@ -48,8 +48,8 @@ async function esperar(fn) {
     for (let i = 0; i < 160 && !fn(); i++) await new Promise(r => setTimeout(r, 25));
     assert.ok(fn(), "Request esperado não chegou");
 }
-async function abrir(extras = {}, viewport = { width: 1440, height: 1000 }) {
-    const estado = { conta: conta(1, extras), requests: [], falhaBaixa: false, falhaAcao: false, keys: new Set(), falhaStatus: 503 };
+async function abrir(extras = {}, viewport = { width: 1440, height: 1000 }, opcoes = {}) {
+    const estado = { conta: conta(1, extras), requests: [], falhaBaixa: false, falhaAcao: false, keys: new Set(), falhaStatus: 503, ...opcoes };
     const page = await browser.newPage({ viewport }); page.setDefaultTimeout(10000);
     const errors = []; page.on("pageerror", e => errors.push(e.message));
     await page.addInitScript(() => localStorage.setItem("novexa-auth", JSON.stringify({ token: "teste", perfil: "ADMIN", usuarioId: 2,
@@ -60,14 +60,19 @@ async function abrir(extras = {}, viewport = { width: 1440, height: 1000 }) {
         const params = Object.fromEntries(u.searchParams), body = req.postDataJSON();
         estado.requests.push({ method: req.method(), path: u.pathname, params, body });
         let data, status = 200;
-        if (u.pathname === `${base}/pagina`) data = { items: [{ ...estado.conta, recebimentos: [] }], page: Number(params.page),
-            size: Number(params.size), totalItems: 63, totalPages: 3 };
-        else if (u.pathname === `${base}/resumo`) data = resumo;
+        if (u.pathname === `${base}/pagina`) {
+            if (estado.falhaListagem) { status = 400; data = "Requisicao invalida."; }
+            else data = { items: estado.vazio ? [] : [{ ...estado.conta, recebimentos: [] }], page: Number(params.page),
+                size: Number(params.size), totalItems: estado.vazio ? 0 : 63, totalPages: estado.vazio ? 0 : 3 };
+        } else if (u.pathname === `${base}/resumo`) {
+            if (estado.falhaResumo) { status = 400; data = "Requisicao invalida."; }
+            else data = resumo;
+        }
         else if (u.pathname === "/clientes/buscar") {
             if (params.termo === "antiga") await new Promise(r => setTimeout(r, 1000));
             data = [{ ...cliente, nome: params.termo === "antiga" ? "Resposta antiga" : "Cliente remoto", ativo: params.termo !== "historico" }];
         } else if (u.pathname === "/clientes/8") data = cliente;
-        else if (u.pathname === "/financeiro/contas-financeiras/pagina") data = { items: [params.termo === "Secundário"
+        else if (u.pathname === "/financeiro/contas-financeiras/pagina") data = { items: estado.destinos ?? [params.termo === "Secundário"
             ? { ...banco, id: 4, nome: "Banco secundário" } : banco], page: 0, size: 10, totalItems: 1, totalPages: 1 };
         else if (u.pathname === base && req.method() === "POST") { data = { ...conta(2), ...body }; }
         else if (u.pathname === `${base}/1` && req.method() === "PUT") { estado.conta = { ...estado.conta, ...body }; data = estado.conta; }
@@ -99,7 +104,9 @@ async function abrir(extras = {}, viewport = { width: 1440, height: 1000 }) {
         await route.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(data) });
     });
     await page.goto(`${url}/financeiro/contas-receber`);
-    await page.getByRole("cell", { name: estado.conta.descricao, exact: true }).waitFor();
+    if (estado.falhaListagem) await page.getByText("Listagem de contas: Requisicao invalida.", { exact: true }).waitFor();
+    else if (estado.vazio) await page.getByText("Nenhuma conta a receber cadastrada.", { exact: true }).waitFor();
+    else await page.getByRole("cell", { name: estado.conta.descricao, exact: true }).waitFor();
     return { page, estado, errors };
 }
 const chamadas = (e, path) => e.requests.filter(r => r.path === path);
@@ -125,6 +132,120 @@ test("services usam contrato real, paginação, detalhe, resumo e estorno espec�
     assert.deepEqual(JSON.parse(requests[6].data), { motivoEstorno: "Correção" });
     assert.ok(requests.every(r => r.headers.Authorization === "Bearer jwt" && !/empresaId|tenantId|vendaId/.test(r.data ?? "")));
 });
+
+test("filtros vazios chegam como undefined ao service e Axios omite os enums na URL", async () => {
+    const requests = []; api.defaults.adapter = async config => { requests.push(config); return { config, data: {}, status: 200, statusText: "OK", headers: {} }; };
+    await service.listarContasReceber({ page: 0, size: 25, sort: "dataVencimento,asc", status: undefined, origem: undefined });
+    assert.equal(requests[0].params.status, undefined); assert.equal(requests[0].params.origem, undefined);
+    const query = new URL(api.getUri(requests[0])).searchParams;
+    assert.equal(query.has("status"), false); assert.equal(query.has("origem"), false);
+});
+
+test("Status Todos, Origem Todas e limpar filtros omitem enums e retornam à primeira página", async () => {
+    const { page, estado } = await abrir();
+    try {
+        assert.equal(await page.getByRole("alert").count(), 0);
+        await page.getByRole("combobox", { name: "Status", exact: true }).click();
+        await page.getByRole("option", { name: "Parcial", exact: true }).click();
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.status === "PARCIAL");
+        await page.getByRole("combobox", { name: "Origem", exact: true }).click();
+        await page.getByRole("option", { name: "Venda a prazo", exact: true }).click();
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.origem === "VENDA_A_PRAZO");
+        await page.getByRole("button", { name: "Próxima página" }).click();
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.page === "1");
+        await page.getByRole("combobox", { name: "Status", exact: true }).click();
+        await page.getByRole("option", { name: "Todos", exact: true }).click();
+        await esperar(() => !Object.hasOwn(chamadas(estado, `${base}/pagina`).at(-1).params, "status"));
+        assert.equal(chamadas(estado, `${base}/pagina`).at(-1).params.page, "0");
+        await page.getByRole("combobox", { name: "Origem", exact: true }).click();
+        await page.getByRole("option", { name: "Todas", exact: true }).click();
+        await esperar(() => !Object.hasOwn(chamadas(estado, `${base}/pagina`).at(-1).params, "origem"));
+        await page.getByRole("combobox", { name: "Status", exact: true }).click();
+        await page.getByRole("option", { name: "Pendente", exact: true }).click();
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.status === "PENDENTE");
+        await page.getByRole("button", { name: "Limpar filtros" }).click();
+        await esperar(() => !Object.hasOwn(chamadas(estado, `${base}/pagina`).at(-1).params, "status"));
+        assert.deepEqual(chamadas(estado, `${base}/pagina`).at(-1).params, { page: "0", size: "25", sort: "dataVencimento,asc" });
+        await page.getByRole("combobox", { name: "Itens por página", exact: true }).click();
+        assert.deepEqual(await page.getByRole("option").allTextContents(), ["10", "25", "50"]);
+    } finally { await page.close(); }
+});
+
+test("período invertido mostra validação inline sem request; período válido e igual seguem para o backend", async () => {
+    const { page, estado } = await abrir();
+    try {
+        await page.getByLabel("Vencimento de", { exact: true }).fill("2026-10-20");
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.vencimentoDe === "2026-10-20");
+        const antes = chamadas(estado, `${base}/pagina`).length, resumos = chamadas(estado, `${base}/resumo`).length;
+        await page.getByLabel("Vencimento até", { exact: true }).fill("2026-10-01");
+        await page.getByText("O vencimento inicial deve ser anterior ou igual ao final.", { exact: true }).waitFor();
+        await page.waitForTimeout(450);
+        assert.equal(chamadas(estado, `${base}/pagina`).length, antes);
+        assert.equal(chamadas(estado, `${base}/resumo`).length, resumos);
+        assert.equal(await page.getByLabel("Vencimento até", { exact: true }).getAttribute("aria-invalid"), "true");
+        await page.getByLabel("Vencimento até", { exact: true }).fill("2026-10-20");
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.vencimentoAte === "2026-10-20");
+        assert.equal(await page.getByText("O vencimento inicial deve ser anterior ou igual ao final.", { exact: true }).count(), 0);
+        await page.getByLabel("Vencimento até", { exact: true }).fill("2026-10-31");
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.vencimentoAte === "2026-10-31");
+    } finally { await page.close(); }
+});
+
+for (const alvo of ["Resumo", "Listagem"]) test(`erro de ${alvo} permanece no próprio bloco e retry não repete a outra consulta`, async () => {
+    const { page, estado } = await abrir({}, undefined, { [`falha${alvo}`]: true });
+    try {
+        const resumoBloco = page.getByRole("region", { name: "Resumo financeiro de contas a receber" });
+        const listaBloco = page.getByRole("region", { name: "Listagem de contas a receber" });
+        const falho = alvo === "Resumo" ? resumoBloco : listaBloco, normal = alvo === "Resumo" ? listaBloco : resumoBloco;
+        await falho.getByRole("alert").waitFor(); assert.equal(await page.getByRole("alert").count(), 1);
+        assert.equal(await normal.getByRole("alert").count(), 0);
+        if (alvo === "Resumo") await normal.getByRole("cell", { name: estado.conta.descricao, exact: true }).waitFor();
+        else await normal.getByText("Total em aberto", { exact: true }).waitFor();
+        const outroPath = `${base}/${alvo === "Resumo" ? "pagina" : "resumo"}`, antes = chamadas(estado, outroPath).length;
+        estado[`falha${alvo}`] = false;
+        await falho.getByRole("button", { name: "Tentar novamente", exact: true }).click();
+        await falho.getByRole("alert").waitFor({ state: "hidden" });
+        assert.equal(chamadas(estado, outroPath).length, antes);
+    } finally { await page.close(); }
+});
+
+test("duas consultas distintas falhando exibem contexto próprio, não duplicação do mesmo erro", async () => {
+    const { page } = await abrir({}, undefined, { falhaResumo: true, falhaListagem: true });
+    try {
+        await page.getByText("Resumo financeiro: Requisicao invalida.", { exact: true }).waitFor();
+        assert.deepEqual(await page.getByRole("alert").allTextContents(), ["Resumo financeiro: Requisicao invalida.Tentar novamente", "Listagem de contas: Requisicao invalida.Tentar novamente"]);
+    } finally { await page.close(); }
+});
+
+test("empty state distingue ausência de cadastros de filtros sem resultado", async () => {
+    const { page, estado } = await abrir({}, undefined, { vazio: true });
+    try {
+        await page.getByRole("textbox", { name: "Buscar descrição, cliente ou documento" }).fill("não existe");
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.termo === "não existe");
+        await page.getByText("Nenhuma conta encontrada com os filtros atuais.", { exact: true }).waitFor();
+        await page.getByRole("button", { name: "Limpar filtros" }).click();
+        await page.getByText("Nenhuma conta a receber cadastrada.", { exact: true }).waitFor();
+    } finally { await page.close(); }
+});
+
+test("baixa informa original/recebido/saldo e consulta destinos ativos remotamente sem inventar restrição de tipo", async () => {
+    const destinos = ["BANCO", "COFRE", "CARTEIRA_DIGITAL", "OUTROS", "CAIXA", "ADQUIRENTE"].map((tipo, i) => ({ ...banco, id: i + 3, nome: `Destino ${tipo}`, tipo }));
+    const { page, estado } = await abrir({ valorRecebido: 40, saldo: 60, status: "PARCIAL" }, undefined, { destinos });
+    try {
+        await abrirBaixa(page);
+        const dialog = page.getByRole("dialog", { name: "Receber conta" });
+        await dialog.getByText(/Valor original:.*100,00/).waitFor(); await dialog.getByText(/Já recebido:.*40,00/).waitFor();
+        await dialog.getByText(/Saldo:.*60,00/).waitFor();
+        assert.equal(await dialog.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).inputValue(), "60");
+        await dialog.getByRole("combobox", { name: "Conta de destino" }).fill("Destino");
+        await esperar(() => chamadas(estado, "/financeiro/contas-financeiras/pagina").at(-1)?.params.termo === "Destino");
+        await page.getByRole("option", { name: "Destino BANCO", exact: true }).waitFor();
+        assert.equal(await page.getByRole("option").count(), destinos.length);
+        const request = chamadas(estado, "/financeiro/contas-financeiras/pagina").at(-1);
+        assert.deepEqual(request.params, { page: "0", size: "10", sort: "nome,asc", ativo: "true", termo: "Destino" });
+        assert.equal(chamadas(estado, "/financeiro/contas-financeiras").length, 0);
+    } finally { await page.close(); }
+});
 test("valida valores e elegibilidade pelo detalhe, incluindo histórico totalmente estornado", () => {
     for (const v of ["0", "-1", "1,001", "", "abc"]) assert.equal(utils.valorMonetario(v), null);
     assert.equal(utils.valorMonetario("40,50"), 40.5); assert.equal(utils.podeEditarConta(conta()), true);
@@ -142,6 +263,7 @@ test("link da Central abre a parcela da venda sem permitir editar ou cancelar in
         await page.goto(`${url}/financeiro/contas-receber?contaId=1`);
         const detalhe = page.getByRole("dialog", { name: "Conta a receber #1", exact: true });
         await detalhe.waitFor();
+        await detalhe.getByText("Esta conta é controlada pela venda de origem.", { exact: true }).waitFor();
         assert.equal(await detalhe.getByRole("button", { name: "Editar", exact: true }).count(), 0);
         assert.equal(await detalhe.getByRole("button", { name: "Cancelar conta", exact: true }).count(), 0);
     } finally { await page.close(); }
@@ -200,14 +322,14 @@ test("cadastro manual e edição antes de baixa usam cliente remoto e campos rea
 test("duas baixas preservam histórico, usam saldo parcial e atualizam listagem/resumo/detalhe", async () => {
     const { page, estado } = await abrir(); try {
         await abrirBaixa(page); await escolherDestino(page);
-        await page.getByRole("textbox", { name: "Valor recebido (R$)", exact: true }).fill("40");
+        await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).fill("40");
         await page.getByRole("button", { name: "Confirmar recebimento", exact: true }).click();
         await page.getByRole("dialog", { name: "Receber conta" }).waitFor({ state: "hidden" });
         await page.getByRole("cell", { name: "Parcial", exact: true }).waitFor();
         const primeiro = chamadas(estado, `${base}/1/receber`)[0].body;
         assert.equal(primeiro.valor, 40); assert.equal(primeiro.contaFinanceiraId, 3); assert.match(primeiro.chaveRequisicao, /^[0-9a-f-]{36}$/);
         assert.ok(!Object.hasOwn(primeiro, "empresaId"));
-        await abrirBaixa(page); assert.equal(await page.getByRole("textbox", { name: "Valor recebido (R$)", exact: true }).inputValue(), "60");
+        await abrirBaixa(page); assert.equal(await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).inputValue(), "60");
         await page.getByRole("combobox", { name: "Conta de destino" }).fill("Secundário");
         await page.getByRole("option", { name: "Banco secundário", exact: true }).click();
         await page.getByRole("button", { name: "Confirmar recebimento", exact: true }).click();
@@ -216,7 +338,7 @@ test("duas baixas preservam histórico, usam saldo parcial e atualizam listagem/
         assert.equal(estado.conta.recebimentos.length, 2); assert.notEqual(chamadas(estado, `${base}/1/receber`)[1].body.chaveRequisicao, primeiro.chaveRequisicao);
         assert.equal(chamadas(estado, `${base}/1/receber`)[1].body.contaFinanceiraId, 4);
         assert.ok(chamadas(estado, `${base}/resumo`).length >= 3);
-        await detalhe(page); assert.equal(await page.getByRole("button", { name: "Estornar recebimento", exact: true }).count(), 2);
+        await detalhe(page); assert.equal(await page.getByRole("button", { name: /^Estornar recebimento de/ }).count(), 2);
         assert.equal(await page.getByRole("button", { name: "Editar", exact: true }).count(), 0);
         assert.equal(await page.getByRole("button", { name: "Cancelar conta", exact: true }).count(), 0);
     } finally { await page.close(); }
@@ -224,17 +346,17 @@ test("duas baixas preservam histórico, usam saldo parcial e atualizam listagem/
 test("recebimento inválido bloqueia envio e retry após 503/reload conserva UUID e payload", async () => {
     const { page, estado } = await abrir(); try {
         await abrirBaixa(page); await escolherDestino(page);
-        await page.getByRole("textbox", { name: "Valor recebido (R$)", exact: true }).fill("101");
+        await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).fill("101");
         await page.getByRole("button", { name: "Confirmar recebimento", exact: true }).click();
         assert.equal(chamadas(estado, `${base}/1/receber`).length, 0);
-        estado.falhaBaixa = "aposCommit"; await page.getByRole("textbox", { name: "Valor recebido (R$)", exact: true }).fill("40");
+        estado.falhaBaixa = "aposCommit"; await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).fill("40");
         await page.getByRole("button", { name: "Confirmar recebimento", exact: true }).dblclick();
         await page.getByText("Resposta temporariamente indisponível.", { exact: true }).waitFor();
         assert.equal(chamadas(estado, `${base}/1/receber`).length, 1);
         const payload = chamadas(estado, `${base}/1/receber`)[0].body;
-        assert.equal(await page.getByRole("textbox", { name: "Valor recebido (R$)", exact: true }).isDisabled(), true);
+        assert.equal(await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).isDisabled(), true);
         await page.reload(); await page.getByRole("cell", { name: estado.conta.descricao, exact: true }).waitFor(); await abrirBaixa(page);
-        assert.equal(await page.getByRole("textbox", { name: "Valor recebido (R$)", exact: true }).inputValue(), "40");
+        assert.equal(await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).inputValue(), "40");
         estado.falhaBaixa = false; await page.getByRole("button", { name: "Tentar novamente", exact: true }).click();
         await page.getByRole("dialog", { name: "Receber conta" }).waitFor({ state: "hidden" });
         assert.deepEqual(chamadas(estado, `${base}/1/receber`)[1].body, payload);
@@ -247,7 +369,7 @@ test("erros 403/409 permanecem no dialog sem falso sucesso e liberam correção 
         await abrirBaixa(page); await escolherDestino(page); estado.falhaBaixa = true; estado.falhaStatus = 403;
         await page.getByRole("button", { name: "Confirmar recebimento", exact: true }).click();
         await page.getByText("Você não tem permissão para realizar esta operação.", { exact: true }).waitFor();
-        assert.equal(await page.getByRole("textbox", { name: "Valor recebido (R$)", exact: true }).isDisabled(), false);
+        assert.equal(await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).isDisabled(), false);
         estado.falhaStatus = 409; await page.getByRole("button", { name: "Confirmar recebimento", exact: true }).click();
         await page.getByText("Resposta temporariamente indisponível.", { exact: true }).waitFor();
         assert.equal(estado.conta.valorRecebido, 0); assert.equal(await page.getByText("Recebimento registrado.", { exact: true }).count(), 0);
@@ -260,7 +382,7 @@ test("tentativa antiga já estornada não é reutilizada para um novo recebiment
         await page.evaluate(({ key, banco }) => sessionStorage.setItem("novexa-recebimento:1:1", JSON.stringify({ destino: banco,
             dados: { contaFinanceiraId: 3, valor: 100, dataRecebimento: "2026-10-06", observacao: null, chaveRequisicao: key } })), { key, banco });
         await abrirBaixa(page); await escolherDestino(page);
-        assert.equal(await page.getByRole("textbox", { name: "Valor recebido (R$)", exact: true }).isDisabled(), false);
+        assert.equal(await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).isDisabled(), false);
         await page.getByRole("button", { name: "Confirmar recebimento", exact: true }).click();
         await page.getByRole("dialog", { name: "Receber conta" }).waitFor({ state: "hidden" });
         assert.notEqual(chamadas(estado, `${base}/1/receber`)[0].body.chaveRequisicao, key);
@@ -269,7 +391,7 @@ test("tentativa antiga já estornada não é reutilizada para um novo recebiment
 test("estorno identifica baixa, exige motivo, mostra conflito e preserva histórico", async () => {
     const { page, estado } = await abrir({ valorRecebido: 100, saldo: 0, status: "RECEBIDA", recebimentos: [movimento(10, 40), movimento(11, 60)] });
     try {
-        await detalhe(page); await page.getByRole("button", { name: "Estornar recebimento", exact: true }).last().click();
+        await detalhe(page); await page.getByRole("button", { name: /^Estornar recebimento de/ }).last().click();
         const dialog = page.getByRole("dialog", { name: "Estornar recebimento?" });
         await dialog.getByRole("button", { name: "Estornar recebimento", exact: true }).click();
         assert.equal(chamadas(estado, `${base}/1/recebimentos/11/estornar`).length, 0);
@@ -299,7 +421,7 @@ test("tela cancelada permanece consultável e não permite operações", async (
         await detalhe(page);
         assert.equal(await page.getByRole("button", { name: "Editar", exact: true }).count(), 0);
         assert.equal(await page.getByRole("button", { name: "Cancelar conta", exact: true }).count(), 0);
-        assert.equal(await page.getByRole("button", { name: "Estornar recebimento", exact: true }).count(), 0);
+        assert.equal(await page.getByRole("button", { name: /^Estornar recebimento de/ }).count(), 0);
     } finally { await page.close(); }
 });
 test("desktop/mobile seguem identidade atual sem overflow; screenshot comparativo com Dashboard", async () => {
