@@ -4,7 +4,7 @@ Este documento define os padrões do frontend do Novexa ERP, preservando a densi
 
 ## Navegacao por tarefa
 
-Sidebar oferece Dashboard, Vender (/pdv), Central de Vendas (/vendas), Clientes, Produtos e Estoque. Financeiro agrupa Caixas, Contas a Pagar, Recebimentos de cartao (dominio Recebivel) e Contas e saldos (dominio ContaFinanceira); Formas de Pagamento e Dados Bancarios ficam no subgrupo Configuracoes. Administracao preserva Empresas e Usuarios, este ultimo somente ADMIN. Item indisponivel Padroes p/ Novo Cliente nao e apresentado.
+Sidebar oferece Dashboard, Vender (/pdv), Central de Vendas (/vendas), Clientes, Produtos e Estoque. Financeiro agrupa Caixas, Contas a Pagar, Recebimentos de cartao (dominio Recebivel) e Contas e saldos (dominio ContaFinanceira); Configuracoes e um grupo proprio com Formas de Pagamento e Dados Bancarios. Administracao preserva Empresas e Usuarios, este ultimo somente ADMIN. Item indisponivel Padroes p/ Novo Cliente nao e apresentado.
 
 URLs, layout operacional independente do PDV, permissoes e componentes visuais preservados. Produtos mantem Produtos/Fornecedores; Estoque mantem Saldo/Entradas; Caixas e Dados Bancarios preservam suas abas. Entrada avulsa identifica a movimentacao isolada de produto, distinta da Entrada manual de mercadoria. Nomes apresentados nao renomeiam dominios, services ou endpoints.
 
@@ -20,7 +20,7 @@ Esta fundacao nao redesenha paginas ou componentes compartilhados, nem altera co
 
 A direcao atual substitui a experiencia excessivamente plana: sidebar navy com bloco verde de marca e selecao verde clara, area principal #F7F9FB, superficies brancas com raio 10px e sombra discreta, controles 6px e dialogs 10px. Botoes primarios verdes solidos, secundarios outline/pilula e badges tonais compactos. Raios passados via sx usam unidades px para evitar a multiplicacao pelo shape do MUI, inclusive StatCard. CadastroDialog apresenta paineis internos outlined como secoes com divisor, sem caixas aninhadas decorativas.
 
-PageFilters e AppTable adjacentes sao unidos visualmente no PageContainer, sem alterar componentes ou callbacks. Dashboard apresenta indicadores com icones e cinco colunas em desktop largo. PDV mantem grade produto/resumo em desktop e empilha os mesmos controles em mobile, sem alterar atalhos ou pagamento. Contratos, estados, validacoes, rotas e APIs permanecem intactos. Validacao visual usa respostas simuladas; nao substitui integracao financeira real.
+Sidebar navy de 232px em desktop preserva a marca existente, item ativo mint, grupos Financeiro, Configuracoes e Administracao; no mobile mantém a variante compacta de icones. No Dashboard, a topbar saúda pelo nome da sessão e mostra empresa/iniciais reais; busca global, sino e seletor de período não são apresentados por não existirem como funções. Seis KPIs vêm somente de `/dashboard/resumo`; Caixa e ações rápidas ocupam a primeira faixa em proporção aproximada 2:1, seguidos por últimas vendas e alertas de estoque baixo na mesma proporção. A tabela reutiliza as cinco vendas da consulta paginada, sem coluna de pagamento porque o resumo não inclui essa informação; PIX pendente e cartões previstos não são inferidos. Entrada de mercadoria abre a aba existente via `?aba=entradas`. Em desktop largo os KPIs formam uma linha; em 1024px passam a 3+3; mobile usa duas colunas e empilha os blocos sem overflow. PDV mantém seus controles e regras. Nenhum contrato ou API foi alterado.
 
 ## Ações por ícones
 
