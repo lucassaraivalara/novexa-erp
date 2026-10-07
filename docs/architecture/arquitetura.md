@@ -34,7 +34,7 @@ A V6 migra o modelo legado e mantém a tabela original somente como arquivo hist
 
 ## Evolução financeira
 
-ContaReceber e dominio independente do Cliente, sem integracao com Venda/PDV neste bloco. V35 adiciona FK composta cliente/empresa, venda nullable e relacao 1:N em MovimentacaoFinanceira; baixa gera ENTRADA e estorno identifica um movimento especifico. Locks ContaReceber -> ContaFinanceira -> movimento preservam os fluxos anteriores. Pagina/filtros/sort/resumo sao server-side; contrato e limites em [financeiro.md](financeiro.md).
+ContaReceber e dominio independente do Cliente, sem integracao com Venda/PDV neste bloco. V35 adiciona FK composta cliente/empresa, venda nullable e relacao 1:N em MovimentacaoFinanceira; baixa gera ENTRADA e estorno identifica um movimento especifico. Locks ContaReceber -> ContaFinanceira -> movimento preservam os fluxos anteriores. Pagina/filtros/sort/resumo sao server-side; contrato e limites em [financeiro.md](financeiro.md). Bloco 2 consome estes contratos no frontend por contaReceberService, com rota financeira, formularios, baixa idempotente e detalhe/historico, sem mudar backend ou dominios anteriores.
 
 `ContaPagarEntity` pertence à Empresa, com Fornecedor opcional da mesma empresa (FK composta na V17). O controller obtém o tenant do JWT; criação, edição, pagamento, cancelamento e estorno não recebem `empresaId`. A V20 vincula a baixa à MovimentacaoFinanceira de mesma empresa; novas baixas exigem Conta Financeira ativa e geram SAIDA/CONTAS_A_PAGAR, revertida no estorno. Pagamentos legados sem vínculo seguem válidos. Não há movimentação de Caixa/PDV ou da Conta Bancária cadastral. O frontend usa `/financeiro/contas-pagar` com lista e drawer, ainda sem enviar a conta financeira exigida pelo backend.
 

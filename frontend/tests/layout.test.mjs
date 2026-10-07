@@ -62,7 +62,7 @@ async function withLayout(run, options = {}) {
 
 test("Sidebar organiza tarefas, configuracoes e remove item indisponivel", () => withLayout(async page => {
     const nav = page.getByRole("navigation");
-    assert.deepEqual(await nav.getByRole("link").allTextContents(), ["Dashboard","Vender","Central de Vendas","Clientes","Produtos","Estoque","Caixas","Contas a Pagar","Recebimentos de cartão","Contas e saldos","Formas de Pagamento","Dados Bancários","Empresas","Usuários"]);
+    assert.deepEqual(await nav.getByRole("link").allTextContents(), ["Dashboard","Vender","Central de Vendas","Clientes","Produtos","Estoque","Caixas","Contas a Pagar","Contas a Receber","Recebimentos de cartão","Contas e saldos","Formas de Pagamento","Dados Bancários","Empresas","Usuários"]);
     assert.equal(await nav.getByRole("button",{name:"Financeiro",exact:true}).getAttribute("aria-expanded"),"true");
     assert.equal(await nav.getByRole("button",{name:"Configurações",exact:true}).getAttribute("aria-expanded"),"true");
     assert.equal(await nav.getByRole("button",{name:"Administra\u00e7\u00e3o",exact:true}).count(),1);

@@ -10,7 +10,7 @@
 - Locks: ContaReceber -> ContaFinanceira -> MovimentacaoFinanceira no estorno; baixas/edicao/cancelamento serializam no agregado. Nao altera locks de Venda/Caixa/cartao/transferencias. Chave UUID obrigatoria na baixa, unica por empresa no movimento: retry com mesmo payload nao credita de novo, mesmo apos estorno; dados/conta diferentes com a mesma chave retornam 409. Constraint protege colisoes entre agregados, com rollback da tentativa perdedora.
 - Autorizacao segue a politica atual autenticada de ContaPagar/ContaFinanceira (ADMIN/GERENTE/OPERADOR/USUARIO); sem autenticacao 401. Nao modifica as restricoes ADMIN/GERENTE especificas de PIX/cartao. Tenant exclusivamente do JWT; FKs compostas cliente/venda/conta/movimento e CHECKs na V35, aditiva e sem backfill.
 - Consulta /pagina usa busca, filtros, allowlist de sort e paginacao no banco. Detalhe e respostas de mutacao incluem todas as baixas, inclusive estornadas; /pagina retorna recebimentos=[] sem carregar historico por item. Resumo usa saldo aberto de PENDENTE/PARCIAL; recebidasMes soma baixas efetivas nao estornadas pela dataRecebimento, contando movimentos, nao titulos.
-- API/payloads em [financeiro.md](financeiro.md). Sem frontend, A_PRAZO, Venda/PDV, cancelamento de Venda, juros/multa ou geracao automatica de parcelas.
+- API/payloads em [financeiro.md](financeiro.md). Frontend independente implementado no Bloco 2 com historico por detalhe, baixa parcial/total e estorno individual. Sem A_PRAZO, Venda/PDV, cancelamento de Venda, juros/multa ou geracao automatica de parcelas.
 
 ## Lancamento financeiro legado
 

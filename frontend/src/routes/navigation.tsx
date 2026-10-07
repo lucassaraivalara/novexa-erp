@@ -21,6 +21,7 @@ import DadosBancarios from "../pages/Financeiro/DadosBancarios";
 import FormasPagamento from "../pages/Financeiro/FormasPagamento";
 import Usuarios from "../pages/Usuarios/Usuarios";
 import ContasPagar from "../pages/Financeiro/ContasPagar";
+import ContasReceber from "../pages/Financeiro/ContasReceber";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import SavingsRoundedIcon from "@mui/icons-material/SavingsRounded";
 import ContasFinanceiras from "../pages/Financeiro/ContasFinanceiras";
@@ -98,6 +99,12 @@ export const rotasInternas: RotaInterna[] = [
         elemento: <ContasPagar />,
     },
     {
+        caminho: "financeiro/contas-receber",
+        titulo: "Contas a Receber",
+        icone: <ReceiptLongRoundedIcon />,
+        elemento: <ContasReceber />,
+    },
+    {
         caminho: "financeiro/recebiveis",
         titulo: "Recebimentos de cartão",
         icone: <CreditCardRoundedIcon />,
@@ -133,6 +140,7 @@ const rotaEmpresas = rotasInternas.find(r => r.caminho === "empresa")!;
 const rotaCaixas = rotasInternas.find(r => r.caminho === "financeiro/caixas")!;
 const rotaContasFinanceiras = rotasInternas.find(r => r.caminho === "financeiro/contas-financeiras")!;
 const rotaContasPagar = rotasInternas.find(r => r.caminho === "financeiro/contas-pagar")!;
+const rotaContasReceber = rotasInternas.find(r => r.caminho === "financeiro/contas-receber")!;
 const rotaRecebiveis = rotasInternas.find(r => r.caminho === "financeiro/recebiveis")!;
 const rotaUsuarios = rotasInternas.find(r => r.caminho === "usuarios")!;
 const rotaDadosBancarios = rotasInternas.find(r => r.caminho === "financeiro/dados-bancarios")!;
@@ -155,6 +163,7 @@ export const menuPrincipal: ItemMenu[] = [
         filhos: [
             { tipo: "rota", id: "caixas", titulo: "Caixas", rota: rotaCaixas },
             { tipo: "rota", id: "contas-pagar", titulo: "Contas a Pagar", rota: rotaContasPagar },
+            { tipo: "rota", id: "contas-receber", rota: rotaContasReceber },
             { tipo: "rota", id: "recebiveis", rota: rotaRecebiveis },
             { tipo: "rota", id: "contas-financeiras", rota: rotaContasFinanceiras },
         ],

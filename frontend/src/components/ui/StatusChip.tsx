@@ -9,6 +9,8 @@ const statusTones: Record<string, StatusTone> = {
     FATURADA: "success",
     PAGO: "success",
     PAGA: "success",
+    RECEBIDA: "success",
+    PARCIAL: "info",
     LIQUIDADO: "success",
     PENDENTE: "warning",
     BAIXO: "warning",

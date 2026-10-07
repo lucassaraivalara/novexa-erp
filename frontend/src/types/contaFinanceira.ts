@@ -3,9 +3,9 @@ import type { ContaBancariaResumo } from "./dadosBancarios";
 export type TipoContaFinanceira = "BANCO" | "CAIXA" | "COFRE" | "CARTEIRA_DIGITAL" | "ADQUIRENTE" | "OUTROS";
 export const tiposContaFinanceiraFuncionais: TipoContaFinanceira[] = ["BANCO", "COFRE", "CARTEIRA_DIGITAL", "OUTROS"];
 export type TipoMovimentacaoFinanceira = "ENTRADA" | "SAIDA";
-export type OrigemMovimentacaoFinanceira = "MANUAL" | "CONTAS_A_PAGAR" | "SALDO_INICIAL" | "TRANSFERENCIA";
+export type OrigemMovimentacaoFinanceira = "MANUAL" | "CONTAS_A_PAGAR" | "SALDO_INICIAL" | "TRANSFERENCIA" | "CONTA_RECEBER";
 export const rotulosOrigemMovimentacaoFinanceira: Record<OrigemMovimentacaoFinanceira, string> = {
-    MANUAL: "Manual", CONTAS_A_PAGAR: "Contas a Pagar", SALDO_INICIAL: "Saldo inicial", TRANSFERENCIA: "Transferência",
+    MANUAL: "Manual", CONTAS_A_PAGAR: "Contas a Pagar", SALDO_INICIAL: "Saldo inicial", TRANSFERENCIA: "Transferência", CONTA_RECEBER: "Conta a Receber",
 };
 
 export const rotulosTipoContaFinanceira: Record<TipoContaFinanceira, string> = {
@@ -31,6 +31,8 @@ export type ContaFinanceiraInput = { nome: string; tipo: TipoContaFinanceira; sa
 export type ContaFinanceiraResumo = { tipo: TipoContaFinanceira; quantidade: number; saldoAtual: number };
 
 export type MovimentacaoFinanceira = {
+    contaReceberId?: number | null;
+    chaveRequisicao?: string | null;
     transferenciaId: number | null;
     contaContraparteNome: string | null;
     id: number;

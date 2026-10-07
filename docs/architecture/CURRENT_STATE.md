@@ -10,6 +10,14 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Contas a Receber: frontend independente - Bloco 2 (2026-10-06)
+
+Financeiro -> Contas a Receber (`/financeiro/contas-receber`) oferece resumo global, listagem com busca/filtros/paginacao/sort server-side, cadastro manual, edicao antes de qualquer baixa, recebimento parcial/total, historico completo, estorno individual com motivo e cancelamento sem baixa ativa. Cliente remoto inclui inativos somente no filtro historico; cadastro exige ativo. Destino da baixa usa consulta paginada remota de contas ativas, sem carregar catalogo completo.
+
+Identidade atual do HEAD (Dashboard navy/teal) reutilizada por theme/layout, PageHeader, PageFilters, AppTable, StatusChip e CadastroDialog, sem copiar a composicao do Dashboard ou alterar o design global. Detalhe consulta historico antes de liberar edicao; registros totalmente estornados continuam nao editaveis. Tentativas de baixa com resposta incerta preservam UUID/payload em sessionStorage por empresa/conta, inclusive no refresh; retry usa os mesmos dados. Sem Venda/PDV, Dashboard financeiro, A_PRAZO, juros, multas ou integracao automatica.
+
+Validacao: 41 testes frontend direcionados (15 novos de service/UI/fluxos e 26 de componentes/navegacao/consumidores afetados), TypeScript/build, lint dos arquivos alterados e diff check. Componentes reais exercitados em navegador com HTTP simulado, inclusive resposta perdida apos baixa ja processada, retry sem duplicidade, estorno individual e erros 403/409. Screenshots comparativos Dashboard/Contas a Receber e dialogs/drawer em desktop/mobile; sem overflow de pagina e sem homologacao E2E com backend real neste bloco.
+
 ## Conta a Receber: backend independente - Bloco 1 (2026-10-06)
 
 ContaReceber manual de Cliente separada de Recebivel de cartao, sem integracao com Venda/PDV/frontend. Criacao sem dinheiro; baixas parciais/totais geram N MovimentacoesFinanceiras ENTRADA vinculadas, com destino por baixa, UUID idempotente e saldo/estado atomicos. Historico completo no detalhe, estorno individual auditado, cancelamento somente sem baixas ativas e edicao somente antes de qualquer baixa (inclusive estornada). Cliente historico inativo permanece legivel. Pagina/filtros/sort e resumo por saldo/movimentos efetivos no backend; autorizacao autenticada atual de Contas a Pagar preservada.

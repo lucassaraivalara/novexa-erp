@@ -4,9 +4,13 @@ Este documento define os padrões do frontend do Novexa ERP, preservando a densi
 
 ## Navegacao por tarefa
 
-Sidebar oferece Dashboard, Vender (/pdv), Central de Vendas (/vendas), Clientes, Produtos e Estoque. Financeiro agrupa Caixas, Contas a Pagar, Recebimentos de cartao (dominio Recebivel) e Contas e saldos (dominio ContaFinanceira); Configuracoes e um grupo proprio com Formas de Pagamento e Dados Bancarios. Administracao preserva Empresas e Usuarios, este ultimo somente ADMIN. Item indisponivel Padroes p/ Novo Cliente nao e apresentado.
+Sidebar oferece Dashboard, Vender (/pdv), Central de Vendas (/vendas), Clientes, Produtos e Estoque. Financeiro agrupa Caixas, Contas a Pagar, Contas a Receber, Recebimentos de cartao (dominio Recebivel) e Contas e saldos (dominio ContaFinanceira); Configuracoes e um grupo proprio com Formas de Pagamento e Dados Bancarios. Administracao preserva Empresas e Usuarios, este ultimo somente ADMIN. Item indisponivel Padroes p/ Novo Cliente nao e apresentado.
 
 URLs, layout operacional independente do PDV, permissoes e componentes visuais preservados. Produtos mantem Produtos/Fornecedores; Estoque mantem Saldo/Entradas; Caixas e Dados Bancarios preservam suas abas. Entrada avulsa identifica a movimentacao isolada de produto, distinta da Entrada manual de mercadoria. Nomes apresentados nao renomeiam dominios, services ou endpoints.
+
+## Contas a Receber - Bloco 2
+
+Rota `/financeiro/contas-receber`, no grupo Financeiro, usa a identidade vigente navy/teal com composicao operacional: PageHeader, resumo global, PageFilters e AppTable compacta remota. Cadastro/baixa/confirmacoes reutilizam CadastroDialog; detalhe e historico ficam em drawer responsivo. Nenhum grafico, bloco decorativo ou alteracao global de identidade. Cliente usa ClienteAutocomplete existente (inativos somente no filtro historico); destinos usam pagina remota de contas ativas. Historico completo vem de GET por ID, nunca de recebimentos=[] da pagina. Retry de baixa preserva UUID/payload por empresa/conta em sessionStorage ate resposta conclusiva, bloqueando edicao da tentativa incerta.
 
 ## Fundacao visual Novexa
 

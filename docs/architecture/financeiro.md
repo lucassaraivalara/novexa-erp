@@ -2,7 +2,7 @@ FINANCEIRO NOVEXA
 
 ## Conta a Receber - backend independente (Bloco 1)
 
-Dominio do Cliente, distinto de Recebivel de cartao. V35 cria contas_receber e vinculo 1:N nos movimentos financeiros existentes; criacao nao credita saldo. Somente baixa gera ENTRADA/CONTA_RECEBER, com destino escolhido por recebimento. Nenhuma integracao com Venda/PDV/frontend neste bloco.
+Dominio do Cliente, distinto de Recebivel de cartao. V35 cria contas_receber e vinculo 1:N nos movimentos financeiros existentes; criacao nao credita saldo. Somente baixa gera ENTRADA/CONTA_RECEBER, com destino escolhido por recebimento. Bloco 2 integra o frontend em Financeiro -> Contas a Receber, com CRUD permitido, baixa parcial/total, historico, estorno individual, cancelamento e resumo. Nenhuma integracao com Venda/PDV.
 
 Base: `/financeiro/contas-receber` (usuario autenticado, tenant do JWT):
 
