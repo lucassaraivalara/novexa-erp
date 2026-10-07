@@ -395,9 +395,10 @@ export default function Vendas() {
                     <Alert severity="error">{erroConfig}</Alert>
                 ) : (
                     <>
-                        {t.parcelas.map((p, i) => <Stack key={i} spacing={1} role="group" aria-label={`Pagamento ${i + 1}`}>
+                        {t.parcelas.map((p, i) => <Stack key={i} spacing={1} role="group" aria-label={`Pagamento ${i + 1}`}
+                            sx={{ pb: i < t.parcelas.length - 1 ? 1.5 : 0, borderBottom: i < t.parcelas.length - 1 ? 1 : 0, borderColor: "divider" }}>
                         <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                        <TextField fullWidth select label={i === 0 ? "Forma de pagamento" : `Forma de pagamento ${i + 1}`} value={p.formaPagamento === "A_PRAZO" ? "A_PRAZO" : p.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
+                        <TextField fullWidth size="small" select sx={{ minWidth: 0 }} label={i === 0 ? "Forma de pagamento" : `Forma de pagamento ${i + 1}`} value={p.formaPagamento === "A_PRAZO" ? "A_PRAZO" : p.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
                             slotProps={{ inputLabel: { shrink: true }, select: { native: true } }}
                             onChange={e => {
                                 if (e.target.value === "A_PRAZO") {
@@ -432,50 +433,53 @@ export default function Vendas() {
                                 </option>
                             ))}
                         </TextField>
+                        {p.formaPagamento !== "A_PRAZO" && <TextField size="small" label="Valor (R$)" sx={{ width: 105, flexShrink: 0 }}
+                            value={p.valor === "" && t.parcelas.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : p.valor}
+                            disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()}
+                            onChange={e => alterarPagamento(i, { valor: e.target.value })} />}
                         {t.parcelas.length > 1 && <Tooltip title="Remover forma"><IconButton size="small" aria-label={`Remover pagamento ${i + 1}`} disabled={bloqueado}
                             onClick={() => alterar({ pagamentos: pagamentosRascunho(rascunho).filter((_, indice) => indice !== i) })}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>}
                         </Stack>
                         {p.formaPagamento === "A_PRAZO" ? <Stack spacing={1}>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>A prazo · {moeda(t.totalPrazo)}</Typography>
                             {!rascunho.cliente && <Alert severity="warning">Selecione um cliente para vender a prazo.</Alert>}
                             {t.parcelasPrazo.map((parcela, indice) => <Stack key={indice} spacing={0.5} role="group" aria-label={`Parcela a prazo ${indice + 1}`}>
-                                <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
+                                {t.parcelasPrazo.length > 1 && <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
                                     <Typography variant="caption">Parcela {indice + 1}/{t.parcelasPrazo.length}</Typography>
                                     {t.parcelasPrazo.length > 1 && <Tooltip title="Remover parcela"><IconButton size="small" aria-label={`Remover parcela a prazo ${indice + 1}`} disabled={bloqueado}
                                         onClick={() => alterar({ parcelasPrazo: rascunho.parcelasPrazo?.filter((_, posicao) => posicao !== indice) })}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>}
-                                </Stack>
-                                <TextField type="date" label={`Vencimento ${indice + 1}`} value={parcela.vencimento} disabled={bloqueado}
+                                </Stack>}
+                                <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 105px", gap: 1 }}>
+                                <TextField size="small" type="date" label={`Vencimento ${indice + 1}`} value={parcela.vencimento} disabled={bloqueado}
                                     error={!/^\d{4}-\d{2}-\d{2}$/.test(parcela.vencimento) || Number.isNaN(Date.parse(parcela.vencimento))}
                                     helperText={!parcela.vencimento ? "Informe o vencimento." : undefined}
                                     slotProps={{ inputLabel: { shrink: true } }} onChange={e => alterarParcelaPrazo(indice, { vencimento: e.target.value })} />
-                                <TextField label={`Valor da parcela ${indice + 1} (R$)`} value={parcela.valor === "" && t.parcelas.length === 1 && t.parcelasPrazo.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : parcela.valor}
-                                    disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()}
+                                <TextField size="small" label="Valor (R$)" value={parcela.valor === "" && t.parcelas.length === 1 && t.parcelasPrazo.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : parcela.valor}
+                                    disabled={bloqueado} slotProps={{ htmlInput: { "aria-label": `Valor da parcela ${indice + 1} (R$)`, inputMode: "decimal" } }} onFocus={e => e.target.select()}
                                     onChange={e => alterarParcelaPrazo(indice, { valor: e.target.value })} />
+                                </Box>
                             </Stack>)}
-                            <Button startIcon={<AddRoundedIcon />} disabled={bloqueado || t.parcelasPrazo.length >= 120}
+                            <Button size="small" startIcon={<AddRoundedIcon />} sx={{ alignSelf: "flex-start" }} disabled={bloqueado || t.parcelasPrazo.length >= 120}
                                 onClick={() => alterar({ parcelasPrazo: [
                                     ...t.parcelasPrazo.map(parcela => ({ valor: parcela.valor === "" ? ((parcela.valorCentavos ?? 0) / 100).toFixed(2) : parcela.valor, vencimento: parcela.vencimento })),
                                     { valor: (Math.max(0, t.restante) / 100).toFixed(2), vencimento: "" },
                                 ] })}>Adicionar parcela</Button>
-                        </Stack> : <>
-                        <TextField label="Valor aplicado (R$)" value={p.valor === "" && t.parcelas.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : p.valor}
-                            disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()}
-                            onChange={e => alterarPagamento(i, { valor: e.target.value })} />
-                        {p.formaPagamento === "DINHEIRO" ? (
-                            <>
-                                <TextField inputRef={recebidoRef} label="Valor recebido (R$)" value={p.recebido} placeholder={((p.valorCentavos ?? 0) / 100).toFixed(2)} disabled={bloqueado}
+                        </Stack> : p.formaPagamento === "DINHEIRO" && (
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                                <TextField size="small" inputRef={recebidoRef} label="Recebido (R$)" sx={{ flex: 1, minWidth: 0 }} value={p.recebido} placeholder={((p.valorCentavos ?? 0) / 100).toFixed(2)} disabled={bloqueado}
                                     slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()} onChange={e => alterarPagamento(i, { recebido: e.target.value })} />
-                                <Stack direction="row" sx={{ justifyContent: "space-between" }}><Typography>Troco</Typography><Typography sx={{ fontSize: 24, fontWeight: 700 }}>{moeda(p.troco)}</Typography></Stack>
-                            </>
-                        ) : (
-                            <Typography variant="caption" color="text.secondary">{p.nomeExibicao ?? rotulosPagamento[p.formaPagamento]} · {moeda(p.valorCentavos ?? 0)}</Typography>
+                                <Stack sx={{ alignItems: "flex-end", flexShrink: 0, color: p.troco > 0 ? "text.primary" : "text.secondary" }}>
+                                    <Typography variant="caption">Troco</Typography>
+                                    <Typography aria-label={`Troco do pagamento ${i + 1}`} sx={{ fontSize: p.troco > 0 ? 20 : 14, fontWeight: p.troco > 0 ? 700 : 400, fontVariantNumeric: "tabular-nums" }}>{moeda(p.troco)}</Typography>
+                                </Stack>
+                            </Stack>
                         )}
-                        </>}
                         </Stack>)}
-                        <Button startIcon={<AddRoundedIcon />} disabled={bloqueado || t.parcelas.length >= 20} onClick={adicionarForma}>Adicionar forma</Button>
+                        <Button size="small" startIcon={<AddRoundedIcon />} sx={{ alignSelf: "flex-start" }} disabled={bloqueado || t.parcelas.length >= 20} onClick={adicionarForma}>Adicionar forma</Button>
                         {t.parcelas.some(p => p.formaPagamento !== "A_PRAZO") && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Pago agora</span><Typography aria-label="Pago agora">{moeda(t.totalImediato)}</Typography></Stack>}
                         {t.usaPrazo && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>A receber</span><Typography aria-label="A receber">{moeda(t.totalPrazo)}</Typography></Stack>}
-                        {t.restante !== 0 && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>{t.restante > 0 ? "Falta distribuir" : "Valor excedente"}</span><Typography aria-label={t.restante > 0 ? "Falta distribuir" : "Valor excedente"} color="error">{moeda(Math.abs(t.restante))}</Typography></Stack>}
+                        {t.restante !== 0 && <Alert severity={t.restante > 0 ? "warning" : "error"} icon={false} sx={{ py: 0.5, "& .MuiAlert-message": { width: "100%" } }}>
+                            <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>{t.restante > 0 ? "Falta distribuir" : "Valor excedente"}</span><Typography aria-label={t.restante > 0 ? "Falta distribuir" : "Valor excedente"} sx={{ fontWeight: 600 }}>{moeda(Math.abs(t.restante))}</Typography></Stack>
+                        </Alert>}
                     </>
                 )}
                 </Stack>
