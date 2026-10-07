@@ -40,9 +40,9 @@ async function esperar(condicao) {
     for (let i = 0; i < 120 && !condicao(); i++) await new Promise(r => setTimeout(r, 25));
     assert.ok(condicao(), "Request esperado nao chegou");
 }
-async function abrir() {
+async function abrir({ hasTouch = false } = {}) {
     const estado = { requests: [], atrasar: false, atrasarScanner: false };
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, hasTouch });
     page.setDefaultTimeout(7000);
     await page.addInitScript(() => localStorage.setItem("novexa-auth", JSON.stringify({ id: 1, token: "teste",
         nomeUsuario: "Operador", perfil: "OPERADOR", empresa: { id: 1, razaoSocial: "Empresa" } })));
@@ -280,6 +280,64 @@ async function selecionarClientePrazo(page) {
     if (!await campo.count()) await page.getByRole("button", { name: "F8 Cliente" }).click();
     await campo.fill("Cliente"); await page.getByRole("listbox").getByRole("option", { name: /Cliente remoto/ }).click();
 }
+
+test("carrinho mobile mostra item completo sem scroll horizontal, preserva teclado e pagamento simples", async () => {
+    const { page, estado, busca } = await abrir({ hasTouch: true });
+    try {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await esperarFoco(page, busca);
+        await busca.fill("7890001"); await busca.press("Enter");
+        const quantidade = await conferirQuantidade(page, "Produto remoto", "1");
+        const carrinho = page.getByRole("table", { name: "Itens da venda" });
+        const item = carrinho.getByRole("row").filter({ hasText: "Produto remoto" });
+        assert.match(await item.innerText(), /Quantidade[\s\S]*Unitário[\s\S]*Subtotal/);
+        await quantidade.press("3"); await quantidade.press("Enter"); await esperarFoco(page, busca);
+        assert.equal(await quantidade.inputValue(), "3");
+        assert.match(await item.innerText(), /30,00/);
+        const remover = page.getByRole("button", { name: "Remover Produto remoto", exact: true });
+        const alvo = await remover.boundingBox();
+        assert.ok(alvo.width >= 44 && alvo.height >= 44);
+        assert.equal(await carrinho.evaluate(el => el.scrollWidth <= el.clientWidth), true);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        await page.screenshot({ path: "node_modules/.vite-pdv-buscas-tests/carrinho-mobile-390.png", fullPage: true });
+        await remover.tap(); await esperarFoco(page, busca);
+        assert.equal(await quantidade.count(), 0);
+        await busca.fill("7890001"); await busca.press("Enter");
+        await conferirQuantidade(page, "Produto remoto", "1");
+        await quantidade.press("Control+Delete"); await esperarFoco(page, busca);
+        assert.equal(await quantidade.count(), 0);
+        await busca.fill("7890001"); await busca.press("Enter");
+        await conferirQuantidade(page, "Produto remoto", "1");
+        await quantidade.press("8"); await quantidade.press("Escape"); await esperarFoco(page, busca);
+        assert.equal(await quantidade.inputValue(), "1");
+        await quantidade.tap(); await quantidade.press("Tab"); await esperarFoco(page, remover);
+        await page.getByRole("button", { name: "Pagar · F2" }).click();
+        await esperar(() => estado.requests.some(r => r.method === "POST" && r.path === "/vendas"));
+        const pedido = JSON.parse(estado.requests.find(r => r.method === "POST" && r.path === "/vendas").body);
+        assert.equal(pedido.itens[0].quantidade, 1);
+        assert.equal(pedido.pagamentos[0].valor, 10);
+    } finally { await page.close(); }
+});
+
+test("carrinho adapta nomes longos em mobile e mantem tabela estruturada em desktop sem duplicar campos", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        const nome = "Produto com nome extenso para testar quebra de linha " + "X".repeat(65);
+        estado.produtos = [produto(nome)];
+        await busca.fill("7890001"); await busca.press("Enter");
+        const quantidade = await conferirQuantidade(page, nome, "1");
+        const carrinho = page.getByRole("table", { name: "Itens da venda" });
+        const item = carrinho.getByRole("row").filter({ hasText: nome });
+        for (const width of [390, 1024, 1440]) {
+            await page.setViewportSize({ width, height: 900 });
+            assert.equal(await item.evaluate(el => getComputedStyle(el).display), width === 390 ? "grid" : "table-row");
+            assert.equal(await quantidade.count(), 1);
+            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+            assert.equal(await carrinho.evaluate(el => el.scrollWidth <= el.clientWidth), true);
+            await page.screenshot({ path: `node_modules/.vite-pdv-buscas-tests/carrinho-responsivo-${width}.png`, fullPage: true });
+        }
+    } finally { await page.close(); }
+});
 
 test("pagamento compacto alinha forma/valor, destaca apenas troco positivo e alerta diferencas", async () => {
     const { page, busca } = await abrir();

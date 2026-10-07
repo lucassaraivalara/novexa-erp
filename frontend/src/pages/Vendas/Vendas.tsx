@@ -351,11 +351,18 @@ export default function Vendas() {
                 </Box>
                 {erroCatalogo && <Alert severity="error" action={<Button onClick={() => { refresh(); focarBusca(); }}>Recarregar</Button>}>{erroCatalogo}</Alert>}
                 <Box sx={{ flex: 1, overflow: "auto", border: 1, borderColor: "divider", bgcolor: "background.paper", borderRadius: "10px", boxShadow: "0 1px 3px rgba(16,24,40,.06)" }}>
-                    <Table stickyHeader size="small" aria-label="Itens da venda" sx={{ minWidth: 560, "& td, & th": { py: 0.25, px: 1, height: 30 }, "& input": { p: "3px 6px", fontSize: 14 } }}>
-                        <TableHead><TableRow><TableCell>Produto</TableCell><TableCell width={105}>Quantidade</TableCell><TableCell align="right">Unitário</TableCell><TableCell align="right">Subtotal</TableCell><TableCell width={65} /></TableRow></TableHead>
-                        <TableBody>{rascunho.itens.map((item, i) => <TableRow key={item.produto.id} selected={selecionado === item.produto.id} onClick={() => setSelecionado(item.produto.id)}>
-                            <TableCell>{String(i + 1).padStart(2, "0")} · {item.produto.nome}</TableCell>
-                            <TableCell><TextField size="small" value={item.quantidade} disabled={bloqueado}
+                    <Table stickyHeader size="small" aria-label="Itens da venda" sx={{ minWidth: { xs: 0, sm: 560 }, display: { xs: "block", sm: "table" },
+                        "& td, & th": { py: { xs: 0.5, sm: 0.25 }, px: 1, height: { xs: "auto", sm: 30 } },
+                        "& td": { display: { xs: "block", sm: "table-cell" }, borderBottom: { xs: 0, sm: "1px solid" }, borderColor: "divider", minWidth: 0 },
+                        "& input": { p: { xs: "10px 12px", sm: "3px 6px" }, fontSize: 14 } }}>
+                        <TableHead sx={{ display: { xs: "none", sm: "table-header-group" } }}><TableRow><TableCell>Produto</TableCell><TableCell width={105}>Quantidade</TableCell><TableCell align="right">Unitário</TableCell><TableCell align="right">Subtotal</TableCell><TableCell width={65} /></TableRow></TableHead>
+                        <TableBody sx={{ display: { xs: "block", sm: "table-row-group" } }}>{rascunho.itens.map((item, i) => <TableRow key={item.produto.id} selected={selecionado === item.produto.id} onClick={() => setSelecionado(item.produto.id)}
+                            sx={{ display: { xs: "grid", sm: "table-row" }, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", py: { xs: 1, sm: 0 },
+                                borderBottom: { xs: 1, sm: 0 }, borderColor: "divider" }}>
+                            <TableCell sx={{ gridColumn: { xs: "1 / -1", sm: "auto" }, overflowWrap: "anywhere", fontWeight: { xs: 600, sm: "inherit" } }}>{String(i + 1).padStart(2, "0")} · {item.produto.nome}</TableCell>
+                            <TableCell sx={{ gridRow: { xs: 3, sm: "auto" }, gridColumn: { xs: 1, sm: "auto" } }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" }, mb: 0.5 }}>Quantidade</Typography>
+                                <TextField fullWidth size="small" sx={{ "& .MuiInputBase-root": { minHeight: { xs: 44, sm: 0 } } }} value={item.quantidade} disabled={bloqueado}
                                 inputRef={(el: HTMLInputElement | null) => { quantidadesRef.current[item.produto.id] = el; }}
                                 slotProps={{ htmlInput: { "aria-label": "Quantidade de " + item.produto.nome, inputMode: "decimal" } }}
                                 onFocus={e => { quantidadeAntesRef.current = item.quantidade; setSelecionado(item.produto.id); e.target.select(); }}
@@ -368,9 +375,16 @@ export default function Vendas() {
                                     }
                                 }}
                                 onChange={e => alterar({ itens: rascunho.itens.map(x => x === item ? { ...x, quantidade: e.target.value } : x) })} /></TableCell>
-                            <TableCell align="right">{moeda(Math.round(item.produto.precoVenda * 100))}</TableCell>
-                            <TableCell align="right">{subtotalItem(item) === null ? "—" : moeda(subtotalItem(item)!)}</TableCell>
-                            <TableCell><Button size="small" color="inherit" aria-label={"Remover " + item.produto.nome} disabled={bloqueado} onClick={e => { e.stopPropagation(); remover(item.produto.id); }}>×</Button></TableCell>
+                            <TableCell align="right" sx={{ gridRow: { xs: 2, sm: "auto" }, gridColumn: { xs: 1, sm: "auto" }, textAlign: { xs: "left", sm: "right" } }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" } }}>Unitário</Typography>
+                                {moeda(Math.round(item.produto.precoVenda * 100))}</TableCell>
+                            <TableCell align="right" sx={{ gridRow: { xs: 2, sm: "auto" }, gridColumn: { xs: 2, sm: "auto" }, fontWeight: { xs: 600, sm: "inherit" } }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" } }}>Subtotal</Typography>
+                                {subtotalItem(item) === null ? "—" : moeda(subtotalItem(item)!)}</TableCell>
+                            <TableCell sx={{ gridRow: { xs: 3, sm: "auto" }, gridColumn: { xs: 2, sm: "auto" }, textAlign: { xs: "right", sm: "left" }, alignSelf: "end" }}>
+                                <Tooltip title={"Remover " + item.produto.nome}><IconButton size="small" color="inherit" aria-label={"Remover " + item.produto.nome} disabled={bloqueado}
+                                    sx={{ width: { xs: 44, sm: 26 }, height: { xs: 44, sm: 26 } }}
+                                    onClick={e => { e.stopPropagation(); remover(item.produto.id); }}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip></TableCell>
                         </TableRow>)}</TableBody>
                     </Table>
                     {!rascunho.itens.length && <Box sx={{ p: 5, textAlign: "center", color: "text.secondary" }}><Typography>Leia o primeiro produto para começar</Typography><Typography variant="body2">Busque pelo nome e selecione o produto, ou leia o código de barras.</Typography></Box>}
