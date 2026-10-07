@@ -34,6 +34,15 @@ public class ContaReceberEntity {
         this.dataCriacao = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
         this.dataAtualizacao = dataCriacao;
     }
+    public static ContaReceberEntity daVenda(VendaEntity venda, BigDecimal valor, LocalDate vencimento,
+            int numero, int total) {
+        var conta = new ContaReceberEntity(venda.getEmpresa());
+        conta.venda = venda;
+        conta.origem = OrigemContaReceber.VENDA_A_PRAZO;
+        conta.editar(venda.getCliente(), "Venda #" + venda.getId() + " - parcela " + numero + "/" + total,
+                valor, LocalDate.now(), vencimento, numero, total, null);
+        return conta;
+    }
     public void editar(ClienteEntity cliente, String descricao, BigDecimal valor, LocalDate emissao,
             LocalDate vencimento, int numeroParcela, int totalParcelas, String observacao) {
         this.cliente = cliente;

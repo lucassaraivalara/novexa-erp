@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlineRounded";
@@ -22,6 +23,7 @@ import { formatarData, hoje, moeda, podeReceberConta, rotulosStatus } from "./co
 
 const filtrosVazios = { termo: "", status: "", origem: "", vencimentoDe: "", vencimentoAte: "" };
 export default function ContasReceber() {
+    const [parametros] = useSearchParams();
     const [contas, setContas] = useState<ContaReceber[]>([]);
     const [resumo, setResumo] = useState<ResumoContasReceber | null>(null);
     const [erroResumo, setErroResumo] = useState("");
@@ -39,7 +41,10 @@ export default function ContasReceber() {
     const [cliente, setCliente] = useState<Cliente | null>(null);
     const [ordenacao, setOrdenacao] = useState({ campo: "dataVencimento", direcao: "asc" as "asc" | "desc" });
     const [editor, setEditor] = useState<{ conta: ContaReceber | null; clienteInicial?: Cliente } | null>(null);
-    const [detalhe, setDetalhe] = useState<number | null>(null);
+    const [detalhe, setDetalhe] = useState<number | null>(() => {
+        const id = Number(parametros.get("contaId"));
+        return Number.isSafeInteger(id) && id > 0 ? id : null;
+    });
     const [recebimento, setRecebimento] = useState<ContaReceber | null>(null);
 
     useEffect(() => {

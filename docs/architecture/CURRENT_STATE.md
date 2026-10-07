@@ -10,6 +10,14 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Venda a prazo integrada ao PDV - Bloco 3 (2026-10-07)
+
+Venda aloca pagamentos imediatos + parcelasPrazo com soma exata; cliente ativo do tenant e obrigatorio quando houver prazo. Cada parcela gera ContaReceber VENDA_A_PRAZO/PENDENTE com vencimento, vendaId e sequencia 1..N/N, sem PagamentoEntity ou dinheiro na criacao. Venda permanece FATURADA; Caixa/PIX/cartao e estoque reutilizam os fluxos existentes numa transacao unica. Retry nao duplica parcelas, pagamentos ou estoque.
+
+PDV oferece A prazo como opcao sistemica, com parcelas editaveis, cliente remoto e totais separados. Central apresenta valores imediatos e a prazo, status/saldos/vencimentos e link para o detalhe financeiro. Contas da Venda nao sao editaveis/cancelaveis individualmente; cancelar a Venda estorna todas as baixas ativas e cancela as parcelas atomicamente junto de Caixa/PIX/cartao/estoque, sem apagar historico. Regras/contrato em [FINANCEIRO_RULES.md](FINANCEIRO_RULES.md) e [financeiro.md](financeiro.md).
+
+V36 foi necessaria: os CHECKs da V3 exigiam recebido >= total mesmo sem dinheiro imediato. Migration aditiva registra valorPrazo=0 no legado e ajusta recebido/troco, sem reinterpretar valores anteriores. Validacao: 182 testes H2 direcionados (22 novos de prazo e regressao afetada), 38 verificacoes PostgreSQL 18.6 em schemas descartaveis (Flyway V1-V36, upgrade V35-V36 e V34-V36, Hibernate validate, constraints, rollback, retry concorrente, dois operadores na mesma Venda, baixa x cancelamento e duplo cancelamento) e 64 testes frontend. Package backend com testes direcionados previamente aprovados, TypeScript/build, lint direcionado e diff check aprovados. PDV conferido em 1440/390px sem overflow; testes frontend usam componentes reais com HTTP simulado, sem E2E geral ou suite completa. Sem boleto, juros, multa, limite de credito ou configuracao financeira A_PRAZO.
+
 ## Contas a Receber: frontend independente - Bloco 2 (2026-10-06)
 
 Financeiro -> Contas a Receber (`/financeiro/contas-receber`) oferece resumo global, listagem com busca/filtros/paginacao/sort server-side, cadastro manual, edicao antes de qualquer baixa, recebimento parcial/total, historico completo, estorno individual com motivo e cancelamento sem baixa ativa. Cliente remoto inclui inativos somente no filtro historico; cadastro exige ativo. Destino da baixa usa consulta paginada remota de contas ativas, sem carregar catalogo completo.

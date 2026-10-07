@@ -32,6 +32,14 @@ public interface MovimentacaoFinanceiraRepository extends JpaRepository<Moviment
 
     Optional<MovimentacaoFinanceiraEntity> findByPagamentoIdAndEmpresaId(Long pagamentoId, Long empresaId);
     Optional<MovimentacaoFinanceiraEntity> findByRecebivelIdAndEmpresaId(Long recebivelId, Long empresaId);
+    @Query("""
+        select distinct m.contaFinanceira.id from MovimentacaoFinanceiraEntity m
+        left join m.contaReceber c left join m.pagamento p left join m.recebivel r
+        where m.empresa.id = :empresaId and m.estornada = false
+          and (c.venda.id = :vendaId or p.venda.id = :vendaId or r.venda.id = :vendaId)
+        order by m.contaFinanceira.id
+        """)
+    List<Long> buscarDestinosCancelamentoVenda(Long vendaId, Long empresaId);
     interface LiquidacaoRecebivel { Long getRecebivelId(); Long getMovimentoId(); }
     @Query("select m.recebivel.id as recebivelId, m.id as movimentoId from MovimentacaoFinanceiraEntity m where m.empresa.id = :empresaId and m.recebivel.id in :ids")
     List<LiquidacaoRecebivel> buscarLiquidacoes(Long empresaId, List<Long> ids);

@@ -33,17 +33,20 @@ public class VendaService {
     private final MovimentacaoEstoqueService estoque;
     private final PagamentoService pagamentos;
     private final RecebivelService recebiveis;
+    private final ContaReceberService contasReceber;
     private final CaixaOperacionalService caixaOperacional;
     @PersistenceContext private EntityManager entityManager;
 
     public VendaService(VendaRepository vendas, ClienteRepository clientes,
                         ItemVendaRepository itensVenda, ProdutoRepository produtos,
                         MovimentacaoEstoqueService estoque,
-                        PagamentoService pagamentos, CaixaOperacionalService caixaOperacional, RecebivelService recebiveis) {
+                        PagamentoService pagamentos, CaixaOperacionalService caixaOperacional, RecebivelService recebiveis,
+                        ContaReceberService contasReceber) {
         this.vendas = vendas; this.clientes = clientes; this.itensVenda = itensVenda;
         this.produtos = produtos; this.estoque = estoque;
         this.pagamentos = pagamentos;
         this.recebiveis = recebiveis;
+        this.contasReceber = contasReceber;
         this.caixaOperacional = caixaOperacional;
     }
 
@@ -235,7 +238,7 @@ public class VendaService {
         }
         return faturar(venda, new FaturamentoVendaDTO(pedido.chaveRequisicao(), pedido.totalEsperado(),
                 pedido.formaPagamento(), pedido.valorRecebido(), pedido.formaPagamentoId(), pedido.sessaoCaixaId(),
-                pedido.configuracaoFormaPagamentoId(), pedido.pagamentos()), autenticado, operador, resumo, produtosMap);
+                pedido.configuracaoFormaPagamentoId(), pedido.pagamentos(), pedido.parcelasPrazo()), autenticado, operador, resumo, produtosMap);
     }
 
     public VendaResponseDTO faturar(Long vendaId, FaturamentoVendaDTO pedido, UsuarioAutenticado autenticado) {
@@ -300,6 +303,7 @@ public class VendaService {
         if (subtotal.compareTo(venda.getSubtotal()) != 0 || total.compareTo(venda.getTotal()) != 0
                 || total.compareTo(pedido.totalEsperado()) != 0) throw conflito("O total mudou. Revise os itens antes de finalizar.");
         var parcelas = prepararPagamentos(pedido, autenticado.empresaId(), total);
+        contasReceber.validarParcelasVenda(venda, pedido.parcelasPrazo());
         BigDecimal recebido = parcelas.stream().map(p -> p.recebido() == null ? p.valor() : p.recebido())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         venda.vincularSessaoCaixa(caixaOperacional.resolverSessao(pedido.sessaoCaixaId(), autenticado.empresaId(), autenticado.usuarioId()));
@@ -312,10 +316,12 @@ public class VendaService {
             }
         }
         // Campos singulares permanecem compativeis; em venda mista os detalhes pertencem aos Pagamentos.
-        var unico = parcelas.size() == 1 ? parcelas.getFirst() : null;
+        var unico = parcelas.size() == 1 && pedido.parcelasPrazo() == null ? parcelas.getFirst() : null;
         venda.vincularConfiguracaoFormaPagamento(unico == null ? null : unico.configuracao());
         venda.registrarFaturamento(pedido.chaveRequisicao(), resumo,
-                unico == null ? null : unico.forma().getTipo().contratoVenda(), recebido);
+                unico == null ? null : unico.forma().getTipo().contratoVenda(), recebido,
+                recebido.subtract(parcelas.stream().map(PagamentoPreparado::valor).reduce(BigDecimal.ZERO, BigDecimal::add)),
+                total.subtract(parcelas.stream().map(PagamentoPreparado::valor).reduce(BigDecimal.ZERO, BigDecimal::add)));
         for (int i = 0; i < parcelas.size(); i++) {
             var parcela = parcelas.get(i);
             var pagamento = pagamentos.registrarFaturamento(venda, operador, parcela.forma(), parcela.configuracao(),
@@ -323,6 +329,7 @@ public class VendaService {
             recebiveis.gerar(pagamento);
             caixaOperacional.registrarVenda(pagamento);
         }
+        contasReceber.gerarDaVenda(venda, pedido.parcelasPrazo());
         return VendaResponseDTO.de(venda);
     }
 
@@ -333,12 +340,12 @@ public class VendaService {
         if (!pedido.isFormaInformadaCorretamente())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe pagamentos ou uma forma unica, sem misturar os formatos.");
         List<PagamentoPreparado> parcelas = new ArrayList<>();
-        if (pedido.pagamentos() == null) {
+        if (pedido.pagamentos() == null && pedido.parcelasPrazo() == null) {
             var forma = pagamentos.resolverForma(pedido.formaPagamento(), pedido.formaPagamentoId());
             var config = pagamentos.resolverConfiguracao(pedido.configuracaoFormaPagamentoId(), empresaId, forma);
             parcelas.add(prepararParcela(forma, config, total, pedido.valorRecebido()));
-        } else {
-            if (pedido.pagamentos().isEmpty() || pedido.pagamentos().size() > 20)
+        } else if (pedido.pagamentos() != null) {
+            if ((pedido.pagamentos().isEmpty() && pedido.parcelasPrazo() == null) || pedido.pagamentos().size() > 20)
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe de 1 a 20 pagamentos.");
             var ids = pedido.pagamentos().stream().map(p -> p == null ? null : p.configuracaoFormaPagamentoId()).toList();
             if (ids.stream().anyMatch(id -> id == null || id <= 0))
@@ -354,7 +361,14 @@ public class VendaService {
             }
         }
         BigDecimal soma = parcelas.stream().map(PagamentoPreparado::valor).reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (soma.compareTo(total) != 0) throw conflito("A soma dos pagamentos deve corresponder ao total da venda.");
+        if (pedido.parcelasPrazo() != null) {
+            for (var p : pedido.parcelasPrazo()) {
+                if (p == null || p.valor() == null || p.valor().signum() <= 0 || p.valor().scale() > 2 || p.vencimento() == null)
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe valor positivo e vencimento para cada parcela a prazo.");
+                soma = soma.add(p.valor());
+            }
+        }
+        if (soma.compareTo(total) != 0) throw conflito("A soma dos pagamentos e parcelas a prazo deve corresponder ao total da venda.");
         return parcelas;
     }
 

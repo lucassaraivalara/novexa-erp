@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.*;
 @org.springframework.test.context.jdbc.Sql("/formas-pagamento-fixture.sql")
 @ActiveProfiles("test")
 class VendaServiceTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean ContaReceberService contasReceber;
 
     @Autowired VendaService service;
     @Autowired VendaRepository vendas;

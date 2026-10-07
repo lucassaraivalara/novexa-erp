@@ -1,8 +1,17 @@
 # Regras oficiais do Financeiro
 
+## Venda a prazo - Bloco 3
+
+- Faturamento aloca o total em pagamentos imediatos + parcelasPrazo, com soma exata em centavos. Uma venda pode ser 100% a prazo; cliente ativo do tenant e obrigatorio. A prazo e opcao sistemica do PDV, nunca configuracao financeira nem PagamentoEntity.
+- Cada parcela gera ContaReceber VENDA_A_PRAZO/PENDENTE, mesmo cliente/empresa/venda, numero 1..N e total N (maximo 120), valor e vencimento proprios. Nao credita ContaFinanceira nem gera MovimentacaoFinanceira. Baixas posteriores usam o dominio existente; cartao continua Recebivel, dinheiro continua Caixa e PIX continua pendente de confirmacao.
+- Venda fica FATURADA e baixa estoque uma unica vez. Pagamentos imediatos e contas a receber sao criados na mesma transacao; idempotencia da Venda e UNIQUE venda/parcela impedem duplicidade. Valor recebido inclui somente as partes imediatas e o troco; V36 registra valorPrazo, ajusta CHECKs de recebido/troco e preserva historico com valorPrazo=0.
+- Contas originadas de venda nao aceitam edicao/cancelamento individual. Cancelar a Venda estorna cada baixa ativa pelo mecanismo oficial e cancela todas as parcelas, junto de Caixa/PIX/cartao/estoque, atomicamente e sem apagar historico. Saldo insuficiente ou falha intermediaria reverte tudo.
+- Cancelamento bloqueia operador -> Venda -> produtos ordenados -> ContasReceber ordenadas -> uniao dos destinos financeiros de PIX/cartao/prazo ordenada por ID, antes dos estornos existentes. Baixa e estorno individual continuam ContaReceber -> ContaFinanceira -> movimento. Locks Operador -> Caixa -> Sessao do dinheiro permanecem.
+- PDV envia parcelasPrazo separadamente; Central apresenta valores imediatos e a prazo, vencimentos/status/saldos e link ao detalhe financeiro. Contrato em [financeiro.md](financeiro.md). Sem juros, multa, boleto ou configuracao A_PRAZO.
+
 ## Conta a Receber independente - Bloco 1
 
-- ContaReceber representa direito contra Cliente, separado de Recebivel de cartao. Criacao manual nao movimenta dinheiro; cliente ativo do tenant e obrigatorio, venda permanece NULL e origem MANUAL. VENDA_A_PRAZO e apenas reserva do modelo, sem integracao ou input publico neste bloco.
+- ContaReceber representa direito contra Cliente, separado de Recebivel de cartao. Criacao manual nao movimenta dinheiro; cliente ativo do tenant e obrigatorio, venda permanece NULL e origem MANUAL. Integracao VENDA_A_PRAZO esta descrita no Bloco 3 acima.
 - Valor original positivo, centavos exatos (BigDecimal, escala 2, sem arredondamento implicito), recebido entre zero e original, saldo derivado. Parcela/total >=1 e numero<=total, default 1/1. Status PENDENTE/PARCIAL/RECEBIDA deriva do acumulado; CANCELADA e terminal com recebido zero.
 - Cada baixa escolhe ContaFinanceira ativa do tenant e cria uma ENTRADA/CONTA_RECEBER. Relacao ContaReceber 1:N MovimentacaoFinanceira, sem entidade de recebimento ou ultimo movimento como fonte de historico. Destinos diferentes e N baixas parciais sao permitidos; saldo/estado/movimento/credito ficam na mesma transacao.
 - Estorno exige movimento especifico da conta/tenant e motivo; reutiliza o mecanismo financeiro existente, reverte exatamente seu valor e marca o original estornado com data/usuario/motivo, sem DELETE. Conta financeira historica inativa permite estorno, mas saldo insuficiente causa 409 e rollback integral. Estorno duplicado e endpoint generico sao bloqueados. Estado volta PARCIAL ou PENDENTE.
@@ -10,7 +19,7 @@
 - Locks: ContaReceber -> ContaFinanceira -> MovimentacaoFinanceira no estorno; baixas/edicao/cancelamento serializam no agregado. Nao altera locks de Venda/Caixa/cartao/transferencias. Chave UUID obrigatoria na baixa, unica por empresa no movimento: retry com mesmo payload nao credita de novo, mesmo apos estorno; dados/conta diferentes com a mesma chave retornam 409. Constraint protege colisoes entre agregados, com rollback da tentativa perdedora.
 - Autorizacao segue a politica atual autenticada de ContaPagar/ContaFinanceira (ADMIN/GERENTE/OPERADOR/USUARIO); sem autenticacao 401. Nao modifica as restricoes ADMIN/GERENTE especificas de PIX/cartao. Tenant exclusivamente do JWT; FKs compostas cliente/venda/conta/movimento e CHECKs na V35, aditiva e sem backfill.
 - Consulta /pagina usa busca, filtros, allowlist de sort e paginacao no banco. Detalhe e respostas de mutacao incluem todas as baixas, inclusive estornadas; /pagina retorna recebimentos=[] sem carregar historico por item. Resumo usa saldo aberto de PENDENTE/PARCIAL; recebidasMes soma baixas efetivas nao estornadas pela dataRecebimento, contando movimentos, nao titulos.
-- API/payloads em [financeiro.md](financeiro.md). Frontend independente implementado no Bloco 2 com historico por detalhe, baixa parcial/total e estorno individual. Sem A_PRAZO, Venda/PDV, cancelamento de Venda, juros/multa ou geracao automatica de parcelas.
+- API/payloads em [financeiro.md](financeiro.md). Frontend financeiro implementado no Bloco 2 com historico por detalhe, baixa parcial/total e estorno individual; Bloco 3 integra Venda/PDV. Juros/multa e geracao automatica de calendario de parcelas permanecem fora do escopo.
 
 ## Lancamento financeiro legado
 

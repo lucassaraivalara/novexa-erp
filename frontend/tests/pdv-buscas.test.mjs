@@ -210,6 +210,90 @@ async function adicionarCem(page, busca) {
     await busca.fill("7890001"); await busca.press("Enter");
     await page.getByLabel("Quantidade de Produto remoto").fill("10");
 }
+async function selecionarClientePrazo(page) {
+    const campo = page.getByRole("combobox", { name: "Cliente (opcional)" });
+    if (!await campo.count()) await page.getByRole("button", { name: "F8 Cliente" }).click();
+    await campo.fill("Cliente"); await page.getByRole("listbox").getByRole("option", { name: /Cliente remoto/ }).click();
+}
+test("A prazo abre cliente existente, bloqueia sem cliente e envia somente parcelas; sucesso limpa fluxo", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        await adicionarCem(page, busca);
+        await grupoPagamento(page, 1).getByRole("combobox").selectOption("A_PRAZO");
+        await page.getByLabel("Vencimento 1", { exact: true }).fill("2026-11-15");
+        assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), false);
+        assert.equal(await page.getByLabel("Valor recebido (R$)").count(), 0);
+        await page.keyboard.press("F2");
+        await page.getByText("Selecione um cliente para vender a prazo.", { exact: true }).first().waitFor();
+        assert.equal(estado.requests.filter(r => r.path === "/vendas").length, 0);
+        await selecionarClientePrazo(page);
+        assert.equal(await page.getByLabel("Valor da parcela 1 (R$)").inputValue(), "100.00");
+        assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), true);
+        await page.getByRole("button", { name: "Adicionar forma" }).click();
+        assert.equal(await page.getByLabel("Valor da parcela 1 (R$)").inputValue(), "100.00");
+        await page.getByRole("button", { name: "Remover pagamento 2" }).click();
+        assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), true);
+        await page.getByRole("button", { name: "Pagar · F2" }).click();
+        await esperar(() => estado.requests.some(r => r.path === "/vendas"));
+        const pedido = JSON.parse(estado.requests.find(r => r.path === "/vendas").body);
+        assert.deepEqual(pedido.pagamentos, []); assert.deepEqual(pedido.parcelasPrazo, [{ valor: 100, vencimento: "2026-11-15" }]);
+        assert.equal(pedido.clienteId, 8); assert.equal(pedido.formaPagamento, undefined);
+        await page.getByRole("heading", { name: "Venda concluída" }).waitFor(); await page.getByRole("dialog").waitFor({ state: "hidden" });
+        assert.equal(await page.getByLabel("Vencimento 1").count(), 0); assert.equal(await page.getByText("Cliente: Cliente remoto").count(), 0);
+    } finally { await page.close(); }
+});
+test("dinheiro com duas parcelas a prazo mostra soma e troco distintos e preserva layout", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        await adicionarCem(page, busca);
+        await grupoPagamento(page, 1).getByLabel("Valor aplicado (R$)").fill("40");
+        await grupoPagamento(page, 1).getByLabel("Valor recebido (R$)").fill("50");
+        await page.getByRole("button", { name: "Adicionar forma" }).click();
+        await grupoPagamento(page, 2).getByRole("combobox").selectOption("A_PRAZO"); await selecionarClientePrazo(page);
+        await page.getByLabel("Vencimento 1", { exact: true }).fill("2026-11-15");
+        await page.getByLabel("Valor da parcela 1 (R$)").fill("30"); await page.getByRole("button", { name: "Adicionar parcela" }).click();
+        await page.getByLabel("Vencimento 2", { exact: true }).fill("2026-12-15");
+        assert.equal(await page.getByLabel("Valor da parcela 2 (R$)").inputValue(), "30.00");
+        assert.match(await page.getByLabel("Pago agora", { exact: true }).innerText(), /40,00/);
+        assert.match(await page.getByLabel("Valor a prazo", { exact: true }).innerText(), /60,00/);
+        assert.match(await page.getByLabel("Total informado", { exact: true }).innerText(), /100,00/);
+        assert.match(await grupoPagamento(page, 1).innerText(), /10,00/);
+        for (const width of [1440, 390]) {
+            await page.setViewportSize({ width, height: 900 });
+            assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+            await page.screenshot({ path: `node_modules/.vite-pdv-buscas-tests/venda-prazo-${width}.png`, fullPage: true });
+        }
+        await page.getByRole("button", { name: "Pagar · F2" }).click(); await esperar(() => estado.requests.some(r => r.path === "/vendas"));
+        const pedido = JSON.parse(estado.requests.find(r => r.path === "/vendas").body);
+        assert.deepEqual(pedido.pagamentos, [{ configuracaoFormaPagamentoId: 1, valor: 40, valorRecebido: 50 }]);
+        assert.deepEqual(pedido.parcelasPrazo, [{ valor: 30, vencimento: "2026-11-15" }, { valor: 30, vencimento: "2026-12-15" }]);
+    } finally { await page.close(); }
+});
+test("cartao + prazo permite editar/remover parcelas e preserva cliente/vencimento em erro", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        await adicionarCem(page, busca); await grupoPagamento(page, 1).getByRole("combobox").selectOption("4");
+        await grupoPagamento(page, 1).getByLabel("Valor aplicado (R$)").fill("50");
+        await page.getByRole("button", { name: "Adicionar forma" }).click();
+        await grupoPagamento(page, 2).getByRole("combobox").selectOption("A_PRAZO"); await selecionarClientePrazo(page);
+        await page.getByLabel("Vencimento 1", { exact: true }).fill("2026-11-15");
+        await page.getByRole("button", { name: "Adicionar parcela" }).click();
+        assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), false);
+        await page.getByRole("button", { name: "Remover parcela a prazo 2" }).click();
+        await page.getByLabel("Valor da parcela 1 (R$)").fill("51"); assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), false);
+        await page.getByLabel("Valor da parcela 1 (R$)").fill("50");
+        estado.erroVenda = 409; await page.getByRole("button", { name: "Pagar · F2" }).click();
+        await page.getByRole("button", { name: "Voltar à venda" }).click();
+        assert.equal(await page.getByLabel("Vencimento 1", { exact: true }).inputValue(), "2026-11-15");
+        assert.equal(await page.getByLabel("Valor da parcela 1 (R$)").inputValue(), "50");
+        assert.equal(await page.getByText("Cliente: Cliente remoto").count(), 1);
+        estado.erroVenda = null; await page.getByRole("button", { name: "Pagar · F2" }).click();
+        await esperar(() => estado.requests.filter(r => r.path === "/vendas").length === 2);
+        const pedido = JSON.parse(estado.requests.filter(r => r.path === "/vendas").at(-1).body);
+        assert.deepEqual(pedido.pagamentos, [{ configuracaoFormaPagamentoId: 4, valor: 50 }]);
+        assert.deepEqual(pedido.parcelasPrazo, [{ valor: 50, vencimento: "2026-11-15" }]);
+    } finally { await page.close(); }
+});
 const grupoPagamento = (page, numero) => page.getByRole("group", { name: `Pagamento ${numero}`, exact: true });
 
 test("pagamento unico automatico envia uma parcela e nao apresenta configuracao inativa", async () => {

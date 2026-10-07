@@ -15,8 +15,15 @@ public record FaturamentoVendaDTO(
         @Positive Long formaPagamentoId,
         @Positive Long sessaoCaixaId,
         @Positive Long configuracaoFormaPagamentoId,
-        @Size(min = 1, max = 20) List<@NotNull @Valid PagamentoVendaRequestDTO> pagamentos
+        @Size(max = 20) List<@NotNull @Valid PagamentoVendaRequestDTO> pagamentos,
+        @Size(min = 1, max = 120) List<@NotNull @Valid ParcelaPrazoVendaDTO> parcelasPrazo
 ) {
+    public FaturamentoVendaDTO(UUID chaveRequisicao, BigDecimal totalEsperado, FormaPagamento formaPagamento,
+            BigDecimal valorRecebido, Long formaPagamentoId, Long sessaoCaixaId, Long configuracaoFormaPagamentoId,
+            List<PagamentoVendaRequestDTO> pagamentos) {
+        this(chaveRequisicao, totalEsperado, formaPagamento, valorRecebido, formaPagamentoId, sessaoCaixaId,
+                configuracaoFormaPagamentoId, pagamentos, null);
+    }
     public FaturamentoVendaDTO(UUID chaveRequisicao, BigDecimal totalEsperado, FormaPagamento formaPagamento,
             BigDecimal valorRecebido, Long formaPagamentoId, Long sessaoCaixaId, Long configuracaoFormaPagamentoId) {
         this(chaveRequisicao, totalEsperado, formaPagamento, valorRecebido, formaPagamentoId, sessaoCaixaId, configuracaoFormaPagamentoId, null);
@@ -36,8 +43,9 @@ public record FaturamentoVendaDTO(
 
     @AssertTrue(message = "Informe pagamentos ou uma forma unica com valorRecebido, sem misturar os formatos.")
     public boolean isFormaInformadaCorretamente() {
-        return pagamentos != null
+        return pagamentos != null || parcelasPrazo != null
                 ? formaPagamento == null && formaPagamentoId == null && configuracaoFormaPagamentoId == null && valorRecebido == null
+                    && ((pagamentos != null && !pagamentos.isEmpty()) || (parcelasPrazo != null && !parcelasPrazo.isEmpty()))
                 : (formaPagamento == null) != (formaPagamentoId == null) && valorRecebido != null;
     }
 
@@ -47,6 +55,7 @@ public record FaturamentoVendaDTO(
                 + ", formaPagamento=" + formaPagamento + ", valorRecebido=" + valorRecebido
                 + (formaPagamentoId == null ? "" : ", formaPagamentoId=" + formaPagamentoId) + (sessaoCaixaId == null ? "" : ", sessaoCaixaId=" + sessaoCaixaId)
                 + (configuracaoFormaPagamentoId == null ? "" : ", configuracaoFormaPagamentoId=" + configuracaoFormaPagamentoId)
-                + (pagamentos == null ? "" : ", pagamentos=" + pagamentos) + "]";
+                + (pagamentos == null ? "" : ", pagamentos=" + pagamentos)
+                + (parcelasPrazo == null ? "" : ", parcelasPrazo=" + parcelasPrazo) + "]";
     }
 }

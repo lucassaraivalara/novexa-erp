@@ -80,11 +80,13 @@ public class PagamentoService {
     @Transactional(propagation = Propagation.MANDATORY)
     public void cancelarFaturamento(VendaEntity venda, UsuarioEntity operador) {
         var registros = pagamentos.buscarParaCancelar(venda.getEmpresa().getId(), venda.getId());
-        if (registros.isEmpty() || registros.stream().anyMatch(p -> p.getStatus() != br.com.novexa.erp.entity.StatusPagamento.REGISTRADO)
+        var valorPrazo = venda.getContasReceber().stream().map(br.com.novexa.erp.entity.ContaReceberEntity::getValorOriginal)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        if ((registros.isEmpty() && venda.getContasReceber().isEmpty()) || registros.stream().anyMatch(p -> p.getStatus() != br.com.novexa.erp.entity.StatusPagamento.REGISTRADO)
                 || registros.stream().map(PagamentoEntity::getValor).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add)
-                        .compareTo(venda.getTotal()) != 0)
+                        .add(valorPrazo).compareTo(venda.getTotal()) != 0)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Registros financeiros incompatíveis com o cancelamento.");
-        caixa.reverterVenda(venda, registros, operador);
+        if (!registros.isEmpty()) caixa.reverterVenda(venda, registros, operador);
         registros.forEach(p -> pix.estornarNoCancelamento(p, operador));
         registros.forEach(PagamentoEntity::cancelar);
         pagamentos.saveAll(registros);

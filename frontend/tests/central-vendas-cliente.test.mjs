@@ -52,6 +52,14 @@ async function abrir(operacional = false) {
         let data;
         if (u.pathname === "/vendas") data = { items: [{ id: 30, dataHora: "2026-10-01T10:00:00", nomeCliente: "Venda retornada", total: 85,
             status: "FATURADA", sessaoCaixaId: 1 }], page: Number(params.page), size: Number(params.size), totalItems: 63, totalPages: 3 };
+        else if (u.pathname === "/vendas/30") data = {
+            id: 30, dataHora: "2026-10-01T10:00:00", clienteId: 8, status: "FATURADA", total: 200, subtotal: 200, desconto: 0,
+            itens: [], formaPagamento: null, valorRecebido: 60, troco: 10, sessaoCaixaId: 1,
+            contasReceber: [1, 2].map(numero => ({ id: numero, numeroParcela: numero, totalParcelas: 2, valorOriginal: 75,
+                saldo: numero === 1 ? 35 : 75, dataVencimento: `2026-${numero === 1 ? "11" : "12"}-15`, status: numero === 1 ? "PARCIAL" : "PENDENTE" })),
+        };
+        else if (u.pathname === "/vendas/30/pagamentos") data = [{ id: 1, vendaId: 30, formaPagamento: "DINHEIRO", valor: 50,
+            status: "REGISTRADO", configuracaoNomeExibicao: "Dinheiro" }];
         else if (u.pathname === "/clientes/buscar") {
             if (params.termo === "antiga") await new Promise(r => setTimeout(r, 1000));
             data = params.termo === "historico" ? [cliente(9, "Cliente historico", false)]
@@ -80,6 +88,23 @@ test("pesquisarClientes conserva contrato padrao e opt-in historico sem tenant",
     await clienteService.pesquisarClientes("abc", signal, true);
     assert.deepEqual(requests.map(r => r.params), [{ termo: "abc" }, { termo: "abc", incluirInativos: true }]);
     assert.ok(requests.every(r => r.url === "/clientes/buscar" && r.signal === signal && !r.data));
+});
+test("detalhe separa alocacao imediata e prazo, exibe vencimentos/status e links para contas", async () => {
+    const { page } = await abrir();
+    try {
+        await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+        const dialog = page.getByRole("dialog", { name: "Venda #30" });
+        await dialog.getByText("Alocado em pagamentos imediatos:", { exact: false }).waitFor();
+        const texto = await dialog.innerText();
+        assert.match(texto, /Alocado em pagamentos imediatos:.*50,00/);
+        assert.match(texto, /A prazo:.*150,00/); assert.match(texto, /1\/2.*15\/11\/2026.*75,00.*35,00/);
+        assert.match(texto, /Parcial/); assert.match(texto, /Pendente/);
+        assert.equal(await dialog.getByText("Recebido:", { exact: false }).count(), 0);
+        const links = dialog.getByRole("link", { name: "Ver em Contas a Receber" });
+        assert.equal(await links.count(), 2); assert.equal(await links.nth(0).getAttribute("href"), "/financeiro/contas-receber?contaId=1");
+        await page.setViewportSize({ width: 390, height: 900 });
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    } finally { await page.close(); }
 });
 
 test("Central abre sem preload, usa debounce e nao filtra resultado por nome localmente", async () => {

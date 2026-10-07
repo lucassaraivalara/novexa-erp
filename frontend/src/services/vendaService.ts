@@ -1,6 +1,7 @@
 import api from "./api";
 import axios from "axios";
 import type { PaginaResponse } from "../types/paginacao";
+import type { ContaReceber } from "../types/contaReceber";
 
 export type FormaPagamento = "DINHEIRO" | "PIX" | "CARTAO_DEBITO" | "CARTAO_CREDITO";
 export type PagamentoVenda = {
@@ -16,12 +17,14 @@ export type PagamentoVendaInput = {
     valor: number;
     valorRecebido?: number;
 };
+export type ParcelaPrazoVendaInput = { valor: number; vencimento: string };
 export type VendaInput = {
     chaveRequisicao: string;
     itens: { produtoId: number; quantidade: number; precoUnitarioEsperado: number }[];
     clienteId: number | null; desconto: number; totalEsperado: number; formaPagamento?: FormaPagamento;
     valorRecebido?: number; entrega: string; observacoes: string;
     pagamentos?: PagamentoVendaInput[];
+    parcelasPrazo?: ParcelaPrazoVendaInput[];
     formaPagamentoId?: number;
     sessaoCaixaId?: number;
     configuracaoFormaPagamentoId?: number;
@@ -61,6 +64,8 @@ export type VendaDetalhe = {
     itens: ItemVenda[];
     status: StatusVenda;
     sessaoCaixaId: number | null;
+    contasReceber?: ContaReceber[];
+    valorPrazo?: number;
 };
 export type FiltrosVenda = {
     status?: StatusVenda;

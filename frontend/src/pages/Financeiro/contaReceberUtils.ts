@@ -19,4 +19,4 @@ export function valorMonetario(texto: string): number | null {
 export const podeEditarConta = (conta: ContaReceber) => conta.status === "PENDENTE"
     && conta.origem === "MANUAL" && conta.recebimentos.length === 0;
 export const podeReceberConta = (conta: ContaReceber) => (conta.status === "PENDENTE" || conta.status === "PARCIAL") && conta.saldo > 0;
-export const podeCancelarConta = (conta: ContaReceber) => conta.status !== "CANCELADA" && conta.valorRecebido === 0;
+export const podeCancelarConta = (conta: ContaReceber) => conta.origem === "MANUAL" && conta.status !== "CANCELADA" && conta.valorRecebido === 0;

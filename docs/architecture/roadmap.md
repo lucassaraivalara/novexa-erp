@@ -2,6 +2,8 @@
 
 ## 1. Objetivo
 
+Etapa integrada: Contas a Receber Bloco 3 conecta Venda/PDV a parcelas com vencimentos independentes e cancelamento atomico das baixas. Pagamentos imediatos e prazo coexistem sem criar configuracao financeira A_PRAZO. Validacoes e limites atuais em [CURRENT_STATE.md](CURRENT_STATE.md); boleto, juros, multa e cobranca automatica continuam futuros.
+
 Este documento apresenta o planejamento de evolução do Novexa ERP.
 
 O roadmap organiza as principais fases de desenvolvimento do produto, permitindo uma construção estruturada e incremental.

@@ -130,8 +130,21 @@ test("valida valores e elegibilidade pelo detalhe, incluindo histórico totalmen
     assert.equal(utils.valorMonetario("40,50"), 40.5); assert.equal(utils.podeEditarConta(conta()), true);
     assert.equal(utils.podeEditarConta(conta(1, { recebimentos: [movimento(10, 100, { estornada: true })] })), false);
     assert.equal(utils.podeCancelarConta(conta()), true);
+    assert.equal(utils.podeCancelarConta(conta(1, { origem: "VENDA_A_PRAZO", vendaId: 123 })), false);
+    assert.equal(utils.podeEditarConta(conta(1, { origem: "VENDA_A_PRAZO", vendaId: 123 })), false);
     assert.equal(utils.podeCancelarConta(conta(1, { valorRecebido: 40, status: "PARCIAL" })), false);
     assert.equal(utils.podeReceberConta(conta(1, { status: "RECEBIDA", saldo: 0 })), false);
+});
+
+test("link da Central abre a parcela da venda sem permitir editar ou cancelar individualmente", async () => {
+    const { page } = await abrir({ origem: "VENDA_A_PRAZO", vendaId: 123 });
+    try {
+        await page.goto(`${url}/financeiro/contas-receber?contaId=1`);
+        const detalhe = page.getByRole("dialog", { name: "Conta a receber #1", exact: true });
+        await detalhe.waitFor();
+        assert.equal(await detalhe.getByRole("button", { name: "Editar", exact: true }).count(), 0);
+        assert.equal(await detalhe.getByRole("button", { name: "Cancelar conta", exact: true }).count(), 0);
+    } finally { await page.close(); }
 });
 test("listagem/resumo reais, filtro remoto com inativos, sort e paginação server-side", async () => {
     const { page, estado } = await abrir(); try {

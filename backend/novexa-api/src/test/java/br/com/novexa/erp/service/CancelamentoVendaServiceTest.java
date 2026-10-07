@@ -24,6 +24,7 @@ import static org.mockito.Mockito.*;
 @Import({CancelamentoVendaService.class, MovimentacaoEstoqueService.class, LiquidacaoRecebivelService.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class CancelamentoVendaServiceTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean ContaReceberService contasReceber;
     @Autowired CancelamentoVendaService service;
     @org.springframework.test.context.bean.override.mockito.MockitoBean PagamentoService pagamentos;
     @Autowired MovimentacaoEstoqueService estoque;

@@ -59,6 +59,8 @@ public class ContaReceberService {
     public ContaReceberResponseDTO editar(Long id, Long empresaId, ContaReceberRequestDTO pedido) {
         validar(pedido);
         var conta = bloquear(id, empresaId);
+        if (conta.getOrigem() != OrigemContaReceber.MANUAL)
+            throw conflito("Conta originada de venda nao pode ser editada individualmente.");
         if (conta.getStatus() != StatusContaReceber.PENDENTE || movimentos.existsByContaReceberIdAndEmpresaId(id, empresaId))
             throw conflito("Conta com historico de recebimento ou cancelada nao pode ser editada.");
         preencher(conta, pedido, empresaId);
@@ -100,6 +102,8 @@ public class ContaReceberService {
     @Transactional
     public ContaReceberResponseDTO cancelar(Long id, Long empresaId) {
         var conta = bloquear(id, empresaId);
+        if (conta.getOrigem() != OrigemContaReceber.MANUAL)
+            throw conflito("Cancele a venda para reverter suas contas a receber.");
         if (conta.getValorRecebido().signum() != 0) throw conflito("Estorne os recebimentos antes de cancelar a conta.");
         if (conta.getStatus() != StatusContaReceber.CANCELADA) conta.cancelar();
         return detalhe(contas.saveAndFlush(conta));
@@ -111,6 +115,45 @@ public class ContaReceberService {
                 total(contas.resumirAbertas(empresaId, hoje, hoje.plusDays(30))),
                 total(contas.resumirAbertas(empresaId, null, null)),
                 total(movimentos.resumirRecebimentos(empresaId, hoje.withDayOfMonth(1), hoje.withDayOfMonth(hoje.lengthOfMonth()))));
+    }
+    public void validarParcelasVenda(VendaEntity venda, List<ParcelaPrazoVendaDTO> parcelas) {
+        if (parcelas == null) return;
+        if (parcelas.isEmpty() || parcelas.size() > 120) throw Paginacao.invalida("Informe de 1 a 120 parcelas a prazo.");
+        if (venda.getCliente() == null) throw conflito("Selecione um cliente para vender a prazo.");
+        var cliente = clientes.findByIdAndEmpresaId(venda.getCliente().getId(), venda.getEmpresa().getId())
+                .filter(c -> Boolean.TRUE.equals(c.getAtivo())).orElseThrow(() -> conflito("Cliente indisponivel para venda a prazo."));
+        if (!cliente.getId().equals(venda.getCliente().getId())) throw conflito("Cliente invalido.");
+        parcelas.forEach(p -> { validar(p); dinheiro(p.valor()); });
+    }
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public void gerarDaVenda(VendaEntity venda, List<ParcelaPrazoVendaDTO> parcelas) {
+        if (parcelas == null) return;
+        validarParcelasVenda(venda, parcelas);
+        for (int i = 0; i < parcelas.size(); i++) {
+            var p = parcelas.get(i);
+            var conta = contas.saveAndFlush(ContaReceberEntity.daVenda(venda, dinheiro(p.valor()), p.vencimento(), i + 1, parcelas.size()));
+            venda.getContasReceber().add(conta);
+        }
+    }
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public List<ContaReceberEntity> bloquearDaVenda(VendaEntity venda) {
+        return contas.bloquearDaVenda(venda.getId(), venda.getEmpresa().getId());
+    }
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public void cancelarDaVenda(List<ContaReceberEntity> registros, Long empresaId, Long usuarioId, Long vendaId) {
+        for (var conta : registros) {
+            if (conta.getStatus() == StatusContaReceber.CANCELADA) continue;
+            for (var movimento : movimentos.findByContaReceberIdAndEmpresaIdOrderByIdAsc(conta.getId(), empresaId)) {
+                if (!movimento.isEstornada()) {
+                    var valor = financeiro.estornarEntradaContaReceber(movimento.getId(), empresaId, usuarioId,
+                            "Cancelamento da venda " + vendaId);
+                    conta.aplicarRecebimento(valor.negate());
+                }
+            }
+            if (conta.getValorRecebido().signum() != 0) throw conflito("Historico de recebimentos inconsistente.");
+            conta.cancelar();
+        }
+        contas.saveAllAndFlush(registros);
     }
     private ResumoContasReceberDTO.Total total(ContaReceberRepository.Total t) {
         return new ResumoContasReceberDTO.Total(t.getTotal(), t.getQuantidade());

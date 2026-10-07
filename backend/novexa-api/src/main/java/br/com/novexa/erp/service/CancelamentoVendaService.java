@@ -22,11 +22,19 @@ public class CancelamentoVendaService {
     private final EntityManager em;
     private final PagamentoService pagamentos;
     private final LiquidacaoRecebivelService recebiveis;
+    private final ContaReceberService contasReceber;
+    private final ContaFinanceiraRepository contasFinanceiras;
+    private final MovimentacaoFinanceiraRepository movimentosFinanceiros;
 
     public CancelamentoVendaService(VendaRepository vendas, MovimentacaoEstoqueRepository movimentos,
-            MovimentacaoEstoqueService estoque, EntityManager em, PagamentoService pagamentos, LiquidacaoRecebivelService recebiveis) {
+            MovimentacaoEstoqueService estoque, EntityManager em, PagamentoService pagamentos, LiquidacaoRecebivelService recebiveis,
+            ContaReceberService contasReceber, ContaFinanceiraRepository contasFinanceiras,
+            MovimentacaoFinanceiraRepository movimentosFinanceiros) {
         this.vendas = vendas; this.movimentos = movimentos; this.estoque = estoque; this.em = em; this.pagamentos = pagamentos;
         this.recebiveis = recebiveis;
+        this.contasReceber = contasReceber;
+        this.contasFinanceiras = contasFinanceiras;
+        this.movimentosFinanceiros = movimentosFinanceiros;
     }
 
     @Transactional
@@ -71,8 +79,19 @@ public class CancelamentoVendaService {
             estoque.reverterSaidaVenda(original, operador.getId(),
                     "Cancelamento da venda " + venda.getId() + "; reversão da movimentação " + original.getId());
         }
+        var direitos = contasReceber.bloquearDaVenda(venda);
+        direitos.forEach(em::refresh);
+        if (!direitos.isEmpty()) {
+            // Agregados antes dos destinos; uniao PIX/cartao/prazo em ordem de ID como nas transferencias.
+            for (var id : movimentosFinanceiros.buscarDestinosCancelamentoVenda(vendaId, autenticado.empresaId())) {
+                var conta = contasFinanceiras.buscarParaAlterar(id, autenticado.empresaId())
+                        .orElseThrow(() -> conflito("Conta financeira historica indisponivel."));
+                em.refresh(conta);
+            }
+        }
         recebiveis.cancelar(venda, operador);
         pagamentos.cancelarFaturamento(venda, operador);
+        contasReceber.cancelarDaVenda(direitos, autenticado.empresaId(), operador.getId(), vendaId);
         venda.setStatus(StatusVenda.CANCELADA);
         vendas.saveAndFlush(venda);
         return VendaResponseDTO.de(venda);

@@ -20,8 +20,16 @@ public record VendaRequestDTO(
         @Positive Long formaPagamentoId,
         @Positive Long sessaoCaixaId,
         @Positive Long configuracaoFormaPagamentoId,
-        @Size(min = 1, max = 20) List<@NotNull @Valid PagamentoVendaRequestDTO> pagamentos
+        @Size(max = 20) List<@NotNull @Valid PagamentoVendaRequestDTO> pagamentos,
+        @Size(min = 1, max = 120) List<@NotNull @Valid ParcelaPrazoVendaDTO> parcelasPrazo
 ) {
+    public VendaRequestDTO(UUID chaveRequisicao, List<Item> itens, Long clienteId, BigDecimal desconto,
+            BigDecimal totalEsperado, FormaPagamento formaPagamento, BigDecimal valorRecebido,
+            String entrega, String observacoes, Long formaPagamentoId, Long sessaoCaixaId, Long configuracaoFormaPagamentoId,
+            List<PagamentoVendaRequestDTO> pagamentos) {
+        this(chaveRequisicao, itens, clienteId, desconto, totalEsperado, formaPagamento, valorRecebido,
+                entrega, observacoes, formaPagamentoId, sessaoCaixaId, configuracaoFormaPagamentoId, pagamentos, null);
+    }
     public VendaRequestDTO(UUID chaveRequisicao, List<Item> itens, Long clienteId, BigDecimal desconto,
             BigDecimal totalEsperado, FormaPagamento formaPagamento, BigDecimal valorRecebido,
             String entrega, String observacoes, Long formaPagamentoId, Long sessaoCaixaId, Long configuracaoFormaPagamentoId) {
@@ -49,8 +57,9 @@ public record VendaRequestDTO(
 
     @AssertTrue(message = "Informe pagamentos ou uma forma unica com valorRecebido, sem misturar os formatos.")
     public boolean isFormaInformadaCorretamente() {
-        return pagamentos != null
+        return pagamentos != null || parcelasPrazo != null
                 ? formaPagamento == null && formaPagamentoId == null && configuracaoFormaPagamentoId == null && valorRecebido == null
+                    && ((pagamentos != null && !pagamentos.isEmpty()) || (parcelasPrazo != null && !parcelasPrazo.isEmpty()))
                 : (formaPagamento == null) != (formaPagamentoId == null) && valorRecebido != null;
     }
 
@@ -62,7 +71,8 @@ public record VendaRequestDTO(
                 + ", entrega=" + entrega + ", observacoes=" + observacoes
                 + (formaPagamentoId == null ? "" : ", formaPagamentoId=" + formaPagamentoId) + (sessaoCaixaId == null ? "" : ", sessaoCaixaId=" + sessaoCaixaId)
                 + (configuracaoFormaPagamentoId == null ? "" : ", configuracaoFormaPagamentoId=" + configuracaoFormaPagamentoId)
-                + (pagamentos == null ? "" : ", pagamentos=" + pagamentos) + "]";
+                + (pagamentos == null ? "" : ", pagamentos=" + pagamentos)
+                + (parcelasPrazo == null ? "" : ", parcelasPrazo=" + parcelasPrazo) + "]";
     }
 
     public record Item(

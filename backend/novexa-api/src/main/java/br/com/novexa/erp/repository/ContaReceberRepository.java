@@ -15,6 +15,9 @@ public interface ContaReceberRepository extends JpaRepository<ContaReceberEntity
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from ContaReceberEntity c where c.id = :id and c.empresa.id = :empresaId")
     Optional<ContaReceberEntity> buscarParaAlterar(Long id, Long empresaId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from ContaReceberEntity c where c.empresa.id = :empresaId and c.venda.id = :vendaId order by c.id")
+    java.util.List<ContaReceberEntity> bloquearDaVenda(Long vendaId, Long empresaId);
 
     @EntityGraph(attributePaths = "cliente")
     @Query("""

@@ -1,8 +1,16 @@
 FINANCEIRO NOVEXA
 
+## Venda a prazo - contrato integrado (Bloco 3)
+
+POST /vendas e POST /vendas/{id}/faturar aceitam pagamentos[] e parcelasPrazo[] separadamente. Exemplo de alocacao de R$200: pagamentos=[{configuracaoFormaPagamentoId:1,valor:50,valorRecebido:60}], parcelasPrazo=[{valor:75,vencimento:"2026-11-15"},{valor:75,vencimento:"2026-12-15"}]. Soma = totalEsperado; valores positivos com centavos exatos, vencimento obrigatorio e cliente ativo do tenant obrigatorio quando houver prazo. Pagamentos pode ser [] ou omitido na venda 100% a prazo; contrato singular legado continua aceito sem parcelasPrazo. Nao misturar campos singulares com listas.
+
+Cada parcela cria ContaReceber VENDA_A_PRAZO/PENDENTE com vendaId, numeroParcela 1..N e totalParcelas N, sem PagamentoEntity ou movimento financeiro. Venda permanece FATURADA. Resposta de Venda adiciona valorPrazo (snapshot do total a prazo) e contasReceber[] resumidas, sem carregar historico de baixas; detalhe financeiro continua no endpoint de ContaReceber. valorRecebido nao inclui a divida; troco considera somente dinheiro entregue acima da parte imediata. V36 aditiva preserva historicos com valorPrazo=0 e ajusta CHECKs de recebido/troco para esta semantica.
+
+PDV mantem pagamento simples/misto e oferece A prazo como opcao sistemica, com 1..120 parcelas editaveis, sem juros ou calendario automatico. Central distingue valores imediatos e a prazo e abre /financeiro/contas-receber?contaId={id}. Editar/cancelar conta da venda individualmente retorna 409; cancelamento da Venda estorna todas as baixas ativas e cancela as parcelas junto aos demais dominios, sem DELETE, com rollback integral. Regras de locks/idempotencia em [FINANCEIRO_RULES.md](FINANCEIRO_RULES.md).
+
 ## Conta a Receber - backend independente (Bloco 1)
 
-Dominio do Cliente, distinto de Recebivel de cartao. V35 cria contas_receber e vinculo 1:N nos movimentos financeiros existentes; criacao nao credita saldo. Somente baixa gera ENTRADA/CONTA_RECEBER, com destino escolhido por recebimento. Bloco 2 integra o frontend em Financeiro -> Contas a Receber, com CRUD permitido, baixa parcial/total, historico, estorno individual, cancelamento e resumo. Nenhuma integracao com Venda/PDV.
+Dominio do Cliente, distinto de Recebivel de cartao. V35 cria contas_receber e vinculo 1:N nos movimentos financeiros existentes; criacao nao credita saldo. Somente baixa gera ENTRADA/CONTA_RECEBER, com destino escolhido por recebimento. Bloco 2 integra o frontend em Financeiro -> Contas a Receber, com CRUD permitido, baixa parcial/total, historico, estorno individual, cancelamento e resumo. Bloco 3 integra Venda/PDV conforme contrato acima.
 
 Base: `/financeiro/contas-receber` (usuario autenticado, tenant do JWT):
 

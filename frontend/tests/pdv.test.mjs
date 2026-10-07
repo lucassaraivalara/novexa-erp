@@ -11,6 +11,39 @@ const fonteFinalizacao = await readFile(new URL("../src/pages/Vendas/VendaFinali
 const produto = { id: 1, nome: "Café", precoVenda: 10.10, ativo: true, codigoBarras: "7890001", codigoInterno: "CAFE" };
 const venda = () => ({ ...novoRascunho(), itens: [{ produto, quantidade: "2" }], recebido: "30", configuracaoFormaPagamentoId: 42 });
 
+test("venda totalmente a prazo exige cliente e gera parcelas sem PagamentoEntity no contrato", () => {
+    const r = { ...venda(), cliente: { id: 8 }, pagamentos: [{ formaPagamento: "A_PRAZO", configuracaoFormaPagamentoId: null,
+        nomeExibicao: "A prazo", valor: "", recebido: "" }], parcelasPrazo: [{ valor: "", vencimento: "2026-11-15" }] };
+    const p = criarPedido(r, "chave");
+    assert.deepEqual(p.pagamentos, []);
+    assert.deepEqual(p.parcelasPrazo, [{ valor: 20.2, vencimento: "2026-11-15" }]);
+    assert.equal(p.clienteId, 8); assert.equal(totais(r).totalImediato, 0); assert.equal(totais(r).troco, 0);
+    assert.throws(() => criarPedido({ ...r, cliente: null }, "chave"), /Selecione um cliente/);
+    assert.throws(() => criarPedido({ ...r, parcelasPrazo: [{ valor: "20.20", vencimento: "" }] }, "chave"));
+    assert.equal("empresaId" in p, false); assert.equal("contaFinanceiraId" in p, false);
+});
+test("dinheiro e prazo somam alocacao sem incluir troco nem recebido na divida", () => {
+    const r = { ...venda(), cliente: { id: 8 }, pagamentos: [
+        { configuracaoFormaPagamentoId: 42, formaPagamento: "DINHEIRO", nomeExibicao: "Dinheiro", valor: "5", recebido: "10" },
+        { configuracaoFormaPagamentoId: null, formaPagamento: "A_PRAZO", nomeExibicao: "A prazo", valor: "", recebido: "" },
+    ], parcelasPrazo: [{ valor: "7.60", vencimento: "2026-11-15" }, { valor: "7.60", vencimento: "2026-12-15" }] };
+    const t = totais(r), p = criarPedido(r, "chave");
+    assert.equal(t.totalInformado, 2020); assert.equal(t.totalPrazo, 1520); assert.equal(t.totalImediato, 500);
+    assert.equal(t.troco, 500); assert.equal(t.recebido, 1000); assert.equal(t.restante, 0);
+    assert.deepEqual(p.pagamentos, [{ configuracaoFormaPagamentoId: 42, valor: 5, valorRecebido: 10 }]);
+    assert.deepEqual(p.parcelasPrazo, [{ valor: 7.6, vencimento: "2026-11-15" }, { valor: 7.6, vencimento: "2026-12-15" }]);
+    for (const valor of ["0", "-1", "7.59", "7.61", "1.001"]) {
+        const alterado = { ...r, parcelasPrazo: [{ valor, vencimento: "2026-11-15" }, r.parcelasPrazo[1]] };
+        assert.throws(() => criarPedido(alterado, "chave"));
+    }
+});
+test("retirar prazo ignora parcelas antigas e preserva o payload imediato", () => {
+    const r = { ...venda(), parcelasPrazo: [{ valor: "20.20", vencimento: "2026-11-15" }] };
+    const p = criarPedido(r, "chave");
+    assert.equal(p.parcelasPrazo, undefined); assert.equal(p.pagamentos.length, 1);
+    assert.equal(totais(r).totalPrazo, 0);
+});
+
 test("pedido envia pagamentos e preserva configuracao empresarial e troco por forma", () => {
     for (const formaPagamento of ["DINHEIRO", "PIX", "CARTAO_DEBITO", "CARTAO_CREDITO"]) {
         const r = { ...venda(), formaPagamento, configuracaoFormaPagamentoId: 42 };

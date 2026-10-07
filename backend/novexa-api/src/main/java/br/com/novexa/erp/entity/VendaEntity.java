@@ -48,11 +48,17 @@ public class VendaEntity {
     private ConfiguracaoFormaPagamentoEmpresaEntity configuracaoFormaPagamento;
     @Column(precision = 19, scale = 2) private BigDecimal valorRecebido;
     @Column(precision = 19, scale = 2) private BigDecimal troco;
+    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal valorPrazo = BigDecimal.ZERO;
+    public BigDecimal getValorPrazo() { return valorPrazo; }
     @Column(length = 500) private String entrega;
     @Column(length = 2000) private String observacoes;
     @OneToMany(mappedBy = "venda")
     @OrderBy("ordem ASC, id ASC")
     private List<ItemVendaEntity> itemVendas = new ArrayList<>();
+    @OneToMany(mappedBy = "venda")
+    @OrderBy("numeroParcela ASC, id ASC")
+    private List<ContaReceberEntity> contasReceber = new ArrayList<>();
+    public List<ContaReceberEntity> getContasReceber() { return contasReceber; }
 
     protected VendaEntity() { }
     public VendaEntity(UsuarioEntity usuario, ClienteEntity cliente, UUID chave, String resumo,
@@ -96,11 +102,15 @@ public class VendaEntity {
     public String getEntrega() { return entrega; }
     public String getObservacoes() { return observacoes; }
     public void registrarFaturamento(UUID chave, String resumo, FormaPagamento forma, BigDecimal recebido) {
+        registrarFaturamento(chave, resumo, forma, recebido, recebido.subtract(total), BigDecimal.ZERO);
+    }
+    public void registrarFaturamento(UUID chave, String resumo, FormaPagamento forma, BigDecimal recebido, BigDecimal troco, BigDecimal valorPrazo) {
         this.chaveRequisicao = chave;
         this.resumoRequisicao = resumo;
         this.formaPagamento = forma;
         this.valorRecebido = recebido;
-        this.troco = recebido.subtract(total);
+        this.troco = troco;
+        this.valorPrazo = valorPrazo;
         this.status = StatusVenda.FATURADA;
     }
     public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }

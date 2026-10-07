@@ -30,7 +30,8 @@ type Finalizacao = {
     podeTentarNovamente?: boolean;
 };
 
-const rotulosPagamento: Record<FormaPagamento, string> = {
+const rotulosPagamento: Record<FormaPagamento | "A_PRAZO", string> = {
+    A_PRAZO: "A prazo",
     DINHEIRO: "Dinheiro",
     PIX: "PIX",
     CARTAO_DEBITO: "Cartão de débito",
@@ -156,11 +157,16 @@ export default function Vendas() {
         alterar({ pagamentos: pagamentosRascunho(rascunho).map((p, i) => i === indice ? { ...p, ...patch } : p) });
     }
     function adicionarForma() {
-        alterar({ pagamentos: [
+        alterar({ ...(t.usaPrazo ? { parcelasPrazo: t.parcelasPrazo.map(p => ({
+            valor: p.valor === "" ? ((p.valorCentavos ?? 0) / 100).toFixed(2) : p.valor, vencimento: p.vencimento,
+        })) } : {}), pagamentos: [
             ...pagamentosRascunho(rascunho).map((p, i) => ({ ...p, valor: p.valor === "" ? ((t.parcelas[i].valorCentavos ?? 0) / 100).toFixed(2) : p.valor })),
             { configuracaoFormaPagamentoId: null, nomeExibicao: null, formaPagamento: "DINHEIRO",
                 valor: (Math.max(0, t.restante) / 100).toFixed(2), recebido: "" },
         ] });
+    }
+    function alterarParcelaPrazo(indice: number, patch: Partial<{ valor: string; vencimento: string }>) {
+        alterar({ parcelasPrazo: (rascunho.parcelasPrazo ?? []).map((p, i) => i === indice ? { ...p, ...patch } : p) });
     }
     function adicionar(produto: Produto) {
         if (bloqueado) return;
@@ -192,7 +198,10 @@ export default function Vendas() {
             setErro("Aguarde a definição do Caixa antes de finalizar a venda.");
             return;
         }
-        if (!rascunho.pendente && t.parcelas.some(p => !p.configuracaoFormaPagamentoId)) {
+        if (!rascunho.pendente && t.usaPrazo && !rascunho.cliente) {
+            setErro("Selecione um cliente para vender a prazo."); setOpcional("cliente"); return;
+        }
+        if (!rascunho.pendente && t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !p.configuracaoFormaPagamentoId)) {
             setErro("Selecione uma forma de pagamento válida.");
             return;
         }
@@ -358,9 +367,16 @@ export default function Vendas() {
                     <>
                         {t.parcelas.map((p, i) => <Stack key={i} spacing={1} role="group" aria-label={`Pagamento ${i + 1}`}>
                         <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                        <TextField fullWidth select label={i === 0 ? "Forma de pagamento" : `Forma de pagamento ${i + 1}`} value={p.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
+                        <TextField fullWidth select label={i === 0 ? "Forma de pagamento" : `Forma de pagamento ${i + 1}`} value={p.formaPagamento === "A_PRAZO" ? "A_PRAZO" : p.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
                             slotProps={{ inputLabel: { shrink: true }, select: { native: true } }}
                             onChange={e => {
+                                if (e.target.value === "A_PRAZO") {
+                                    alterar({ pagamentos: pagamentosRascunho(rascunho).map((pag, indice) => indice === i
+                                        ? { ...pag, formaPagamento: "A_PRAZO", configuracaoFormaPagamentoId: null, nomeExibicao: "A prazo", recebido: "" } : pag),
+                                        parcelasPrazo: [{ valor: p.valor === "" && t.parcelas.length === 1 ? "" : ((p.valorCentavos ?? 0) / 100).toFixed(2), vencimento: "" }] });
+                                    if (!rascunho.cliente) setOpcional("cliente");
+                                    return;
+                                }
                                 const configId = e.target.value ? Number(e.target.value) : null;
                                 const config = configuracoes.find(c => c.id === configId);
                                 if (config) {
@@ -379,6 +395,7 @@ export default function Vendas() {
                                 }
                             }}>
                             <option value="">Selecione uma forma de pagamento</option>
+                            <option value="A_PRAZO" disabled={t.parcelas.some((outra, indice) => indice !== i && outra.formaPagamento === "A_PRAZO")}>A prazo</option>
                             {configuracoes.map(config => (
                                 <option key={config.id} value={config.id} disabled={t.parcelas.some((outra, indice) => indice !== i && outra.configuracaoFormaPagamentoId === config.id)}>
                                     {config.nomeExibicao}
@@ -388,6 +405,27 @@ export default function Vendas() {
                         {t.parcelas.length > 1 && <Tooltip title="Remover forma"><IconButton size="small" aria-label={`Remover pagamento ${i + 1}`} disabled={bloqueado}
                             onClick={() => alterar({ pagamentos: pagamentosRascunho(rascunho).filter((_, indice) => indice !== i) })}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>}
                         </Stack>
+                        {p.formaPagamento === "A_PRAZO" ? <Stack spacing={1}>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>A prazo · {moeda(t.totalPrazo)}</Typography>
+                            {!rascunho.cliente && <Alert severity="warning">Selecione um cliente para vender a prazo.</Alert>}
+                            {t.parcelasPrazo.map((parcela, indice) => <Stack key={indice} spacing={0.5} role="group" aria-label={`Parcela a prazo ${indice + 1}`}>
+                                <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
+                                    <Typography variant="caption">Parcela {indice + 1}/{t.parcelasPrazo.length}</Typography>
+                                    {t.parcelasPrazo.length > 1 && <Tooltip title="Remover parcela"><IconButton size="small" aria-label={`Remover parcela a prazo ${indice + 1}`} disabled={bloqueado}
+                                        onClick={() => alterar({ parcelasPrazo: rascunho.parcelasPrazo?.filter((_, posicao) => posicao !== indice) })}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>}
+                                </Stack>
+                                <TextField type="date" label={`Vencimento ${indice + 1}`} value={parcela.vencimento} disabled={bloqueado}
+                                    slotProps={{ inputLabel: { shrink: true } }} onChange={e => alterarParcelaPrazo(indice, { vencimento: e.target.value })} />
+                                <TextField label={`Valor da parcela ${indice + 1} (R$)`} value={parcela.valor === "" && t.parcelas.length === 1 && t.parcelasPrazo.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : parcela.valor}
+                                    disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()}
+                                    onChange={e => alterarParcelaPrazo(indice, { valor: e.target.value })} />
+                            </Stack>)}
+                            <Button startIcon={<AddRoundedIcon />} disabled={bloqueado || t.parcelasPrazo.length >= 120}
+                                onClick={() => alterar({ parcelasPrazo: [
+                                    ...t.parcelasPrazo.map(parcela => ({ valor: parcela.valor === "" ? ((parcela.valorCentavos ?? 0) / 100).toFixed(2) : parcela.valor, vencimento: parcela.vencimento })),
+                                    { valor: (Math.max(0, t.restante) / 100).toFixed(2), vencimento: "" },
+                                ] })}>Adicionar parcela</Button>
+                        </Stack> : <>
                         <TextField label="Valor aplicado (R$)" value={p.valor === "" && t.parcelas.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : p.valor}
                             disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()}
                             onChange={e => alterarPagamento(i, { valor: e.target.value })} />
@@ -400,8 +438,13 @@ export default function Vendas() {
                         ) : (
                             <Typography variant="caption" color="text.secondary">{p.nomeExibicao ?? rotulosPagamento[p.formaPagamento]} · {moeda(p.valorCentavos ?? 0)}</Typography>
                         )}
+                        </>}
                         </Stack>)}
                         <Button startIcon={<AddRoundedIcon />} disabled={bloqueado || t.parcelas.length >= 20} onClick={adicionarForma}>Adicionar forma</Button>
+                        {t.usaPrazo && <>
+                            <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Pago agora</span><Typography aria-label="Pago agora">{moeda(t.totalImediato)}</Typography></Stack>
+                            <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>A prazo</span><Typography aria-label="Valor a prazo">{moeda(t.totalPrazo)}</Typography></Stack>
+                        </>}
                         <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Total informado</span><Typography aria-label="Total informado">{moeda(t.totalInformado)}</Typography></Stack>
                         <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Restante</span><Typography aria-label="Restante" color={t.restante === 0 ? "text.primary" : "error"}>{moeda(t.restante)}</Typography></Stack>
                     </>

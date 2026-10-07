@@ -27,6 +27,8 @@ import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import ClienteAutocomplete from "../../components/clientes/ClienteAutocomplete";
+import StatusChip from "../../components/ui/StatusChip";
+import { formatarData, rotulosStatus as rotulosContaReceber } from "../Financeiro/contaReceberUtils";
 import {
     buscarVenda,
     cancelarVenda,
@@ -318,11 +320,15 @@ export default function CentralVendas() {
                         <Typography>Desconto: <strong>{moedaVenda(detalhe.desconto)}</strong></Typography>
                         <Typography>Total: <strong>{moedaVenda(detalhe.total)}</strong></Typography>
                     </Stack>
-                    <Alert severity="info" icon={false}>
+                    {detalhe.contasReceber?.length ? <Alert severity="info" icon={false}>
+                        Alocado em pagamentos imediatos: <strong>{erroPagamentos ? "Indisponível" : moedaVenda(pagamentos.reduce((total, p) => total + p.valor, 0))}</strong>
+                        {" · "}A prazo: <strong>{moedaVenda(detalhe.contasReceber.reduce((total, c) => total + c.valorOriginal, 0))}</strong>
+                        {!!detalhe.troco && <> · Troco: <strong>{moedaVenda(detalhe.troco)}</strong></>}
+                    </Alert> : <Alert severity="info" icon={false}>
                         Pagamento: <strong>{detalhe.formaPagamento ? rotulosPagamento[detalhe.formaPagamento] : pagamentos.length > 1 ? "Pagamento misto" : "Não definido"}</strong>
                         {detalhe.valorRecebido !== null && <> · Recebido: <strong>{moedaVenda(detalhe.valorRecebido)}</strong></>}
                         {detalhe.troco !== null && <> · Troco: <strong>{moedaVenda(detalhe.troco)}</strong></>}
-                    </Alert>
+                    </Alert>}
                     <Typography variant="h6">Pagamentos</Typography>
                     {erroPagamentos && <Alert severity="error">{erroPagamentos}</Alert>}
                     {pagamentos.map(pagamento => {
@@ -341,6 +347,14 @@ export default function CentralVendas() {
                             </Button>}
                         </Stack>;
                     })}
+                    {!!detalhe.contasReceber?.length && <Stack spacing={1}>
+                        <Typography variant="h6">A prazo</Typography>
+                        {detalhe.contasReceber.map(conta => <Stack key={conta.id} direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" }, flexWrap: "wrap" }}>
+                            <Typography variant="body2">{conta.numeroParcela}/{conta.totalParcelas} · {formatarData(conta.dataVencimento)} · <strong>{moedaVenda(conta.valorOriginal)}</strong> · Saldo {moedaVenda(conta.saldo)}</Typography>
+                            <StatusChip status={conta.status} label={rotulosContaReceber[conta.status]} />
+                            <Button component={Link} to={`/financeiro/contas-receber?contaId=${conta.id}`} size="small">Ver em Contas a Receber</Button>
+                        </Stack>)}
+                    </Stack>}
                 </Stack>}
             </DialogContent>
             <DialogActions><Button onClick={() => setSelecionada(null)} disabled={carregandoDetalhe || confirmandoPix}>Fechar</Button></DialogActions>
