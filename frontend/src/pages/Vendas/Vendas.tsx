@@ -364,13 +364,17 @@ export default function Vendas() {
                 </Box>
                 <Typography variant="caption" color="text.secondary">Enter adicionar · ↑ ↓ selecionar · F2 pagar · F4 desconto · F8 cliente · Ctrl+Delete remover item · Esc fechar opção</Typography>
             </Stack>
-            <Stack spacing={1.5} sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", p: 2, overflowY: "auto", minWidth: 0, borderRadius: "10px", boxShadow: "0 1px 3px rgba(16,24,40,.06)" }}>
+            <Stack spacing={1.5} sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", p: 2, overflow: { xs: "visible", md: "hidden" }, minHeight: 0, minWidth: 0, borderRadius: "10px", boxShadow: "0 1px 3px rgba(16,24,40,.06)" }}>
+                <Stack spacing={1.5} sx={{ flexShrink: 0 }}>
                 <Typography variant="overline">Resumo da venda · {rascunho.itens.length} itens</Typography>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Subtotal</span><span>{moeda(t.subtotal)}</span></Stack>
                 {!!t.desconto && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Desconto</span><span>− {moeda(t.desconto)}</span></Stack>}
                 {rascunho.cliente && <Typography variant="body2">Cliente: {rascunho.cliente.nome}</Typography>}
                 <Box><Typography variant="body2">Total da venda</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 38, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
                 <Divider />
+                </Stack>
+                <Box role="region" aria-label="Pagamentos da venda" sx={{ minHeight: 0, flex: { md: 1 }, overflowY: { xs: "visible", md: "auto" } }}>
+                <Stack spacing={1.5}>
                 <Typography variant="overline">Pagamento</Typography>
                 {carregandoConfig ? (
                     <Typography variant="body2" color="text.secondary">Carregando formas de pagamento…</Typography>
@@ -461,6 +465,9 @@ export default function Vendas() {
                         {t.restante !== 0 && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>{t.restante > 0 ? "Falta distribuir" : "Valor excedente"}</span><Typography aria-label={t.restante > 0 ? "Falta distribuir" : "Valor excedente"} color="error">{moeda(Math.abs(t.restante))}</Typography></Stack>}
                     </>
                 )}
+                </Stack>
+                </Box>
+                <Stack spacing={1.5} sx={{ flexShrink: 0 }}>
                 <Button size="large" variant="contained" disableElevation disabled={!sessaoCaixaResolvida || salvando || carregandoConfig || (!rascunho.pendente && (!rascunho.itens.length || !t.valido || !t.pagamentosValidos || t.restante !== 0
                     || t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))))} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
                     {salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado · F2" : "Pagar · F2"}
@@ -477,6 +484,7 @@ export default function Vendas() {
                     value={rascunho[opcional]} multiline={opcional !== "desconto"} minRows={opcional !== "desconto" ? 2 : undefined}
                     slotProps={{ htmlInput: { maxLength: opcional === "entrega" ? 500 : opcional === "observacoes" ? 2000 : 12 } }}
                     onChange={e => alterar({ [opcional]: e.target.value })} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); setOpcional(null); focarBusca(); } }} />}
+                </Stack>
             </Stack>
         </Box>
     </Box>;

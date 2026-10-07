@@ -17,9 +17,10 @@ before(async () => {
             load(id) { if (id === "\0/fixture-pdv.js") return `
                 import React from 'react'; import { createRoot } from 'react-dom/client';
                 import { MemoryRouter } from 'react-router-dom';
-                import { ThemeProvider } from '@mui/material'; import theme from '/src/theme/theme.ts';
+                import { CssBaseline, ThemeProvider } from '@mui/material'; import theme from '/src/theme/theme.ts';
                 import Vendas from '/src/pages/Vendas/Vendas.tsx';
                 createRoot(document.getElementById('root')).render(React.createElement(ThemeProvider, {theme},
+                    React.createElement(CssBaseline),
                     React.createElement(MemoryRouter, null, React.createElement(Vendas))));`; },
             configureServer(vite) { vite.middlewares.use("/__pdv", async (_req, res) => {
                 res.setHeader("Content-Type", "text/html");
@@ -304,6 +305,63 @@ test("cartao + prazo permite editar/remover parcelas e preserva cliente/vencimen
     } finally { await page.close(); }
 });
 const grupoPagamento = (page, numero) => page.getByRole("group", { name: `Pagamento ${numero}`, exact: true });
+
+test("desktop mantem total e fechamento visiveis; somente pagamentos rolam com varias formas e parcelas", async () => {
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }]) {
+        const { page, busca } = await abrir();
+        try {
+            await page.setViewportSize(viewport);
+            const total = page.getByLabel("Total da venda", { exact: true });
+            const pagar = page.getByRole("button", { name: "Pagar · F2", exact: true });
+            const conferirVisibilidade = async () => {
+                const caixas = await Promise.all([total.boundingBox(), pagar.boundingBox()]);
+                for (const caixa of caixas) {
+                    assert.ok(caixa && caixa.y >= 0 && caixa.y + caixa.height <= viewport.height,
+                        `Total e Pagar devem caber em ${viewport.width}x${viewport.height}`);
+                }
+                return caixas;
+            };
+            await conferirVisibilidade();
+            assert.equal(await pagar.isDisabled(), true);
+            await page.screenshot({ path: `node_modules/.vite-pdv-buscas-tests/fechamento-vazio-${viewport.width}.png` });
+            await busca.fill("7890001"); await busca.press("Enter");
+            await page.getByLabel("Quantidade de Produto remoto").waitFor();
+            await conferirVisibilidade();
+            assert.equal(await pagar.isEnabled(), true);
+            await page.screenshot({ path: `node_modules/.vite-pdv-buscas-tests/fechamento-produto-${viewport.width}.png` });
+            await page.getByLabel("Quantidade de Produto remoto").fill("10");
+            await grupoPagamento(page, 1).getByLabel("Valor aplicado (R$)").fill("30");
+            await page.getByRole("button", { name: "Adicionar forma" }).click();
+            await grupoPagamento(page, 2).getByRole("combobox").selectOption("2");
+            await grupoPagamento(page, 2).getByLabel("Valor aplicado (R$)").fill("30");
+            await page.getByRole("button", { name: "Adicionar forma" }).click();
+            await grupoPagamento(page, 3).getByRole("combobox").selectOption("A_PRAZO");
+            await selecionarClientePrazo(page);
+            for (let numero = 1; numero <= 4; numero++) {
+                await page.getByLabel(`Vencimento ${numero}`, { exact: true }).fill("2026-12-15");
+                await page.getByLabel(`Valor da parcela ${numero} (R$)`, { exact: true }).fill("10");
+                if (numero < 4) await page.getByRole("button", { name: "Adicionar parcela" }).click();
+            }
+            assert.equal(await pagar.isEnabled(), true);
+            const pagamentos = page.getByRole("region", { name: "Pagamentos da venda" });
+            assert.equal(await pagamentos.evaluate(el => el.scrollHeight > el.clientHeight), true);
+            await pagamentos.evaluate(el => { el.scrollTop = 0; });
+            const antes = await conferirVisibilidade();
+            await pagamentos.evaluate(el => { el.scrollTop = el.scrollHeight; });
+            assert.deepEqual(await conferirVisibilidade(), antes);
+            assert.equal(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight), true);
+            await page.screenshot({ path: `node_modules/.vite-pdv-buscas-tests/fechamento-parcelas-${viewport.width}.png` });
+            await page.getByRole("button", { name: "F9 Observações" }).click();
+            await page.getByLabel("Observações", { exact: true }).fill("Observação da venda");
+            await conferirVisibilidade();
+            await page.getByLabel("Observações", { exact: true }).press("Escape");
+            await busca.press("F8");
+            await page.getByRole("combobox", { name: "Cliente (opcional)" }).waitFor();
+            await conferirVisibilidade();
+            assert.equal(await page.getByRole("combobox", { name: "Cliente (opcional)" }).evaluate(el => el === document.activeElement), true);
+        } finally { await page.close(); }
+    }
+});
 
 test("PIX invalido nao e oferecido; valores manuais sobrevivem a terceira forma e remocao", async () => {
     const { page, busca } = await abrir();
