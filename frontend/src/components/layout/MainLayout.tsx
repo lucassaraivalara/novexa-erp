@@ -1,10 +1,11 @@
 import { Box } from "@mui/material";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import AppHeader from "./AppHeader";
 import { layoutTokens } from "./layoutTokens";
 import Sidebar from "./Sidebar";
 
 function MainLayout() {
+    const dashboard = useLocation().pathname === "/dashboard";
     return (
         <Box
             sx={{
@@ -36,7 +37,7 @@ function MainLayout() {
                         minWidth: 0,
                         boxSizing: "border-box",
                         backgroundColor: "background.default",
-                        p: layoutTokens.conteudo.padding,
+                        p: dashboard ? { xs: 1.25, sm: 1.5, md: 1.5 } : layoutTokens.conteudo.padding,
                     }}
                 >
                     <Outlet />

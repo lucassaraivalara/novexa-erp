@@ -26,10 +26,12 @@ test("consulta o resumo operacional no endpoint existente", async () => {
     assert.deepEqual(await buscarResumoDashboard(), esperado);
 });
 
-test("dashboard exibe indicadores reais, caixa e no máximo cinco vendas", async () => {
+test("dashboard exibe indicadores reais, atalhos e no máximo cinco vendas", async () => {
     const fonte = await readFile(new URL("../src/pages/Dashboard/Dashboard.tsx", import.meta.url), "utf8");
     for (const texto of ["Faturamento hoje", "Vendas hoje", "Ticket médio hoje", "Estoque baixo", "Clientes ativos",
-        "Nenhum caixa aberto", "Últimas vendas", "Ver todas"]) assert.match(fonte, new RegExp(texto));
+        "Caixas abertos", "Nenhum caixa aberto no momento", "Últimas vendas", "Ver todas", "Ações rápidas",
+        "Entrada de mercadoria", "Confirmar PIX", "Pagar conta", "Nenhum alerta operacional"]) assert.match(fonte, new RegExp(texto));
     assert.match(fonte, /listarVendasPaginado\([^\n]*0, 5/);
-    assert.doesNotMatch(fonte, /será implementado|Top produtos|Contas a receber \/ pagar|Faturamento por período/);
+    assert.match(fonte, /to="\/financeiro\/caixas"[^\n]*>Abrir caixa/);
+    assert.doesNotMatch(fonte, /PIX pendente|Cartões a receber|Busca global|Notificações|será implementado|Top produtos|Faturamento por período/);
 });

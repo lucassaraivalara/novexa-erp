@@ -57,7 +57,7 @@ function Sidebar() {
                         py: 1.25,
                         m: { xs: 0, sm: 1.5 },
                         borderRadius: "10px",
-                        bgcolor: { xs: "transparent", sm: "primary.main" },
+                        bgcolor: "transparent",
                     }}
                 >
                     <Box
@@ -67,11 +67,10 @@ function Sidebar() {
                             width: 32,
                             height: 32,
                             placeItems: "center",
-                            border: "1px solid",
-                            borderColor: "divider",
+                            border: "1px solid rgba(255,255,255,.08)",
                             borderRadius: "8px",
-                            color: "primary.dark",
-                            backgroundColor: "primary.light",
+                            color: "#FFFFFF",
+                            backgroundColor: "primary.main",
                         }}
                     >
                         <StorefrontRoundedIcon sx={{ fontSize: 18 }} />

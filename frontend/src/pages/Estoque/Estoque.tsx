@@ -41,7 +41,7 @@ function codigoProduto(produto: Produto): string {
 }
 
 export default function Estoque() {
-    const [aba, setAba] = useState<"saldo" | "entradas">("saldo");
+    const [aba, setAba] = useState<"saldo" | "entradas">(() => new URLSearchParams(window.location.search).get("aba") === "entradas" ? "entradas" : "saldo");
     return <Stack spacing={2}>
         <Tabs value={aba} onChange={(_, valor) => setAba(valor)} aria-label="Área de estoque"
             sx={{ borderBottom: 1, borderColor: "divider" }}>

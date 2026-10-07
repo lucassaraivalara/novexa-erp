@@ -12,6 +12,9 @@ function AppHeader() {
     const sessao = obterSessao();
     const [logomarcaComErro, setLogomarcaComErro] = useState(false);
     const nomeUsuario = sessao?.nomeUsuario ?? "Usuário";
+    const noDashboard = location.pathname === "/dashboard";
+    const hora = new Date().getHours();
+    const saudacao = hora >= 5 && hora < 12 ? "Bom dia" : hora >= 12 && hora < 18 ? "Boa tarde" : "Boa noite";
     const nomeEmpresa = sessao?.empresa?.nomeFantasia?.trim() || sessao?.empresa?.razaoSocial?.trim() || "Empresa";
     const logomarcaEmpresa = sessao?.empresa?.logomarca;
     const mostrarLogomarca = !!logomarcaEmpresa && !logomarcaComErro;
@@ -36,26 +39,30 @@ function AppHeader() {
             sx={{
                 borderBottom: "1px solid",
                 borderColor: "divider",
-                borderRadius: 0,
+                borderRadius: noDashboard ? "8px" : 0,
                 boxShadow: "none",
                 backgroundColor: "background.paper",
+                m: noDashboard ? { xs: 1, md: 1.25 } : 0,
+                width: noDashboard ? "auto" : undefined,
             }}
         >
             <Toolbar
                 sx={{
-                    minHeight: `${layoutTokens.header.altura}px !important`,
+                    minHeight: `${noDashboard ? 60 : layoutTokens.header.altura}px !important`,
                     gap: { xs: 1, sm: 1.25 },
                     px: layoutTokens.header.paddingX,
                 }}
             >
-                <Typography
-                    variant="h6"
-                    component="h1"
-                    noWrap
-                    sx={{ flexGrow: 1, minWidth: 0, fontSize: "16px", fontWeight: 600, lineHeight: 1.3, color: "text.primary" }}
-                >
+                {noDashboard ? <Box sx={{ display: "flex", flexGrow: 1, minWidth: 0, flexDirection: "column", justifyContent: "center" }}>
+                    <Typography variant="h6" component="h1" noWrap sx={{ fontSize: { xs: 14, sm: 19 }, fontWeight: 700, lineHeight: 1.25, color: "text.primary" }}>
+                        {saudacao}, {nomeUsuario}! 👋
+                    </Typography>
+                    <Typography variant="body2" noWrap sx={{ display: { xs: "none", sm: "block" }, fontSize: 12, lineHeight: 1.25, color: "text.secondary" }}>
+                        Aqui está o que está acontecendo na sua loja hoje.
+                    </Typography>
+                </Box> : <Typography variant="h6" component="h1" noWrap sx={{ flexGrow: 1, minWidth: 0, fontSize: "16px", fontWeight: 700, lineHeight: 1.3, color: "text.primary" }}>
                     {tituloPagina}
-                </Typography>
+                </Typography>}
 
                 <Box
                     sx={{

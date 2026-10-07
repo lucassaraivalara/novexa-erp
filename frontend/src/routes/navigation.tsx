@@ -157,17 +157,17 @@ export const menuPrincipal: ItemMenu[] = [
             { tipo: "rota", id: "contas-pagar", titulo: "Contas a Pagar", rota: rotaContasPagar },
             { tipo: "rota", id: "recebiveis", rota: rotaRecebiveis },
             { tipo: "rota", id: "contas-financeiras", rota: rotaContasFinanceiras },
-            {
-                tipo: "grupo",
-                id: "configuracoes-financeiro",
-                titulo: "Configurações",
-                icone: <SettingsRoundedIcon />,
-                abertoInicialmente: true,
-                filhos: [
-                    { tipo: "rota", id: "formas-pagamento", rota: rotaFormasPagamento },
-                    { tipo: "rota", id: "dados-bancarios", rota: rotaDadosBancarios },
-                ],
-            },
+        ],
+    },
+    {
+        tipo: "grupo",
+        id: "configuracoes-financeiro",
+        titulo: "Configurações",
+        icone: <SettingsRoundedIcon />,
+        abertoInicialmente: true,
+        filhos: [
+            { tipo: "rota", id: "formas-pagamento", rota: rotaFormasPagamento },
+            { tipo: "rota", id: "dados-bancarios", rota: rotaDadosBancarios },
         ],
     },
     {

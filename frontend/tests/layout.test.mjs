@@ -64,6 +64,7 @@ test("Sidebar organiza tarefas, configuracoes e remove item indisponivel", () =>
     const nav = page.getByRole("navigation");
     assert.deepEqual(await nav.getByRole("link").allTextContents(), ["Dashboard","Vender","Central de Vendas","Clientes","Produtos","Estoque","Caixas","Contas a Pagar","Recebimentos de cartão","Contas e saldos","Formas de Pagamento","Dados Bancários","Empresas","Usuários"]);
     assert.equal(await nav.getByRole("button",{name:"Financeiro",exact:true}).getAttribute("aria-expanded"),"true");
+    assert.equal(await nav.getByRole("button",{name:"Configurações",exact:true}).getAttribute("aria-expanded"),"true");
     assert.equal(await nav.getByRole("button",{name:"Administra\u00e7\u00e3o",exact:true}).count(),1);
     const active = nav.getByRole("link",{name:"Clientes",exact:true});
     assert.equal(await active.getAttribute("aria-current"),"page");
@@ -194,6 +195,28 @@ test("AppHeader preserva titulo, empresa, usuario, iniciais e logout", () => wit
     assert.equal(await page.evaluate(() => localStorage.getItem("novexa-auth")),null);
 }));
 
+test("Dashboard usa identidade real, atalhos funcionais e não transborda nos breakpoints alvo", () => withLayout(async page => {
+    await mockCatalogs(page);
+    await page.goto(`${url}/dashboard?real`);
+    await page.getByRole("heading",{name:/Maria Silva/}).waitFor();
+    await page.getByText("Loja Novexa",{exact:true}).waitFor();
+    for (const [label,path] of [
+        [/Nova venda/,"/pdv"], [/Entrada de mercadoria/,"/estoque?aba=entradas"], [/Confirmar PIX/,"/vendas"], [/Pagar conta/,"/financeiro/contas-pagar"],
+    ]) assert.equal(await page.getByRole("link",{name:label}).getAttribute("href"),path);
+    await page.getByText("Nenhum caixa aberto no momento.").waitFor();
+    assert.equal(await page.getByRole("link",{name:"Abrir caixa",exact:true}).getAttribute("href"),"/financeiro/caixas");
+    for (const width of [1440,1024,390]) {
+        await page.setViewportSize({width,height:900});
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),true,`horizontal overflow at ${width}px`);
+        const rows = await page.locator('a[aria-label^="Nova venda"],a[aria-label^="Entrada de mercadoria"],a[aria-label^="Confirmar PIX"],a[aria-label^="Pagar conta"]').evaluateAll(links => new Set(links.map(link => Math.round(link.getBoundingClientRect().top))).size);
+        assert.equal(rows,2,`quick actions should remain 2x2 at ${width}px`);
+        if (process.env.NOVEXA_DASHBOARD_SCREENSHOTS) await page.screenshot({path:`node_modules/.vite-layout-tests/dashboard-${width}.png`,fullPage:true});
+    }
+    await page.getByRole("link",{name:/Entrada de mercadoria/}).click();
+    await page.waitForURL(`${url}/estoque?aba=entradas`);
+    assert.equal(await page.getByRole("tab",{name:"Entradas",exact:true}).getAttribute("aria-selected"),"true");
+}, {usuario:"Maria Silva",empresa:"Loja Novexa"}));
+
 test("AppHeader preserva logo e nomes longos com ellipsis e tooltip condicional", () => withLayout(async page => {
     const company = "Empresa com nome fantasia muito longo para testar truncamento visual sem perda de conteudo";
     const user = "Usuario com nome completo muito longo para verificar o tooltip do header";
@@ -219,7 +242,7 @@ test("MainLayout preserva Outlet e estrutura fluida nos tres breakpoints", () =>
             sidebar:document.querySelector('nav').getBoundingClientRect().width,padding:getComputedStyle(document.querySelector('main')).paddingLeft}));
         assert.ok(sizes.page <= width);
         assert.ok(sizes.header >= 64 && sizes.header <= 65);
-        assert.equal(sizes.sidebar,width < 600 ? 59 : 251);
+        assert.equal(sizes.sidebar,width < 600 ? 59 : 231);
         assert.equal(sizes.padding,width < 600 ? "16px" : "24px");
         assert.equal(await page.getByText("Loja Novexa",{exact:true}).isVisible(),width >= 900);
         assert.equal(await page.getByRole("button",{name:"Sair",exact:true}).isVisible(),true);
