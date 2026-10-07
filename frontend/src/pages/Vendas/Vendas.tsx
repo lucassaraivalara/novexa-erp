@@ -59,6 +59,7 @@ export default function Vendas() {
         } catch { return novoRascunho(); }
     });
     const [resultados, setResultados] = useState<Produto[]>([]);
+    const [buscaConcluida, setBuscaConcluida] = useState(false);
     const [configuracoes, setConfiguracoes] = useState<ConfiguracaoFormaPagamento[]>([]);
     const [carregandoConfig, setCarregandoConfig] = useState(true);
     const [erroConfig, setErroConfig] = useState("");
@@ -83,7 +84,7 @@ export default function Vendas() {
     const bloqueado = !sessaoCaixaResolvida || salvando || !!rascunho.pendente;
     const { term: busca, setTerm, loading, cancel, refresh } = useRemoteSearch<Produto>({
         enabled: !bloqueado, search: pesquisarProdutos,
-        onResults: lista => { setResultados(lista); setErroCatalogo(""); },
+        onResults: lista => { setResultados(lista); setBuscaConcluida(true); setErroCatalogo(""); },
         onError: e => { setResultados([]); setErroCatalogo(obterMensagemDaApi(e, "Não foi possível buscar os produtos.")); },
         onInvalidTerm: () => setResultados([]),
     });
@@ -96,7 +97,7 @@ export default function Vendas() {
 
     function setBusca(termo: string) {
         scannerRef.current?.abort(); scannerRef.current = null; setBuscandoCodigo(false);
-        setResultados([]); setErroCatalogo(""); setTerm(termo);
+        setResultados([]); setBuscaConcluida(false); setErroCatalogo(""); setTerm(termo);
     }
 
     async function adicionarPorCodigo() {
@@ -112,7 +113,7 @@ export default function Vendas() {
             if (controller.signal.aborted) return;
             const produto = encontrarProdutoPorCodigo(lista, termo);
             if (produto) adicionar(produto);
-            else { setResultados(lista); setListaAberta(true); setErro("Código exato não encontrado. Selecione o produto na lista."); }
+            else { setResultados(lista); setBuscaConcluida(true); setListaAberta(true); setErro("Código exato não encontrado. Selecione o produto na lista."); }
         } catch (e) {
             if (!controller.signal.aborted) setErroCatalogo(obterMensagemDaApi(e, "Não foi possível buscar os produtos."));
         } finally {
@@ -140,7 +141,8 @@ export default function Vendas() {
     useEffect(() => {
         const controller = new AbortController();
         listarConfiguracoesParaPDV(controller.signal)
-            .then(list => { if (!controller.signal.aborted) { setConfiguracoes(list.filter(c => c.ativo && ["DINHEIRO", "PIX", "DEBITO", "CREDITO"].includes(c.tipo))); setErroConfig(""); } })
+            .then(list => { if (!controller.signal.aborted) { setConfiguracoes(list.filter(c => c.ativo && ["DINHEIRO", "PIX", "DEBITO", "CREDITO"].includes(c.tipo)
+                && (c.tipo !== "PIX" || (c.contaFinanceiraDestino?.ativo && ["BANCO", "CARTEIRA_DIGITAL"].includes(c.contaFinanceiraDestino.tipo))))); setErroConfig(""); } })
             .catch(e => { if (!controller.signal.aborted) setErroConfig(obterMensagemDaApi(e, "Não foi possível carregar as configurações de pagamento.")); })
             .finally(() => { if (!controller.signal.aborted) setCarregandoConfig(false); });
         return () => controller.abort();
@@ -170,6 +172,9 @@ export default function Vendas() {
     }
     function adicionar(produto: Produto) {
         if (bloqueado) return;
+        if (produto.controlaEstoque && produto.estoqueAtual <= 0) {
+            setErro("Produto sem estoque disponível. Confira o estoque antes de vender."); return;
+        }
         if (rascunho.itens.length >= 200 && !rascunho.itens.some(i => i.produto.id === produto.id)) {
             setErro("O limite é de 200 produtos diferentes por venda."); return;
         }
@@ -201,7 +206,7 @@ export default function Vendas() {
         if (!rascunho.pendente && t.usaPrazo && !rascunho.cliente) {
             setErro("Selecione um cliente para vender a prazo."); setOpcional("cliente"); return;
         }
-        if (!rascunho.pendente && t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !p.configuracaoFormaPagamentoId)) {
+        if (!rascunho.pendente && t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))) {
             setErro("Selecione uma forma de pagamento válida.");
             return;
         }
@@ -242,6 +247,10 @@ export default function Vendas() {
             if (status && status >= 400 && status < 500 && ![408, 429].includes(status)) {
                 setRascunho(r => ({ ...r, pendente: null }));
                 mensagemFalha = obterMensagemDaApi(e, "Venda não concluída. Revise os dados e tente novamente.");
+                if (status === 409 && mensagemFalha.startsWith("Saldo insuficiente. Estoque atual:"))
+                    mensagemFalha = "Estoque insuficiente para concluir a venda. Confira as quantidades dos produtos.";
+                if (mensagemFalha === "Pagamento sem destino financeiro historico.")
+                    mensagemFalha = "Esta forma de pagamento PIX não possui uma conta de destino configurada.";
                 setErro(mensagemFalha);
                 if (status === 409) setResultados([]);
             } else {
@@ -330,6 +339,10 @@ export default function Vendas() {
                             <strong>{moeda(Math.round(p.precoVenda * 100))}</strong>
                         </Box>)}
                     </Box>}
+                    {listaAberta && busca.trim() && buscaConcluida && !carregando && !resultados.length && !erroCatalogo && !bloqueado &&
+                        <Box sx={{ position: "absolute", zIndex: 10, top: "100%", width: "100%", bgcolor: "background.paper", border: 1, borderColor: "divider", p: 1 }}>
+                            <Typography variant="body2" color="text.secondary">Nenhum produto encontrado.</Typography>
+                        </Box>}
                 </Box>
                 {erroCatalogo && <Alert severity="error" action={<Button onClick={() => { refresh(); focarBusca(); }}>Recarregar</Button>}>{erroCatalogo}</Alert>}
                 <Box sx={{ flex: 1, overflow: "auto", border: 1, borderColor: "divider", bgcolor: "background.paper", borderRadius: "10px", boxShadow: "0 1px 3px rgba(16,24,40,.06)" }}>
@@ -356,7 +369,7 @@ export default function Vendas() {
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Subtotal</span><span>{moeda(t.subtotal)}</span></Stack>
                 {!!t.desconto && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Desconto</span><span>− {moeda(t.desconto)}</span></Stack>}
                 {rascunho.cliente && <Typography variant="body2">Cliente: {rascunho.cliente.nome}</Typography>}
-                <Box><Typography variant="body2">Total a pagar</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 38, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
+                <Box><Typography variant="body2">Total da venda</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 38, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
                 <Divider />
                 <Typography variant="overline">Pagamento</Typography>
                 {carregandoConfig ? (
@@ -415,6 +428,8 @@ export default function Vendas() {
                                         onClick={() => alterar({ parcelasPrazo: rascunho.parcelasPrazo?.filter((_, posicao) => posicao !== indice) })}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>}
                                 </Stack>
                                 <TextField type="date" label={`Vencimento ${indice + 1}`} value={parcela.vencimento} disabled={bloqueado}
+                                    error={!/^\d{4}-\d{2}-\d{2}$/.test(parcela.vencimento) || Number.isNaN(Date.parse(parcela.vencimento))}
+                                    helperText={!parcela.vencimento ? "Informe o vencimento." : undefined}
                                     slotProps={{ inputLabel: { shrink: true } }} onChange={e => alterarParcelaPrazo(indice, { vencimento: e.target.value })} />
                                 <TextField label={`Valor da parcela ${indice + 1} (R$)`} value={parcela.valor === "" && t.parcelas.length === 1 && t.parcelasPrazo.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : parcela.valor}
                                     disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()}
@@ -441,15 +456,13 @@ export default function Vendas() {
                         </>}
                         </Stack>)}
                         <Button startIcon={<AddRoundedIcon />} disabled={bloqueado || t.parcelas.length >= 20} onClick={adicionarForma}>Adicionar forma</Button>
-                        {t.usaPrazo && <>
-                            <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Pago agora</span><Typography aria-label="Pago agora">{moeda(t.totalImediato)}</Typography></Stack>
-                            <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>A prazo</span><Typography aria-label="Valor a prazo">{moeda(t.totalPrazo)}</Typography></Stack>
-                        </>}
-                        <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Total informado</span><Typography aria-label="Total informado">{moeda(t.totalInformado)}</Typography></Stack>
-                        <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Restante</span><Typography aria-label="Restante" color={t.restante === 0 ? "text.primary" : "error"}>{moeda(t.restante)}</Typography></Stack>
+                        {t.parcelas.some(p => p.formaPagamento !== "A_PRAZO") && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Pago agora</span><Typography aria-label="Pago agora">{moeda(t.totalImediato)}</Typography></Stack>}
+                        {t.usaPrazo && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>A receber</span><Typography aria-label="A receber">{moeda(t.totalPrazo)}</Typography></Stack>}
+                        {t.restante !== 0 && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>{t.restante > 0 ? "Falta distribuir" : "Valor excedente"}</span><Typography aria-label={t.restante > 0 ? "Falta distribuir" : "Valor excedente"} color="error">{moeda(Math.abs(t.restante))}</Typography></Stack>}
                     </>
                 )}
-                <Button size="large" variant="contained" disableElevation disabled={!sessaoCaixaResolvida || salvando || carregandoConfig || (!rascunho.pendente && (!rascunho.itens.length || !t.valido || !t.pagamentosValidos || t.restante !== 0))} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
+                <Button size="large" variant="contained" disableElevation disabled={!sessaoCaixaResolvida || salvando || carregandoConfig || (!rascunho.pendente && (!rascunho.itens.length || !t.valido || !t.pagamentosValidos || t.restante !== 0
+                    || t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))))} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
                     {salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado · F2" : "Pagar · F2"}
                 </Button>
                 <Divider />

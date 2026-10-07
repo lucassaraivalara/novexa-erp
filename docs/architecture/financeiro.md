@@ -1,5 +1,11 @@
 FINANCEIRO NOVEXA
 
+## PIX - validacao operacional no faturamento
+
+PIX exige configuracaoFormaPagamentoId de configuracao ativa do tenant, com destino BANCO/CARTEIRA_DIGITAL ativo. Isso vale para pagamentos[] e para o payload singular legado; ausencia de configuracao/destino ou destino indisponivel retorna 409 antes de faturar. Historicos nao sao recalculados; confirmacao posterior continua usando o snapshot original, inclusive se o destino foi inativado depois da venda. O cadastro de configuracoes ja exige destino e permanece sem mudancas.
+
+No PDV, PIX invalido nao e oferecido e configuracao indisponivel no rascunho nao permite uma nova finalizacao. Totais distinguem Pago agora de A receber; Falta distribuir aparece apenas se nao zero. Adicionar forma preserva valores anteriores e inicializa a nova linha com o valor nao alocado (ou zero), sem redistribuicao.
+
 ## Venda a prazo - contrato integrado (Bloco 3)
 
 POST /vendas e POST /vendas/{id}/faturar aceitam pagamentos[] e parcelasPrazo[] separadamente. Exemplo de alocacao de R$200: pagamentos=[{configuracaoFormaPagamentoId:1,valor:50,valorRecebido:60}], parcelasPrazo=[{valor:75,vencimento:"2026-11-15"},{valor:75,vencimento:"2026-12-15"}]. Soma = totalEsperado; valores positivos com centavos exatos, vencimento obrigatorio e cliente ativo do tenant obrigatorio quando houver prazo. Pagamentos pode ser [] ou omitido na venda 100% a prazo; contrato singular legado continua aceito sem parcelasPrazo. Nao misturar campos singulares com listas.

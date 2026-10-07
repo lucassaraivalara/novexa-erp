@@ -24,6 +24,59 @@ class VendaPrazoHttpTest extends VendaHttpTest {
 
     @AfterEach void limparSpiesPrazo() { reset(contasReceber, financeiroService); }
 
+    @Test void pixPdvSemConfiguracaoRejeitaAntesDoFaturamento() throws Exception {
+        var p = pedidoPrazo("");
+        p.remove("parcelasPrazo"); p.remove("pagamentos");
+        p.put("formaPagamento", "PIX"); p.put("valorRecebido", 20);
+        mvc.perform(post("/vendas").header("Authorization", authorization).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(p))).andExpect(status().isConflict())
+                .andExpect(content().string("Configure uma conta financeira de destino para esta forma de pagamento PIX."));
+        assertThat(vendas.count()).isZero(); assertThat(pagamentos.count()).isZero();
+        assertThat(movimentos.count()).isZero(); assertThat(movimentosFinanceiros.count()).isZero();
+    }
+
+    @Test void pixPdvDestinoInativoRejeitaMistoSemEfeitos() throws Exception {
+        var p = pedidoPrazo("1,2");
+        var destino = contasFinanceiras.findAll().getFirst();
+        destino.situacao(false); contasFinanceiras.saveAndFlush(destino);
+        enviarPrazo(p, 409);
+        assertThat(vendas.count()).isZero(); assertThat(pagamentos.count()).isZero();
+        assertThat(contasReceber.count()).isZero(); assertThat(movimentosCaixa.count()).isZero();
+        assertThat(movimentos.count()).isZero(); assertThat(movimentosFinanceiros.count()).isZero();
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+    }
+
+    @Test void pixPdvConfiguracaoOutroTenantRejeitaSemEfeitos() throws Exception {
+        var p = pedidoPrazo("2");
+        var destino = contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(outra, "Banco externo", TipoContaFinanceira.BANCO, BigDecimal.ZERO));
+        var config = configuracoes.saveAndFlush(new ConfiguracaoFormaPagamentoEmpresaEntity(outra, catalogo.findById(2L).orElseThrow(), "PIX externo", true, destino));
+        p.put("pagamentos", List.of(Map.of("configuracaoFormaPagamentoId", config.getId(), "valor", 2)));
+        enviarPrazo(p, 404);
+        assertThat(vendas.count()).isZero(); assertThat(pagamentos.count()).isZero(); assertThat(movimentos.count()).isZero();
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void pixPdvValidoSoMovimentaFinanceiroNaConfirmacao(boolean dinheiro) throws Exception {
+        var p = pedidoPrazo(dinheiro ? "1,2" : "2");
+        p.remove("parcelasPrazo");
+        long pix = configuracoes.findAll().stream().filter(c -> c.getTipo() == TipoFormaPagamento.PIX).findFirst().orElseThrow().getId();
+        if (dinheiro) {
+            long caixa = configuracoes.findAll().stream().filter(c -> c.getTipo() == TipoFormaPagamento.DINHEIRO).findFirst().orElseThrow().getId();
+            p.put("pagamentos", List.of(Map.of("configuracaoFormaPagamentoId", caixa, "valor", 10, "valorRecebido", 11),
+                    Map.of("configuracaoFormaPagamentoId", pix, "valor", 10)));
+        } else p.put("pagamentos", List.of(Map.of("configuracaoFormaPagamentoId", pix, "valor", 20)));
+        enviarPrazo(p, 201);
+        assertThat(movimentosFinanceiros.count()).isZero(); assertThat(contasReceber.count()).isZero();
+        assertThat(movimentosCaixa.count()).isEqualTo(dinheiro ? 1 : 0);
+        var pagamento = pagamentos.findAll().stream().filter(pg -> pg.getFormaPagamento() == FormaPagamento.PIX).findFirst().orElseThrow();
+        segundo.setPerfil(PerfilUsuario.ADMIN); segundo = usuarios.saveAndFlush(segundo);
+        String token = "Bearer " + jwt.gerarToken(segundo);
+        for (int i = 0; i < 2; i++) mvc.perform(post("/financeiro/pagamentos/" + pagamento.getId() + "/confirmar-recebimento")
+                .header("Authorization", token)).andExpect(status().isOk());
+        assertThat(movimentosFinanceiros.count()).isEqualTo(1);
+        assertThat(movimentosFinanceiros.findAll().getFirst().getValor()).isEqualByComparingTo(dinheiro ? "10" : "20");
+    }
+
     @ParameterizedTest @ValueSource(strings = {"", "1", "2", "3", "4", "1,2,4"})
     void prazoProcessaMistoSemPagamentoOuMovimentoParaDivida(String formas) throws Exception {
         var p = pedidoPrazo(formas);

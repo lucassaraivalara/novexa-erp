@@ -10,6 +10,14 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## PDV: correcoes funcionais antes do redesign (2026-10-07)
+
+Reproduzidos faturamento PIX sem configuracao seguido de falha tardia na confirmacao e aceite de PIX com destino inativo. Novas vendas PIX agora exigem configuracao ativa com destino BANCO/CARTEIRA_DIGITAL ativo do tenant; payload singular legado sem configuracao retorna 409. Historico, retry e confirmacao pelo snapshot original permanecem, inclusive com inativacao posterior. Cadastro de configuracao ja exigia destino, sem alteracao adicional.
+
+PDV omite PIX sabidamente invalido, impede nova finalizacao com configuracao indisponivel e distingue Total da venda, Pago agora, A receber e Falta distribuir (ou Valor excedente). A preservacao de valores ao adicionar/remover formas e a solicitacao imediata de cliente para A prazo ja existiam: mantidas e cobertas por testes. Vencimento obrigatorio tem erro inline; busca sem resultados e erros reais de estoque/PIX possuem feedback especifico. Backend ja proibia saida com saldo negativo; frontend impede adicionar produto controlado com saldo zero, sem bloquear produto sem controle de estoque. Nenhuma regra nova de estoque, alteracao de cancelamento/locks/idempotencia ou redesign.
+
+Validacao direcionada: 107 testes backend (100 HTTP/H2 e 7 unitarios), 14 cenarios PostgreSQL 18.6 em schema descartavel com Flyway V1-V36/Hibernate validate e 39 testes frontend do PDV, incluindo scanner e valores mistos. Package backend, TypeScript/build, lint direcionado e diff check aprovados; estados de busca/validacao e pagamento conferidos em navegador com HTTP simulado, desktop/mobile. Sem suite completa, E2E geral ou nova migration. Contrato/regras em [financeiro.md](financeiro.md) e [FINANCEIRO_RULES.md](FINANCEIRO_RULES.md).
+
 ## Venda a prazo integrada ao PDV - Bloco 3 (2026-10-07)
 
 Venda aloca pagamentos imediatos + parcelasPrazo com soma exata; cliente ativo do tenant e obrigatorio quando houver prazo. Cada parcela gera ContaReceber VENDA_A_PRAZO/PENDENTE com vencimento, vendaId e sequencia 1..N/N, sem PagamentoEntity ou dinheiro na criacao. Venda permanece FATURADA; Caixa/PIX/cartao e estoque reutilizam os fluxos existentes numa transacao unica. Retry nao duplica parcelas, pagamentos ou estoque.

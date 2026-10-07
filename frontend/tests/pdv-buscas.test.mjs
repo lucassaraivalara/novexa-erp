@@ -55,17 +55,21 @@ async function abrir() {
         if (u.pathname === "/financeiro/caixas/sessoes/abertas") dados = [{ sessaoId: 10 }];
         else if (u.pathname === "/financeiro/configuracoes-formas-pagamento") dados = [
             { id: 1, tipo: "DINHEIRO", nomeExibicao: "Dinheiro", ativo: true },
-            { id: 2, tipo: "PIX", nomeExibicao: "PIX Loja", ativo: true },
+            { id: 2, tipo: "PIX", nomeExibicao: "PIX Loja", ativo: true, contaFinanceiraDestino: { id: 3, ativo: true, tipo: "BANCO" } },
+            { id: 6, tipo: "PIX", nomeExibicao: "PIX sem destino", ativo: true, contaFinanceiraDestino: null },
+            { id: 7, tipo: "PIX", nomeExibicao: "PIX destino inativo", ativo: true, contaFinanceiraDestino: { id: 4, ativo: false, tipo: "BANCO" } },
+            { id: 8, tipo: "PIX", nomeExibicao: "PIX destino incompatível", ativo: true, contaFinanceiraDestino: { id: 5, ativo: true, tipo: "CAIXA" } },
             { id: 4, tipo: "CREDITO", nomeExibicao: "Crédito Loja", ativo: true },
             { id: 5, tipo: "CREDITO", nomeExibicao: "Cartão inativo", ativo: false },
         ];
         else if (u.pathname.endsWith("/buscar")) {
             if (estado.atrasar && registro.termo === "antiga") await new Promise(r => setTimeout(r, 1000));
             if (estado.atrasarScanner && registro.termo === "7890001") await new Promise(r => setTimeout(r, 700));
-            dados = u.pathname === "/produtos/buscar" ? [produto(registro.termo === "antiga" ? "Resposta antiga" : "Produto remoto", registro.termo === "1" ? "1" : "P1")]
+            dados = u.pathname === "/produtos/buscar" ? (estado.semResultados ? [] : [{ ...produto(registro.termo === "antiga" ? "Resposta antiga" : "Produto remoto", registro.termo === "1" ? "1" : "P1"),
+                controlaEstoque: estado.controlaEstoque ?? true, estoqueAtual: estado.estoqueAtual ?? 100 }])
                 : [cliente(registro.termo === "antiga" ? "Cliente antigo" : "Cliente remoto")];
         } else if (u.pathname === "/vendas" && req.method() === "POST") {
-            if (estado.erroVenda) return route.fulfill({status:estado.erroVenda,headers:cors,contentType:"application/json",body:JSON.stringify({detail:"A soma dos pagamentos deve corresponder ao total da venda."})});
+            if (estado.erroVenda) return route.fulfill({status:estado.erroVenda,headers:cors,contentType:"application/json",body:JSON.stringify({detail:estado.mensagemErro ?? "A soma dos pagamentos deve corresponder ao total da venda."})});
             dados = { id: 20, total: 10, troco: 0 };
         }
         else throw new Error(`HTTP inesperado: ${u.pathname}`);
@@ -220,6 +224,11 @@ test("A prazo abre cliente existente, bloqueia sem cliente e envia somente parce
     try {
         await adicionarCem(page, busca);
         await grupoPagamento(page, 1).getByRole("combobox").selectOption("A_PRAZO");
+        await page.getByText("Selecione um cliente para vender a prazo.", { exact: true }).waitFor();
+        assert.equal(await page.getByRole("combobox", { name: "Cliente (opcional)" }).evaluate(el => el === document.activeElement), true);
+        assert.equal(await page.getByLabel("Vencimento 1", { exact: true }).getAttribute("aria-invalid"), "true");
+        await page.getByText("Informe o vencimento.", { exact: true }).waitFor();
+        await page.screenshot({ path: "node_modules/.vite-pdv-buscas-tests/prazo-validacao.png", fullPage: true });
         await page.getByLabel("Vencimento 1", { exact: true }).fill("2026-11-15");
         assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), false);
         assert.equal(await page.getByLabel("Valor recebido (R$)").count(), 0);
@@ -255,8 +264,8 @@ test("dinheiro com duas parcelas a prazo mostra soma e troco distintos e preserv
         await page.getByLabel("Vencimento 2", { exact: true }).fill("2026-12-15");
         assert.equal(await page.getByLabel("Valor da parcela 2 (R$)").inputValue(), "30.00");
         assert.match(await page.getByLabel("Pago agora", { exact: true }).innerText(), /40,00/);
-        assert.match(await page.getByLabel("Valor a prazo", { exact: true }).innerText(), /60,00/);
-        assert.match(await page.getByLabel("Total informado", { exact: true }).innerText(), /100,00/);
+        assert.match(await page.getByLabel("A receber", { exact: true }).innerText(), /60,00/);
+        assert.equal(await page.getByLabel("Falta distribuir", { exact: true }).count(), 0);
         assert.match(await grupoPagamento(page, 1).innerText(), /10,00/);
         for (const width of [1440, 390]) {
             await page.setViewportSize({ width, height: 900 });
@@ -296,6 +305,86 @@ test("cartao + prazo permite editar/remover parcelas e preserva cliente/vencimen
 });
 const grupoPagamento = (page, numero) => page.getByRole("group", { name: `Pagamento ${numero}`, exact: true });
 
+test("PIX invalido nao e oferecido; valores manuais sobrevivem a terceira forma e remocao", async () => {
+    const { page, busca } = await abrir();
+    try {
+        for (const nome of ["PIX sem destino", "PIX destino inativo", "PIX destino incompatível"])
+            assert.equal(await page.getByRole("option", { name: nome, exact: true }).count(), 0);
+        assert.equal(await page.getByRole("option", { name: "PIX Loja", exact: true }).count(), 1);
+        await adicionarCem(page, busca);
+        await grupoPagamento(page, 1).getByLabel("Valor aplicado (R$)").fill("30");
+        await page.getByRole("button", { name: "Adicionar forma" }).click();
+        await grupoPagamento(page, 2).getByRole("combobox").selectOption("2");
+        assert.equal(await grupoPagamento(page, 2).getByLabel("Valor aplicado (R$)").inputValue(), "70.00");
+        await grupoPagamento(page, 2).getByLabel("Valor aplicado (R$)").fill("40");
+        await page.getByRole("button", { name: "Adicionar forma" }).click();
+        await grupoPagamento(page, 3).getByRole("combobox").selectOption("4");
+        assert.equal(await grupoPagamento(page, 1).getByLabel("Valor aplicado (R$)").inputValue(), "30");
+        assert.equal(await grupoPagamento(page, 2).getByLabel("Valor aplicado (R$)").inputValue(), "40");
+        assert.equal(await grupoPagamento(page, 3).getByLabel("Valor aplicado (R$)").inputValue(), "30.00");
+        await page.getByRole("button", { name: "Adicionar forma" }).click();
+        assert.equal(await grupoPagamento(page, 4).getByLabel("Valor aplicado (R$)").inputValue(), "0.00");
+        await page.getByRole("button", { name: "Remover pagamento 4" }).click();
+        await page.getByRole("button", { name: "Remover pagamento 3" }).click();
+        assert.equal(await grupoPagamento(page, 1).getByLabel("Valor aplicado (R$)").inputValue(), "30");
+        assert.equal(await grupoPagamento(page, 2).getByLabel("Valor aplicado (R$)").inputValue(), "40");
+        assert.match(await page.getByLabel("Falta distribuir", { exact: true }).innerText(), /30,00/);
+    } finally { await page.close(); }
+});
+
+test("busca vazia mostra feedback contextual e saldo zero respeita controle de estoque", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        estado.semResultados = true; await busca.fill("Inexistente");
+        await page.getByText("Nenhum produto encontrado.", { exact: true }).waitFor();
+        await page.screenshot({ path: "node_modules/.vite-pdv-buscas-tests/busca-sem-resultados.png", fullPage: true });
+        await busca.fill(""); assert.equal(await page.getByText("Nenhum produto encontrado.", { exact: true }).count(), 0);
+        estado.semResultados = false; estado.estoqueAtual = 0;
+        await busca.fill("Produto"); await page.getByRole("listbox").getByRole("option").click();
+        await page.getByText("Produto sem estoque disponível. Confira o estoque antes de vender.", { exact: true }).waitFor();
+        assert.equal(await page.getByLabel("Quantidade de Produto remoto").count(), 0);
+        estado.controlaEstoque = false;
+        await busca.fill("P1"); await busca.press("Enter");
+        await page.getByLabel("Quantidade de Produto remoto").waitFor();
+        assert.equal(await page.getByLabel("Quantidade de Produto remoto").inputValue(), "1");
+    } finally { await page.close(); }
+});
+
+test("erros reais de PIX e estoque recebem mensagem acionavel sem inventar conflito generico", async () => {
+    for (const [detail, mensagem] of [
+        ["Pagamento sem destino financeiro historico.", "Esta forma de pagamento PIX não possui uma conta de destino configurada."],
+        ["Saldo insuficiente. Estoque atual: 0, quantidade solicitada: 10", "Estoque insuficiente para concluir a venda. Confira as quantidades dos produtos."],
+        ["Venda já faturada com outra requisição.", "Venda já faturada com outra requisição."],
+    ]) {
+        const { page, estado, busca } = await abrir();
+        try {
+            await adicionarCem(page, busca); estado.erroVenda = 409; estado.mensagemErro = detail;
+            await page.getByRole("button", { name: "Pagar · F2" }).click();
+            await page.getByRole("dialog").getByText(mensagem, { exact: true }).waitFor();
+            await page.getByRole("button", { name: "Voltar à venda" }).click();
+            assert.equal(await page.getByLabel("Quantidade de Produto remoto").inputValue(), "10");
+        } finally { await page.close(); }
+    }
+});
+
+test("PIX com prazo mantém valores e vencimento obrigatório antes de finalizar", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        await adicionarCem(page, busca); await grupoPagamento(page, 1).getByRole("combobox").selectOption("2");
+        await grupoPagamento(page, 1).getByLabel("Valor aplicado (R$)").fill("40");
+        await page.getByRole("button", { name: "Adicionar forma" }).click();
+        await grupoPagamento(page, 2).getByRole("combobox").selectOption("A_PRAZO"); await selecionarClientePrazo(page);
+        assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), false);
+        assert.equal(await page.getByLabel("Vencimento 1", { exact: true }).getAttribute("aria-invalid"), "true");
+        await page.getByLabel("Vencimento 1", { exact: true }).fill("2026-11-15");
+        assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), true);
+        await page.getByRole("button", { name: "Pagar · F2" }).click(); await esperar(() => estado.requests.some(r => r.path === "/vendas"));
+        const pedido = JSON.parse(estado.requests.find(r => r.path === "/vendas").body);
+        assert.deepEqual(pedido.pagamentos, [{ configuracaoFormaPagamentoId: 2, valor: 40 }]);
+        assert.deepEqual(pedido.parcelasPrazo, [{ valor: 60, vencimento: "2026-11-15" }]);
+    } finally { await page.close(); }
+});
+
 test("pagamento unico automatico envia uma parcela e nao apresenta configuracao inativa", async () => {
     const { page, estado, busca } = await abrir();
     try {
@@ -325,8 +414,8 @@ test("dinheiro PIX credito envia parcelas, mostra troco sem somar recebido e cab
         await page.getByRole("button", { name: "Adicionar forma" }).click();
         await grupoPagamento(page, 3).getByRole("combobox").selectOption("4");
         assert.equal(await grupoPagamento(page, 3).getByLabel("Valor aplicado (R$)").inputValue(), "30.00");
-        assert.match(await page.getByLabel("Total informado", { exact: true }).innerText(), /100,00/);
-        assert.match(await page.getByLabel("Restante", { exact: true }).innerText(), /0,00/);
+        assert.match(await page.getByLabel("Pago agora", { exact: true }).innerText(), /100,00/);
+        assert.equal(await page.getByLabel("Falta distribuir", { exact: true }).count(), 0);
         assert.match(await grupoPagamento(page, 1).innerText(), /10,00/);
         assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), true);
         for (const width of [1440, 390]) {
@@ -359,9 +448,10 @@ test("editar/remover formas bloqueia diferenca no total e evita configuracao rep
         assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), true);
         await grupoPagamento(page, 2).getByLabel("Valor aplicado (R$)").fill("61");
         assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), false);
+        assert.match(await page.getByLabel("Valor excedente", { exact: true }).innerText(), /1,00/);
         await page.getByRole("button", { name: "Remover pagamento 2" }).click();
         assert.equal(await page.getByRole("group", { name: "Pagamento 2", exact: true }).count(), 0);
-        assert.match(await page.getByLabel("Restante", { exact: true }).innerText(), /60,00/);
+        assert.match(await page.getByLabel("Falta distribuir", { exact: true }).innerText(), /60,00/);
         await page.getByLabel("Valor aplicado (R$)").fill("100");
         assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), true);
     } finally { await page.close(); }

@@ -56,7 +56,11 @@ public class PagamentoService {
 
     @Transactional(propagation = Propagation.MANDATORY)
     ConfiguracaoFormaPagamentoEmpresaEntity resolverConfiguracao(Long id, Long empresaId, FormaPagamentoEntity forma) {
-        if (id == null) return null;
+        if (id == null) {
+            if (forma != null && forma.getTipo() == br.com.novexa.erp.entity.TipoFormaPagamento.PIX)
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Configure uma conta financeira de destino para esta forma de pagamento PIX.");
+            return null;
+        }
         // Mantem a configuracao estavel ate o commit, inclusive diante de inativacao concorrente.
         var configuracao = configuracoes.buscarParaAtualizar(id, empresaId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Configuracao de pagamento nao encontrada."));
@@ -64,6 +68,15 @@ public class PagamentoService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Configuracao de pagamento inativa.");
         if (forma != null && configuracao.getTipo() != forma.getTipo())
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Configuracao incompativel com o tipo da forma de pagamento.");
+        if (configuracao.getTipo() == br.com.novexa.erp.entity.TipoFormaPagamento.PIX) {
+            var destino = configuracao.getContaFinanceiraDestino();
+            if (destino == null)
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Configure uma conta financeira de destino para esta forma de pagamento PIX.");
+            if (!destino.isAtivo() || !destino.getEmpresa().getId().equals(empresaId)
+                    || (destino.getTipo() != br.com.novexa.erp.entity.TipoContaFinanceira.BANCO
+                        && destino.getTipo() != br.com.novexa.erp.entity.TipoContaFinanceira.CARTEIRA_DIGITAL))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "A conta financeira de destino desta forma de pagamento PIX esta indisponivel. Revise a configuracao.");
+        }
         if (configuracao.getTipo() == br.com.novexa.erp.entity.TipoFormaPagamento.DEBITO
                 || configuracao.getTipo() == br.com.novexa.erp.entity.TipoFormaPagamento.CREDITO) {
             var destino = configuracao.getContaFinanceiraDestino();

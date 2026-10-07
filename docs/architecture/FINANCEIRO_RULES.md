@@ -1,5 +1,11 @@
 # Regras oficiais do Financeiro
 
+## PIX antes do faturamento
+
+- Nova venda com PIX exige configuracao empresarial ativa com destino BANCO/CARTEIRA_DIGITAL ativo do mesmo tenant. Vale tambem para o payload singular legado: PIX sem configuracao retorna 409 antes dos efeitos de Venda/estoque/pagamentos. Cadastro ja exige destino; faturamento revalida sua disponibilidade.
+- Leitura e retry historicos permanecem; inativacao do destino depois do faturamento nao redireciona nem impede a confirmacao historica existente. PIX continua sem credito automatico: somente confirmar recebimento gera o movimento financeiro.
+- PDV omite PIX sabidamente invalido, preserva alocacoes editadas ao adicionar/remover formas e mostra Total da venda, Pago agora, A receber e Falta distribuir somente quando ha diferenca. Cliente e solicitado ao escolher A prazo; vencimento obrigatorio tem feedback inline. Nao altera regras de Caixa, cartao, prazo ou cancelamento.
+
 ## Venda a prazo - Bloco 3
 
 - Faturamento aloca o total em pagamentos imediatos + parcelasPrazo, com soma exata em centavos. Uma venda pode ser 100% a prazo; cliente ativo do tenant e obrigatorio. A prazo e opcao sistemica do PDV, nunca configuracao financeira nem PagamentoEntity.

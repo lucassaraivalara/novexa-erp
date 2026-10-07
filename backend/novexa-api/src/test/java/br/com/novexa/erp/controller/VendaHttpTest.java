@@ -450,6 +450,7 @@ class VendaHttpTest {
     @ValueSource(strings = {"PIX", "CARTAO_DEBITO", "CARTAO_CREDITO"})
     void registraFormaEPagamentoSemLancamentoLegado(String forma) throws Exception {
         var pedido = pedido(); pedido.put("formaPagamento", forma);
+        if (forma.equals("PIX")) pedido.put("configuracaoFormaPagamentoId", configuracao(empresa, 2, true).getId());
         enviar(pedido);
         assertThat(financeiro.count()).isZero();
         assertThat(pagamentos.findAll()).singleElement().satisfies(pagamento -> {
@@ -877,6 +878,7 @@ class VendaHttpTest {
         var pedido = pedido();
         pedido.remove("formaPagamento");
         pedido.put("formaPagamentoId", formaId);
+        if (formaId == 2) pedido.put("configuracaoFormaPagamentoId", configuracao(empresa, 2, true).getId());
         long id = enviar(pedido);
         var pagamento = pagamentos.findAll().getFirst();
         assertThat(pagamento.getForma().getId()).isEqualTo(formaId);
@@ -892,6 +894,7 @@ class VendaHttpTest {
     void formaCriadaPodeSerUsadaEHistoricoRetrySobrevivemAInativacao() throws Exception {
         long formaId = formas.criar(new FormaPagamentoRequestDTO("PIX Alternativo", TipoFormaPagamento.PIX, true)).id();
         var pedido = pedido(); pedido.remove("formaPagamento"); pedido.put("formaPagamentoId", formaId);
+        pedido.put("configuracaoFormaPagamentoId", configuracao(empresa, formaId, true).getId());
         long id = enviar(pedido);
         formas.atualizar(formaId, new FormaPagamentoRequestDTO("PIX renomeado", TipoFormaPagamento.PIX, false));
         assertThat(enviar(pedido)).isEqualTo(id);
@@ -925,6 +928,7 @@ class VendaHttpTest {
     void vendaAbertaFaturaComFormaIdEPreservaRetry() throws Exception {
         long id = abrir(); adicionar(id, produto.getId(), 2);
         var pedido = pagamento(); pedido.remove("formaPagamento"); pedido.put("formaPagamentoId", 2);
+        pedido.put("configuracaoFormaPagamentoId", configuracao(empresa, 2, true).getId());
         for (int tentativa = 0; tentativa < 2; tentativa++) {
             mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
                     .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pedido)))
@@ -1068,7 +1072,11 @@ class VendaHttpTest {
 
     @Test void vendaGlobalSemConfiguracaoContinuaLegivel() throws Exception {
         var p = pedido(); p.remove("formaPagamento"); p.put("formaPagamentoId", 2L);
+        var config = configuracao(empresa, 2, true);
+        p.put("configuracaoFormaPagamentoId", config.getId());
         long id = enviar(p);
+        jdbc.update("update pagamentos set configuracao_forma_pagamento_id=null, configuracao_nome_exibicao=null, configuracao_tipo=null, configuracao_conta_financeira_destino_id=null, configuracao_conta_financeira_destino_nome=null where venda_id=?", id);
+        jdbc.update("update vendas set configuracao_forma_pagamento_id=null where id=?", id);
         mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, authorization))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.configuracaoFormaPagamentoId").doesNotExist());
         mvc.perform(get("/vendas/" + id + "/pagamentos").header(HttpHeaders.AUTHORIZATION, authorization))
