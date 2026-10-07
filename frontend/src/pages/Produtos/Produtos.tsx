@@ -68,7 +68,7 @@ function Produtos() {
                     setProdutos(resposta.items); setTotalItems(resposta.totalItems); setErroCarregamento("");
                     if (pagina > 0 && !resposta.items.length) setPagina(Math.max(0, resposta.totalPages - 1));
                 })
-                .catch(e => { if (!controller.signal.aborted) setErroCarregamento(obterMensagemDaApi(e, "Não foi possível carregar os produtos.")); })
+                .catch(e => { if (!controller.signal.aborted) setErroCarregamento(obterMensagemDaApi(e, "Não foi possível carregar os produtos. Verifique a conexão ou tente novamente.")); })
                 .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
         }, termoLocal.trim() ? 350 : 0);
         return () => { clearTimeout(timer); controller.abort(); };
@@ -95,7 +95,7 @@ function Produtos() {
         try {
             setProdutoEmEdicao(await buscarProdutoPorId(produto.id));
         } catch (erro) {
-            setErroFormulario(obterMensagemDaApi(erro, "Não foi possível carregar o produto."));
+            setErroFormulario(obterMensagemDaApi(erro, "Não foi possível carregar os dados do produto. Verifique a conexão ou tente novamente."));
         } finally {
             setCarregandoProduto(false);
         }

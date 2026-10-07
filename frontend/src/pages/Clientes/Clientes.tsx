@@ -63,7 +63,7 @@ export default function Clientes() {
                     if (pagina > 0 && resposta.items.length === 0) setPagina(Math.max(0, resposta.totalPages - 1));
                 })
                 .catch((e) => {
-                    if (!controller.signal.aborted) setErro(mensagemCliente(e, "Não foi possível carregar os clientes."));
+                    if (!controller.signal.aborted) setErro(mensagemCliente(e, "Não foi possível carregar os clientes. Verifique a conexão ou tente novamente."));
                 })
                 .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
         }, busca.trim() ? 350 : 0);
@@ -89,7 +89,7 @@ export default function Clientes() {
         try {
             setEdicao(await buscarCliente(c.id));
         } catch (e) {
-            setErro(mensagemCliente(e, "Não foi possível abrir o cliente."));
+            setErro(mensagemCliente(e, "Não foi possível carregar os dados do cliente. Verifique a conexão ou tente novamente."));
         } finally {
             setAbrindo(null);
         }
@@ -119,8 +119,8 @@ export default function Clientes() {
     );
 
     const colunas: Coluna<ClienteTabela>[] = [
-        { campo: "id", cabecalho: "Código", largura: 100, pesquisavel: true, ordenavel: true },
         { campo: "nome", cabecalho: "Nome / Razão social", largura: 280, pesquisavel: true, ordenavel: true, render: renderNome },
+        { campo: "id", cabecalho: "Código", largura: 100, pesquisavel: true, ordenavel: true },
         { campo: "nomeFantasia", cabecalho: "Nome fantasia", largura: 200, pesquisavel: true, ordenavel: true, render: renderSimples },
         { campo: "cpfCnpj", cabecalho: "CPF/CNPJ", largura: 180, pesquisavel: true, ordenavel: true, render: renderSimples },
         { campo: "cidadeUf", cabecalho: "Cidade / UF", largura: 200, pesquisavel: true, ordenavel: true, render: renderCidadeUf },
@@ -144,7 +144,7 @@ export default function Clientes() {
             <PageHeader
                 titulo="Clientes"
                 descricao="Cadastros, contatos e condições comerciais em um só lugar."
-                acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setEdicao(null)}>Novo Cliente</Button>}
+                acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setEdicao(null)}>Novo cliente</Button>}
             />
 
             {erro && (
@@ -185,8 +185,8 @@ export default function Clientes() {
                     carregando={carregando}
                     obterChaveLinha={(c) => c.id}
                     vazio={{
-                        titulo: busca || situacao !== "todos" ? "Nenhum cliente encontrado para os filtros selecionados." : "Nenhum cliente cadastrado",
-                        descricao: busca || situacao !== "todos" ? "Tente ajustar os filtros." : "Comece em Novo Cliente.",
+                        titulo: busca || situacao !== "todos" ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado",
+                        descricao: busca || situacao !== "todos" ? "Tente ajustar a busca ou os filtros." : "Use “Novo cliente” para começar.",
                     }}
                     acoes={acoes}
                     ordenacaoRemota

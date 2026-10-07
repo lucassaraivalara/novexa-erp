@@ -47,7 +47,7 @@ export default function Fornecedores() {
                     setFornecedores(resposta.items); setTotalItems(resposta.totalItems); setErro("");
                     if (pagina > 0 && !resposta.items.length) setPagina(Math.max(0, resposta.totalPages - 1));
                 })
-                .catch((e) => { if (!controller.signal.aborted) setErro(mensagemFornecedor(e, "Não foi possível carregar os fornecedores.")); })
+                .catch((e) => { if (!controller.signal.aborted) setErro(mensagemFornecedor(e, "Não foi possível carregar os fornecedores. Verifique a conexão ou tente novamente.")); })
                 .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
         }, busca.trim() ? 350 : 0);
         return () => { clearTimeout(timer); controller.abort(); };
@@ -55,7 +55,7 @@ export default function Fornecedores() {
 
     async function abrirEdicao(fornecedor: FornecedorCompleto) {
         try { setFormulario({ fornecedor: await buscarFornecedorPorId(fornecedor.id) }); }
-        catch (e) { setNotificacao({ mensagem: mensagemFornecedor(e, "Não foi possível carregar o fornecedor."), tipo: "error" }); }
+        catch (e) { setNotificacao({ mensagem: mensagemFornecedor(e, "Não foi possível carregar os dados do fornecedor. Verifique a conexão ou tente novamente."), tipo: "error" }); }
     }
 
     async function executar(acao: () => Promise<unknown>, sucesso: string, falha: string) {
