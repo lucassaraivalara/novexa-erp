@@ -65,11 +65,11 @@ export default function Vendas() {
     const [erroConfig, setErroConfig] = useState("");
     const [listaAberta, setListaAberta] = useState(false);
     const [indice, setIndice] = useState(0);
-    const resultadoNavegadoRef = useRef(false);
     const [selecionado, setSelecionado] = useState<number | null>(null);
     const [opcional, setOpcional] = useState<Opcional>(null);
     const [erro, setErro] = useState("");
     const [erroCatalogo, setErroCatalogo] = useState("");
+    const [avisoBusca, setAvisoBusca] = useState("");
     const [buscandoCodigo, setBuscandoCodigo] = useState(false);
     const scannerRef = useRef<AbortController | null>(null);
     const [salvando, setSalvando] = useState(false);
@@ -98,26 +98,27 @@ export default function Vendas() {
     }, [bloqueado, cancel]);
 
     function setBusca(termo: string) {
-        resultadoNavegadoRef.current = false;
         scannerRef.current?.abort(); scannerRef.current = null; setBuscandoCodigo(false);
-        setResultados([]); setBuscaConcluida(false); setErroCatalogo(""); setTerm(termo);
+        setResultados([]); setBuscaConcluida(false); setErroCatalogo(""); setAvisoBusca(""); setIndice(0); setTerm(termo);
     }
 
     async function adicionarPorCodigo() {
         const termo = busca.trim();
-        if (!termo || bloqueado || scannerRef.current) return;
+        if (bloqueado || scannerRef.current) return;
+        if (!termo) { setAvisoBusca("Digite o nome ou código do produto."); return; }
         cancel();
         const encontrado = encontrarProdutoPorCodigo(resultados, termo);
         if (encontrado) { adicionar(encontrado); return; }
-        if (listaAberta && resultadoNavegadoRef.current && resultados[indice]) { adicionar(resultados[indice]); return; }
-        // Sem escolha pelas setas, Enter continua exigindo código exato, sem esperar o debounce.
+        if (listaAberta && resultados[indice]) { adicionar(resultados[indice]); return; }
+        if (listaAberta && buscaConcluida && !erroCatalogo) return;
+        // Sem resultado exibido, o scanner consulta código exato sem esperar o debounce.
         const controller = new AbortController(); scannerRef.current = controller; setBuscandoCodigo(true);
         try {
             const lista = await pesquisarProdutos(termo, controller.signal);
             if (controller.signal.aborted) return;
             const produto = encontrarProdutoPorCodigo(lista, termo);
             if (produto) adicionar(produto);
-            else { setResultados(lista); setBuscaConcluida(true); setListaAberta(true); setErro("Código exato não encontrado. Selecione o produto na lista."); }
+            else { setResultados(lista); setBuscaConcluida(true); setListaAberta(true); setIndice(0); setErroCatalogo(""); }
         } catch (e) {
             if (!controller.signal.aborted) setErroCatalogo(obterMensagemDaApi(e, "Não foi possível buscar os produtos."));
         } finally {
@@ -316,12 +317,13 @@ export default function Vendas() {
                 <Box sx={{ position: "relative" }}>
                     <TextField fullWidth autoFocus inputRef={buscaRef} disabled={!sessaoCaixaResolvida || salvando} value={busca}
                         label="Buscar produto ou ler código de barras" placeholder={carregando ? "Buscando produtos…" : "Nome, código interno ou código de barras"}
+                        helperText={avisoBusca || undefined}
                         onChange={e => { setBusca(e.target.value); setListaAberta(true); setIndice(0); }}
                         slotProps={{ input: {
                             startAdornment: <InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>,
                             endAdornment: <InputAdornment position="end"><Tooltip title="Buscar produtos"><IconButton
                                 edge="end" size="small" aria-label="Abrir lista de produtos" aria-expanded={listaAberta}
-                                onMouseDown={e => e.preventDefault()} onClick={() => { resultadoNavegadoRef.current = false; setListaAberta(aberta => !aberta); setIndice(0); focarBusca(); }}>
+                                onMouseDown={e => e.preventDefault()} onClick={() => { setListaAberta(aberta => !aberta); setIndice(0); focarBusca(); }}>
                                 <ArrowDropDownIcon /></IconButton></Tooltip></InputAdornment>,
                         }, htmlInput: { role: "combobox", "aria-expanded": listaAberta && resultados.length > 0, "aria-controls": "pdv-resultados",
                             "aria-activedescendant": resultados.length ? "pdv-opcao-" + Math.min(indice, resultados.length - 1) : undefined, autoComplete: "off" } }}
@@ -329,7 +331,6 @@ export default function Vendas() {
                             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                                 e.preventDefault();
                                 setListaAberta(true);
-                                resultadoNavegadoRef.current = resultados.length > 0;
                                 setIndice(i => moverIndiceProduto(i, resultados.length, e.key === "ArrowDown" ? "PROXIMO" : "ANTERIOR"));
                             }
                             if (e.key === "Enter") {

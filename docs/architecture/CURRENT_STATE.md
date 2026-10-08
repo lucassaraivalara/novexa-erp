@@ -10,6 +10,10 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## PDV: busca e Enter previsiveis (2026-10-08)
+
+Na branch de trabalho, Enter adiciona o resultado destacado por padrao ou pelas setas, sempre priorizando codigo exato. Scanner sem resultado exibido continua consultando imediatamente, sem adicionar match parcial nao exibido. Sem resultado, somente mensagem contextual; busca vazia orienta no campo, e trocar/limpar termo remove feedback da busca sem apagar erros de outras operacoes. Foco/selecao da Quantidade e retorno a busca preservados. Sem alteracoes de backend, services, contratos, pagamentos, calculos ou estoque. Validacao: 51 testes direcionados do PDV aprovados com HTTP simulado, build/TypeScript, lint direcionado e diff check. Commit local, sem push nesta tarefa.
+
 ## Central de Vendas: situacao do recebivel de cartao (2026-10-08)
 
 Na branch de trabalho, detalhe com pagamento em debito/credito consulta o service existente de Recebiveis por vendaId, com paginacao e associacao exata por pagamento/tipo. Cada cartao identifica aguardando liquidacao, liquidado, cancelado ou vinculo nao localizado; erro de consulta nao inventa estado e permite retry. Sem consultas de Recebiveis na listagem ou para vendas sem cartao, sem liquidacao pela Central e sem alterar Pago agora/A receber. Link para recebimento especifico nao oferecido porque a tela de destino nao suporta deep-link filtrado. Backend, services, contratos, permissoes, PDV e regras financeiras sem alteracoes. Validacao: 45 testes direcionados de Central/cliente/PIX, build/TypeScript, lint e diff check; estados de cartao revisados em 1440/1024/390 com HTTP simulado. Commit local, sem push nesta tarefa.

@@ -180,21 +180,93 @@ test("codigo exato tem prioridade sobre resultado navegado e novo termo limpa es
         await busca.press("ArrowDown"); await busca.fill("Parcial");
         await page.getByRole("listbox").getByRole("option").nth(1).waitFor();
         await busca.press("Enter");
-        await page.getByText("Código exato não encontrado. Selecione o produto na lista.").waitFor();
-        assert.equal(await quantidade.inputValue(), "1");
+        await conferirQuantidade(page, "Produto remoto", "2");
         assert.equal(await page.getByLabel("Quantidade de Segundo produto").count(), 0);
     } finally { await page.close(); }
 });
 
-test("Enter nunca adiciona nome parcial, nem quando resultado remoto ja esta em memoria", async () => {
+test("nome com resultado destacado por padrao aceita Enter e preserva foco/quantidade sem nova busca", async () => {
     const { page, estado, busca } = await abrir();
     try {
         await busca.fill("Produto"); await page.getByRole("listbox").getByRole("option").waitFor();
-        await busca.press("Enter"); await esperar(() => consultas(estado, "produtos").length === 2);
-        await page.getByText("Código exato não encontrado. Selecione o produto na lista.").waitFor();
+        assert.equal(await page.getByRole("listbox").getByRole("option").getAttribute("aria-selected"), "true");
+        await busca.press("Enter");
+        const quantidade = await conferirQuantidade(page, "Produto remoto", "1");
+        assert.equal(consultas(estado, "produtos").length, 1);
+        assert.equal(await page.getByRole("alert").count(), 0);
+        await quantidade.press("3"); await quantidade.press("Enter"); await esperarFoco(page, busca);
+        assert.equal(await quantidade.inputValue(), "3");
+        assert.equal(await busca.inputValue(), "");
+    } finally { await page.close(); }
+});
+
+test("Enter sem resultado mostra somente feedback contextual; trocar/limpar termo remove mensagem", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        estado.semResultados = true;
+        await busca.fill("Inexistente"); await busca.press("Enter");
+        const mensagem = page.getByText("Nenhum produto encontrado.", { exact: true });
+        await mensagem.waitFor();
+        assert.equal(await mensagem.count(), 1);
+        assert.equal(await page.getByRole("alert").count(), 0);
         assert.equal(await page.getByRole("table").getByRole("row").count(), 1);
-        await page.getByRole("listbox").getByRole("option").click();
-        await page.getByLabel("Quantidade de Produto remoto").waitFor();
+        assert.equal(consultas(estado, "produtos").length, 1);
+        await busca.press("Enter"); await page.waitForTimeout(400);
+        assert.equal(consultas(estado, "produtos").length, 1);
+        assert.equal(await mensagem.count(), 1);
+        await busca.fill("Outro"); assert.equal(await mensagem.count(), 0);
+        await mensagem.waitFor();
+        await busca.fill(""); assert.equal(await mensagem.count(), 0);
+        assert.equal(await page.getByRole("alert").count(), 0);
+        estado.semResultados = false;
+        await busca.fill("Produto"); await page.getByRole("listbox").getByRole("option").waitFor(); await busca.press("Enter");
+        await conferirQuantidade(page, "Produto remoto", "1");
+    } finally { await page.close(); }
+});
+
+test("Enter com busca vazia orienta no campo sem HTTP e limpa aviso ao digitar ou limpar", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        await busca.press("Enter");
+        const aviso = page.getByText("Digite o nome ou código do produto.", { exact: true });
+        await aviso.waitFor();
+        assert.equal(await aviso.count(), 1);
+        assert.equal(await page.getByRole("alert").count(), 0);
+        assert.equal(consultas(estado, "produtos").length, 0);
+        await busca.fill(" "); assert.equal(await aviso.count(), 0);
+        await busca.press("Enter"); await aviso.waitFor();
+        await busca.fill(""); assert.equal(await aviso.count(), 0);
+        await busca.press("Enter"); await aviso.waitFor();
+        await busca.fill("Produto"); assert.equal(await aviso.count(), 0);
+        await page.getByRole("listbox").getByRole("option").waitFor();
+        assert.equal(await page.getByRole("table").getByRole("row").count(), 1);
+    } finally { await page.close(); }
+});
+
+test("Enter antes da resposta por nome exibe resultados sem adicionar match nao destacado", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        await busca.fill("Produto"); await busca.press("Enter");
+        await page.getByRole("listbox").getByRole("option").waitFor();
+        assert.equal(await page.getByRole("table").getByRole("row").count(), 1);
+        assert.equal(await page.getByRole("alert").count(), 0);
+        await busca.press("Enter"); await conferirQuantidade(page, "Produto remoto", "1");
+        assert.equal(consultas(estado, "produtos").length, 1);
+    } finally { await page.close(); }
+});
+
+test("erro de busca remota limpa com novo termo sem afetar erros de outras operacoes", async () => {
+    const { page, busca } = await abrir();
+    try {
+        await page.route("http://localhost:8080/produtos/buscar?termo=Falha", route => route.fulfill({
+            status: 503, headers: cors, contentType: "application/json", body: JSON.stringify({ detail: "Busca indisponível." }),
+        }));
+        await busca.fill("Falha"); await busca.press("Enter");
+        const erro = page.getByRole("alert").filter({ hasText: "Busca indisponível." });
+        await erro.waitFor(); assert.equal(await erro.count(), 1);
+        await busca.fill(""); assert.equal(await erro.count(), 0);
+        await busca.fill("Produto"); await page.getByRole("listbox").getByRole("option").waitFor();
+        await busca.press("Enter"); await conferirQuantidade(page, "Produto remoto", "1");
     } finally { await page.close(); }
 });
 
@@ -628,6 +700,8 @@ test("busca vazia mostra feedback contextual e saldo zero respeita controle de e
         await busca.fill("Produto"); await page.getByRole("listbox").getByRole("option").click();
         await page.getByText("Produto sem estoque disponível. Confira o estoque antes de vender.", { exact: true }).waitFor();
         assert.equal(await page.getByLabel("Quantidade de Produto remoto").count(), 0);
+        await busca.fill("");
+        assert.equal(await page.getByText("Produto sem estoque disponível. Confira o estoque antes de vender.", { exact: true }).count(), 1);
         estado.controlaEstoque = false;
         await busca.fill("P1"); await busca.press("Enter");
         await page.getByLabel("Quantidade de Produto remoto").waitFor();
