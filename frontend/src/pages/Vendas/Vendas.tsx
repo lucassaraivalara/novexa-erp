@@ -15,7 +15,8 @@ import { listarConfiguracoesParaPDV } from "../../services/configuracaoFormaPaga
 import { obterSessao } from "../../utils/auth/sessao";
 import type { Produto } from "../../types/produto";
 import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
-import { encontrarProdutoPorCodigo, criarPedido, moeda, moverIndiceProduto, novoRascunho, pagamentosRascunho, subtotalItem, totais, type PagamentoPDV, type RascunhoPDV } from "./pdv";
+import { encontrarProdutoPorCodigo, criarPedido, formatarValorMonetario, moeda, moverIndiceProduto, novoRascunho, pagamentosRascunho, subtotalItem, totais, type PagamentoPDV, type RascunhoPDV } from "./pdv";
+import ValorMonetarioPDV from "./ValorMonetarioPDV";
 import SessaoCaixaPDVDialog from "./SessaoCaixaPDVDialog";
 import VendaFinalizacaoDialog, { type EstadoFinalizacao } from "./VendaFinalizacaoDialog";
 
@@ -453,11 +454,11 @@ export default function Vendas() {
                                 </option>
                             ))}
                         </TextField>
-                        {p.formaPagamento !== "A_PRAZO" && <TextField size="small" label="Valor aplicado (R$)" sx={{ flex: "0 0 140px", "& input": { fontWeight: 600 } }}
+                        {p.formaPagamento !== "A_PRAZO" && <ValorMonetarioPDV size="small" label="Valor aplicado (R$)" sx={{ flex: "0 0 140px", "& input": { fontWeight: 600 } }}
                             helperText={p.formaPagamento === "DINHEIRO" && t.parcelas.length > 1 ? "Parte da venda paga em dinheiro." : undefined}
                             value={p.valor === "" && t.parcelas.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : p.valor}
-                            disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()}
-                            onChange={e => alterarPagamento(i, { valor: e.target.value })} />}
+                            disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }}
+                            onChange={valor => alterarPagamento(i, { valor })} />}
                         </Stack>
                         {p.formaPagamento === "A_PRAZO" ? <Stack spacing={1}>
                             {!rascunho.cliente && <Alert severity="warning">Selecione um cliente para vender a prazo.</Alert>}
@@ -472,9 +473,9 @@ export default function Vendas() {
                                     error={!/^\d{4}-\d{2}-\d{2}$/.test(parcela.vencimento) || Number.isNaN(Date.parse(parcela.vencimento))}
                                     helperText={!parcela.vencimento ? "Informe o vencimento." : undefined}
                                     slotProps={{ inputLabel: { shrink: true } }} onChange={e => alterarParcelaPrazo(indice, { vencimento: e.target.value })} />
-                                <TextField size="small" label="Valor (R$)" value={parcela.valor === "" && t.parcelas.length === 1 && t.parcelasPrazo.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : parcela.valor}
-                                    disabled={bloqueado} slotProps={{ htmlInput: { "aria-label": `Valor da parcela ${indice + 1} (R$)`, inputMode: "decimal" } }} onFocus={e => e.target.select()}
-                                    onChange={e => alterarParcelaPrazo(indice, { valor: e.target.value })} />
+                                <ValorMonetarioPDV size="small" label="Valor (R$)" value={parcela.valor === "" && t.parcelas.length === 1 && t.parcelasPrazo.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : parcela.valor}
+                                    disabled={bloqueado} slotProps={{ htmlInput: { "aria-label": `Valor da parcela ${indice + 1} (R$)`, inputMode: "decimal" } }}
+                                    onChange={valor => alterarParcelaPrazo(indice, { valor })} />
                                 </Box>
                             </Stack>)}
                             <Button size="small" startIcon={<AddRoundedIcon />} sx={{ alignSelf: "flex-start" }} disabled={bloqueado || t.parcelasPrazo.length >= 120}
@@ -484,11 +485,11 @@ export default function Vendas() {
                                 ] })}>Adicionar parcela</Button>
                         </Stack> : p.formaPagamento === "DINHEIRO" && (
                             <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", pl: 1, borderLeft: 2, borderColor: "divider" }}>
-                                <TextField size="small" inputRef={recebidoRef} label="Recebido (R$)" sx={{ flex: "0 1 160px", minWidth: 0 }} value={p.recebido} placeholder={((p.valorCentavos ?? 0) / 100).toFixed(2)} disabled={bloqueado}
+                                <ValorMonetarioPDV size="small" inputRef={recebidoRef} label="Recebido (R$)" sx={{ flex: "0 1 160px", minWidth: 0 }} value={p.recebido} placeholder={formatarValorMonetario(((p.valorCentavos ?? 0) / 100).toFixed(2))} disabled={bloqueado}
                                     error={p.recebidoCentavos !== null && p.valorCentavos !== null && p.recebidoCentavos < p.valorCentavos}
                                     helperText={p.recebidoCentavos !== null && p.valorCentavos !== null && p.recebidoCentavos < p.valorCentavos
                                         ? "Recebido menor que o valor aplicado." : "Dinheiro entregue pelo cliente."}
-                                    slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()} onChange={e => alterarPagamento(i, { recebido: e.target.value })} />
+                                    slotProps={{ htmlInput: { inputMode: "decimal" } }} onChange={recebido => alterarPagamento(i, { recebido })} />
                                 {p.troco > 0 && <Stack sx={{ alignItems: "flex-end", flexShrink: 0 }}>
                                     <Typography variant="caption">Troco</Typography>
                                     <Typography aria-label={`Troco do pagamento ${i + 1}`} sx={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda(p.troco)}</Typography>

@@ -4,12 +4,30 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 
 const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
-const { novoRascunho, decimal, subtotalItem, totais, criarPedido, encontrarProdutoPorCodigo, decidirSessaoCaixa, moverIndiceProduto } = await server.ssrLoadModule("/src/pages/Vendas/pdv.ts");
+const { novoRascunho, decimal, normalizarValorMonetario, formatarValorMonetario, subtotalItem, totais, criarPedido, encontrarProdutoPorCodigo, decidirSessaoCaixa, moverIndiceProduto } = await server.ssrLoadModule("/src/pages/Vendas/pdv.ts");
 await server.close();
 const fontePDV = await readFile(new URL("../src/pages/Vendas/Vendas.tsx", import.meta.url), "utf8");
 const fonteFinalizacao = await readFile(new URL("../src/pages/Vendas/VendaFinalizacaoDialog.tsx", import.meta.url), "utf8");
 const produto = { id: 1, nome: "Café", precoVenda: 10.10, ativo: true, codigoBarras: "7890001", codigoInterno: "CAFE" };
 const venda = () => ({ ...novoRascunho(), itens: [{ produto, quantidade: "2" }], recebido: "30", configuracaoFormaPagamentoId: 42 });
+
+test("entrada monetaria brasileira preserva reais inteiros, centavos e formato exibido", () => {
+    for (const [entrada, interno, exibido] of [
+        ["1", "1.00", "1,00"], ["2", "2.00", "2,00"], ["2,5", "2.50", "2,50"],
+        ["2,50", "2.50", "2,50"], ["10", "10.00", "10,00"], ["1000", "1000.00", "1.000,00"],
+        ["1.000,50", "1000.50", "1.000,50"], ["3", "3.00", "3,00"], ["3,5", "3.50", "3,50"],
+        ["3,50", "3.50", "3,50"], ["3.50", "3.50", "3,50"], ["1.000,00", "1000.00", "1.000,00"],
+        ["1.000", "1000.00", "1.000,00"], ["120", "120.00", "120,00"], ["0", "0.00", "0,00"],
+        ["3,", "3.00", "3,00"], ["3.", "3.00", "3,00"], ["", "", ""],
+    ]) {
+        assert.equal(normalizarValorMonetario(entrada), interno);
+        assert.equal(formatarValorMonetario(interno), exibido);
+        if (interno) assert.equal(decimal(interno, 2), Math.round(Number(interno) * 100));
+    }
+    for (const entrada of ["-1", "3,501", "3.5010", "1.00,50", "1,2,3", "abc", "1000000000"])
+        assert.equal(normalizarValorMonetario(entrada), null);
+    assert.equal(decimal("1,125", 3), 1125);
+});
 
 test("venda totalmente a prazo exige cliente e gera parcelas sem PagamentoEntity no contrato", () => {
     const r = { ...venda(), cliente: { id: 8 }, pagamentos: [{ formaPagamento: "A_PRAZO", configuracaoFormaPagamentoId: null,

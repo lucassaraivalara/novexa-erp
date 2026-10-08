@@ -45,6 +45,18 @@ export function decimal(valor: string, casas: number): number | null {
     const [inteiro, fracao = ""] = texto.split(".");
     return Number(inteiro) * 10 ** casas + Number(fracao.padEnd(casas, "0"));
 }
+export function normalizarValorMonetario(valor: string): string | null {
+    let texto = valor.trim();
+    if (!texto) return "";
+    if (/^\d{1,3}(?:\.\d{3})+(?:,\d{0,2})?$/.test(texto)) texto = texto.replaceAll(".", "");
+    const partes = /^(\d{1,9})(?:\.(\d{0,2}))?$/.exec(texto.replace(",", "."));
+    return partes ? `${partes[1]}.${(partes[2] ?? "").padEnd(2, "0")}` : null;
+}
+export function formatarValorMonetario(valor: string): string {
+    const normalizado = normalizarValorMonetario(valor);
+    if (!normalizado) return valor;
+    return Number(normalizado).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 export function subtotalItem(item: ItemPDV): number | null {
     const quantidade = decimal(item.quantidade, 3);
     const preco = Math.round(item.produto.precoVenda * 100);

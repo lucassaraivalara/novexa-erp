@@ -120,6 +120,8 @@ Select nativo e listener de teclado com estado atual preservam selecao e F2. Dia
 
 No PDV, Valor aplicado identifica a parte da venda destinada a cada forma imediata. Recebido fica subordinado ao dinheiro e identifica o valor entregue pelo cliente; valor menor que o aplicado recebe feedback inline, sem mostrar troco. Troco aparece somente quando positivo. Excedente orienta reduzir o valor aplicado, nunca o recebido. Adicionar/remover formas preserva os valores existentes, sem redistribuicao ou conversao automatica de recebido em aplicado; calculos e payload permanecem inalterados.
 
+Valor aplicado, Recebido e valores das parcelas a prazo reutilizam ValorMonetarioPDV, exclusivo desta tela. Inteiros representam reais; virgula decimal, ponto decimal com ate duas casas e agrupamento brasileiro de milhares sao aceitos na digitacao/colagem. O texto e preservado durante a edicao e formatado em pt-BR ao perder foco; foco seleciona o valor, sem mascara de centavos ou saltos de cursor. Normalizacao entrega decimal com ponto ao rascunho existente; entrada invalida permanece bloqueada, sem arredondamento silencioso. Campo vazio conserva a semantica anterior. Quantidade, desconto, calculos e payload nao foram alterados.
+
 # Padrão de Formulários
 
 ## Cadastro simples

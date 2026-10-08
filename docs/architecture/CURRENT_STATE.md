@@ -10,6 +10,10 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## PDV: entrada monetaria brasileira (2026-10-08)
+
+Na branch de trabalho, Valor aplicado, Recebido e parcelas a prazo aceitam reais inteiros, virgula decimal, ponto decimal e milhar brasileiro por componente localizado. Texto/cursor preservados durante edicao; exibicao pt-BR ao sair do campo, com selecao ao focar. Normalizacao mantem decimal interno, calculos e payload existentes; vazio seguro e precisao invalida bloqueada sem arredondamento. Backend, services, contratos, quantidade e busca/Enter de `4fa1fb1` preservados, assim como clareza do dinheiro de `e469ad6`. Validacao: 57 testes direcionados do PDV aprovados com HTTP simulado, build/TypeScript, lint e diff check. Commit local, sem push nesta tarefa.
+
 ## PDV: busca e Enter previsiveis (2026-10-08)
 
 Na branch de trabalho, Enter adiciona o resultado destacado por padrao ou pelas setas, sempre priorizando codigo exato. Scanner sem resultado exibido continua consultando imediatamente, sem adicionar match parcial nao exibido. Sem resultado, somente mensagem contextual; busca vazia orienta no campo, e trocar/limpar termo remove feedback da busca sem apagar erros de outras operacoes. Foco/selecao da Quantidade e retorno a busca preservados. Sem alteracoes de backend, services, contratos, pagamentos, calculos ou estoque. Validacao: 51 testes direcionados do PDV aprovados com HTTP simulado, build/TypeScript, lint direcionado e diff check. Commit local, sem push nesta tarefa.
