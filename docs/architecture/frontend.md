@@ -118,6 +118,8 @@ PDV consulta configuracoes ativas da empresa autenticada e permite multiplas opc
 
 Select nativo e listener de teclado com estado atual preservam selecao e F2. Dialog de finalizacao mostra nomeExibicao. Testes unitarios e quatro cenarios Playwright com HTTP simulado cobrem opcoes, payload, teclado e troco; a validacao financeira real usa PostgreSQL.
 
+No PDV, Valor aplicado identifica a parte da venda destinada a cada forma imediata. Recebido fica subordinado ao dinheiro e identifica o valor entregue pelo cliente; valor menor que o aplicado recebe feedback inline, sem mostrar troco. Troco aparece somente quando positivo. Excedente orienta reduzir o valor aplicado, nunca o recebido. Adicionar/remover formas preserva os valores existentes, sem redistribuicao ou conversao automatica de recebido em aplicado; calculos e payload permanecem inalterados.
+
 # Padrão de Formulários
 
 ## Cadastro simples

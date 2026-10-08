@@ -453,7 +453,8 @@ export default function Vendas() {
                                 </option>
                             ))}
                         </TextField>
-                        {p.formaPagamento !== "A_PRAZO" && <TextField size="small" label="Valor (R$)" sx={{ flex: "0 0 120px" }}
+                        {p.formaPagamento !== "A_PRAZO" && <TextField size="small" label="Valor aplicado (R$)" sx={{ flex: "0 0 140px", "& input": { fontWeight: 600 } }}
+                            helperText={p.formaPagamento === "DINHEIRO" && t.parcelas.length > 1 ? "Parte da venda paga em dinheiro." : undefined}
                             value={p.valor === "" && t.parcelas.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : p.valor}
                             disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()}
                             onChange={e => alterarPagamento(i, { valor: e.target.value })} />}
@@ -482,8 +483,11 @@ export default function Vendas() {
                                     { valor: (Math.max(0, t.restante) / 100).toFixed(2), vencimento: "" },
                                 ] })}>Adicionar parcela</Button>
                         </Stack> : p.formaPagamento === "DINHEIRO" && (
-                            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                                <TextField size="small" inputRef={recebidoRef} label="Recebido (R$)" sx={{ flex: 1, minWidth: 0 }} value={p.recebido} placeholder={((p.valorCentavos ?? 0) / 100).toFixed(2)} disabled={bloqueado}
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", pl: 1, borderLeft: 2, borderColor: "divider" }}>
+                                <TextField size="small" inputRef={recebidoRef} label="Recebido (R$)" sx={{ flex: "0 1 160px", minWidth: 0 }} value={p.recebido} placeholder={((p.valorCentavos ?? 0) / 100).toFixed(2)} disabled={bloqueado}
+                                    error={p.recebidoCentavos !== null && p.valorCentavos !== null && p.recebidoCentavos < p.valorCentavos}
+                                    helperText={p.recebidoCentavos !== null && p.valorCentavos !== null && p.recebidoCentavos < p.valorCentavos
+                                        ? "Recebido menor que o valor aplicado." : "Dinheiro entregue pelo cliente."}
                                     slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()} onChange={e => alterarPagamento(i, { recebido: e.target.value })} />
                                 {p.troco > 0 && <Stack sx={{ alignItems: "flex-end", flexShrink: 0 }}>
                                     <Typography variant="caption">Troco</Typography>
@@ -502,7 +506,7 @@ export default function Vendas() {
                 <Stack spacing={1.5} sx={{ flexShrink: 0 }}>
                 {!carregandoConfig && !erroConfig && t.restante !== 0 && <Alert severity={t.restante > 0 ? "warning" : "error"} icon={false} sx={{ py: 0.75, border: 1, borderColor: t.restante > 0 ? "warning.main" : "error.main", "& .MuiAlert-message": { width: "100%" } }}>
                     <Stack direction="row" sx={{ justifyContent: "space-between", fontWeight: 700 }}><span>{t.restante > 0 ? "Falta distribuir" : "Valor excedente"}</span><Typography aria-label={t.restante > 0 ? "Falta distribuir" : "Valor excedente"} sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.abs(t.restante))}</Typography></Stack>
-                    <Typography variant="caption" sx={{ display: "block" }}>{t.restante > 0 ? "Distribua o restante para liberar o Pagar." : "Reduza os valores informados para liberar o Pagar."}</Typography>
+                    <Typography variant="caption" sx={{ display: "block" }}>{t.restante > 0 ? "Distribua o restante para liberar o Pagar." : "Reduza o valor aplicado em uma forma de pagamento."}</Typography>
                 </Alert>}
                 <Button size="large" variant="contained" disableElevation disabled={!sessaoCaixaResolvida || salvando || carregandoConfig || (!rascunho.pendente && (!rascunho.itens.length || !t.valido || !t.pagamentosValidos || t.restante !== 0
                     || t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))))} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
