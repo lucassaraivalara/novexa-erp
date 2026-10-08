@@ -50,10 +50,11 @@ export type DecisaoSessaoCaixa =
     | { fluxo: "USAR_UNICA"; sessao: SessaoCaixaAberta }
     | { fluxo: "SELECIONAR"; sessoes: SessaoCaixaAberta[] };
 
-export function decidirSessaoCaixa(sessoes: SessaoCaixaAberta[]): DecisaoSessaoCaixa {
-    if (sessoes.length === 0) return { fluxo: "ABRIR" };
-    if (sessoes.length === 1) return { fluxo: "USAR_UNICA", sessao: sessoes[0] };
-    return { fluxo: "SELECIONAR", sessoes };
+export function decidirSessaoCaixa(sessoes: SessaoCaixaAberta[], usuarioId: number | undefined): DecisaoSessaoCaixa {
+    const proprias = sessoes.filter(sessao => usuarioId !== undefined && sessao.operadorAbertura?.id === usuarioId);
+    if (proprias.length === 0) return { fluxo: "ABRIR" };
+    if (proprias.length === 1) return { fluxo: "USAR_UNICA", sessao: proprias[0] };
+    return { fluxo: "SELECIONAR", sessoes: proprias };
 }
 export function decimal(valor: string, casas: number): number | null {
     const texto = valor.trim().replace(",", ".");
