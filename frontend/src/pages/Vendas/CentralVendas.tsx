@@ -29,6 +29,8 @@ import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import ClienteAutocomplete from "../../components/clientes/ClienteAutocomplete";
 import StatusChip from "../../components/ui/StatusChip";
+import { listarRecebiveis, mensagemRecebivel } from "../../services/recebivelService";
+import type { Recebivel, StatusRecebivel } from "../../types/recebivel";
 import { formatarData, rotulosStatus as rotulosContaReceber } from "../Financeiro/contaReceberUtils";
 import {
     buscarVenda,
@@ -59,6 +61,9 @@ import {
 
 const corStatus = (status: VendaResumo["status"]) =>
     status === "FATURADA" ? "success" : status === "CANCELADA" ? "default" : "warning";
+const rotulosRecebivel: Record<StatusRecebivel, string> = {
+    PENDENTE: "Aguardando liquidação", LIQUIDADO: "Liquidado", CANCELADO: "Cancelado",
+};
 
 type CampoOrdenacaoVenda = "id" | "dataHora" | "total" | "status";
 
@@ -90,6 +95,8 @@ export default function CentralVendas() {
     const [sucesso, setSucesso] = useState(false);
     const [pagamentos, setPagamentos] = useState<PagamentoVenda[]>([]);
     const [erroPagamentos, setErroPagamentos] = useState("");
+    const [recebiveis, setRecebiveis] = useState<{ vendaId: number; items: Recebivel[]; erro: string } | null>(null);
+    const [tentativaRecebiveis, setTentativaRecebiveis] = useState(0);
     const [pixParaConfirmar, setPixParaConfirmar] = useState<PagamentoVenda | null>(null);
     const [confirmandoPix, setConfirmandoPix] = useState(false);
     const [erroPix, setErroPix] = useState("");
@@ -132,6 +139,7 @@ export default function CentralVendas() {
         setSelecionada(venda);
         setDetalhe(null);
         setPagamentos([]);
+        setRecebiveis(null);
         setErroPagamentos("");
         setCarregandoDetalhe(true);
         setErroDetalhe("");
@@ -161,6 +169,33 @@ export default function CentralVendas() {
         const timer = setTimeout(() => void visualizar({ id: vendaId }, controller.signal), 0);
         return () => { clearTimeout(timer); controller.abort(); };
     }, [vendaId, visualizar]);
+
+    const idDetalhe = selecionada?.id;
+    const temCartao = pagamentos.some(p => p.formaPagamento === "CARTAO_DEBITO" || p.formaPagamento === "CARTAO_CREDITO");
+    useEffect(() => {
+        if (!idDetalhe || !temCartao || carregandoDetalhe) return;
+        const controller = new AbortController();
+        const timer = setTimeout(async () => {
+            setRecebiveis(null);
+            try {
+                const items: Recebivel[] = [];
+                let page = 0;
+                let totalPages;
+                do {
+                    const resposta = await listarRecebiveis({ vendaId: idDetalhe, page, size: 25, sort: "id,asc" }, controller.signal);
+                    if (controller.signal.aborted) return;
+                    items.push(...resposta.items);
+                    totalPages = resposta.totalPages;
+                    page++;
+                } while (page < totalPages);
+                setRecebiveis({ vendaId: idDetalhe, items, erro: "" });
+            } catch (e) {
+                if (!controller.signal.aborted) setRecebiveis({ vendaId: idDetalhe, items: [],
+                    erro: mensagemRecebivel(e, "Não foi possível consultar os recebimentos de cartão.") });
+            }
+        }, 0);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [idDetalhe, temCartao, carregandoDetalhe, detalhe?.status, tentativaRecebiveis]);
 
     function fecharDetalhe() {
         setSelecionada(null);
@@ -389,12 +424,25 @@ export default function CentralVendas() {
                     </Stack>
                     {(!!pagamentos.length || !!erroPagamentos) && <Typography variant="h6">Pagamentos</Typography>}
                     {erroPagamentos && <Alert severity="error">{erroPagamentos}</Alert>}
+                    {temCartao && recebiveis?.vendaId === detalhe.id && recebiveis.erro && <Alert severity="warning"
+                        action={<Button color="inherit" onClick={() => { setRecebiveis(null); setTentativaRecebiveis(n => n + 1); }}>Tentar novamente</Button>}>
+                        Recebimentos de cartão: {recebiveis.erro}
+                    </Alert>}
                     {pagamentos.map(pagamento => {
                         const pix = pagamento.formaPagamento === "PIX";
+                        const cartao = pagamento.formaPagamento === "CARTAO_DEBITO" || pagamento.formaPagamento === "CARTAO_CREDITO";
+                        const recebivel = recebiveis?.items.find(r => r.vendaId === detalhe.id && r.pagamentoId === pagamento.id
+                            && r.tipo === (pagamento.formaPagamento === "CARTAO_DEBITO" ? "DEBITO" : "CREDITO"));
                         const cancelado = pagamento.status === "CANCELADO" || detalhe.status === "CANCELADA";
-                        return <Stack key={pagamento.id} spacing={1}>
+                        return <Stack key={pagamento.id} spacing={1} role={cartao ? "group" : undefined}
+                            aria-label={cartao ? `${rotulosPagamento[pagamento.formaPagamento]} · ${moedaVenda(pagamento.valor)}` : undefined}>
                             <Typography>{rotulosPagamento[pagamento.formaPagamento]} · {pagamento.configuracaoNomeExibicao || "Configuração histórica não informada"} · <strong>{moedaVenda(pagamento.valor)}</strong></Typography>
-                            {pagamento.configuracaoContaFinanceiraDestinoNome && <Typography variant="body2" color="text.secondary">Conta de destino: {pagamento.configuracaoContaFinanceiraDestinoNome}</Typography>}
+                            {cartao && (recebiveis?.vendaId !== detalhe.id
+                                ? <Typography variant="body2" color="text.secondary">Consultando recebimento do cartão…</Typography>
+                                : recebiveis.erro ? <Typography variant="body2" color="text.secondary">Situação indisponível</Typography>
+                                    : recebivel ? <Box><StatusChip status={recebivel.status} label={rotulosRecebivel[recebivel.status] ?? "Situação indisponível"} /></Box>
+                                        : <Typography variant="body2" color="text.secondary">Recebível não localizado</Typography>)}
+                            {!cartao && pagamento.configuracaoContaFinanceiraDestinoNome && <Typography variant="body2" color="text.secondary">Conta de destino: {pagamento.configuracaoContaFinanceiraDestinoNome}</Typography>}
                             {pix && <Typography variant="body2">{cancelado ? "Pagamento cancelado" : pagamento.confirmadoFinanceiramente ? "Recebimento confirmado" : "Aguardando confirmação"}</Typography>}
                             {pix && pagamento.confirmadoFinanceiramente && <Typography variant="caption" color="text.secondary">
                                 Confirmado em {pagamento.dataConfirmacaoFinanceira ? dataHoraVenda(pagamento.dataConfirmacaoFinanceira) : "—"} · Movimento #{pagamento.movimentacaoFinanceiraId}

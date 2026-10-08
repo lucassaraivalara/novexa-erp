@@ -48,7 +48,7 @@ async function abrir(operacional = false, opcoes = {}) {
     await page.route("http://localhost:8080/**", async route => {
         const req = route.request(), u = new URL(req.url());
         if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
-        const params = Object.fromEntries(u.searchParams); estado.requests.push({ path: u.pathname, params });
+        const params = Object.fromEntries(u.searchParams); estado.requests.push({ path: u.pathname, params, method: req.method() });
         let data, status = 200;
         if (u.pathname === "/vendas") data = { items: estado.listaVazia ? [] : [{ id: 30, dataHora: "2026-10-01T10:00:00", nomeCliente: "Venda retornada", total: 85,
             status: "FATURADA", sessaoCaixaId: 1 }], page: Number(params.page), size: Number(params.size), totalItems: estado.listaVazia ? 0 : 63, totalPages: estado.listaVazia ? 0 : 3 };
@@ -66,6 +66,15 @@ async function abrir(operacional = false, opcoes = {}) {
             if (estado.erroPagamentos) { status = 503; data = { detail: "Não foi possível carregar os pagamentos." }; }
             else data = estado.pagamentos ?? [{ id: 1, vendaId: 30, formaPagamento: "DINHEIRO", valor: 50,
                 status: "REGISTRADO", configuracaoNomeExibicao: "Dinheiro" }];
+        }
+        else if (u.pathname === "/financeiro/recebiveis") {
+            if (estado.atrasoRecebiveis) await new Promise(r => setTimeout(r, estado.atrasoRecebiveis));
+            if (estado.erroRecebiveis) { status = estado.erroRecebiveis; data = { detail: "Consulta de recebimentos indisponível." }; }
+            else {
+                const items = estado.paginasRecebiveis?.[Number(params.page)] ?? estado.recebiveis ?? [];
+                data = { items, page: Number(params.page), size: Number(params.size), totalItems: items.length,
+                    totalPages: estado.paginasRecebiveis?.length ?? 1 };
+            }
         }
         else if (u.pathname === "/clientes/buscar") {
             if (params.termo === "antiga") await new Promise(r => setTimeout(r, 1000));
@@ -208,19 +217,101 @@ test("resumo exclui cancelados e A_PRAZO de pagamentos; saldo usa baixas já rea
     } finally { await page.close(); }
 });
 
-for (const [forma, label] of [["CARTAO_DEBITO", "Cartão de débito"], ["CARTAO_CREDITO", "Cartão de crédito"]]) {
-    test(`${label} aparece somente como forma, sem consulta/status de liquidação`, async () => {
-        const { page, estado } = await abrir(false, { detalhe: { contasReceber: [] }, pagamentos: [pagamentoResumo(1, forma, 200, { confirmadoFinanceiramente: true })] });
+const recebivelCartao = (pagamentoId, tipo, status, extras = {}) => ({ id: pagamentoId + 100, vendaId: 30, pagamentoId, tipo,
+    status, valorBruto: 100, valorLiquidoPrevisto: 97, dataPrevistaRecebimento: "2026-11-15", ...extras });
+const consultasRecebiveis = estado => estado.requests.filter(r => r.path === "/financeiro/recebiveis");
+for (const [forma, label, tipo] of [["CARTAO_DEBITO", "Cartão de débito", "DEBITO"], ["CARTAO_CREDITO", "Cartão de crédito", "CREDITO"]]) {
+    for (const [status, rotulo] of [["PENDENTE", "Aguardando liquidação"], ["LIQUIDADO", "Liquidado"], ["CANCELADO", "Cancelado"]]) {
+    test(`${label}: estado real ${status} somente no detalhe, sem alterar resumo nem oferecer liquidação/link inseguro`, async () => {
+        const { page, estado } = await abrir(false, { detalhe: { contasReceber: [] },
+            pagamentos: [pagamentoResumo(1, forma, 200, { confirmadoFinanceiramente: true })],
+            recebiveis: [recebivelCartao(1, tipo, status)] });
         try {
+            assert.equal(consultasRecebiveis(estado).length, 0);
             await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
             const resumo = page.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
             await resumo.waitFor(); await verificarValor(resumo, "Pago agora", "R$ 200,00");
             assert.ok(await resumo.getByText(`${label} · R$ 200,00`, { exact: true }).isVisible());
             assert.doesNotMatch(await resumo.innerText(), /confirmado|pendente|liquidado/i);
-            assert.equal(estado.requests.some(r => /recebiveis/.test(r.path)), false);
+            assert.equal(await resumo.getByText("A receber", { exact: true }).count(), 0);
+            const grupo = page.getByRole("group", { name: `${label} · R$ 200,00`, exact: true });
+            await grupo.getByText(rotulo, { exact: true }).waitFor();
+            assert.deepEqual(consultasRecebiveis(estado).map(r => r.params), [{ vendaId: "30", page: "0", size: "25", sort: "id,asc" }]);
+            assert.equal(await page.getByRole("button", { name: /Liquidar/ }).count(), 0);
+            assert.equal(await page.getByRole("link", { name: "Ver recebimento do cartão", exact: true }).count(), 0);
+            assert.doesNotMatch(await grupo.innerText(), /taxa|adquirente|snapshot|Conta de destino|Movimento #/i);
+            assert.ok(estado.requests.every(r => r.method === "GET"));
         } finally { await page.close(); }
     });
+    }
 }
+
+test("cartão ausente ou vinculado a outra venda/pagamento/tipo não inventa status", async () => {
+    for (const recebiveis of [[], [recebivelCartao(1, "DEBITO", "LIQUIDADO", { vendaId: 99 })],
+        [recebivelCartao(9, "DEBITO", "LIQUIDADO")], [recebivelCartao(1, "CREDITO", "LIQUIDADO")]]) {
+        const { page } = await abrir(false, { pagamentos: [pagamentoResumo(1, "CARTAO_DEBITO", 100)], recebiveis });
+        try {
+            await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+            const grupo = page.getByRole("group", { name: "Cartão de débito · R$ 100,00", exact: true });
+            await grupo.getByText("Recebível não localizado", { exact: true }).waitFor();
+            assert.equal(await grupo.getByText("Liquidado", { exact: true }).count(), 0);
+        } finally { await page.close(); }
+    }
+});
+
+test("consulta paginada de uma venda associa vários cartões por pagamento sem incluir Recebível em A receber", async () => {
+    const { page, estado } = await abrir(false, { pagamentos: [pagamentoResumo(1, "CARTAO_CREDITO", 50), pagamentoResumo(2, "CARTAO_DEBITO", 150)],
+        paginasRecebiveis: [[recebivelCartao(2, "DEBITO", "LIQUIDADO")], [recebivelCartao(1, "CREDITO", "PENDENTE")]] });
+    try {
+        await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+        await page.getByRole("group", { name: "Cartão de crédito · R$ 50,00", exact: true }).getByText("Aguardando liquidação", { exact: true }).waitFor();
+        assert.ok(await page.getByRole("group", { name: "Cartão de débito · R$ 150,00", exact: true }).getByText("Liquidado", { exact: true }).isVisible());
+        const resumo = page.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
+        await verificarValor(resumo, "Pago agora", "R$ 200,00"); await verificarValor(resumo, "A receber", "R$ 110,00");
+        assert.deepEqual(consultasRecebiveis(estado).map(r => r.params.page), ["0", "1"]);
+        assert.ok(consultasRecebiveis(estado).every(r => r.params.vendaId === "30" && !r.params.pagamentoId));
+        await mkdir("node_modules/.cache/central-vendas", { recursive: true });
+        for (const width of [1440, 1024, 390]) {
+            await page.setViewportSize({ width, height: 900 }); await page.waitForTimeout(350);
+            assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+            await page.screenshot({ path: `node_modules/.cache/central-vendas/cartao-${width}.png` });
+        }
+    } finally { await page.close(); }
+});
+
+test("falha de consulta não vira recebível ausente nem altera totais; retry não repete venda/pagamentos", async () => {
+    const { page, estado } = await abrir(false, { erroRecebiveis: 403, pagamentos: [pagamentoResumo(1, "CARTAO_CREDITO", 200)],
+        recebiveis: [recebivelCartao(1, "CREDITO", "PENDENTE")] });
+    try {
+        await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+        await page.getByRole("alert").getByText("Recebimentos de cartão: Consulta de recebimentos indisponível.", { exact: true }).waitFor();
+        const grupo = page.getByRole("group", { name: "Cartão de crédito · R$ 200,00", exact: true });
+        assert.ok(await grupo.getByText("Situação indisponível", { exact: true }).isVisible());
+        assert.equal(await grupo.getByText("Recebível não localizado", { exact: true }).count(), 0);
+        await verificarValor(page.getByRole("region", { name: "Resumo financeiro da venda" }), "Pago agora", "R$ 200,00");
+        estado.erroRecebiveis = 0;
+        await page.getByRole("button", { name: "Tentar novamente", exact: true }).click();
+        await grupo.getByText("Aguardando liquidação", { exact: true }).waitFor();
+        assert.equal(consultasRecebiveis(estado).length, 2);
+        assert.equal(estado.requests.filter(r => r.path === "/vendas/30").length, 1);
+        assert.equal(estado.requests.filter(r => r.path === "/vendas/30/pagamentos").length, 1);
+    } finally { await page.close(); }
+});
+
+test("fechar e abrir venda sem cartão cancela consulta antiga sem contaminar detalhe", async () => {
+    const { page, estado } = await abrir(false, { atrasoRecebiveis: 1200, pagamentos: [pagamentoResumo(1, "CARTAO_CREDITO", 200)] });
+    try {
+        await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+        await page.getByText("Consultando recebimento do cartão…", { exact: true }).waitFor();
+        await esperar(() => consultasRecebiveis(estado).length === 1);
+        await page.getByRole("button", { name: "Fechar", exact: true }).click();
+        estado.pagamentos = [pagamentoResumo(2, "DINHEIRO", 200)];
+        await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+        await page.getByRole("region", { name: "Resumo financeiro da venda" }).waitFor(); await page.waitForTimeout(1500);
+        assert.equal(consultasRecebiveis(estado).length, 1);
+        assert.equal(await page.getByText(/Recebível não localizado|Situação indisponível|Aguardando liquidação/).count(), 0);
+    } finally { await page.close(); }
+});
 
 test("falha ao buscar pagamentos não inventa pago zero nem impede mostrar saldo das contas", async () => {
     const { page } = await abrir(false, { erroPagamentos: true });

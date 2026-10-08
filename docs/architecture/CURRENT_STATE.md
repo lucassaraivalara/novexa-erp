@@ -10,6 +10,10 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Central de Vendas: situacao do recebivel de cartao (2026-10-08)
+
+Na branch de trabalho, detalhe com pagamento em debito/credito consulta o service existente de Recebiveis por vendaId, com paginacao e associacao exata por pagamento/tipo. Cada cartao identifica aguardando liquidacao, liquidado, cancelado ou vinculo nao localizado; erro de consulta nao inventa estado e permite retry. Sem consultas de Recebiveis na listagem ou para vendas sem cartao, sem liquidacao pela Central e sem alterar Pago agora/A receber. Link para recebimento especifico nao oferecido porque a tela de destino nao suporta deep-link filtrado. Backend, services, contratos, permissoes, PDV e regras financeiras sem alteracoes. Validacao: 45 testes direcionados de Central/cliente/PIX, build/TypeScript, lint e diff check; estados de cartao revisados em 1440/1024/390 com HTTP simulado. Commit local, sem push nesta tarefa.
+
 ## Conta a Receber: navegacao para venda de origem (2026-10-07)
 
 Na branch de trabalho, detalhe de conta VENDA_A_PRAZO com vendaId permite abrir a venda na Central via `/vendas?vendaId=...`, sem nova pagina ou contrato. ID validado antes da consulta, detalhe independente da pagina da listagem, erro/retry e fechamento sem reabertura automatica. Conta manual/sem vinculo nao apresenta link. Resumo financeiro de `3b408fe`, baixa, estorno e regras preservados; frontend-only, sem backend/services/PDV alterados. Validacao com testes direcionados de Contas a Receber/Central e navegacao em navegador com HTTP simulado; build/TypeScript, lint direcionado e diff check.
