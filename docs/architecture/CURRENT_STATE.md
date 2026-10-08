@@ -10,9 +10,15 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## PDV: dinheiro recebido-first e feedback de busca (2026-10-08)
+
+Fases 3 e 4 concluidas sobre `0a63921`: dinheiro recebido cobre ate o saldo deixado pelas outras formas, com troco inclusive em venda mista. PIX/cartao/parcelas nao sao redistribuidos; excesso sem troco e falta continuam bloqueados. Dinheiro envia o valor aplicado e valorRecebido bruto no contrato existente; aplicacao zero orienta remover a forma, preservando a validacao atual. Busca vazia orienta no campo desde a abertura; busca sem resultado mostra mensagem unica contextual, limpa ao mudar o termo. Rascunho, retry, scanner, foco/selecao de quantidade, input brasileiro, atalhos e carrinho mobile preservados.
+
+Validacao frontend com HTTP simulado: 82 testes do PDV aprovados, incluindo exemplos de produto, dinheiro/PIX/cartao/prazo, payload, refresh/limpeza/retry e teclado. Capturas e verificacoes responsivas em 1440/1024/390px; build/TypeScript, lint direcionado e diff check aprovados. Backend, services, contratos, estoque e Central de Vendas nao alterados. Commit local, sem push.
+
 ## PDV: rascunho e icones operacionais (2026-10-08)
 
-Fases 1 e 2 concluidas na branch de trabalho: sessionStorage recupera somente venda em andamento da sessao de caixa atual, por empresa/operador/sessao; sucesso e limpeza explicita removem o rascunho, sem persistir estado vazio. Voltar ao ERP preserva a venda, e retry incerto conserva UUID/payload e impede limpeza. Vender usa o mesmo carrinho das acoes Nova venda; Central mantem icone de consulta, sem alterar pagina ou rotas. Validacao frontend com HTTP simulado: PDV 62/62, Dashboard/navegacao 16/16, build/TypeScript, lint direcionado e diff check. Sem backend, services, contratos ou regras financeiras alterados. Dinheiro recebido-first (Fase 3) aguarda esclarecimento da divergencia entre formula de troco e exemplo de excedente; Fase 4 ainda nao iniciada. Commit local, sem push.
+Fases 1 e 2 concluidas na branch de trabalho: sessionStorage recupera somente venda em andamento da sessao de caixa atual, por empresa/operador/sessao; sucesso e limpeza explicita removem o rascunho, sem persistir estado vazio. Voltar ao ERP preserva a venda, e retry incerto conserva UUID/payload e impede limpeza. Vender usa o mesmo carrinho das acoes Nova venda; Central mantem icone de consulta, sem alterar pagina ou rotas. Validacao frontend com HTTP simulado: PDV 62/62, Dashboard/navegacao 16/16, build/TypeScript, lint direcionado e diff check. Sem backend, services, contratos ou regras financeiras alterados. Continuidade das Fases 3 e 4 registrada acima apos esclarecimento da regra de troco. Commit local, sem push.
 
 ## PDV: foco e selecao sincronizados com o carrinho (2026-10-08)
 

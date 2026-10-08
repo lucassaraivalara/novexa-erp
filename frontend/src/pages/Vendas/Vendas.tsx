@@ -115,7 +115,7 @@ export default function Vendas() {
     async function adicionarPorCodigo() {
         const termo = busca.trim();
         if (bloqueado || scannerRef.current) return;
-        if (!termo) { setAvisoBusca("Digite o nome ou código do produto."); return; }
+        if (!termo) { setAvisoBusca("Digite nome, código interno ou código de barras."); return; }
         cancel();
         const encontrado = encontrarProdutoPorCodigo(resultados, termo);
         if (encontrado) { adicionar(encontrado); return; }
@@ -178,7 +178,10 @@ export default function Vendas() {
         alterar({ ...(t.usaPrazo ? { parcelasPrazo: t.parcelasPrazo.map(p => ({
             valor: p.valor === "" ? ((p.valorCentavos ?? 0) / 100).toFixed(2) : p.valor, vencimento: p.vencimento,
         })) } : {}), pagamentos: [
-            ...pagamentosRascunho(rascunho).map((p, i) => ({ ...p, valor: p.valor === "" ? ((t.parcelas[i].valorCentavos ?? 0) / 100).toFixed(2) : p.valor })),
+            ...pagamentosRascunho(rascunho).map((p, i) => ({ ...p,
+                valor: p.valor === "" ? ((t.parcelas[i].valorCentavos ?? 0) / 100).toFixed(2) : p.valor,
+                recebido: p.formaPagamento === "DINHEIRO" && p.recebido === "" ? ((t.parcelas[i].recebidoCentavos ?? 0) / 100).toFixed(2) : p.recebido,
+            })),
             { configuracaoFormaPagamentoId: null, nomeExibicao: null, formaPagamento: "DINHEIRO",
                 valor: (Math.max(0, t.restante) / 100).toFixed(2), recebido: "" },
         ] });
@@ -343,7 +346,7 @@ export default function Vendas() {
                 <Box sx={{ position: "relative" }}>
                     <TextField fullWidth autoFocus inputRef={buscaRef} disabled={!sessaoCaixaResolvida || salvando} value={busca}
                         label="Buscar produto ou ler código de barras" placeholder={carregando ? "Buscando produtos…" : "Nome, código interno ou código de barras"}
-                        helperText={avisoBusca || undefined}
+                        helperText={avisoBusca || (!busca.trim() ? "Digite nome, código interno ou código de barras." : undefined)}
                         onChange={e => { setBusca(e.target.value); setListaAberta(true); setIndice(0); }}
                         slotProps={{ input: {
                             startAdornment: <InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>,
@@ -373,7 +376,7 @@ export default function Vendas() {
                     </Box>}
                     {listaAberta && busca.trim() && buscaConcluida && !carregando && !resultados.length && !erroCatalogo && !bloqueado &&
                         <Box sx={{ position: "absolute", zIndex: 10, top: "100%", width: "100%", bgcolor: "background.paper", border: 1, borderColor: "divider", p: 1 }}>
-                            <Typography variant="body2" color="text.secondary">Nenhum produto encontrado.</Typography>
+                            <Typography variant="body2" color="text.secondary">Nenhum produto encontrado para esta busca.</Typography>
                         </Box>}
                 </Box>
                 {erroCatalogo && <Alert severity="error" action={<Button onClick={() => { refresh(); focarBusca(); }}>Recarregar</Button>}>{erroCatalogo}</Alert>}
@@ -461,6 +464,7 @@ export default function Vendas() {
                                         configuracaoFormaPagamentoId: config.id,
                                         nomeExibicao: config.nomeExibicao,
                                         formaPagamento: tipoConfigParaLegado[config.tipo],
+                                        valor: p.formaPagamento === "DINHEIRO" && p.recebido !== "" ? ((p.valorCentavos ?? 0) / 100).toFixed(2) : p.valor,
                                         recebido: config.tipo === "DINHEIRO" ? p.recebido : "",
                                     });
                                 } else {
@@ -479,11 +483,15 @@ export default function Vendas() {
                                 </option>
                             ))}
                         </TextField>
-                        {p.formaPagamento !== "A_PRAZO" && <ValorMonetarioPDV size="small" label="Valor aplicado (R$)" sx={{ flex: "0 0 140px", "& input": { fontWeight: 600 } }}
-                            helperText={p.formaPagamento === "DINHEIRO" && t.parcelas.length > 1 ? "Parte da venda paga em dinheiro." : undefined}
-                            value={p.valor === "" && t.parcelas.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : p.valor}
+                        {p.formaPagamento !== "A_PRAZO" && <ValorMonetarioPDV size="small" label={p.formaPagamento === "DINHEIRO" ? "Recebido em dinheiro (R$)" : "Valor aplicado (R$)"}
+                            sx={{ flex: p.formaPagamento === "DINHEIRO" ? "1 1 100%" : "0 0 140px", "& input": { fontWeight: 600 } }}
+                            inputRef={p.formaPagamento === "DINHEIRO" ? recebidoRef : undefined}
+                            helperText={p.formaPagamento === "DINHEIRO" && p.configuracaoFormaPagamentoId !== null && p.valorCentavos === 0 && t.total > 0 && t.restante === 0
+                                ? "O total já está coberto pelas outras formas. Remova esta forma de pagamento." : undefined}
+                            value={p.formaPagamento === "DINHEIRO" ? p.recebido : p.valor === "" && t.parcelas.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : p.valor}
+                            placeholder={p.formaPagamento === "DINHEIRO" ? formatarValorMonetario(((p.recebidoCentavos ?? 0) / 100).toFixed(2)) : undefined}
                             disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }}
-                            onChange={valor => alterarPagamento(i, { valor })} />}
+                            onChange={valor => alterarPagamento(i, p.formaPagamento === "DINHEIRO" ? { recebido: valor } : { valor })} />}
                         </Stack>
                         {p.formaPagamento === "A_PRAZO" ? <Stack spacing={1}>
                             {!rascunho.cliente && <Alert severity="warning">Selecione um cliente para vender a prazo.</Alert>}
@@ -509,12 +517,8 @@ export default function Vendas() {
                                     { valor: (Math.max(0, t.restante) / 100).toFixed(2), vencimento: "" },
                                 ] })}>Adicionar parcela</Button>
                         </Stack> : p.formaPagamento === "DINHEIRO" && (
-                            <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", pl: 1, borderLeft: 2, borderColor: "divider" }}>
-                                <ValorMonetarioPDV size="small" inputRef={recebidoRef} label="Recebido (R$)" sx={{ flex: "0 1 160px", minWidth: 0 }} value={p.recebido} placeholder={formatarValorMonetario(((p.valorCentavos ?? 0) / 100).toFixed(2))} disabled={bloqueado}
-                                    error={p.recebidoCentavos !== null && p.valorCentavos !== null && p.recebidoCentavos < p.valorCentavos}
-                                    helperText={p.recebidoCentavos !== null && p.valorCentavos !== null && p.recebidoCentavos < p.valorCentavos
-                                        ? "Recebido menor que o valor aplicado." : "Dinheiro entregue pelo cliente."}
-                                    slotProps={{ htmlInput: { inputMode: "decimal" } }} onChange={recebido => alterarPagamento(i, { recebido })} />
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between" }}>
+                                <Typography variant="caption" color="text.secondary">Aplicado à venda: {moeda(p.valorCentavos ?? 0)}</Typography>
                                 {p.troco > 0 && <Stack sx={{ alignItems: "flex-end", flexShrink: 0 }}>
                                     <Typography variant="caption">Troco</Typography>
                                     <Typography aria-label={`Troco do pagamento ${i + 1}`} sx={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda(p.troco)}</Typography>

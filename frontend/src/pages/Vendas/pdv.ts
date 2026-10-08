@@ -92,10 +92,18 @@ export function totais(r: RascunhoPDV) {
         valorCentavos: p.valor === "" && pagamentos.length === 1 && r.parcelasPrazo?.length === 1 ? Math.max(0, total) : decimal(p.valor, 2),
     })) : [];
     const totalPrazo = parcelasPrazo.reduce((soma, p) => soma + (p.valorCentavos ?? 0), 0);
-    const parcelas = pagamentos.map(p => {
-        const valor = p.formaPagamento === "A_PRAZO" ? totalPrazo
-            : p.valor === "" && pagamentos.length === 1 ? Math.max(0, total) : decimal(p.valor, 2);
+    const valoresAplicados = pagamentos.map(p => p.formaPagamento === "A_PRAZO" ? totalPrazo
+        : p.valor === "" && pagamentos.length === 1 ? Math.max(0, total) : decimal(p.valor, 2));
+    let saldoParaDinheiro = Math.max(0, total - pagamentos.reduce((soma, p, i) =>
+        soma + (p.formaPagamento !== "DINHEIRO" ? valoresAplicados[i] ?? 0 : 0), 0));
+    const parcelas = pagamentos.map((p, i) => {
+        let valor = valoresAplicados[i];
         const recebido = p.formaPagamento === "DINHEIRO" && p.recebido !== "" ? decimal(p.recebido, 2) : valor;
+        if (p.formaPagamento === "DINHEIRO") {
+            // Outras formas mantem seus valores; dinheiro cobre o saldo e devolve o excedente como troco.
+            valor = recebido === null ? null : Math.min(recebido, saldoParaDinheiro);
+            saldoParaDinheiro -= valor ?? 0;
+        }
         return { ...p, valorCentavos: valor, recebidoCentavos: recebido, troco: Math.max(0, (recebido ?? 0) - (valor ?? 0)) };
     });
     const totalInformado = parcelas.reduce((soma, p) => soma + (p.valorCentavos ?? 0), 0);

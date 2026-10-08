@@ -73,10 +73,13 @@ test("dinheiro e prazo somam alocacao sem incluir troco nem recebido na divida",
     assert.equal(t.troco, 500); assert.equal(t.recebido, 1000); assert.equal(t.restante, 0);
     assert.deepEqual(p.pagamentos, [{ configuracaoFormaPagamentoId: 42, valor: 5, valorRecebido: 10 }]);
     assert.deepEqual(p.parcelasPrazo, [{ valor: 7.6, vencimento: "2026-11-15" }, { valor: 7.6, vencimento: "2026-12-15" }]);
-    for (const valor of ["0", "-1", "7.59", "7.61", "1.001"]) {
+    for (const valor of ["0", "-1", "1", "14", "1.001"]) {
         const alterado = { ...r, parcelasPrazo: [{ valor, vencimento: "2026-11-15" }, r.parcelasPrazo[1]] };
         assert.throws(() => criarPedido(alterado, "chave"));
     }
+    const redistribuido = { ...r, parcelasPrazo: [{ valor: "7.61", vencimento: "2026-11-15" }, r.parcelasPrazo[1]] };
+    assert.equal(totais(redistribuido).troco, 501);
+    assert.equal(criarPedido(redistribuido, "chave").pagamentos[0].valor, 4.99);
 });
 test("retirar prazo ignora parcelas antigas e preserva o payload imediato", () => {
     const r = { ...venda(), parcelasPrazo: [{ valor: "20.20", vencimento: "2026-11-15" }] };
@@ -176,7 +179,7 @@ test("PIX e cartões usam o total exato e não carregam troco anterior", () => {
 });
 test("bloqueia vazio, pagamento insuficiente, quantidade inválida e desconto excessivo", () => {
     assert.throws(() => criarPedido(novoRascunho(), "chave"), /Adicione/);
-    assert.throws(() => criarPedido({ ...venda(), recebido: "1" }, "chave"), /recebido/);
+    assert.throws(() => criarPedido({ ...venda(), recebido: "1" }, "chave"), /soma/);
     assert.throws(() => criarPedido({ ...venda(), desconto: "21" }, "chave"), /desconto/);
     assert.throws(() => criarPedido({ ...venda(), itens: [{ produto, quantidade: "0" }] }, "chave"), /quantidades/);
 });
@@ -205,6 +208,61 @@ test("mantém a sessão no próximo rascunho e a envia na venda", () => {
 
 const parcela = (id, formaPagamento, valor, recebido = "") => ({ configuracaoFormaPagamentoId: id,
     nomeExibicao: formaPagamento, formaPagamento, valor, recebido });
+
+for (const [nome, total, recebido, outras, aplicado, troco, restante] of [
+    ["dinheiro parcial e PIX completam venda", 14, "10", [parcela(2, "PIX", "4")], 10, 0, 0],
+    ["dinheiro unico devolve excedente como troco", 14, "20", [], 14, 6, 0],
+    ["dinheiro insuficiente deixa falta distribuir", 14, "10", [], 10, 0, 4],
+    ["dinheiro e PIX geram troco sem excedente", 14, "10", [parcela(2, "PIX", "5")], 9, 1, 0],
+    ["PIX sem troco bloqueia excedente", 14, null, [parcela(2, "PIX", "15")], 0, 0, -1],
+    ["PIX e cartao sem troco bloqueiam excedente", 14, null, [parcela(2, "PIX", "10"), parcela(3, "CARTAO_DEBITO", "5")], 0, 0, -1],
+    ["dinheiro e prazo alocam venda sem incluir troco na divida", 100, "40", [parcela(null, "A_PRAZO", "")], 40, 0, 0],
+    ["dinheiro parcial e credito geram troco", 14, "10", [parcela(4, "CARTAO_CREDITO", "5")], 9, 1, 0],
+    ["dinheiro nao absorve excedente das outras formas", 14, "10", [parcela(2, "PIX", "15")], 0, 10, -1],
+]) {
+    test(nome, () => {
+        const r = { ...venda(), cliente: { id: 8 }, itens: [{ produto: { ...produto, precoVenda: total }, quantidade: "1" }],
+            pagamentos: [...(recebido === null ? [] : [parcela(1, "DINHEIRO", "999", recebido)]), ...outras],
+            parcelasPrazo: [{ valor: "60", vencimento: "2026-11-15" }] };
+        const t = totais(r);
+        assert.equal(t.restante, restante * 100); assert.equal(t.troco, troco * 100);
+        assert.equal(t.totalImediato + t.totalPrazo, (total - restante) * 100);
+        if (recebido !== null) assert.equal(t.parcelas[0].valorCentavos, aplicado * 100);
+        if (restante !== 0) assert.throws(() => criarPedido(r, "chave"));
+        else {
+            const pedido = criarPedido(r, "chave");
+            assert.deepEqual(pedido.pagamentos[0], { configuracaoFormaPagamentoId: 1, valor: aplicado, valorRecebido: Number(recebido) });
+            assert.equal(t.pagamentosValidos, true);
+            if (t.usaPrazo) assert.deepEqual(pedido.parcelasPrazo, [{ valor: 60, vencimento: "2026-11-15" }]);
+        }
+    });
+}
+
+test("editar/remover outra forma recalcula somente dinheiro; invalido/zero nunca vira pagamento valido", () => {
+    const r = { ...venda(), itens: [{ produto: { ...produto, precoVenda: 14 }, quantidade: "1" }],
+        pagamentos: [parcela(1, "DINHEIRO", "14", "10"), parcela(2, "PIX", "5")] };
+    assert.equal(totais(r).troco, 100);
+    assert.equal(totais({ ...r, pagamentos: [r.pagamentos[0], parcela(2, "PIX", "4")] }).troco, 0);
+    assert.equal(totais({ ...r, pagamentos: [r.pagamentos[0]] }).restante, 400);
+    for (const recebido of ["0", "-1", "NaN", "1.001"]) {
+        const alterado = { ...r, pagamentos: [{ ...r.pagamentos[0], recebido }, r.pagamentos[1]] };
+        assert.equal(totais(alterado).pagamentosValidos, false);
+        assert.throws(() => criarPedido(alterado, "chave"));
+    }
+    assert.equal(r.pagamentos[0].recebido, "10"); assert.equal(r.pagamentos[1].valor, "5");
+});
+
+test("configuracoes de dinheiro distintas cobrem saldo em ordem sem duplicar alocacao", () => {
+    const r = { ...venda(), itens: [{ produto: { ...produto, precoVenda: 100 }, quantidade: "1" }],
+        pagamentos: [parcela(1, "DINHEIRO", "", "40"), parcela(7, "DINHEIRO", "", "50"), parcela(2, "PIX", "20")] };
+    const t = totais(r);
+    assert.equal(t.restante, 0); assert.equal(t.troco, 1000);
+    assert.deepEqual(criarPedido(r, "chave").pagamentos, [
+        { configuracaoFormaPagamentoId: 1, valor: 40, valorRecebido: 40 },
+        { configuracaoFormaPagamentoId: 7, valor: 40, valorRecebido: 50 },
+        { configuracaoFormaPagamentoId: 2, valor: 20 },
+    ]);
+});
 
 test("pagamento misto soma somente valores aplicados, preserva troco e envia lista sem tenant", () => {
     const r = { ...venda(), itens: [{ produto: { ...produto, precoVenda: 100 }, quantidade: "1" }],
