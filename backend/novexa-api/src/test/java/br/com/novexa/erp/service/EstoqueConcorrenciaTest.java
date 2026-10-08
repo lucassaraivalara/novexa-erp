@@ -3,6 +3,7 @@ package br.com.novexa.erp.service;
 import br.com.novexa.erp.entity.*;
 import br.com.novexa.erp.exception.EstoqueInsuficienteException;
 import br.com.novexa.erp.repository.*;
+import br.com.novexa.erp.storage.ArquivoStorageService;
 import jakarta.persistence.EntityManager;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
@@ -46,6 +48,7 @@ import static org.mockito.Mockito.doAnswer;
 class EstoqueConcorrenciaTest {
 
     @Autowired MovimentacaoEstoqueService estoque;
+    @MockitoBean ArquivoStorageService arquivoStorageService;
     @MockitoSpyBean ProdutoService cadastro;
     @Autowired PlatformTransactionManager transactionManager;
     @Autowired ProdutoRepository produtos;

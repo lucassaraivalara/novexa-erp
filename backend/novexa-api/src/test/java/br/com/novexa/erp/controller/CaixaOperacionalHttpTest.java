@@ -55,6 +55,8 @@ class CaixaOperacionalHttpTest {
     @Autowired PlatformTransactionManager transactions;
     @Autowired ConferenciaFechamentoCaixaRepository conferencias;
     @Autowired FormaPagamentoRepository formas;
+    @Autowired ConfiguracaoFormaPagamentoEmpresaRepository configuracoes;
+    @Autowired ContaFinanceiraRepository contasFinanceiras;
     @Autowired CancelamentoVendaService cancelamento;
     EmpresaEntity empresa;
     UsuarioEntity operador;
@@ -108,7 +110,7 @@ class CaixaOperacionalHttpTest {
 
     @AfterEach void limpar() {
         for (String tabela : List.of("conferencias_fechamento_caixa", "movimentacoes_caixa", "recebiveis", "pagamentos", "lancamentos_financeiros", "itens_venda",
-                "vendas", "movimentacoes_estoque", "produtos", "sessoes_caixa", "caixas", "usuario", "empresas", "formas_pagamento"))
+                "vendas", "configuracoes_formas_pagamento_empresa", "contas_financeiras", "movimentacoes_estoque", "produtos", "sessoes_caixa", "caixas", "usuario", "empresas", "formas_pagamento"))
             jdbc.update("delete from " + tabela);
     }
 
@@ -678,9 +680,7 @@ class CaixaOperacionalHttpTest {
         vendaService.finalizar(venda(FormaPagamento.PIX, null), principal);
         vendaService.finalizar(venda(FormaPagamento.DINHEIRO, null), principal);
         for (var forma : List.of(pix, dinheiro)) {
-            var base = venda(FormaPagamento.PIX, null);
-            vendaService.finalizar(new VendaRequestDTO(base.chaveRequisicao(), base.itens(), base.clienteId(),
-                    base.desconto(), base.totalEsperado(), null, base.valorRecebido(), null, null, forma.getId(), sessao), principal);
+            vendaService.finalizar(venda(null, forma.getId(), sessao), principal);
         }
         pix.atualizar(pix.getDescricao(), false); formas.saveAndFlush(pix);
         var resposta = sessoesService.fechar(caixa.getId(), sessao,
@@ -804,9 +804,20 @@ class CaixaOperacionalHttpTest {
     }
 
     private VendaRequestDTO venda(FormaPagamento forma, Long sessaoId) {
+        return venda(forma, null, sessaoId);
+    }
+    private VendaRequestDTO venda(FormaPagamento forma, Long formaId, Long sessaoId) {
+        var registro = formas.findById(formaId == null ? forma.idPadrao() : formaId).orElseThrow();
+        Long configuracaoId = null;
+        if (registro.getTipo() == TipoFormaPagamento.PIX) {
+            var destino = contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(empresa,
+                    "Carteira PIX", TipoContaFinanceira.CARTEIRA_DIGITAL, BigDecimal.ZERO));
+            configuracaoId = configuracoes.saveAndFlush(new ConfiguracaoFormaPagamentoEmpresaEntity(empresa,
+                    registro, "PIX " + UUID.randomUUID(), true, destino)).getId();
+        }
         return new VendaRequestDTO(UUID.randomUUID(), List.of(new VendaRequestDTO.Item(produto.getId(), BigDecimal.ONE, BigDecimal.TEN)),
                 null, BigDecimal.ZERO, BigDecimal.TEN, forma, forma == FormaPagamento.DINHEIRO ? new BigDecimal("20") : BigDecimal.TEN,
-                null, null, null, sessaoId);
+                null, null, formaId, sessaoId, configuracaoId);
     }
     private MovimentacaoCaixaRequestDTO manual(TipoMovimentacaoCaixa tipo, String valor) {
         return new MovimentacaoCaixaRequestDTO(UUID.randomUUID(), tipo, new BigDecimal(valor), null);

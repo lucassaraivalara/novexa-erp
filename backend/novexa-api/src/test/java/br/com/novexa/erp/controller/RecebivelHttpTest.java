@@ -47,9 +47,17 @@ class RecebivelHttpTest {
     @AfterEach void limpar() { reset(recebiveis); fluxo.limpar(); }
 
     Map<String, Object> pedido(String tipo) {
-        return new HashMap<>(Map.of("chaveRequisicao", UUID.randomUUID(), "itens",
+        var pedido = new HashMap<String, Object>(Map.of("chaveRequisicao", UUID.randomUUID(), "itens",
                 List.of(Map.of("produtoId", fluxo.produto.getId(), "quantidade", 2, "precoUnitarioEsperado", 10)),
                 "desconto", 0, "totalEsperado", 20, "formaPagamento", tipo, "valorRecebido", 20));
+        if (tipo.equals("PIX")) {
+            var destino = fluxo.contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(fluxo.empresa,
+                    "Carteira PIX", TipoContaFinanceira.CARTEIRA_DIGITAL, java.math.BigDecimal.ZERO));
+            var config = fluxo.configuracoes.saveAndFlush(new ConfiguracaoFormaPagamentoEmpresaEntity(fluxo.empresa,
+                    fluxo.catalogo.findById(2L).orElseThrow(), "PIX " + UUID.randomUUID(), true, destino));
+            pedido.put("configuracaoFormaPagamentoId", config.getId());
+        }
+        return pedido;
     }
     long enviar(Map<String, Object> pedido) throws Exception {
         var resposta = fluxo.mvc.perform(post("/vendas").header("Authorization", fluxo.authorization)
