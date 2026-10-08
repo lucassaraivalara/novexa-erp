@@ -348,7 +348,7 @@ test("pagamento compacto alinha forma/valor, destaca apenas troco positivo e ale
         const valor = pagamento.getByLabel("Valor (R$)", { exact: true });
         const recebido = pagamento.getByLabel("Recebido (R$)");
         const troco = pagamento.getByLabel("Troco do pagamento 1");
-        assert.equal(await troco.evaluate(el => getComputedStyle(el).fontSize), "14px");
+        assert.equal(await troco.count(), 0);
         await recebido.fill("130");
         assert.match(await troco.innerText(), /30,00/);
         assert.equal(await troco.evaluate(el => getComputedStyle(el).fontSize), "20px");
@@ -365,6 +365,61 @@ test("pagamento compacto alinha forma/valor, destaca apenas troco positivo e ale
         const excedente = page.getByRole("alert").filter({ hasText: "Valor excedente" });
         assert.match(await excedente.getAttribute("class"), /MuiAlert-colorError/);
         assert.match(await excedente.innerText(), /20,00/);
+    } finally { await page.close(); }
+});
+
+test("pagamento misto legivel: dinheiro + PIX com excedente explica Pagar desabilitado e preserva valores", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        estado.produtos = [{ ...produto(), precoVenda: 3.5, controlaEstoque: true, estoqueAtual: 100 }];
+        await busca.fill("7890001"); await busca.press("Enter");
+        await page.getByLabel("Quantidade de Produto remoto").waitFor();
+        const pagar = page.getByRole("button", { name: "Pagar · F2", exact: true });
+        const dinheiro = grupoPagamento(page, 1);
+        assert.equal(await dinheiro.getByLabel("Valor (R$)", { exact: true }).inputValue(), "3.50");
+        assert.equal(await page.getByRole("button", { name: /^Remover pagamento/ }).count(), 0);
+        assert.equal(await dinheiro.getByLabel("Troco do pagamento 1").count(), 0);
+        assert.equal(await pagar.isEnabled(), true);
+        await dinheiro.getByLabel("Recebido (R$)").fill("5");
+        assert.match(await dinheiro.getByLabel("Troco do pagamento 1").innerText(), /1,50/);
+        await dinheiro.getByLabel("Recebido (R$)").fill("");
+
+        await page.getByRole("button", { name: "Adicionar forma" }).click();
+        const pix = grupoPagamento(page, 2);
+        await pix.getByRole("combobox").selectOption("2");
+        assert.equal(await pix.getByLabel("Valor (R$)", { exact: true }).inputValue(), "0.00");
+        await pix.getByLabel("Valor (R$)", { exact: true }).fill("2.50");
+        await dinheiro.getByLabel("Valor (R$)", { exact: true }).fill("1");
+        assert.equal(await page.getByRole("alert").count(), 0);
+        assert.equal(await pagar.isEnabled(), true);
+
+        await dinheiro.getByLabel("Valor (R$)", { exact: true }).fill("3.50");
+        await pix.getByLabel("Valor (R$)", { exact: true }).fill("1.00");
+        const excedente = page.getByRole("alert").filter({ hasText: "Valor excedente" });
+        assert.match(await excedente.getAttribute("class"), /MuiAlert-colorError/);
+        assert.match(await excedente.innerText(), /1,00/);
+        assert.match(await excedente.innerText(), /liberar o Pagar/);
+        assert.equal(await pagar.isDisabled(), true);
+        assert.equal(await dinheiro.getByLabel("Valor (R$)", { exact: true }).inputValue(), "3.50");
+        assert.equal(await dinheiro.getByLabel("Troco do pagamento 1").count(), 0);
+        await dinheiro.getByLabel("Recebido (R$)").focus();
+        await page.keyboard.press("F2");
+        await page.waitForTimeout(150);
+        assert.equal(estado.requests.some(r => r.method === "POST" && r.path === "/vendas"), false);
+
+        for (const width of [1440, 1024, 390]) {
+            await page.setViewportSize({ width, height: 900 });
+            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+            for (const grupo of [dinheiro, pix]) {
+                const forma = await grupo.getByRole("combobox").boundingBox();
+                const valor = await grupo.getByLabel("Valor (R$)", { exact: true }).boundingBox();
+                assert.ok(forma.width >= 150 && valor.width >= 110, `campos legiveis em ${width}px`);
+                assert.ok(valor.x + valor.width <= width, `valor visivel em ${width}px`);
+                const remover = await grupo.getByRole("button", { name: /^Remover pagamento/ }).boundingBox();
+                assert.ok(remover.width >= 36 && remover.height >= 36);
+            }
+            await page.screenshot({ path: `node_modules/.vite-pdv-buscas-tests/pagamento-misto-excedente-${width}.png`, fullPage: true });
+        }
     } finally { await page.close(); }
 });
 

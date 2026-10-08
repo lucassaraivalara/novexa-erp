@@ -410,9 +410,14 @@ export default function Vendas() {
                 ) : (
                     <>
                         {t.parcelas.map((p, i) => <Stack key={i} spacing={1} role="group" aria-label={`Pagamento ${i + 1}`}
-                            sx={{ pb: i < t.parcelas.length - 1 ? 1.5 : 0, borderBottom: i < t.parcelas.length - 1 ? 1 : 0, borderColor: "divider" }}>
-                        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                        <TextField fullWidth size="small" select sx={{ minWidth: 0 }} label={i === 0 ? "Forma de pagamento" : `Forma de pagamento ${i + 1}`} value={p.formaPagamento === "A_PRAZO" ? "A_PRAZO" : p.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
+                            sx={t.parcelas.length > 1 ? { p: 1.25, border: 1, borderColor: "divider", borderRadius: 1.5 } : undefined}>
+                        {t.parcelas.length > 1 && <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>Forma {i + 1}</Typography>
+                            <Tooltip title="Remover forma"><IconButton aria-label={`Remover pagamento ${i + 1}`} disabled={bloqueado} sx={{ width: 36, height: 36 }}
+                                onClick={() => alterar({ pagamentos: pagamentosRascunho(rascunho).filter((_, indice) => indice !== i) })}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>
+                        </Stack>}
+                        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, alignItems: "flex-start" }}>
+                        <TextField size="small" select sx={{ flex: "1 1 140px", minWidth: 0 }} label={i === 0 ? "Forma de pagamento" : `Forma de pagamento ${i + 1}`} value={p.formaPagamento === "A_PRAZO" ? "A_PRAZO" : p.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
                             slotProps={{ inputLabel: { shrink: true }, select: { native: true } }}
                             onChange={e => {
                                 if (e.target.value === "A_PRAZO") {
@@ -447,12 +452,10 @@ export default function Vendas() {
                                 </option>
                             ))}
                         </TextField>
-                        {p.formaPagamento !== "A_PRAZO" && <TextField size="small" label="Valor (R$)" sx={{ width: 105, flexShrink: 0 }}
+                        {p.formaPagamento !== "A_PRAZO" && <TextField size="small" label="Valor (R$)" sx={{ flex: "0 0 120px" }}
                             value={p.valor === "" && t.parcelas.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : p.valor}
                             disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()}
                             onChange={e => alterarPagamento(i, { valor: e.target.value })} />}
-                        {t.parcelas.length > 1 && <Tooltip title="Remover forma"><IconButton size="small" aria-label={`Remover pagamento ${i + 1}`} disabled={bloqueado}
-                            onClick={() => alterar({ pagamentos: pagamentosRascunho(rascunho).filter((_, indice) => indice !== i) })}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>}
                         </Stack>
                         {p.formaPagamento === "A_PRAZO" ? <Stack spacing={1}>
                             {!rascunho.cliente && <Alert severity="warning">Selecione um cliente para vender a prazo.</Alert>}
@@ -481,24 +484,25 @@ export default function Vendas() {
                             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                                 <TextField size="small" inputRef={recebidoRef} label="Recebido (R$)" sx={{ flex: 1, minWidth: 0 }} value={p.recebido} placeholder={((p.valorCentavos ?? 0) / 100).toFixed(2)} disabled={bloqueado}
                                     slotProps={{ htmlInput: { inputMode: "decimal" } }} onFocus={e => e.target.select()} onChange={e => alterarPagamento(i, { recebido: e.target.value })} />
-                                <Stack sx={{ alignItems: "flex-end", flexShrink: 0, color: p.troco > 0 ? "text.primary" : "text.secondary" }}>
+                                {p.troco > 0 && <Stack sx={{ alignItems: "flex-end", flexShrink: 0 }}>
                                     <Typography variant="caption">Troco</Typography>
-                                    <Typography aria-label={`Troco do pagamento ${i + 1}`} sx={{ fontSize: p.troco > 0 ? 20 : 14, fontWeight: p.troco > 0 ? 700 : 400, fontVariantNumeric: "tabular-nums" }}>{moeda(p.troco)}</Typography>
-                                </Stack>
+                                    <Typography aria-label={`Troco do pagamento ${i + 1}`} sx={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda(p.troco)}</Typography>
+                                </Stack>}
                             </Stack>
                         )}
                         </Stack>)}
                         <Button size="small" startIcon={<AddRoundedIcon />} sx={{ alignSelf: "flex-start" }} disabled={bloqueado || t.parcelas.length >= 20} onClick={adicionarForma}>Adicionar forma</Button>
                         {t.parcelas.some(p => p.formaPagamento !== "A_PRAZO") && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Pago agora</span><Typography aria-label="Pago agora">{moeda(t.totalImediato)}</Typography></Stack>}
                         {t.usaPrazo && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>A receber</span><Typography aria-label="A receber">{moeda(t.totalPrazo)}</Typography></Stack>}
-                        {t.restante !== 0 && <Alert severity={t.restante > 0 ? "warning" : "error"} icon={false} sx={{ py: 0.5, "& .MuiAlert-message": { width: "100%" } }}>
-                            <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>{t.restante > 0 ? "Falta distribuir" : "Valor excedente"}</span><Typography aria-label={t.restante > 0 ? "Falta distribuir" : "Valor excedente"} sx={{ fontWeight: 600 }}>{moeda(Math.abs(t.restante))}</Typography></Stack>
-                        </Alert>}
                     </>
                 )}
                 </Stack>
                 </Box>
                 <Stack spacing={1.5} sx={{ flexShrink: 0 }}>
+                {!carregandoConfig && !erroConfig && t.restante !== 0 && <Alert severity={t.restante > 0 ? "warning" : "error"} icon={false} sx={{ py: 0.75, border: 1, borderColor: t.restante > 0 ? "warning.main" : "error.main", "& .MuiAlert-message": { width: "100%" } }}>
+                    <Stack direction="row" sx={{ justifyContent: "space-between", fontWeight: 700 }}><span>{t.restante > 0 ? "Falta distribuir" : "Valor excedente"}</span><Typography aria-label={t.restante > 0 ? "Falta distribuir" : "Valor excedente"} sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.abs(t.restante))}</Typography></Stack>
+                    <Typography variant="caption" sx={{ display: "block" }}>{t.restante > 0 ? "Distribua o restante para liberar o Pagar." : "Reduza os valores informados para liberar o Pagar."}</Typography>
+                </Alert>}
                 <Button size="large" variant="contained" disableElevation disabled={!sessaoCaixaResolvida || salvando || carregandoConfig || (!rascunho.pendente && (!rascunho.itens.length || !t.valido || !t.pagamentosValidos || t.restante !== 0
                     || t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))))} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
                     {salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado · F2" : "Pagar · F2"}
