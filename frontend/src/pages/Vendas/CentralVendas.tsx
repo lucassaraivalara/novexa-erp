@@ -19,6 +19,7 @@ import {
     Table,
     TableBody,
     TableCell,
+    TableContainer,
     TableHead,
     TableRow,
     TextField,
@@ -372,14 +373,14 @@ export default function CentralVendas() {
             <DialogTitle id="detalhe-venda-titulo">Venda #{selecionada?.id}</DialogTitle>
             <DialogContent dividers>
                 {carregandoDetalhe || !detalhe ? <Typography color="text.secondary">Carregando detalhes…</Typography> : <Stack spacing={2}>
-                    <Stack direction="row" spacing={3} sx={{ flexWrap: "wrap" }}>
-                        <Typography><strong>Data:</strong> {dataHoraVenda(detalhe.dataHora)}</Typography>
-                        <Typography><strong>Cliente:</strong> {selecionada?.nomeCliente || detalhe.contasReceber?.[0]?.cliente?.nome
+                    <Stack direction="row" sx={{ alignItems: "center", flexWrap: "wrap", columnGap: 3, rowGap: 0.75, px: 1.5, py: 1, border: 1, borderColor: "divider", borderRadius: 1.5, bgcolor: "background.default" }}>
+                        <Chip size="small" color={corStatus(detalhe.status)} label={rotulosStatus[detalhe.status]} />
+                        <Typography variant="body2" color="text.secondary"><strong>Data:</strong> {dataHoraVenda(detalhe.dataHora)}</Typography>
+                        <Typography variant="body2" color="text.secondary"><strong>Cliente:</strong> {selecionada?.nomeCliente || detalhe.contasReceber?.[0]?.cliente?.nome
                             || (detalhe.clienteId ? `Cliente #${detalhe.clienteId}` : "Consumidor final")}</Typography>
-                        <Typography><strong>Status:</strong> {rotulosStatus[detalhe.status]}</Typography>
-                        <Typography><strong>Sessão:</strong> {detalhe.sessaoCaixaId ? `#${detalhe.sessaoCaixaId}` : "—"}</Typography>
+                        <Typography variant="body2" color="text.secondary"><strong>Sessão:</strong> {detalhe.sessaoCaixaId ? `#${detalhe.sessaoCaixaId}` : "—"}</Typography>
                     </Stack>
-                    <Box component="section" aria-label="Resumo financeiro da venda" sx={{ py: 1.5, borderTop: 1, borderBottom: 1, borderColor: "divider" }}>
+                    <Box component="section" aria-label="Resumo financeiro da venda" sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 1.5 }}>
                         <Box component="dl" sx={{ m: 0, display: "grid", gap: 1.5,
                             gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: detalhe.contasReceber?.length ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))" } }}>
                             <Box sx={{ minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
@@ -408,7 +409,8 @@ export default function CentralVendas() {
                             {!!detalhe.contasReceber?.length && <Chip size="small" variant="outlined" label="A prazo" />}
                         </Stack>}
                     </Box>
-                    <Table size="small" aria-label="Itens da venda">
+                    <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 1.5 }}>
+                    <Table size="small" aria-label="Itens da venda" sx={{ minWidth: 420 }}>
                         <TableHead><TableRow><TableCell>Produto</TableCell><TableCell align="right">Quantidade</TableCell>
                             <TableCell align="right">Unitário</TableCell><TableCell align="right">Subtotal</TableCell></TableRow></TableHead>
                         <TableBody>{detalhe.itens.map(item => <TableRow key={item.id}>
@@ -417,12 +419,13 @@ export default function CentralVendas() {
                             <TableCell align="right">{moedaVenda(item.subtotal)}</TableCell>
                         </TableRow>)}</TableBody>
                     </Table>
+                    </TableContainer>
                     <Stack direction="row" spacing={3} sx={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
                         <Typography>Subtotal: <strong>{moedaVenda(detalhe.subtotal)}</strong></Typography>
                         <Typography>Desconto: <strong>{moedaVenda(detalhe.desconto)}</strong></Typography>
                         {!!detalhe.troco && <Typography>Troco: <strong>{moedaVenda(detalhe.troco)}</strong></Typography>}
                     </Stack>
-                    {(!!pagamentos.length || !!erroPagamentos) && <Typography variant="h6">Pagamentos</Typography>}
+                    {(!!pagamentos.length || !!erroPagamentos) && <Typography variant="h6" sx={{ fontSize: 16, fontWeight: 700 }}>Pagamentos</Typography>}
                     {erroPagamentos && <Alert severity="error">{erroPagamentos}</Alert>}
                     {temCartao && recebiveis?.vendaId === detalhe.id && recebiveis.erro && <Alert severity="warning"
                         action={<Button color="inherit" onClick={() => { setRecebiveis(null); setTentativaRecebiveis(n => n + 1); }}>Tentar novamente</Button>}>
@@ -434,28 +437,33 @@ export default function CentralVendas() {
                         const recebivel = recebiveis?.items.find(r => r.vendaId === detalhe.id && r.pagamentoId === pagamento.id
                             && r.tipo === (pagamento.formaPagamento === "CARTAO_DEBITO" ? "DEBITO" : "CREDITO"));
                         const cancelado = pagamento.status === "CANCELADO" || detalhe.status === "CANCELADA";
-                        return <Stack key={pagamento.id} spacing={1} role={cartao ? "group" : undefined}
-                            aria-label={cartao ? `${rotulosPagamento[pagamento.formaPagamento]} · ${moedaVenda(pagamento.valor)}` : undefined}>
-                            <Typography>{rotulosPagamento[pagamento.formaPagamento]} · {pagamento.configuracaoNomeExibicao || "Configuração histórica não informada"} · <strong>{moedaVenda(pagamento.valor)}</strong></Typography>
+                        return <Stack key={pagamento.id} spacing={0.75} role={cartao ? "group" : undefined}
+                            aria-label={cartao ? `${rotulosPagamento[pagamento.formaPagamento]} · ${moedaVenda(pagamento.valor)}` : undefined}
+                            sx={{ p: 1.25, border: 1, borderColor: "divider", borderRadius: 1.5 }}>
+                            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "baseline", gap: 1 }}>
+                                <Typography sx={{ fontWeight: 600, minWidth: 0, overflowWrap: "anywhere" }}>{rotulosPagamento[pagamento.formaPagamento]} · {pagamento.configuracaoNomeExibicao || "Configuração histórica não informada"}</Typography>
+                                <Typography sx={{ fontWeight: 700, flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{moedaVenda(pagamento.valor)}</Typography>
+                            </Stack>
                             {cartao && (recebiveis?.vendaId !== detalhe.id
                                 ? <Typography variant="body2" color="text.secondary">Consultando recebimento do cartão…</Typography>
                                 : recebiveis.erro ? <Typography variant="body2" color="text.secondary">Situação indisponível</Typography>
                                     : recebivel ? <Box><StatusChip status={recebivel.status} label={rotulosRecebivel[recebivel.status] ?? "Situação indisponível"} /></Box>
                                         : <Typography variant="body2" color="text.secondary">Recebível não localizado</Typography>)}
                             {!cartao && pagamento.configuracaoContaFinanceiraDestinoNome && <Typography variant="body2" color="text.secondary">Conta de destino: {pagamento.configuracaoContaFinanceiraDestinoNome}</Typography>}
-                            {pix && <Typography variant="body2">{cancelado ? "Pagamento cancelado" : pagamento.confirmadoFinanceiramente ? "Recebimento confirmado" : "Aguardando confirmação"}</Typography>}
+                            {pix && <Box><Chip size="small" variant="outlined" color={cancelado ? "default" : pagamento.confirmadoFinanceiramente ? "success" : "warning"}
+                                label={cancelado ? "Pagamento cancelado" : pagamento.confirmadoFinanceiramente ? "Recebimento confirmado" : "Aguardando confirmação"} /></Box>}
                             {pix && pagamento.confirmadoFinanceiramente && <Typography variant="caption" color="text.secondary">
                                 Confirmado em {pagamento.dataConfirmacaoFinanceira ? dataHoraVenda(pagamento.dataConfirmacaoFinanceira) : "—"} · Movimento #{pagamento.movimentacaoFinanceiraId}
                             </Typography>}
                             {pix && !cancelado && !pagamento.confirmadoFinanceiramente && podeCancelar && <Button
-                                sx={{ alignSelf: "flex-start" }} disabled={confirmandoPix} onClick={() => { setErroPix(""); setPixParaConfirmar(pagamento); }}>
+                                size="small" variant="contained" sx={{ alignSelf: "flex-start" }} disabled={confirmandoPix} onClick={() => { setErroPix(""); setPixParaConfirmar(pagamento); }}>
                                 Confirmar recebimento
                             </Button>}
                         </Stack>;
                     })}
                     {!!detalhe.contasReceber?.length && <Stack spacing={1}>
-                        <Typography variant="h6">A prazo</Typography>
-                        {detalhe.contasReceber.map(conta => <Stack key={conta.id} direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" }, flexWrap: "wrap" }}>
+                        <Typography variant="h6" sx={{ fontSize: 16, fontWeight: 700 }}>A prazo</Typography>
+                        {detalhe.contasReceber.map(conta => <Stack key={conta.id} direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" }, flexWrap: "wrap", p: 1.25, border: 1, borderColor: "divider", borderRadius: 1.5 }}>
                             <Typography variant="body2">{conta.numeroParcela}/{conta.totalParcelas} · {formatarData(conta.dataVencimento)} · <strong>{moedaVenda(conta.valorOriginal)}</strong> · Saldo {moedaVenda(conta.saldo)}</Typography>
                             <StatusChip status={conta.status} label={rotulosContaReceber[conta.status]} />
                             <Button component={Link} to={`/financeiro/contas-receber?contaId=${conta.id}`} size="small">Ver em Contas a Receber</Button>
