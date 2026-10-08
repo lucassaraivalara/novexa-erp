@@ -1,6 +1,7 @@
 .idea/
 .m2/
 .codex/
+.kilo/
 /backend/novexa-api/config/application-local.properties
 
 # Local environment and credential files
