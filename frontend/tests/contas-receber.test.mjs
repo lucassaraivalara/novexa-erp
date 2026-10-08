@@ -30,7 +30,7 @@ before(async () => {
                 createRoot(document.getElementById('root')).render(React.createElement(ThemeProvider,{theme},
                     React.createElement(CssBaseline),React.createElement(BrowserRouter,null,React.createElement(AppRoutes))));`; },
             configureServer(vite) { vite.middlewares.use(async (req, res, next) => {
-                if (!["/financeiro/contas-receber", "/dashboard"].includes(req.url.split("?")[0])) return next();
+                if (!["/financeiro/contas-receber", "/dashboard", "/vendas"].includes(req.url.split("?")[0])) return next();
                 res.setHeader("Content-Type", "text/html");
                 res.end(await vite.transformIndexHtml(req.url, '<div id="root"></div><script type="module" src="/receber-fixture.js"></script>'));
             }); },
@@ -100,6 +100,11 @@ async function abrir(extras = {}, viewport = { width: 1440, height: 1000 }, opco
         else if (u.pathname === "/dashboard/resumo") data = { faturamentoHoje: 420, quantidadeVendasHoje: 6, ticketMedioHoje: 70,
             quantidadeProdutosEstoqueBaixo: 0, quantidadeClientesAtivos: 15, sessoesCaixaAbertas: [] };
         else if (u.pathname === "/vendas") data = { items: [], page: 0, size: 5, totalItems: 0, totalPages: 0 };
+        else if (u.pathname === "/vendas/123") data = { id: 123, dataHora: "2026-10-01T10:00:00", clienteId: cliente.id,
+            status: "FATURADA", total: 150, subtotal: 150, desconto: 0, troco: 0, itens: [],
+            contasReceber: [estado.conta] };
+        else if (u.pathname === "/vendas/123/pagamentos") data = [{ id: 1, vendaId: 123, formaPagamento: "DINHEIRO", valor: 50,
+            status: "REGISTRADO", configuracaoNomeExibicao: "Dinheiro" }];
         else if (u.pathname === "/estoque") data = { items: [], page: 0, size: 5, totalItems: 0, totalPages: 0 };
         else { status = 404; data = { detail: `HTTP inesperado: ${u.pathname}` }; }
         await route.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(data) });
@@ -268,6 +273,40 @@ test("link da Central abre a parcela da venda sem permitir editar ou cancelar in
         assert.equal(await detalhe.getByRole("button", { name: "Editar", exact: true }).count(), 0);
         assert.equal(await detalhe.getByRole("button", { name: "Cancelar conta", exact: true }).count(), 0);
     } finally { await page.close(); }
+});
+
+test("conta da venda abre a Central pelo vínculo e permite voltar à parcela", async () => {
+    const { page, estado, errors } = await abrir({ origem: "VENDA_A_PRAZO", vendaId: 123 });
+    try {
+        await detalhe(page);
+        const link = page.getByRole("link", { name: "Ver venda #123", exact: true });
+        assert.equal(await link.getAttribute("href"), "/vendas?vendaId=123");
+        await link.click(); await page.waitForURL(`${url}/vendas?vendaId=123`);
+        const dialog = page.getByRole("dialog", { name: "Venda #123", exact: true });
+        await dialog.getByRole("region", { name: "Resumo financeiro da venda" }).waitFor();
+        assert.match(await dialog.innerText(), /Cliente:\s*Maria Oliveira/);
+        assert.equal(chamadas(estado, "/vendas/123").length, 1);
+        assert.equal(chamadas(estado, "/vendas/123/pagamentos").length, 1);
+        await dialog.getByRole("link", { name: "Ver em Contas a Receber", exact: true }).click();
+        await page.waitForURL(`${url}${base}?contaId=1`);
+        await page.getByText("Esta conta é controlada pela venda de origem.", { exact: true }).waitFor();
+        await page.getByRole("link", { name: "Ver venda #123", exact: true }).click();
+        await page.getByRole("region", { name: "Resumo financeiro da venda" }).waitFor();
+        await page.keyboard.press("Escape");
+        await page.waitForURL(`${url}/vendas`);
+        assert.deepEqual(errors, []);
+        assert.ok(estado.requests.every(r => r.method === "GET"));
+    } finally { await page.close(); }
+});
+
+test("conta manual ou sem venda de origem não oferece link de venda", async () => {
+    for (const extras of [{}, { origem: "MANUAL", vendaId: 123 }, { origem: "VENDA_A_PRAZO", vendaId: null }]) {
+        const { page } = await abrir(extras);
+        try {
+            await detalhe(page);
+            assert.equal(await page.getByRole("link", { name: /Ver venda/ }).count(), 0);
+        } finally { await page.close(); }
+    }
 });
 test("listagem/resumo reais, filtro remoto com inativos, sort e paginação server-side", async () => {
     const { page, estado } = await abrir(); try {

@@ -10,6 +10,10 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Conta a Receber: navegacao para venda de origem (2026-10-07)
+
+Na branch de trabalho, detalhe de conta VENDA_A_PRAZO com vendaId permite abrir a venda na Central via `/vendas?vendaId=...`, sem nova pagina ou contrato. ID validado antes da consulta, detalhe independente da pagina da listagem, erro/retry e fechamento sem reabertura automatica. Conta manual/sem vinculo nao apresenta link. Resumo financeiro de `3b408fe`, baixa, estorno e regras preservados; frontend-only, sem backend/services/PDV alterados. Validacao com testes direcionados de Contas a Receber/Central e navegacao em navegador com HTTP simulado; build/TypeScript, lint direcionado e diff check.
+
 ## Central de Vendas: resumo financeiro no detalhe (2026-10-07)
 
 Resumo compacto apresenta Total da venda, Pago agora pelos pagamentos imediatos REGISTRADO e A receber pelos saldos das parcelas vinculadas. Formas utilizadas e PIX pendente/confirmado ficam identificados; cartao permanece apenas forma de pagamento, sem buscar Recebiveis. Parcelas e link Ver em Contas a Receber preservados. Frontend-only: backend, services, contratos, regras financeiras e PDV sem alteracoes; nenhuma consulta financeira adicionada na listagem. Validacao: 34 testes direcionados de Central/cliente/confirmacao PIX, build/TypeScript, lint e diff check; resumo revisado em 1440/1024/390 com HTTP simulado.

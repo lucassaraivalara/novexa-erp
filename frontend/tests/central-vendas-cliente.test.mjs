@@ -20,7 +20,7 @@ before(async () => {
                     return React.createElement(ClienteAutocomplete,{value,onChange}); }
                 const Tela = location.pathname === '/__operacional' ? Operacional : Central;
                 createRoot(document.getElementById('root')).render(React.createElement(ThemeProvider,{theme},
-                    React.createElement(MemoryRouter,null,React.createElement(Tela))));`; },
+                    React.createElement(MemoryRouter,{initialEntries:[location.pathname+location.search]},React.createElement(Tela))));`; },
             configureServer(vite) { for (const caminho of ["/__central", "/__operacional"]) vite.middlewares.use(caminho, async (_req, res) => {
                 res.setHeader("Content-Type", "text/html");
                 res.end(await vite.transformIndexHtml(caminho, '<div id="root"></div><script type="module" src="/fixture-cliente.js"></script>'));
@@ -50,15 +50,18 @@ async function abrir(operacional = false, opcoes = {}) {
         if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
         const params = Object.fromEntries(u.searchParams); estado.requests.push({ path: u.pathname, params });
         let data, status = 200;
-        if (u.pathname === "/vendas") data = { items: [{ id: 30, dataHora: "2026-10-01T10:00:00", nomeCliente: "Venda retornada", total: 85,
-            status: "FATURADA", sessaoCaixaId: 1 }], page: Number(params.page), size: Number(params.size), totalItems: 63, totalPages: 3 };
-        else if (u.pathname === "/vendas/30") data = {
+        if (u.pathname === "/vendas") data = { items: estado.listaVazia ? [] : [{ id: 30, dataHora: "2026-10-01T10:00:00", nomeCliente: "Venda retornada", total: 85,
+            status: "FATURADA", sessaoCaixaId: 1 }], page: Number(params.page), size: Number(params.size), totalItems: estado.listaVazia ? 0 : 63, totalPages: estado.listaVazia ? 0 : 3 };
+        else if (u.pathname === "/vendas/30") {
+            if (estado.erroDetalhe) { status = 404; data = { detail: "Venda não encontrada." }; }
+            else data = {
             id: 30, dataHora: "2026-10-01T10:00:00", clienteId: 8, status: "FATURADA", total: 200, subtotal: 200, desconto: 0,
             itens: [], formaPagamento: null, valorRecebido: 60, troco: 10, sessaoCaixaId: 1,
             contasReceber: [1, 2].map(numero => ({ id: numero, numeroParcela: numero, totalParcelas: 2, valorOriginal: 75,
                 saldo: numero === 1 ? 35 : 75, dataVencimento: `2026-${numero === 1 ? "11" : "12"}-15`, status: numero === 1 ? "PARCIAL" : "PENDENTE" })),
             ...estado.detalhe,
-        };
+            };
+        }
         else if (u.pathname === "/vendas/30/pagamentos") {
             if (estado.erroPagamentos) { status = 503; data = { detail: "Não foi possível carregar os pagamentos." }; }
             else data = estado.pagamentos ?? [{ id: 1, vendaId: 30, formaPagamento: "DINHEIRO", valor: 50,
@@ -72,8 +75,8 @@ async function abrir(operacional = false, opcoes = {}) {
         } else throw new Error(`HTTP inesperado: ${u.pathname}`);
         await route.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(data) });
     });
-    await page.goto(`${url}/__${operacional ? "operacional" : "central"}`);
-    if (!operacional) await page.getByText("Venda retornada", { exact: true }).waitFor();
+    await page.goto(`${url}/__${operacional ? "operacional" : "central"}${estado.query ?? ""}`);
+    if (!operacional) await page.getByText(estado.listaVazia ? "Nenhuma venda encontrada" : "Venda retornada", { exact: true }).waitFor();
     return { page, estado, campo: page.getByRole("combobox", { name: operacional ? "Cliente (opcional)" : "Cliente", exact: true }) };
 }
 async function selecionar(campo, page, termo) {
@@ -108,6 +111,49 @@ test("detalhe separa alocacao imediata e prazo, exibe vencimentos/status e links
         assert.equal(await links.count(), 2); assert.equal(await links.nth(0).getAttribute("href"), "/financeiro/contas-receber?contaId=1");
         await page.setViewportSize({ width: 390, height: 900 });
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    } finally { await page.close(); }
+});
+
+test("vendaId abre detalhe mesmo fora da página, preservando resumo e nome do cliente da parcela", async () => {
+    const { page, estado } = await abrir(false, { query: "?vendaId=30", listaVazia: true,
+        detalhe: { contasReceber: [{ id: 1, cliente: cliente(8, "Maria Oliveira"), numeroParcela: 1, totalParcelas: 1,
+            valorOriginal: 150, saldo: 110, dataVencimento: "2026-11-15", status: "PARCIAL" }] } });
+    try {
+        const dialog = page.getByRole("dialog", { name: "Venda #30", exact: true });
+        await dialog.getByRole("region", { name: "Resumo financeiro da venda" }).waitFor();
+        assert.match(await dialog.innerText(), /Cliente:\s*Maria Oliveira/);
+        assert.equal(await dialog.getByRole("link", { name: "Ver em Contas a Receber" }).getAttribute("href"), "/financeiro/contas-receber?contaId=1");
+        assert.equal(estado.requests.filter(r => r.path === "/vendas/30").length, 1);
+        assert.equal(estado.requests.filter(r => r.path === "/vendas/30/pagamentos").length, 1);
+        await page.keyboard.press("Escape"); await dialog.waitFor({ state: "hidden" });
+        await page.getByRole("combobox", { name: "Status", exact: true }).click();
+        await page.getByRole("option", { name: "Faturada", exact: true }).click();
+        await esperar(() => ultimaVenda(estado)?.status === "FATURADA");
+        assert.equal(await page.getByRole("dialog", { name: "Venda #30", exact: true }).count(), 0);
+        assert.equal(estado.requests.filter(r => r.path === "/vendas/30").length, 1);
+    } finally { await page.close(); }
+});
+
+test("vendaId inválido não consulta detalhe", async () => {
+    for (const id of ["", "0", "-1", "abc", "1.5", "9007199254740992"]) {
+        const { page, estado } = await abrir(false, { query: `?vendaId=${id}` });
+        try {
+            await page.waitForTimeout(100);
+            assert.equal(estado.requests.some(r => /^\/vendas\//.test(r.path)), false);
+            assert.equal(await page.getByRole("dialog").count(), 0);
+        } finally { await page.close(); }
+    }
+});
+
+test("vendaId indisponível respeita erro do backend e permite repetir somente a consulta", async () => {
+    const { page, estado } = await abrir(false, { query: "?vendaId=30", erroDetalhe: true });
+    try {
+        await page.getByRole("alert").getByText("Venda não encontrada.", { exact: true }).waitFor();
+        assert.equal(estado.requests.some(r => r.path.endsWith("/pagamentos")), false);
+        estado.erroDetalhe = false;
+        await page.getByRole("button", { name: "Tentar novamente", exact: true }).click();
+        await page.getByRole("region", { name: "Resumo financeiro da venda" }).waitFor();
+        assert.equal(estado.requests.filter(r => r.path === "/vendas/30").length, 2);
     } finally { await page.close(); }
 });
 

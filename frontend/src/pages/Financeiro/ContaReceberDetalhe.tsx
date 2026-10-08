@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
-import { Alert, Box, Button, CircularProgress, Divider, Drawer, IconButton, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Divider, Drawer, IconButton, Link, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import StatusChip from "../../components/ui/StatusChip";
 import { buscarContaReceber, cancelarContaReceber, estornarRecebimentoConta, mensagemContaReceber } from "../../services/contaReceberService";
@@ -78,7 +79,11 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                             ["Venda", conta.vendaId ? `#${conta.vendaId}` : "—"],
                             ["Criada em", formatarData(conta.dataCriacao, true)], ["Atualizada em", formatarData(conta.dataAtualizacao, true)]].map(([titulo, valor]) =>
                             <Box key={titulo} sx={{ minWidth: 0 }}><Typography component="dt" variant="caption" color="text.secondary">{titulo}</Typography>
-                                <Typography component="dd" variant="body2" sx={{ m: 0, fontWeight: 600, overflowWrap: "anywhere", fontVariantNumeric: "tabular-nums" }}>{valor}</Typography></Box>)}
+                                <Typography component="dd" variant="body2" sx={{ m: 0, fontWeight: 600, overflowWrap: "anywhere", fontVariantNumeric: "tabular-nums" }}>
+                                    {titulo === "Venda" && conta.origem === "VENDA_A_PRAZO" && conta.vendaId
+                                        ? <Link component={RouterLink} to={`/vendas?vendaId=${conta.vendaId}`} aria-label={`Ver venda #${conta.vendaId}`}>{valor}</Link>
+                                        : valor}
+                                </Typography></Box>)}
                     </Box>
                     {conta.observacao && <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{conta.observacao}</Typography>}
                     {conta.origem === "VENDA_A_PRAZO" && <Typography variant="body2" color="text.secondary">Esta conta é controlada pela venda de origem.</Typography>}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import AddShoppingCartRoundedIcon from "@mui/icons-material/AddShoppingCartRounded";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -63,6 +63,10 @@ const corStatus = (status: VendaResumo["status"]) =>
 type CampoOrdenacaoVenda = "id" | "dataHora" | "total" | "status";
 
 export default function CentralVendas() {
+    const [parametros, setParametros] = useSearchParams();
+    const vendaIdParametro = parametros.get("vendaId");
+    const vendaId = vendaIdParametro && /^[1-9]\d*$/.test(vendaIdParametro) && Number.isSafeInteger(Number(vendaIdParametro))
+        ? Number(vendaIdParametro) : null;
     const podeCancelar = podeExecutarAcaoGerencial(obterSessao()?.perfil);
     const [vendas, setVendas] = useState<VendaResumo[]>([]);
     const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
@@ -75,8 +79,9 @@ export default function CentralVendas() {
     });
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
-    const [selecionada, setSelecionada] = useState<VendaResumo | null>(null);
+    const [selecionada, setSelecionada] = useState<{ id: number; nomeCliente?: string | null } | null>(null);
     const [detalhe, setDetalhe] = useState<VendaDetalhe | null>(null);
+    const [erroDetalhe, setErroDetalhe] = useState("");
     const [carregandoDetalhe, setCarregandoDetalhe] = useState(false);
     const [vendaParaCancelar, setVendaParaCancelar] = useState<VendaResumo | null>(null);
     const [erroCancelamento, setErroCancelamento] = useState("");
@@ -123,25 +128,46 @@ export default function CentralVendas() {
         setPagina(0);
     }
 
-    async function visualizar(venda: VendaResumo) {
+    const visualizar = useCallback(async (venda: { id: number; nomeCliente?: string | null }, signal?: AbortSignal) => {
         setSelecionada(venda);
         setDetalhe(null);
         setPagamentos([]);
         setErroPagamentos("");
         setCarregandoDetalhe(true);
-        setErro("");
+        setErroDetalhe("");
         try {
-            setDetalhe(await buscarVenda(venda.id));
+            const resposta = await buscarVenda(venda.id, signal);
+            if (signal?.aborted) return;
+            setDetalhe(resposta);
             try {
-                setPagamentos(await listarPagamentosVenda(venda.id));
+                const respostaPagamentos = await listarPagamentosVenda(venda.id, signal);
+                if (!signal?.aborted) setPagamentos(respostaPagamentos);
             } catch (e) {
-                setErroPagamentos(mensagemVenda(e, "Não foi possível carregar os pagamentos."));
+                if (!signal?.aborted) setErroPagamentos(mensagemVenda(e, "Não foi possível carregar os pagamentos."));
             }
         } catch (e) {
-            setErro(mensagemVenda(e, "Não foi possível carregar os detalhes da venda."));
-            setSelecionada(null);
+            if (!signal?.aborted) {
+                setErroDetalhe(mensagemVenda(e, "Não foi possível carregar os detalhes da venda."));
+                setSelecionada(null);
+            }
         } finally {
-            setCarregandoDetalhe(false);
+            if (!signal?.aborted) setCarregandoDetalhe(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (vendaId === null) return;
+        const controller = new AbortController();
+        const timer = setTimeout(() => void visualizar({ id: vendaId }, controller.signal), 0);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [vendaId, visualizar]);
+
+    function fecharDetalhe() {
+        setSelecionada(null);
+        if (parametros.has("vendaId")) {
+            const novos = new URLSearchParams(parametros);
+            novos.delete("vendaId");
+            setParametros(novos, { replace: true });
         }
     }
 
@@ -243,6 +269,8 @@ export default function CentralVendas() {
                 startIcon={<AddShoppingCartRoundedIcon />}>Vender</Button>} />
 
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregarVendas()}>Tentar novamente</Button>}>{erro}</Alert>}
+        {erroDetalhe && <Alert severity="error" action={vendaId !== null
+            ? <Button color="inherit" onClick={() => void visualizar({ id: vendaId })}>Tentar novamente</Button> : undefined}>{erroDetalhe}</Alert>}
 
         <AppTable colunas={colunas} linhas={vendas} carregando={carregando} compacta ordenacaoComIcone
             obterChaveLinha={venda => venda.id} minWidth={940} acoes={acoes}
@@ -305,13 +333,14 @@ export default function CentralVendas() {
         </Dialog>
 
         <Dialog open={selecionada !== null} fullWidth maxWidth="md"
-            onClose={carregandoDetalhe || confirmandoPix ? undefined : () => setSelecionada(null)} aria-labelledby="detalhe-venda-titulo">
+            onClose={carregandoDetalhe || confirmandoPix ? undefined : fecharDetalhe} aria-labelledby="detalhe-venda-titulo">
             <DialogTitle id="detalhe-venda-titulo">Venda #{selecionada?.id}</DialogTitle>
             <DialogContent dividers>
                 {carregandoDetalhe || !detalhe ? <Typography color="text.secondary">Carregando detalhes…</Typography> : <Stack spacing={2}>
                     <Stack direction="row" spacing={3} sx={{ flexWrap: "wrap" }}>
                         <Typography><strong>Data:</strong> {dataHoraVenda(detalhe.dataHora)}</Typography>
-                        <Typography><strong>Cliente:</strong> {selecionada?.nomeCliente || "Consumidor final"}</Typography>
+                        <Typography><strong>Cliente:</strong> {selecionada?.nomeCliente || detalhe.contasReceber?.[0]?.cliente?.nome
+                            || (detalhe.clienteId ? `Cliente #${detalhe.clienteId}` : "Consumidor final")}</Typography>
                         <Typography><strong>Status:</strong> {rotulosStatus[detalhe.status]}</Typography>
                         <Typography><strong>Sessão:</strong> {detalhe.sessaoCaixaId ? `#${detalhe.sessaoCaixaId}` : "—"}</Typography>
                     </Stack>
