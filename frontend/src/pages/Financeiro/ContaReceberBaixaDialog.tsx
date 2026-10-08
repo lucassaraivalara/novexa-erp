@@ -1,6 +1,6 @@
 import axios from "axios";
 import { useRef, useState, type FormEvent } from "react";
-import { Alert, Autocomplete, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Autocomplete, Box, Stack, TextField, Typography } from "@mui/material";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import { useRemoteSearch } from "../../hooks/useRemoteSearch";
 import { listarContasFinanceirasPaginado, mensagemContaFinanceira } from "../../services/contaFinanceiraService";
@@ -69,22 +69,25 @@ export default function ContaReceberBaixaDialog({ conta, onFechar, onSalvo }: Pr
 
     return <CadastroDialog aberto variante="compact" titulo="Receber conta" textoSalvar={tentativa ? "Tentar novamente" : "Confirmar recebimento"}
         onFechar={onFechar} onSubmit={e => void enviar(e)} salvando={salvando}>
-        <Stack spacing={2}>
+        <Stack spacing={1.75}>
             <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{conta.cliente.nome} · {conta.descricao}</Typography>
-            <Stack spacing={0.5} sx={{ fontVariantNumeric: "tabular-nums" }}>
-                <Typography variant="body2">Valor original: {moeda.format(conta.valorOriginal)}</Typography>
-                <Typography variant="body2">Já recebido: {moeda.format(conta.valorRecebido)}</Typography>
-                <Typography sx={{ fontWeight: 600 }}>Saldo: {moeda.format(conta.saldo)}</Typography>
-            </Stack>
+            <Box sx={{ p: 1.5, bgcolor: "primary.light", borderRadius: 1, fontVariantNumeric: "tabular-nums" }}>
+                <Typography sx={{ fontSize: 24, fontWeight: 700, color: "primary.main" }}>Saldo: {moeda.format(conta.saldo)}</Typography>
+                <Stack direction={{ xs: "column", sm: "row" }} sx={{ gap: 0.5, justifyContent: "space-between", mt: 0.75 }}>
+                    <Typography variant="body2" color="text.secondary">Valor original: {moeda.format(conta.valorOriginal)}</Typography>
+                    <Typography variant="body2" color="text.secondary">Já recebido: {moeda.format(conta.valorRecebido)}</Typography>
+                </Stack>
+            </Box>
             {tentativa && <Alert severity="warning">Há um recebimento aguardando confirmação. Tente novamente com os mesmos dados para evitar duplicidade.</Alert>}
+            <TextField required label="Valor recebido agora (R$)" value={valor} disabled={bloqueado}
+                helperText={valorMonetario(valor) !== null && Number(valorMonetario(valor)) < conta.saldo ? "Recebimento parcial" : undefined}
+                onChange={e => setValor(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
             <Autocomplete value={destino} options={destino && !opcoes.some(c => c.id === destino.id) ? [destino, ...opcoes] : opcoes}
                 disabled={bloqueado} loading={loading} filterOptions={items => items}
                 getOptionLabel={c => c.nome} isOptionEqualToValue={(a, b) => a.id === b.id}
                 onChange={(_, c) => setDestino(c)} onInputChange={(_, texto, motivo) => { if (motivo === "input" || motivo === "clear") setTerm(texto); }}
                 noOptionsText="Nenhuma conta ativa encontrada" loadingText="Buscando contas…"
                 renderInput={params => <TextField {...params} required label="Conta de destino" error={!!erroBusca} helperText={erroBusca} />} />
-            <TextField required label="Valor recebido agora (R$)" value={valor} disabled={bloqueado}
-                onChange={e => setValor(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
             <TextField required type="date" label="Data do recebimento" value={dataRecebimento} disabled={bloqueado}
                 onChange={e => setDataRecebimento(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
             <TextField multiline minRows={2} label="Observação" value={observacao} disabled={bloqueado}

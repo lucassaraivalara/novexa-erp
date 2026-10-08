@@ -52,7 +52,7 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                 <Typography id="conta-receber-detalhe-titulo" component="h2" variant="h6">Conta a receber #{id}</Typography>
                 <IconButton aria-label="Fechar detalhe" onClick={onFechar} disabled={salvando}><CloseRoundedIcon /></IconButton>
             </Stack>
-            <Stack spacing={2} sx={{ p: { xs: 2, sm: 3 }, flex: 1, overflowY: "auto", minHeight: 0, overflowWrap: "anywhere" }}>
+            <Stack spacing={2} sx={{ p: { xs: 2, sm: 2.5 }, flex: 1, overflowY: "auto", minHeight: 0, overflowWrap: "anywhere" }}>
                 {carregando && <CircularProgress size={24} aria-label="Carregando conta" />}
                 {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => { setCarregando(true); setTentativa(n => n + 1); }}>Tentar novamente</Button>}>{erro}</Alert>}
                 {conta && <>
@@ -62,9 +62,17 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                         {conta.cliente.cpfCnpj && <Typography variant="caption" color="text.secondary">{conta.cliente.cpfCnpj}</Typography>}
                         <Box><StatusChip status={conta.status} label={rotulosStatus[conta.status]} /></Box>
                     </Stack>
-                    <Box component="dl" sx={{ m: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
-                        {[["Valor original", moeda.format(conta.valorOriginal)], ["Já recebido", moeda.format(conta.valorRecebido)],
-                            ["Saldo", moeda.format(conta.saldo)], ["Vencimento", formatarData(conta.dataVencimento)],
+                    <Box component="dl" aria-label="Valores da conta" sx={{ m: 0, p: 1.5, bgcolor: "background.default", borderRadius: 1,
+                        display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1.5 }}>
+                        {[["Valor original", conta.valorOriginal], ["Já recebido", conta.valorRecebido], ["Saldo", conta.saldo]].map(([titulo, valor]) =>
+                            <Box key={titulo} sx={{ minWidth: 0, gridColumn: titulo === "Saldo" ? "1 / -1" : undefined }}>
+                                <Typography component="dt" variant="caption" color="text.secondary">{titulo}</Typography>
+                                <Typography component="dd" sx={{ m: 0, fontWeight: titulo === "Saldo" ? 700 : 600, fontSize: titulo === "Saldo" ? 24 : 14,
+                                    color: titulo === "Saldo" ? "primary.main" : "text.primary", fontVariantNumeric: "tabular-nums" }}>{moeda.format(Number(valor))}</Typography>
+                            </Box>)}
+                    </Box>
+                    <Box component="dl" sx={{ m: 0, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1.5 }}>
+                        {[["Vencimento", formatarData(conta.dataVencimento)],
                             ["Emissão", formatarData(conta.dataEmissao)], ["Parcela", `${conta.numeroParcela}/${conta.totalParcelas}`],
                             ["Origem", conta.origem === "MANUAL" ? "Manual" : "Venda a prazo"],
                             ["Venda", conta.vendaId ? `#${conta.vendaId}` : "—"],
@@ -74,20 +82,17 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                     </Box>
                     {conta.observacao && <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{conta.observacao}</Typography>}
                     {conta.origem === "VENDA_A_PRAZO" && <Typography variant="body2" color="text.secondary">Esta conta é controlada pela venda de origem.</Typography>}
-                    <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
-                        {podeEditarConta(conta) && <Button variant="outlined" startIcon={<EditOutlinedIcon />} onClick={() => onEditar(conta)}>Editar</Button>}
-                        {podeReceberConta(conta) && <Button variant="contained" onClick={() => onReceber(conta)}>Receber</Button>}
-                        {podeCancelarConta(conta) && <Button color="error" onClick={() => { setErroAcao(""); setAcao({ tipo: "cancelar" }); }}>Cancelar conta</Button>}
-                    </Stack>
                     <Divider />
                     <Typography variant="h6">Histórico de recebimentos</Typography>
                     {!conta.recebimentos.length && <Typography variant="body2" color="text.secondary">Nenhum recebimento registrado.</Typography>}
-                    {conta.recebimentos.map(m => <Stack key={m.id} spacing={0.75} sx={{ pb: 2, borderBottom: 1, borderColor: "divider" }}>
-                        <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-                            <Typography sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda.format(m.valor)}</Typography>
+                    {conta.recebimentos.map(m => <Stack component="section" aria-label={`Recebimento ${m.id}`} key={m.id} spacing={0.75} sx={{ pb: 1.5, borderBottom: 1, borderColor: "divider" }}>
+                        <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
+                            <Box><Typography variant="caption" color="text.secondary">Valor desta baixa</Typography>
+                                <Typography sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda.format(m.valor)}</Typography></Box>
                             <StatusChip status={m.estornada ? "CANCELADA" : "RECEBIDA"} label={m.estornada ? "Estornado" : "Recebido"} />
                         </Stack>
-                        <Typography variant="body2">{m.contaFinanceiraNome} · {formatarData(m.dataMovimento)}</Typography>
+                        <Typography variant="body2">Conta destino: {m.contaFinanceiraNome}</Typography>
+                        <Typography variant="body2" color="text.secondary">{formatarData(m.dataMovimento)}</Typography>
                         <Typography variant="caption" color="text.secondary">#{m.id} · {m.usuarioNome} · {formatarData(m.dataCriacao, true)}</Typography>
                         {m.observacao && <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{m.observacao}</Typography>}
                         {m.estornada ? <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
@@ -96,6 +101,11 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                             aria-label={`Estornar recebimento de ${moeda.format(m.valor)}`}
                             onClick={() => { setMotivo(""); setErroAcao(""); setAcao({ tipo: "estornar", movimento: m }); }}>Estornar recebimento</Button></Tooltip></Box>}
                     </Stack>)}
+                    <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap", pt: 0.5 }}>
+                        {podeReceberConta(conta) && <Button variant="contained" disableElevation onClick={() => onReceber(conta)}>Receber</Button>}
+                        {podeEditarConta(conta) && <Button variant="outlined" startIcon={<EditOutlinedIcon />} onClick={() => onEditar(conta)}>Editar</Button>}
+                        {podeCancelarConta(conta) && <Button color="error" onClick={() => { setErroAcao(""); setAcao({ tipo: "cancelar" }); }}>Cancelar conta</Button>}
+                    </Stack>
                 </>}
             </Stack>
         </Drawer>

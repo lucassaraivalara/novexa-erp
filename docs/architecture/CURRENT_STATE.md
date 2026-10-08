@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Contas a Receber: refinamento visual e responsivo (2026-10-07)
+
+Resumo/filtros compactados na identidade navy/teal atual, com busca visivel e filtros secundarios recolhiveis no mobile. Tabela desktop mantida; em 1024px prioriza descricao, cliente, vencimento, saldo, status e acoes, deixando valor original/recebido no detalhe. Em 390px a listagem usa linhas empilhadas com os mesmos valores, acoes de toque e paginacao/ordenacao remotas. Detalhe destaca saldo antes do historico; baixa apresenta saldo e valor recebido agora primeiro, com indicacao de recebimento parcial. Cada movimento segue identificado individualmente no historico.
+
+Validacao: 28 testes direcionados de service/UI/fluxos, build/TypeScript, lint dos arquivos alterados e diff check. Revisao em 1440/1024/390px, incluindo screenshots com diferentes status, historico, baixa e cadastro; abertura/cadastro sem salvar conferidos na tela real em 5173, demais estados com HTTP simulado. Nenhum recebimento real registrado. Backend, services, DTOs, contratos, migrations, componentes globais e regras financeiras sem alteracoes; preservadas as correcoes de `88b8f45`.
+
 ## Contas a Receber: correcoes funcionais e UX (2026-10-07)
 
 Na branch `feat/contas-pagar-integracao-backend`, resumo e listagem possuem blocos de erro e retries independentes. Periodo de vencimento invertido e bloqueado antes do HTTP, com mensagem inline; paginacao preserva 10/25/50 e enums sem filtro continuam omitidos pelo Axios. Conta de venda ja ocultava edicao/cancelamento individual; detalhe agora explica o controle pela venda. Baixa explicita valor original, ja recebido, saldo e valor recebido agora; estorno identifica o valor especifico. Empty state distingue cadastro vazio de filtros sem resultado. Nenhuma alteracao em backend, services, contratos ou regras financeiras: destino continua remoto, ativo e do tenant, sem restringir tipos alem do que o service backend exige.

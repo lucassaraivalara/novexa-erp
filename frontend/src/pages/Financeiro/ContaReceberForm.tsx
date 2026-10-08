@@ -41,26 +41,26 @@ export default function ContaReceberForm({ conta, clienteInicial, onFechar, onSa
 
     return <CadastroDialog aberto variante="compact" titulo={conta ? "Editar conta a receber" : "Nova conta a receber"}
         onFechar={onFechar} onSubmit={e => void enviar(e)} salvando={salvando}>
-        <Stack spacing={2}>
+        <Stack spacing={1.75}>
             {erro && <Alert severity="error">{erro}</Alert>}
             <ClienteAutocomplete label="Cliente *" value={cliente} onChange={setCliente} disabled={salvando} />
             {cliente && !cliente.ativo && <Alert severity="warning">O cliente está inativo. Selecione um cliente ativo para salvar.</Alert>}
             <TextField required autoFocus label="Descrição" value={form.descricao} disabled={salvando}
                 onChange={e => alterar("descricao", e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} />
-            <TextField required label="Valor original (R$)" value={form.valor} disabled={salvando}
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <TextField required fullWidth label="Valor original (R$)" value={form.valor} disabled={salvando}
                 onChange={e => alterar("valor", e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <TextField fullWidth type="date" label="Emissão" value={form.dataEmissao} disabled={salvando}
-                    onChange={e => alterar("dataEmissao", e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
                 <TextField required fullWidth type="date" label="Vencimento" value={form.dataVencimento} disabled={salvando}
                     onChange={e => alterar("dataVencimento", e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
             </Stack>
-            <Stack direction="row" spacing={2}>
+            <Stack direction="row" spacing={1.5}>
                 <TextField fullWidth type="number" label="Parcela" value={form.numeroParcela} disabled={salvando}
                     onChange={e => alterar("numeroParcela", e.target.value)} slotProps={{ htmlInput: { min: 1, step: 1 } }} />
                 <TextField fullWidth type="number" label="Total de parcelas" value={form.totalParcelas} disabled={salvando}
                     onChange={e => alterar("totalParcelas", e.target.value)} slotProps={{ htmlInput: { min: 1, step: 1 } }} />
             </Stack>
+            <TextField fullWidth type="date" label="Emissão" value={form.dataEmissao} disabled={salvando}
+                onChange={e => alterar("dataEmissao", e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
             <TextField multiline minRows={2} label="Observação" value={form.observacao} disabled={salvando}
                 onChange={e => alterar("observacao", e.target.value)} slotProps={{ htmlInput: { maxLength: 1000 } }} />
         </Stack>

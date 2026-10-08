@@ -61,8 +61,9 @@ async function abrir(extras = {}, viewport = { width: 1440, height: 1000 }, opco
         estado.requests.push({ method: req.method(), path: u.pathname, params, body });
         let data, status = 200;
         if (u.pathname === `${base}/pagina`) {
+            if (estado.atrasoListagem) await new Promise(r => setTimeout(r, estado.atrasoListagem));
             if (estado.falhaListagem) { status = 400; data = "Requisicao invalida."; }
-            else data = { items: estado.vazio ? [] : [{ ...estado.conta, recebimentos: [] }], page: Number(params.page),
+            else data = { items: estado.vazio ? [] : estado.contas ?? [{ ...estado.conta, recebimentos: [] }], page: Number(params.page),
                 size: Number(params.size), totalItems: estado.vazio ? 0 : 63, totalPages: estado.vazio ? 0 : 3 };
         } else if (u.pathname === `${base}/resumo`) {
             if (estado.falhaResumo) { status = 400; data = "Requisicao invalida."; }
@@ -106,7 +107,7 @@ async function abrir(extras = {}, viewport = { width: 1440, height: 1000 }, opco
     await page.goto(`${url}/financeiro/contas-receber`);
     if (estado.falhaListagem) await page.getByText("Listagem de contas: Requisicao invalida.", { exact: true }).waitFor();
     else if (estado.vazio) await page.getByText("Nenhuma conta a receber cadastrada.", { exact: true }).waitFor();
-    else await page.getByRole("cell", { name: estado.conta.descricao, exact: true }).waitFor();
+    else await page.getByText(estado.conta.descricao, { exact: true }).first().waitFor();
     return { page, estado, errors };
 }
 const chamadas = (e, path) => e.requests.filter(r => r.path === path);
@@ -426,7 +427,7 @@ test("tela cancelada permanece consultável e não permite operações", async (
 });
 test("desktop/mobile seguem identidade atual sem overflow; screenshot comparativo com Dashboard", async () => {
     await mkdir("node_modules/.cache/contas-receber", { recursive: true });
-    for (const width of [1440, 390]) {
+    for (const width of [1440, 1024, 390]) {
         const { page, errors } = await abrir({}, { width, height: 1000 }); try {
             assert.equal(await page.getByRole("link", { name: /Contas a Receber/ }).count(), 1);
             const estilos = await page.locator("[data-app-table]").evaluate(el => { const s = getComputedStyle(el); return { raio: s.borderRadius, fundo: s.backgroundColor }; });
@@ -465,4 +466,125 @@ test("drawer/histórico e baixa mobile mantêm scroll e nomes longos sem overflo
         assert.ok(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1));
         await page.screenshot({ path: "node_modules/.cache/contas-receber/baixa-390.png" });
     } finally { await page.close(); }
+});
+
+test("mobile usa linhas operacionais, filtros recolhíveis e paginação/ordenação remotas", async () => {
+    const { page, estado } = await abrir({ valorRecebido: 40, saldo: 60, status: "PARCIAL" }, { width: 390, height: 844 });
+    try {
+        assert.equal(await page.getByRole("table").count(), 0);
+        const linha = page.getByRole("article", { name: "Conta 1", exact: true });
+        for (const texto of [cliente.nome, estado.conta.descricao, "Saldo", "R$ 60,00", "Vencimento", "20/10/2026", "Valor original: R$ 100,00", "Recebido: R$ 40,00"])
+            assert.ok(await linha.getByText(texto, { exact: true }).isVisible());
+        for (const nome of ["Receber", "Consultar histórico"]) {
+            const bounds = await linha.getByRole("button", { name: nome, exact: true }).boundingBox();
+            assert.ok(bounds.height >= 44);
+        }
+        assert.equal(await page.getByRole("combobox", { name: "Status", exact: true }).isVisible(), false);
+        assert.ok(await page.getByRole("textbox", { name: "Buscar descrição, cliente ou documento", exact: true }).isVisible());
+        await page.getByRole("button", { name: "Próxima página" }).click();
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.page === "1");
+        await page.getByRole("combobox", { name: "Ordenar por", exact: true }).click();
+        await page.getByRole("option", { name: "Valor original", exact: true }).click();
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.sort === "valorOriginal,asc");
+        assert.equal(chamadas(estado, `${base}/pagina`).at(-1).params.page, "0");
+        await page.getByRole("button", { name: "Ordem crescente", exact: true }).click();
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.sort === "valorOriginal,desc");
+        await page.getByRole("button", { name: "Filtros", exact: true }).click();
+        await page.getByRole("combobox", { name: "Status", exact: true }).click();
+        await page.getByRole("option", { name: "Parcial", exact: true }).click();
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.status === "PARCIAL");
+        await page.getByRole("button", { name: "Limpar filtros" }).click();
+        await esperar(() => !Object.hasOwn(chamadas(estado, `${base}/pagina`).at(-1).params, "status"));
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    } finally { await page.close(); }
+});
+
+test("1440/1024/390 preservam dados, ações e estados financeiros sem overflow", async () => {
+    await mkdir("node_modules/.cache/contas-receber", { recursive: true });
+    const contas = [conta(1, { dataVencimento: "2020-01-01" }),
+        conta(2, { descricao: "Serviço com recebimento parcial", status: "PARCIAL", valorRecebido: 40, saldo: 60 }),
+        conta(3, { descricao: "Parcela de venda", origem: "VENDA_A_PRAZO", vendaId: 123 }),
+        conta(4, { descricao: "Conta recebida", status: "RECEBIDA", valorRecebido: 100, saldo: 0 }),
+        conta(5, { descricao: "Conta cancelada", status: "CANCELADA" })];
+    for (const width of [1440, 1024, 390]) {
+        const { page, errors } = await abrir({ dataVencimento: "2020-01-01" }, { width, height: 900 }, { contas });
+        try {
+            for (const label of ["Pendente · Vencida", "Parcial", "Recebida", "Cancelada"])
+                assert.ok(await page.getByText(label, { exact: true }).isVisible());
+            assert.equal(await page.getByRole("button", { name: "Receber", exact: true }).count(), 5);
+            assert.equal(await page.getByRole("button", { name: "Receber", exact: true }).nth(3).isDisabled(), true);
+            assert.equal(await page.getByRole("button", { name: "Receber", exact: true }).nth(4).isDisabled(), true);
+            if (width >= 600) {
+                assert.ok(await page.getByRole("table").isVisible());
+                assert.ok(await page.getByRole("columnheader", { name: "Saldo", exact: true }).isVisible());
+                assert.ok(await page.getByRole("columnheader", { name: "Status", exact: true }).isVisible());
+                assert.ok(await page.locator(".MuiTableContainer-root").evaluate(el => el.scrollWidth <= el.clientWidth + 1));
+                assert.ok(await page.getByText("Pendente · Vencida", { exact: true }).evaluate(el => {
+                    const chip = el.closest(".MuiChip-root").getBoundingClientRect();
+                    const cell = el.closest("td").getBoundingClientRect(); return chip.right <= cell.right - 4;
+                }));
+            }
+            assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+            await page.screenshot({ path: `node_modules/.cache/contas-receber/listagem-${width}.png`, fullPage: true });
+            await page.getByRole("button", { name: "Consultar histórico", exact: true }).first().click();
+            const drawer = page.getByRole("dialog", { name: "Conta a receber #1", exact: true });
+            await drawer.getByText("Histórico de recebimentos", { exact: true }).waitFor();
+            assert.ok(await drawer.getByRole("definition").filter({ hasText: "R$ 100,00" }).count() >= 1);
+            const bounds = await drawer.boundingBox(); assert.equal(Math.round(bounds.width), width < 600 ? width : 600);
+            await page.waitForTimeout(350);
+            await page.screenshot({ path: `node_modules/.cache/contas-receber/detalhe-${width}.png` });
+            assert.deepEqual(errors, []);
+        } finally { await page.close(); }
+    }
+});
+
+test("atualizar preserva filtros e resumo enquanto apenas a listagem está carregando", async () => {
+    const { page, estado } = await abrir({}, { width: 390, height: 844 });
+    try {
+        await page.getByRole("button", { name: "Filtros", exact: true }).click();
+        await page.getByRole("combobox", { name: "Status", exact: true }).click();
+        await page.getByRole("option", { name: "Pendente", exact: true }).click();
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.status === "PENDENTE");
+        estado.atrasoListagem = 900;
+        await page.getByRole("button", { name: "Atualizar contas", exact: true }).click();
+        await page.getByText("Carregando dados…", { exact: true }).waitFor();
+        assert.equal(await page.getByRole("button", { name: "Atualizar contas", exact: true }).getAttribute("aria-busy"), "true");
+        assert.ok(await page.getByRole("region", { name: "Resumo financeiro de contas a receber" }).getByText("R$ 330,00", { exact: true }).isVisible());
+        await page.screenshot({ path: "node_modules/.cache/contas-receber/loading-390.png", fullPage: true });
+        await page.getByText("Carregando dados…", { exact: true }).waitFor({ state: "hidden" });
+        assert.equal(chamadas(estado, `${base}/pagina`).at(-1).params.status, "PENDENTE");
+        assert.equal(await page.getByRole("button", { name: "Atualizar contas", exact: true }).getAttribute("aria-busy"), "false");
+    } finally { await page.close(); }
+});
+
+test("baixa prioriza saldo e valor recebido, identifica parcial e preserva histórico individual", async () => {
+    for (const width of [1440, 390]) {
+        const { page, estado } = await abrir({ valorRecebido: 40, saldo: 60, status: "PARCIAL", recebimentos: [movimento(10, 20), movimento(11, 20)] }, { width, height: 900 });
+        try {
+            await detalhe(page);
+            for (const id of [10, 11]) {
+                const baixa = page.getByRole("region", { name: `Recebimento ${id}`, exact: true });
+                assert.ok(await baixa.getByText("Valor desta baixa", { exact: true }).isVisible());
+                assert.ok(await baixa.getByText("Conta destino: Banco principal", { exact: true }).isVisible());
+                assert.ok(await baixa.getByRole("button", { name: "Estornar recebimento de R$ 20,00", exact: true }).isVisible());
+            }
+            await page.waitForTimeout(350);
+            await page.screenshot({ path: `node_modules/.cache/contas-receber/recebimentos-${width}.png` });
+            await page.getByRole("button", { name: "Receber", exact: true }).click();
+            const dialog = page.getByRole("dialog", { name: "Receber conta" });
+            await dialog.waitFor();
+            await page.waitForTimeout(350);
+            await page.screenshot({ path: `node_modules/.cache/contas-receber/receber-${width}.png` });
+            const valor = dialog.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true });
+            const destino = dialog.getByRole("combobox", { name: "Conta de destino", exact: true });
+            assert.ok((await valor.boundingBox()).y < (await destino.boundingBox()).y);
+            const saldo = dialog.getByText("Saldo: R$ 60,00", { exact: true });
+            assert.equal(await saldo.evaluate(el => getComputedStyle(el).fontSize), "24px");
+            await valor.fill("20"); await dialog.getByText("Recebimento parcial", { exact: true }).waitFor();
+            assert.equal(chamadas(estado, `${base}/1/receber`).length, 0);
+            await escolherDestino(page); await page.waitForTimeout(350);
+            await page.screenshot({ path: `node_modules/.cache/contas-receber/receber-${width}.png` });
+            assert.ok(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1));
+        } finally { await page.close(); }
+    }
 });
