@@ -10,6 +10,10 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Central de Vendas: resumo financeiro no detalhe (2026-10-07)
+
+Resumo compacto apresenta Total da venda, Pago agora pelos pagamentos imediatos REGISTRADO e A receber pelos saldos das parcelas vinculadas. Formas utilizadas e PIX pendente/confirmado ficam identificados; cartao permanece apenas forma de pagamento, sem buscar Recebiveis. Parcelas e link Ver em Contas a Receber preservados. Frontend-only: backend, services, contratos, regras financeiras e PDV sem alteracoes; nenhuma consulta financeira adicionada na listagem. Validacao: 34 testes direcionados de Central/cliente/confirmacao PIX, build/TypeScript, lint e diff check; resumo revisado em 1440/1024/390 com HTTP simulado.
+
 ## Contas a Receber: refinamento visual e responsivo (2026-10-07)
 
 Resumo/filtros compactados na identidade navy/teal atual, com busca visivel e filtros secundarios recolhiveis no mobile. Tabela desktop mantida; em 1024px prioriza descricao, cliente, vencimento, saldo, status e acoes, deixando valor original/recebido no detalhe. Em 390px a listagem usa linhas empilhadas com os mesmos valores, acoes de toque e paginacao/ordenacao remotas. Detalhe destaca saldo antes do historico; baixa apresenta saldo e valor recebido agora primeiro, com indicacao de recebimento parcial. Cada movimento segue identificado individualmente no historico.

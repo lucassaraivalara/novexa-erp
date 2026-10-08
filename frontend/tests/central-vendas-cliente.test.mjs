@@ -1,6 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdir } from "node:fs/promises";
 import { createServer } from "vite";
 import { chromium } from "@playwright/test";
 
@@ -40,8 +40,8 @@ async function esperar(condicao) {
     for (let i = 0; i < 120 && !condicao(); i++) await new Promise(r => setTimeout(r, 25));
     assert.ok(condicao(), "Request esperado nao chegou");
 }
-async function abrir(operacional = false) {
-    const estado = { requests: [] };
+async function abrir(operacional = false, opcoes = {}) {
+    const estado = { requests: [], ...opcoes };
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     page.setDefaultTimeout(8000);
     await page.addInitScript(() => localStorage.setItem("novexa-auth", JSON.stringify({ token: "teste", perfil: "ADMIN", empresa: { id: 1 } })));
@@ -49,7 +49,7 @@ async function abrir(operacional = false) {
         const req = route.request(), u = new URL(req.url());
         if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
         const params = Object.fromEntries(u.searchParams); estado.requests.push({ path: u.pathname, params });
-        let data;
+        let data, status = 200;
         if (u.pathname === "/vendas") data = { items: [{ id: 30, dataHora: "2026-10-01T10:00:00", nomeCliente: "Venda retornada", total: 85,
             status: "FATURADA", sessaoCaixaId: 1 }], page: Number(params.page), size: Number(params.size), totalItems: 63, totalPages: 3 };
         else if (u.pathname === "/vendas/30") data = {
@@ -57,16 +57,20 @@ async function abrir(operacional = false) {
             itens: [], formaPagamento: null, valorRecebido: 60, troco: 10, sessaoCaixaId: 1,
             contasReceber: [1, 2].map(numero => ({ id: numero, numeroParcela: numero, totalParcelas: 2, valorOriginal: 75,
                 saldo: numero === 1 ? 35 : 75, dataVencimento: `2026-${numero === 1 ? "11" : "12"}-15`, status: numero === 1 ? "PARCIAL" : "PENDENTE" })),
+            ...estado.detalhe,
         };
-        else if (u.pathname === "/vendas/30/pagamentos") data = [{ id: 1, vendaId: 30, formaPagamento: "DINHEIRO", valor: 50,
-            status: "REGISTRADO", configuracaoNomeExibicao: "Dinheiro" }];
+        else if (u.pathname === "/vendas/30/pagamentos") {
+            if (estado.erroPagamentos) { status = 503; data = { detail: "Não foi possível carregar os pagamentos." }; }
+            else data = estado.pagamentos ?? [{ id: 1, vendaId: 30, formaPagamento: "DINHEIRO", valor: 50,
+                status: "REGISTRADO", configuracaoNomeExibicao: "Dinheiro" }];
+        }
         else if (u.pathname === "/clientes/buscar") {
             if (params.termo === "antiga") await new Promise(r => setTimeout(r, 1000));
             data = params.termo === "historico" ? [cliente(9, "Cliente historico", false)]
                 : [cliente(params.termo === "outro" ? 10 : 8, params.termo === "antiga" ? "Resposta antiga"
                     : params.termo === "outro" ? "Outro cliente" : "Cliente remoto")];
         } else throw new Error(`HTTP inesperado: ${u.pathname}`);
-        await route.fulfill({ status: 200, headers: cors, contentType: "application/json", body: JSON.stringify(data) });
+        await route.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(data) });
     });
     await page.goto(`${url}/__${operacional ? "operacional" : "central"}`);
     if (!operacional) await page.getByText("Venda retornada", { exact: true }).waitFor();
@@ -94,16 +98,110 @@ test("detalhe separa alocacao imediata e prazo, exibe vencimentos/status e links
     try {
         await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
         const dialog = page.getByRole("dialog", { name: "Venda #30" });
-        await dialog.getByText("Alocado em pagamentos imediatos:", { exact: false }).waitFor();
+        await dialog.getByText("Pago agora", { exact: true }).waitFor();
         const texto = await dialog.innerText();
-        assert.match(texto, /Alocado em pagamentos imediatos:.*50,00/);
-        assert.match(texto, /A prazo:.*150,00/); assert.match(texto, /1\/2.*15\/11\/2026.*75,00.*35,00/);
+        assert.match(texto, /Pago agora\s*R\$\s*50,00/);
+        assert.match(texto, /A receber\s*R\$\s*110,00/); assert.match(texto, /1\/2.*15\/11\/2026.*75,00.*35,00/);
         assert.match(texto, /Parcial/); assert.match(texto, /Pendente/);
         assert.equal(await dialog.getByText("Recebido:", { exact: false }).count(), 0);
         const links = dialog.getByRole("link", { name: "Ver em Contas a Receber" });
         assert.equal(await links.count(), 2); assert.equal(await links.nth(0).getAttribute("href"), "/financeiro/contas-receber?contaId=1");
         await page.setViewportSize({ width: 390, height: 900 });
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    } finally { await page.close(); }
+});
+
+const pagamentoResumo = (id, formaPagamento, valor, extras = {}) => ({ id, vendaId: 30, formaPagamento, valor,
+    status: "REGISTRADO", configuracaoNomeExibicao: formaPagamento, confirmadoFinanceiramente: false, ...extras });
+const parcelaResumo = (saldo, extras = {}) => ({ id: 1, numeroParcela: 1, totalParcelas: 1, valorOriginal: saldo,
+    saldo, dataVencimento: "2026-11-15", status: "PENDENTE", ...extras });
+async function verificarValor(resumo, rotulo, esperado) {
+    const valor = resumo.getByText(rotulo, { exact: true }).locator("..").getByRole("definition");
+    assert.equal(await valor.innerText(), esperado);
+}
+
+for (const cenario of [
+    { nome: "somente dinheiro", pagamentos: [pagamentoResumo(1, "DINHEIRO", 100)], pago: "R$ 100,00", formas: ["Dinheiro · R$ 100,00"] },
+    { nome: "PIX pendente", pagamentos: [pagamentoResumo(1, "PIX", 100)], pago: "R$ 100,00", formas: ["PIX pendente · R$ 100,00"] },
+    { nome: "PIX confirmado", pagamentos: [pagamentoResumo(1, "PIX", 100, { confirmadoFinanceiramente: true })], pago: "R$ 100,00", formas: ["PIX confirmado · R$ 100,00"] },
+    { nome: "somente A prazo", pagamentos: [], contas: [parcelaResumo(100)], pago: "R$ 0,00", saldo: "R$ 100,00", formas: ["A prazo"] },
+    { nome: "dinheiro + PIX", pagamentos: [pagamentoResumo(1, "DINHEIRO", 40), pagamentoResumo(2, "PIX", 60)], pago: "R$ 100,00", formas: ["Dinheiro · R$ 40,00", "PIX pendente · R$ 60,00"] },
+    { nome: "dinheiro + A prazo", pagamentos: [pagamentoResumo(1, "DINHEIRO", 40)], contas: [parcelaResumo(40, { valorOriginal: 60, status: "PARCIAL" })], pago: "R$ 40,00", saldo: "R$ 40,00", formas: ["Dinheiro · R$ 40,00", "A prazo"] },
+    { nome: "dinheiro + PIX + A prazo", pagamentos: [pagamentoResumo(1, "DINHEIRO", 20), pagamentoResumo(2, "PIX", 30)], contas: [parcelaResumo(50)], pago: "R$ 50,00", saldo: "R$ 50,00", formas: ["Dinheiro · R$ 20,00", "PIX pendente · R$ 30,00", "A prazo"] },
+]) {
+    test(`resumo financeiro: ${cenario.nome}, somente com dados do detalhe`, async () => {
+        const { page, estado } = await abrir(false, { detalhe: { total: 100, subtotal: 100, contasReceber: cenario.contas ?? [],
+            valorRecebido: 120, troco: 20 }, pagamentos: cenario.pagamentos });
+        try {
+            assert.equal(estado.requests.some(r => r.path !== "/vendas"), false);
+            await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+            const dialog = page.getByRole("dialog", { name: "Venda #30" });
+            const resumo = dialog.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
+            await resumo.waitFor();
+            await verificarValor(resumo, "Total da venda", "R$ 100,00");
+            await verificarValor(resumo, "Pago agora", cenario.pago);
+            if (cenario.saldo) await verificarValor(resumo, "A receber", cenario.saldo);
+            else assert.equal(await resumo.getByText("A receber", { exact: true }).count(), 0);
+            for (const forma of cenario.formas) assert.ok(await resumo.getByText(forma, { exact: true }).isVisible());
+            if (!cenario.pagamentos.length) assert.equal(await dialog.getByRole("heading", { name: "Pagamentos", exact: true }).count(), 0);
+            if (cenario.contas) assert.equal(await dialog.getByRole("link", { name: "Ver em Contas a Receber" }).count(), cenario.contas.length);
+            assert.deepEqual(estado.requests.map(r => r.path), ["/vendas", "/vendas/30", "/vendas/30/pagamentos"]);
+        } finally { await page.close(); }
+    });
+}
+
+test("resumo exclui cancelados e A_PRAZO de pagamentos; saldo usa baixas já realizadas", async () => {
+    const { page } = await abrir(false, { pagamentos: [pagamentoResumo(1, "DINHEIRO", 50),
+        pagamentoResumo(2, "PIX", 150, { status: "CANCELADO" }), pagamentoResumo(3, "A_PRAZO", 150)] });
+    try {
+        await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+        const resumo = page.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
+        await resumo.waitFor(); await verificarValor(resumo, "Pago agora", "R$ 50,00");
+        await verificarValor(resumo, "A receber", "R$ 110,00");
+        assert.equal(await resumo.getByText(/PIX|150,00/).count(), 0);
+    } finally { await page.close(); }
+});
+
+for (const [forma, label] of [["CARTAO_DEBITO", "Cartão de débito"], ["CARTAO_CREDITO", "Cartão de crédito"]]) {
+    test(`${label} aparece somente como forma, sem consulta/status de liquidação`, async () => {
+        const { page, estado } = await abrir(false, { detalhe: { contasReceber: [] }, pagamentos: [pagamentoResumo(1, forma, 200, { confirmadoFinanceiramente: true })] });
+        try {
+            await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+            const resumo = page.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
+            await resumo.waitFor(); await verificarValor(resumo, "Pago agora", "R$ 200,00");
+            assert.ok(await resumo.getByText(`${label} · R$ 200,00`, { exact: true }).isVisible());
+            assert.doesNotMatch(await resumo.innerText(), /confirmado|pendente|liquidado/i);
+            assert.equal(estado.requests.some(r => /recebiveis/.test(r.path)), false);
+        } finally { await page.close(); }
+    });
+}
+
+test("falha ao buscar pagamentos não inventa pago zero nem impede mostrar saldo das contas", async () => {
+    const { page } = await abrir(false, { erroPagamentos: true });
+    try {
+        await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+        const resumo = page.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
+        await resumo.waitFor(); await verificarValor(resumo, "Pago agora", "Indisponível");
+        await verificarValor(resumo, "A receber", "R$ 110,00");
+        assert.ok(await page.getByRole("alert").getByText("Não foi possível carregar os pagamentos.", { exact: true }).isVisible());
+    } finally { await page.close(); }
+});
+
+test("resumo compacto e parcelas permanecem legíveis em desktop/laptop/mobile", async () => {
+    await mkdir("node_modules/.cache/central-vendas", { recursive: true });
+    const { page } = await abrir(false, { pagamentos: [pagamentoResumo(1, "DINHEIRO", 20), pagamentoResumo(2, "PIX", 30)] });
+    try {
+        await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+        const resumo = page.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
+        await resumo.waitFor();
+        await page.waitForTimeout(350);
+        for (const width of [1440, 1024, 390]) {
+            await page.setViewportSize({ width, height: 900 });
+            assert.ok(await resumo.evaluate(el => el.scrollWidth <= el.clientWidth));
+            assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+            for (const rotulo of ["Total da venda", "Pago agora", "A receber"]) assert.ok(await resumo.getByText(rotulo, { exact: true }).isVisible());
+            await page.screenshot({ path: `node_modules/.cache/central-vendas/resumo-${width}.png` });
+        }
     } finally { await page.close(); }
 });
 

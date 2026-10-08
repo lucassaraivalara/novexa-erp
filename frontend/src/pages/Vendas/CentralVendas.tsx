@@ -5,6 +5,7 @@ import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import {
     Alert,
+    Box,
     Button,
     Chip,
     CircularProgress,
@@ -228,6 +229,14 @@ export default function CentralVendas() {
         } satisfies AcaoTabela<VendaResumo>] : []),
     ];
 
+    const pagamentosRegistrados = pagamentos.reduce<PagamentoVenda[]>((registrados, pagamento) => {
+        // A prazo pertence a ContaReceber, nunca aos pagamentos imediatos.
+        if (pagamento.status === "REGISTRADO" && Object.hasOwn(rotulosPagamento, pagamento.formaPagamento)) registrados.push(pagamento);
+        return registrados;
+    }, []);
+    const pagoAgora = pagamentosRegistrados.reduce((total, pagamento) => total + pagamento.valor, 0);
+    const aReceber = detalhe?.contasReceber?.reduce((total, conta) => total + conta.saldo, 0) ?? 0;
+
     return <PageContainer>
         <PageHeader titulo="Central de Vendas" descricao="Consulte vendas, confira detalhes e execute cancelamentos."
             acaoPrincipal={<Button component={Link} to="/pdv" variant="contained"
@@ -306,6 +315,35 @@ export default function CentralVendas() {
                         <Typography><strong>Status:</strong> {rotulosStatus[detalhe.status]}</Typography>
                         <Typography><strong>Sessão:</strong> {detalhe.sessaoCaixaId ? `#${detalhe.sessaoCaixaId}` : "—"}</Typography>
                     </Stack>
+                    <Box component="section" aria-label="Resumo financeiro da venda" sx={{ py: 1.5, borderTop: 1, borderBottom: 1, borderColor: "divider" }}>
+                        <Box component="dl" sx={{ m: 0, display: "grid", gap: 1.5,
+                            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: detalhe.contasReceber?.length ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))" } }}>
+                            <Box sx={{ minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
+                                <Typography component="dt" variant="caption" color="text.secondary">Total da venda</Typography>
+                                <Typography component="dd" sx={{ m: 0, fontSize: 24, fontWeight: 700, color: "primary.main", fontVariantNumeric: "tabular-nums" }}>{moedaVenda(detalhe.total)}</Typography>
+                            </Box>
+                            <Box sx={{ minWidth: 0 }}>
+                                <Typography component="dt" variant="caption" color="text.secondary">Pago agora</Typography>
+                                <Typography component="dd" sx={{ m: 0, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{erroPagamentos ? "Indisponível" : moedaVenda(pagoAgora)}</Typography>
+                            </Box>
+                            {!!detalhe.contasReceber?.length && <Box sx={{ minWidth: 0 }}>
+                                <Typography component="dt" variant="caption" color="text.secondary">A receber</Typography>
+                                <Typography component="dd" sx={{ m: 0, fontWeight: 600, color: aReceber > 0 ? "warning.main" : "text.secondary", fontVariantNumeric: "tabular-nums" }}>{moedaVenda(aReceber)}</Typography>
+                            </Box>}
+                        </Box>
+                        {((!!pagamentosRegistrados.length && !erroPagamentos) || !!detalhe.contasReceber?.length) && <Stack direction="row" aria-label="Formas utilizadas" sx={{ gap: 0.75, flexWrap: "wrap", mt: 1.25 }}>
+                            {!erroPagamentos && pagamentosRegistrados.map(pagamento => {
+                                const pix = pagamento.formaPagamento === "PIX";
+                                const pendente = pix && pagamento.confirmadoFinanceiramente === false;
+                                const confirmado = pix && pagamento.confirmadoFinanceiramente === true;
+                                return <Chip key={pagamento.id} size="small" variant="outlined"
+                                    color={pendente ? "warning" : confirmado ? "success" : "default"}
+                                    label={`${rotulosPagamento[pagamento.formaPagamento]}${pendente ? " pendente" : confirmado ? " confirmado" : ""} · ${moedaVenda(pagamento.valor)}`}
+                                    sx={{ maxWidth: "100%", height: "auto", minHeight: 24, "& .MuiChip-label": { whiteSpace: "normal", py: 0.25, overflowWrap: "anywhere" } }} />;
+                            })}
+                            {!!detalhe.contasReceber?.length && <Chip size="small" variant="outlined" label="A prazo" />}
+                        </Stack>}
+                    </Box>
                     <Table size="small" aria-label="Itens da venda">
                         <TableHead><TableRow><TableCell>Produto</TableCell><TableCell align="right">Quantidade</TableCell>
                             <TableCell align="right">Unitário</TableCell><TableCell align="right">Subtotal</TableCell></TableRow></TableHead>
@@ -318,18 +356,9 @@ export default function CentralVendas() {
                     <Stack direction="row" spacing={3} sx={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
                         <Typography>Subtotal: <strong>{moedaVenda(detalhe.subtotal)}</strong></Typography>
                         <Typography>Desconto: <strong>{moedaVenda(detalhe.desconto)}</strong></Typography>
-                        <Typography>Total: <strong>{moedaVenda(detalhe.total)}</strong></Typography>
+                        {!!detalhe.troco && <Typography>Troco: <strong>{moedaVenda(detalhe.troco)}</strong></Typography>}
                     </Stack>
-                    {detalhe.contasReceber?.length ? <Alert severity="info" icon={false}>
-                        Alocado em pagamentos imediatos: <strong>{erroPagamentos ? "Indisponível" : moedaVenda(pagamentos.reduce((total, p) => total + p.valor, 0))}</strong>
-                        {" · "}A prazo: <strong>{moedaVenda(detalhe.contasReceber.reduce((total, c) => total + c.valorOriginal, 0))}</strong>
-                        {!!detalhe.troco && <> · Troco: <strong>{moedaVenda(detalhe.troco)}</strong></>}
-                    </Alert> : <Alert severity="info" icon={false}>
-                        Pagamento: <strong>{detalhe.formaPagamento ? rotulosPagamento[detalhe.formaPagamento] : pagamentos.length > 1 ? "Pagamento misto" : "Não definido"}</strong>
-                        {detalhe.valorRecebido !== null && <> · Recebido: <strong>{moedaVenda(detalhe.valorRecebido)}</strong></>}
-                        {detalhe.troco !== null && <> · Troco: <strong>{moedaVenda(detalhe.troco)}</strong></>}
-                    </Alert>}
-                    <Typography variant="h6">Pagamentos</Typography>
+                    {(!!pagamentos.length || !!erroPagamentos) && <Typography variant="h6">Pagamentos</Typography>}
                     {erroPagamentos && <Alert severity="error">{erroPagamentos}</Alert>}
                     {pagamentos.map(pagamento => {
                         const pix = pagamento.formaPagamento === "PIX";

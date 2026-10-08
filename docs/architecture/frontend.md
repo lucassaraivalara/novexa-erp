@@ -8,6 +8,10 @@ Sidebar oferece Dashboard, Vender (/pdv), Central de Vendas (/vendas), Clientes,
 
 URLs, layout operacional independente do PDV, permissoes e componentes visuais preservados. Produtos mantem Produtos/Fornecedores; Estoque mantem Saldo/Entradas; Caixas e Dados Bancarios preservam suas abas. Entrada avulsa identifica a movimentacao isolada de produto, distinta da Entrada manual de mercadoria. Nomes apresentados nao renomeiam dominios, services ou endpoints.
 
+## Central de Vendas - resumo no detalhe
+
+Detalhe apresenta Total da venda, Pago agora (soma dos pagamentos imediatos REGISTRADO) e A receber (soma dos saldos das ContasReceber vinculadas, nao de seus valores originais). Formas utilizadas ficam em indicadores compactos; PIX REGISTRADO identifica pendente/confirmado pelo campo confirmadoFinanceiramente. Cartao aparece como forma, sem consulta nem status de liquidacao. Parcelas/vencimentos/status e link Ver em Contas a Receber permanecem. Usa somente os dados ja carregados ao abrir o detalhe, sem consultas financeiras por linha nem status financeiro persistido em Venda. Falha de pagamentos exibe Pago agora indisponivel, nao zero.
+
 ## Contas a Receber - Bloco 2
 
 Rota `/financeiro/contas-receber`, no grupo Financeiro, usa a identidade vigente navy/teal com composicao operacional: PageHeader, resumo global, PageFilters e AppTable compacta remota. Cadastro/baixa/confirmacoes reutilizam CadastroDialog; detalhe e historico ficam em drawer responsivo. Nenhum grafico, bloco decorativo ou alteracao global de identidade. Cliente usa ClienteAutocomplete existente (inativos somente no filtro historico); destinos usam pagina remota de contas ativas. Historico completo vem de GET por ID, nunca de recebimentos=[] da pagina. Retry de baixa preserva UUID/payload por empresa/conta em sessionStorage ate resposta conclusiva, bloqueando edicao da tentativa incerta.
