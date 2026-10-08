@@ -40,10 +40,21 @@ async function esperar(condicao) {
     for (let i = 0; i < 120 && !condicao(); i++) await new Promise(r => setTimeout(r, 25));
     assert.ok(condicao(), "Request esperado nao chegou");
 }
-async function abrir({ hasTouch = false } = {}) {
+async function abrir({ hasTouch = false, adiarRender = false } = {}) {
     const estado = { requests: [], atrasar: false, atrasarScanner: false };
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, hasTouch });
     page.setDefaultTimeout(7000);
+    if (adiarRender) await page.addInitScript(() => {
+        // O scheduler do React pode concluir o render depois do proximo frame.
+        const Canal = window.MessageChannel;
+        window.MessageChannel = class extends Canal {
+            constructor() {
+                super();
+                const postar = this.port2.postMessage.bind(this.port2);
+                this.port2.postMessage = (...args) => setTimeout(() => postar(...args), 50);
+            }
+        };
+    });
     await page.addInitScript(() => localStorage.setItem("novexa-auth", JSON.stringify({ id: 1, token: "teste",
         nomeUsuario: "Operador", perfil: "OPERADOR", empresa: { id: 1, razaoSocial: "Empresa" } })));
     await page.route("http://localhost:8080/**", async route => {
@@ -141,6 +152,20 @@ test("scanner Enter imediato seleciona quantidade; digitar substitui valor e Ent
             await quantidade.press("Enter"); await esperarFoco(page, busca);
         } finally { await page.close(); }
     }
+});
+
+test("render adiado preserva foco e selecao ao criar e incrementar item; Enter e Esc voltam a busca", async () => {
+    const { page, busca } = await abrir({ adiarRender: true });
+    try {
+        await esperarFoco(page, busca);
+        await busca.fill("7890001"); await busca.press("Enter");
+        const quantidade = await conferirQuantidade(page, "Produto remoto", "1");
+        await quantidade.press("3"); await quantidade.press("Enter"); await esperarFoco(page, busca);
+        await busca.fill("7890001"); await busca.press("Enter");
+        await conferirQuantidade(page, "Produto remoto", "4");
+        await quantidade.press("8"); await quantidade.press("Escape"); await esperarFoco(page, busca);
+        assert.equal(await quantidade.inputValue(), "4");
+    } finally { await page.close(); }
 });
 
 test("setas e Enter adicionam resultado escolhido; Esc restaura quantidade, Tab e Ctrl+Delete continuam livres", async () => {

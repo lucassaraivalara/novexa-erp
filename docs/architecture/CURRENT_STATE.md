@@ -10,6 +10,10 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## PDV: foco e selecao sincronizados com o carrinho (2026-10-08)
+
+Na branch de trabalho, corrigida corrida comprovada entre requestAnimationFrame e commit dos itens: o foco podia ocorrer antes de montar a Quantidade ou selecionar o valor anterior ao incremento. Foco/selecao agora ocorrem apos o commit, preservando Enter/Esc, scanner e demais atalhos. Regressao com scheduler adiado falhou antes da correcao e passou depois; os tres cenarios reportados e a nova regressao passaram em cinco rodadas (20/20). Testes direcionados do PDV: 58/58; suite frontend concorrente: 328/328. Sem mudancas de backend, services, contratos ou regras financeiras. Commit local, sem push nesta tarefa.
+
 ## PDV: entrada monetaria brasileira (2026-10-08)
 
 Na branch de trabalho, Valor aplicado, Recebido e parcelas a prazo aceitam reais inteiros, virgula decimal, ponto decimal e milhar brasileiro por componente localizado. Texto/cursor preservados durante edicao; exibicao pt-BR ao sair do campo, com selecao ao focar. Normalizacao mantem decimal interno, calculos e payload existentes; vazio seguro e precisao invalida bloqueada sem arredondamento. Backend, services, contratos, quantidade e busca/Enter de `4fa1fb1` preservados, assim como clareza do dinheiro de `e469ad6`. Validacao: 57 testes direcionados do PDV aprovados com HTTP simulado, build/TypeScript, lint e diff check. Commit local, sem push nesta tarefa.

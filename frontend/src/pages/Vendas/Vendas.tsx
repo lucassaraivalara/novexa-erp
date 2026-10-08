@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import SearchIcon from "@mui/icons-material/Search";
@@ -82,6 +82,7 @@ export default function Vendas() {
     const recebidoRef = useRef<HTMLInputElement>(null);
     const opcionalRef = useRef<HTMLInputElement>(null);
     const quantidadesRef = useRef<Record<number, HTMLInputElement | null>>({});
+    const quantidadeFocoPendenteRef = useRef<number | null>(null);
     const quantidadeAntesRef = useRef("");
     const t = totais(rascunho);
     const bloqueado = !sessaoCaixaResolvida || salvando || !!rascunho.pendente;
@@ -92,6 +93,17 @@ export default function Vendas() {
         onInvalidTerm: () => setResultados([]),
     });
     const carregando = loading || buscandoCodigo;
+
+    useLayoutEffect(() => {
+        const id = quantidadeFocoPendenteRef.current;
+        if (id === null) return;
+        const campo = quantidadesRef.current[id];
+        if (!campo) return;
+        // Foca e seleciona o valor atualizado somente depois do commit do carrinho.
+        quantidadeFocoPendenteRef.current = null;
+        campo.focus();
+        campo.select();
+    }, [rascunho.itens]);
 
     useEffect(() => {
         if (bloqueado) { cancel(); scannerRef.current?.abort(); }
@@ -184,6 +196,7 @@ export default function Vendas() {
         if (rascunho.itens.length >= 200 && !rascunho.itens.some(i => i.produto.id === produto.id)) {
             setErro("O limite é de 200 produtos diferentes por venda."); return;
         }
+        quantidadeFocoPendenteRef.current = produto.id;
         setRascunho(r => {
             const existente = r.itens.find(i => i.produto.id === produto.id);
             if (existente) return { ...r, itens: r.itens.map(i => i === existente
@@ -191,7 +204,6 @@ export default function Vendas() {
             return { ...r, itens: [...r.itens, { produto, quantidade: "1" }] };
         });
         setBusca(""); setListaAberta(false); setIndice(0); setSelecionado(produto.id); setErro("");
-        requestAnimationFrame(() => quantidadesRef.current[produto.id]?.focus());
     }
     function remover(id: number) {
         alterar({ itens: rascunho.itens.filter(i => i.produto.id !== id) });

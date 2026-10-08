@@ -110,6 +110,10 @@ nao introduz uma preferencia de autenticacao. Estes fluxos dependem de
 definicao funcional posterior. Testes Chromium cobrem validacao, retry,
 payload, sessao, duplo submit e breakpoints 1440/1024/390px.
 
+## Foco no carrinho do PDV
+
+O foco automatico na Quantidade apos adicionar/incrementar um produto e aplicado em useLayoutEffect, depois do commit dos itens, com selecao explicita do valor atualizado. Nao depende de requestAnimationFrame ocorrer depois do render. A regressao do PDV atrasa o scheduler em contexto isolado e preserva as assercoes de foco, selecao e retorno a busca por Enter/Esc.
+
 ## Configuracoes empresariais no PDV
 
 O formulario de configuracoes exige conta financeira destino para DEBITO/CREDITO, como PIX/TRANSFERENCIA, usando o service existente e contas ativas BANCO/CARTEIRA_DIGITAL. O destino atual inativo continua visivel e pode ser mantido na edicao, conforme contrato backend. DINHEIRO/BOLETO nao enviam destino residual ao trocar tipo. Cartao legado sem destino exibe aviso na lista/editor: pode ser inativado sem conta, mas salvar ativo/reativar exige escolha explicita. Sem backfill ou alteracao de snapshots antigos; tenant nunca compoe o payload. Erros de consulta e ausencia de contas sao diferenciados; sem contas, orienta cadastro separado. Validacao por React Hook Form/Yup, com mensagens junto ao campo; layout aprovado preservado.
