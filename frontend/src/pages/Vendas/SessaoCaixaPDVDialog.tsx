@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { abrirSessaoCaixa, listarCaixas, listarSessoesAbertas, mensagemCaixa } from "../../services/caixaService";
 import type { CaixaResumo, SessaoCaixaAberta } from "../../types/caixa";
+import { obterSessao } from "../../utils/auth/sessao";
 import { decidirSessaoCaixa, decimal } from "./pdv";
 
 type Modo = "CARREGANDO" | "ABRIR" | "SELECIONAR" | "ERRO";
@@ -30,6 +31,7 @@ type Props = {
 const horario = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
 export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) {
+    const usuarioId = obterSessao()?.id;
     const [modo, setModo] = useState<Modo>("CARREGANDO");
     const [sessoes, setSessoes] = useState<SessaoCaixaAberta[]>([]);
     const [caixas, setCaixas] = useState<CaixaResumo[]>([]);
@@ -41,7 +43,7 @@ export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) 
 
     const carregar = useCallback((signal?: AbortSignal) => {
         return listarSessoesAbertas(signal).then(async (abertas) => {
-            const decisao = decidirSessaoCaixa(abertas);
+            const decisao = decidirSessaoCaixa(abertas, usuarioId);
             if (decisao.fluxo === "USAR_UNICA") {
                 onResolvida(decisao.sessao.sessaoId);
                 return;
@@ -52,7 +54,8 @@ export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) 
                 setModo("SELECIONAR");
                 return;
             }
-            const ativas = (await listarCaixas(signal)).filter(caixa => caixa.ativo);
+            const ativas = (await listarCaixas(signal)).filter(caixa => caixa.ativo
+                && !abertas.some(sessao => sessao.caixaId === caixa.id));
             setCaixas(ativas);
             setCaixaId(ativas.length === 1 ? ativas[0].id : null);
             setModo("ABRIR");
@@ -61,7 +64,7 @@ export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) 
             setErro(mensagemCaixa(e, "Não foi possível identificar o Caixa operacional."));
             setModo("ERRO");
         });
-    }, [onResolvida]);
+    }, [onResolvida, usuarioId]);
 
     function recarregar() {
         setModo("CARREGANDO");
@@ -141,6 +144,7 @@ export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) 
                 <DialogTitle id="sessao-caixa-pdv-titulo">Abrir Caixa</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{ pt: 1 }}>
+                        <Alert severity="info">Não há sessão de caixa aberta para o seu usuário.</Alert>
                         {erro && <Alert severity="error">{erro}</Alert>}
                         {caixas.length === 0 ? <Alert severity="warning">Nenhum Caixa ativo está disponível.</Alert> : <>
                             {caixas.length === 1

@@ -9,6 +9,8 @@ const cors = { "access-control-allow-origin": "*", "access-control-allow-headers
 const produto = (nome = "Produto remoto", codigoInterno = "P1") => ({ id: 1, nome, codigoInterno,
     codigoBarras: "7890001", precoVenda: 10, unidadeMedida: "UN", ativo: true });
 const cliente = nome => ({ id: 8, nome, nomeFantasia: "Loja", cpfCnpj: "02360684663", ativo: true });
+const sessaoCaixa = (id, operadorId = 1) => ({ sessaoId: id, caixaId: id, descricaoCaixa: `Caixa ${id}`,
+    saldoInicial: 0, dataHoraAbertura: "2026-10-08T09:00:00", operadorAbertura: { id: operadorId, nome: `Operador ${operadorId}` } });
 
 before(async () => {
     server = await createServer({ cacheDir: "node_modules/.vite-pdv-buscas-tests", server: { host: "127.0.0.1", port: 0, hmr: false },
@@ -40,8 +42,8 @@ async function esperar(condicao) {
     for (let i = 0; i < 120 && !condicao(); i++) await new Promise(r => setTimeout(r, 25));
     assert.ok(condicao(), "Request esperado nao chegou");
 }
-async function abrir({ hasTouch = false, adiarRender = false } = {}) {
-    const estado = { requests: [], atrasar: false, atrasarScanner: false, sessaoCaixaId: 10 };
+async function abrir({ hasTouch = false, adiarRender = false, sessoes, caixas = [], resolverCaixa = true } = {}) {
+    const estado = { requests: [], atrasar: false, atrasarScanner: false, sessaoCaixaId: 10, sessoes, caixas };
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, hasTouch });
     page.setDefaultTimeout(7000);
     if (adiarRender) await page.addInitScript(() => {
@@ -64,7 +66,9 @@ async function abrir({ hasTouch = false, adiarRender = false } = {}) {
             method: req.method(), body: req.postData() };
         estado.requests.push(registro);
         let dados;
-        if (u.pathname === "/financeiro/caixas/sessoes/abertas") dados = [{ sessaoId: estado.sessaoCaixaId }];
+        if (u.pathname === "/financeiro/caixas/sessoes/abertas") dados = estado.sessoes ?? [sessaoCaixa(estado.sessaoCaixaId)];
+        else if (u.pathname === "/financeiro/caixas") dados = estado.caixas;
+        else if (/^\/financeiro\/caixas\/\d+\/sessoes$/.test(u.pathname) && req.method() === "POST") dados = { id: 40 };
         else if (u.pathname === "/financeiro/configuracoes-formas-pagamento") dados = [
             { id: 1, tipo: "DINHEIRO", nomeExibicao: "Dinheiro", ativo: true },
             { id: 2, tipo: "PIX", nomeExibicao: "PIX Loja", ativo: true, contaFinanceiraDestino: { id: 3, ativo: true, tipo: "BANCO" } },
@@ -90,10 +94,93 @@ async function abrir({ hasTouch = false, adiarRender = false } = {}) {
             contentType: "application/json", body: JSON.stringify(dados) });
     });
     await page.goto(`${url}/__pdv`);
-    const busca = page.getByRole("combobox", { name: "Buscar produto ou ler código de barras" });
-    await page.getByRole("combobox", { name: "Forma de pagamento", exact: true }).selectOption("1");
-    assert.equal(await busca.isEnabled(), true);
+    const busca = page.getByRole("combobox", { name: "Buscar produto ou ler código de barras", includeHidden: true });
+    if (resolverCaixa) {
+        await page.getByRole("combobox", { name: "Forma de pagamento", exact: true }).selectOption("1");
+        assert.equal(await busca.isEnabled(), true);
+    }
     return { page, estado, busca };
+}
+
+for (const sessoes of [[sessaoCaixa(10)], [sessaoCaixa(20, 2), sessaoCaixa(10), sessaoCaixa(30, 3)]]) {
+    test(`Caixa proprio unico entre ${sessoes.length} sessoes e usado no faturamento`, async () => {
+        const { page, estado, busca } = await abrir({ sessoes });
+        try {
+            assert.equal(await page.getByRole("dialog").count(), 0);
+            await busca.fill("7890001"); await busca.press("Enter");
+            await page.getByLabel("Quantidade de Produto remoto").waitFor();
+            await page.getByRole("button", { name: "Pagar · F2" }).click();
+            await page.getByText("Venda concluída", { exact: true }).waitFor();
+            const pedido = JSON.parse(estado.requests.find(r => r.path === "/vendas" && r.method === "POST").body);
+            assert.equal(pedido.sessaoCaixaId, 10);
+        } finally { await page.close(); }
+    });
+}
+
+for (const sessoes of [[sessaoCaixa(10, 2)], [sessaoCaixa(10, 2), sessaoCaixa(20, 3)]]) {
+    test(`somente ${sessoes.length} sessoes alheias bloqueiam PDV sem tentar faturar`, async () => {
+        const caixas = sessoes.map(s => ({ id: s.caixaId, descricao: s.descricaoCaixa, ativo: true }));
+        const { page, estado, busca } = await abrir({ sessoes, caixas, resolverCaixa: false });
+        try {
+            await page.getByText("Não há sessão de caixa aberta para o seu usuário.", { exact: true }).waitFor();
+            await page.getByText("Nenhum Caixa ativo está disponível.", { exact: true }).waitFor();
+            assert.equal(await busca.isDisabled(), true);
+            assert.equal(await page.getByRole("button", { name: "Pagar · F2", includeHidden: true }).isDisabled(), true);
+            assert.equal(await page.getByRole("button", { name: "Abrir Caixa", exact: true }).isDisabled(), true);
+            await page.keyboard.press("F2");
+            assert.equal(estado.requests.some(r => r.path === "/vendas" && r.method === "POST"), false);
+            assert.equal(estado.requests.some(r => r.method === "POST"), false);
+        } finally { await page.close(); }
+    });
+}
+
+test("multiplas sessoes proprias permitem escolher sem oferecer sessao alheia", async () => {
+    const { page, estado, busca } = await abrir({ sessoes: [sessaoCaixa(30, 2), sessaoCaixa(10), sessaoCaixa(20)], resolverCaixa: false });
+    try {
+        const dialogo = page.getByRole("dialog", { name: "Selecionar Caixa" });
+        await dialogo.waitFor();
+        assert.equal(await dialogo.getByText("Caixa 30", { exact: true }).count(), 0);
+        await dialogo.getByText("Caixa 20", { exact: true }).click();
+        await dialogo.getByRole("button", { name: "Usar sessão" }).click();
+        await esperarFoco(page, busca);
+        await page.getByRole("combobox", { name: "Forma de pagamento", exact: true }).selectOption("1");
+        await busca.fill("7890001"); await busca.press("Enter");
+        await page.getByLabel("Quantidade de Produto remoto").waitFor();
+        await page.getByRole("button", { name: "Pagar · F2" }).click();
+        await page.getByText("Venda concluída", { exact: true }).waitFor();
+        assert.equal(JSON.parse(estado.requests.find(r => r.path === "/vendas" && r.method === "POST").body).sessaoCaixaId, 20);
+    } finally { await page.close(); }
+});
+
+for (const sessoes of [[], [sessaoCaixa(10, 2)]]) {
+    test(`sem sessao propria preserva abertura em Caixa livre com ${sessoes.length} sessoes existentes`, async () => {
+        const caixas = [{ id: 10, descricao: "Caixa ocupado", ativo: true }, { id: 30, descricao: "Caixa livre", ativo: true },
+            { id: 50, descricao: "Caixa inativo", ativo: false }];
+        const { page, estado, busca } = await abrir({ sessoes, caixas, resolverCaixa: false });
+        try {
+            const dialogo = page.getByRole("dialog", { name: "Abrir Caixa" });
+            await dialogo.getByText("Não há sessão de caixa aberta para o seu usuário.", { exact: true }).waitFor();
+            if (sessoes.length) {
+                assert.equal(await dialogo.getByText("Caixa ocupado", { exact: true }).count(), 0);
+                await dialogo.getByText("Caixa livre", { exact: true }).waitFor();
+            } else {
+                await dialogo.getByRole("combobox", { name: /Caixa/ }).click();
+                await page.getByRole("option", { name: "Caixa livre" }).click();
+            }
+            await dialogo.getByLabel("Saldo inicial (R$)").fill("0");
+            await dialogo.getByRole("button", { name: "Abrir Caixa", exact: true }).click();
+            await esperarFoco(page, busca);
+            const abertura = estado.requests.find(r => r.method === "POST");
+            assert.equal(abertura.path, "/financeiro/caixas/30/sessoes");
+            assert.deepEqual(JSON.parse(abertura.body), { saldoInicial: 0 });
+            await page.getByRole("combobox", { name: "Forma de pagamento", exact: true }).selectOption("1");
+            await busca.fill("7890001"); await busca.press("Enter");
+            await page.getByLabel("Quantidade de Produto remoto").waitFor();
+            await page.getByRole("button", { name: "Pagar · F2" }).click();
+            await page.getByText("Venda concluída", { exact: true }).waitFor();
+            assert.equal(JSON.parse(estado.requests.find(r => r.path === "/vendas" && r.method === "POST").body).sessaoCaixaId, 40);
+        } finally { await page.close(); }
+    });
 }
 
 test("services usam endpoints limitados, signal e JWT sem tenant no payload; vazio nao faz HTTP", async () => {

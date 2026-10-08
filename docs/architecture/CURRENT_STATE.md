@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## PDV: sessao de Caixa do operador (2026-10-08)
+
+Na branch `fix/pdv-sessao-operador`, sobre `3dc5b36`, resolucao inicial usa somente sessoes abertas cujo operadorAbertura.id corresponde ao usuario autenticado. Sessao propria unica e automatica; multiplas proprias mantem escolha. Sem propria, PDV permanece bloqueado com mensagem explicita e abertura existente em Caixa ativo livre. Contrato e comportamento em [frontend.md](frontend.md). Backend, pagamentos, regras financeiras e fechamento sem alteracoes; ainda nao integrado a main.
+
+Validacao: 98 testes frontend direcionados de PDV/Caixa/perfis aprovados, incluindo oito novas regressoes e componentes reais com HTTP simulado; build/TypeScript, lint direcionado e diff check aprovados. Teste backend existente de sessao alheia aprovado, confirmando 403 sem efeitos. Sem suite completa ou homologacao E2E com backend real. Commit local, sem push.
+
 ## PDV: dinheiro recebido-first e feedback de busca (2026-10-08)
 
 Fases 3 e 4 concluidas sobre `0a63921`: dinheiro recebido cobre ate o saldo deixado pelas outras formas, com troco inclusive em venda mista. PIX/cartao/parcelas nao sao redistribuidos; excesso sem troco e falta continuam bloqueados. Dinheiro envia o valor aplicado e valorRecebido bruto no contrato existente; aplicacao zero orienta remover a forma, preservando a validacao atual. Busca vazia orienta no campo desde a abertura; busca sem resultado mostra mensagem unica contextual, limpa ao mudar o termo. Rascunho, retry, scanner, foco/selecao de quantidade, input brasileiro, atalhos e carrinho mobile preservados.

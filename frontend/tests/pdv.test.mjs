@@ -191,13 +191,25 @@ test("campos opcionais ficam no pedido somente com os valores escolhidos", () =>
 });
 
 test("resolve zero, uma ou múltiplas sessões abertas conforme o fluxo do PDV", () => {
-    const primeira = { sessaoId: 10, caixaId: 1, descricaoCaixa: "Caixa 1" };
-    const segunda = { sessaoId: 20, caixaId: 2, descricaoCaixa: "Caixa 2" };
-    assert.equal(decidirSessaoCaixa([]).fluxo, "ABRIR");
-    assert.deepEqual(decidirSessaoCaixa([primeira]), { fluxo: "USAR_UNICA", sessao: primeira });
-    assert.deepEqual(decidirSessaoCaixa([primeira, segunda]), {
+    const primeira = { sessaoId: 10, caixaId: 1, descricaoCaixa: "Caixa 1", operadorAbertura: { id: 1, nome: "Operador" } };
+    const segunda = { sessaoId: 20, caixaId: 2, descricaoCaixa: "Caixa 2", operadorAbertura: { id: 1, nome: "Operador" } };
+    assert.equal(decidirSessaoCaixa([], 1).fluxo, "ABRIR");
+    assert.deepEqual(decidirSessaoCaixa([primeira], 1), { fluxo: "USAR_UNICA", sessao: primeira });
+    assert.deepEqual(decidirSessaoCaixa([primeira, segunda], 1), {
         fluxo: "SELECIONAR", sessoes: [primeira, segunda],
     });
+});
+
+test("resolucao de Caixa ignora sessoes alheias e exige titular identificavel", () => {
+    const propria = { sessaoId: 10, operadorAbertura: { id: 1, nome: "Operador" } };
+    const alheia = { sessaoId: 20, operadorAbertura: { id: 2, nome: "Outro operador" } };
+    const outraAlheia = { sessaoId: 30, operadorAbertura: { id: 3, nome: "Terceiro operador" } };
+    assert.deepEqual(decidirSessaoCaixa([alheia], 1), { fluxo: "ABRIR" });
+    assert.deepEqual(decidirSessaoCaixa([alheia, outraAlheia], 1), { fluxo: "ABRIR" });
+    assert.deepEqual(decidirSessaoCaixa([alheia, propria, outraAlheia], 1), { fluxo: "USAR_UNICA", sessao: propria });
+    assert.deepEqual(decidirSessaoCaixa([propria], undefined), { fluxo: "ABRIR" });
+    assert.deepEqual(decidirSessaoCaixa([{ sessaoId: 40 }], 1), { fluxo: "ABRIR" });
+    assert.deepEqual(decidirSessaoCaixa([{ sessaoId: 40 }], undefined), { fluxo: "ABRIR" });
 });
 
 test("mantém a sessão no próximo rascunho e a envia na venda", () => {
