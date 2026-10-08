@@ -4,12 +4,35 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 
 const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
-const { novoRascunho, decimal, normalizarValorMonetario, formatarValorMonetario, subtotalItem, totais, criarPedido, encontrarProdutoPorCodigo, decidirSessaoCaixa, moverIndiceProduto } = await server.ssrLoadModule("/src/pages/Vendas/pdv.ts");
+const { novoRascunho, carregarRascunhoSalvo, salvarRascunho, decimal, normalizarValorMonetario, formatarValorMonetario, subtotalItem, totais, criarPedido, encontrarProdutoPorCodigo, decidirSessaoCaixa, moverIndiceProduto } = await server.ssrLoadModule("/src/pages/Vendas/pdv.ts");
 await server.close();
 const fontePDV = await readFile(new URL("../src/pages/Vendas/Vendas.tsx", import.meta.url), "utf8");
 const fonteFinalizacao = await readFile(new URL("../src/pages/Vendas/VendaFinalizacaoDialog.tsx", import.meta.url), "utf8");
 const produto = { id: 1, nome: "Café", precoVenda: 10.10, ativo: true, codigoBarras: "7890001", codigoInterno: "CAFE" };
 const venda = () => ({ ...novoRascunho(), itens: [{ produto, quantidade: "2" }], recebido: "30", configuracaoFormaPagamentoId: 42 });
+
+test("storage restaura somente venda em andamento da sessao correta e elimina rascunhos vazios", () => {
+    const anterior = globalThis.sessionStorage;
+    const dados = new Map();
+    globalThis.sessionStorage = { getItem: chave => dados.get(chave) ?? null, setItem: (chave, valor) => dados.set(chave, valor), removeItem: chave => dados.delete(chave) };
+    try {
+        const rascunho = { ...venda(), sessaoCaixaId: 10 };
+        salvarRascunho("atual", rascunho);
+        assert.deepEqual(carregarRascunhoSalvo("atual", 10), rascunho);
+        assert.deepEqual(carregarRascunhoSalvo("atual", 11), novoRascunho(11));
+        assert.deepEqual(carregarRascunhoSalvo("outra-empresa", 10), novoRascunho(10));
+        dados.set("legada", JSON.stringify(rascunho));
+        assert.deepEqual(carregarRascunhoSalvo("nova", 10, "legada"), rascunho);
+        salvarRascunho("atual", novoRascunho(10));
+        assert.equal(dados.has("atual"), false);
+        dados.set("atual", JSON.stringify({ ...novoRascunho(10), cliente: { id: 8 }, desconto: "5" }));
+        assert.deepEqual(carregarRascunhoSalvo("atual", 10), novoRascunho(10));
+        dados.set("atual", JSON.stringify({ ...rascunho, pendente: { sessaoCaixaId: 11 } }));
+        assert.deepEqual(carregarRascunhoSalvo("atual", 10), novoRascunho(10));
+        dados.set("atual", "invalido");
+        assert.deepEqual(carregarRascunhoSalvo("atual", 10), novoRascunho(10));
+    } finally { if (anterior === undefined) delete globalThis.sessionStorage; else globalThis.sessionStorage = anterior; }
+});
 
 test("entrada monetaria brasileira preserva reais inteiros, centavos e formato exibido", () => {
     for (const [entrada, interno, exibido] of [

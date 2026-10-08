@@ -41,7 +41,7 @@ async function esperar(condicao) {
     assert.ok(condicao(), "Request esperado nao chegou");
 }
 async function abrir({ hasTouch = false, adiarRender = false } = {}) {
-    const estado = { requests: [], atrasar: false, atrasarScanner: false };
+    const estado = { requests: [], atrasar: false, atrasarScanner: false, sessaoCaixaId: 10 };
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, hasTouch });
     page.setDefaultTimeout(7000);
     if (adiarRender) await page.addInitScript(() => {
@@ -64,7 +64,7 @@ async function abrir({ hasTouch = false, adiarRender = false } = {}) {
             method: req.method(), body: req.postData() };
         estado.requests.push(registro);
         let dados;
-        if (u.pathname === "/financeiro/caixas/sessoes/abertas") dados = [{ sessaoId: 10 }];
+        if (u.pathname === "/financeiro/caixas/sessoes/abertas") dados = [{ sessaoId: estado.sessaoCaixaId }];
         else if (u.pathname === "/financeiro/configuracoes-formas-pagamento") dados = [
             { id: 1, tipo: "DINHEIRO", nomeExibicao: "Dinheiro", ativo: true },
             { id: 2, tipo: "PIX", nomeExibicao: "PIX Loja", ativo: true, contaFinanceiraDestino: { id: 3, ativo: true, tipo: "BANCO" } },
@@ -121,6 +121,63 @@ test("PDV nao pre-carrega produtos/clientes; digitar usa debounce e selecao adic
         assert.deepEqual(consultas(estado, "produtos").map(r => r.termo), ["Prod"]);
         assert.match(await page.getByRole("table").innerText(), /Produto remoto/);
         assert.equal(await busca.inputValue(), "");
+    } finally { await page.close(); }
+});
+
+test("rascunho com itens e pagamento sobrevive ao reload; sucesso remove storage e reabre limpo", async () => {
+    const { page, busca } = await abrir();
+    try {
+        await busca.fill("7890001"); await busca.press("Enter");
+        const quantidade = await conferirQuantidade(page, "Produto remoto", "1");
+        await quantidade.press("Enter"); await esperarFoco(page, busca);
+        await page.getByLabel("Recebido (R$)").fill("20");
+        await page.reload(); await esperarFoco(page, busca);
+        assert.equal(await quantidade.inputValue(), "1");
+        assert.equal(await page.getByLabel("Recebido (R$)").inputValue(), "20,00");
+        await page.getByRole("button", { name: "Pagar · F2" }).click();
+        await page.getByText("Venda concluída", { exact: true }).waitFor();
+        assert.equal(await page.evaluate(() => sessionStorage.getItem("novexa-pdv:1:1:10")), null);
+        await page.reload(); await esperarFoco(page, busca);
+        assert.equal(await quantidade.count(), 0);
+        assert.equal(await page.getByLabel("Recebido (R$)").inputValue(), "");
+    } finally { await page.close(); }
+});
+
+test("limpar venda explicitamente remove rascunho e dados; sessao diferente nao restaura itens", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        await busca.fill("7890001"); await busca.press("Enter");
+        await conferirQuantidade(page, "Produto remoto", "1");
+        await page.getByRole("button", { name: "Limpar venda", exact: true }).click();
+        await page.getByRole("dialog", { name: "Limpar esta venda?" }).getByRole("button", { name: "Limpar venda", exact: true }).click();
+        await esperarFoco(page, busca);
+        assert.equal(await page.evaluate(() => sessionStorage.getItem("novexa-pdv:1:1:10")), null);
+        await page.reload(); await esperarFoco(page, busca);
+        assert.equal(await page.getByLabel("Quantidade de Produto remoto").count(), 0);
+        await busca.fill("7890001"); await busca.press("Enter");
+        await conferirQuantidade(page, "Produto remoto", "1");
+        estado.sessaoCaixaId = 11;
+        await page.reload(); await esperarFoco(page, busca);
+        assert.equal(await page.getByLabel("Quantidade de Produto remoto").count(), 0);
+        assert.equal(await page.evaluate(() => sessionStorage.getItem("novexa-pdv:1:1:11")), null);
+    } finally { await page.close(); }
+});
+
+test("retry apos reload preserva UUID e payload; tentativa incerta nao pode ser limpa", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        await busca.fill("7890001"); await busca.press("Enter");
+        await conferirQuantidade(page, "Produto remoto", "1");
+        estado.erroVenda = 503;
+        await page.getByRole("button", { name: "Pagar · F2" }).click();
+        await page.getByRole("button", { name: "Tentar novamente", exact: true }).waitFor();
+        const original = estado.requests.find(r => r.path === "/vendas" && r.method === "POST").body;
+        await page.reload(); await esperarFoco(page, busca);
+        assert.equal(await page.getByRole("button", { name: "Limpar venda", exact: true }).isDisabled(), true);
+        estado.erroVenda = undefined;
+        await page.getByRole("button", { name: "Confirmar resultado · F2" }).click();
+        await page.getByText("Venda concluída", { exact: true }).waitFor();
+        assert.deepEqual(estado.requests.filter(r => r.path === "/vendas" && r.method === "POST").map(r => r.body), [original, original]);
     } finally { await page.close(); }
 });
 
@@ -474,7 +531,7 @@ test("valor aplicado aceita digitacao brasileira, preserva cursor e formata ao s
             ["2,50", 2.5, "2,50"], ["10", 10, "10,00"], ["1000", 1000, "1.000,00"], ["1.000,50", 1000.5, "1.000,50"]]) {
             await campo.fill(""); await campo.pressSequentially(entrada);
             assert.equal(await campo.inputValue(), entrada);
-            await page.waitForFunction(valor => Number(JSON.parse(sessionStorage.getItem("novexa-pdv:1:1")).pagamentos[0].valor) === valor, valor);
+            await page.waitForFunction(valor => Number(JSON.parse(sessionStorage.getItem("novexa-pdv:1:1:10")).pagamentos[0].valor) === valor, valor);
             await campo.press("Tab"); assert.equal(await campo.inputValue(), exibido);
         }
         await campo.focus();
@@ -506,13 +563,13 @@ test("colar valores com virgula, ponto decimal e milhar preserva numero e pagame
             ["3.50", 3.5, "3,50"], ["1.000,00", 1000, "1.000,00"]]) {
             await page.evaluate(texto => navigator.clipboard.writeText(texto), texto);
             await aplicado.focus(); await aplicado.press("Control+a"); await aplicado.press("Control+v");
-            await page.waitForFunction(valor => Number(JSON.parse(sessionStorage.getItem("novexa-pdv:1:1")).pagamentos[0].valor) === valor, valor);
+            await page.waitForFunction(valor => Number(JSON.parse(sessionStorage.getItem("novexa-pdv:1:1:10")).pagamentos[0].valor) === valor, valor);
             await aplicado.press("Tab"); assert.equal(await aplicado.inputValue(), exibido);
         }
         await aplicado.fill("100");
         const recebido = grupoPagamento(page, 1).getByLabel("Recebido (R$)");
         await recebido.fill(""); await recebido.pressSequentially("120");
-        await page.waitForFunction(() => Number(JSON.parse(sessionStorage.getItem("novexa-pdv:1:1")).pagamentos[0].recebido) === 120);
+        await page.waitForFunction(() => Number(JSON.parse(sessionStorage.getItem("novexa-pdv:1:1:10")).pagamentos[0].recebido) === 120);
         await recebido.press("Tab"); assert.equal(await recebido.inputValue(), "120,00");
         assert.match(await grupoPagamento(page, 1).getByLabel("Troco do pagamento 1").innerText(), /20,00/);
         await page.getByRole("button", { name: "Pagar · F2" }).click();

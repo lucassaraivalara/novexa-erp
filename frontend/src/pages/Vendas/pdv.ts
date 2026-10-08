@@ -29,6 +29,22 @@ export function novoRascunho(sessaoCaixaId: number | null = null): RascunhoPDV {
         configuracaoFormaPagamentoId: null, configuracaoNomeExibicao: null, configuracaoTipo: null };
 }
 
+export function carregarRascunhoSalvo(chave: string, sessaoCaixaId: number, chaveLegada?: string): RascunhoPDV {
+    try {
+        const salvo = JSON.parse(sessionStorage.getItem(chave) ?? (chaveLegada ? sessionStorage.getItem(chaveLegada) : null) ?? "null");
+        if (chaveLegada) sessionStorage.removeItem(chaveLegada);
+        if (salvo?.sessaoCaixaId === sessaoCaixaId && Array.isArray(salvo.itens) && salvo.itens.length
+            && (!salvo.pendente || salvo.pendente.sessaoCaixaId === sessaoCaixaId))
+            return { ...novoRascunho(sessaoCaixaId), ...salvo };
+    } catch { /* Rascunho invalido nao impede iniciar uma venda. */ }
+    return novoRascunho(sessaoCaixaId);
+}
+
+export function salvarRascunho(chave: string, rascunho: RascunhoPDV): void {
+    if (rascunho.itens.length || rascunho.pendente) sessionStorage.setItem(chave, JSON.stringify(rascunho));
+    else sessionStorage.removeItem(chave);
+}
+
 export type DecisaoSessaoCaixa =
     | { fluxo: "ABRIR" }
     | { fluxo: "USAR_UNICA"; sessao: SessaoCaixaAberta }

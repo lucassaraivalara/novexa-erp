@@ -4,7 +4,7 @@ import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import PeopleAltRoundedIcon from "@mui/icons-material/PeopleAltRounded";
-import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
+import AddShoppingCartRoundedIcon from "@mui/icons-material/AddShoppingCartRounded";
 import WarehouseRoundedIcon from "@mui/icons-material/WarehouseRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import PaymentsRoundedIcon from "@mui/icons-material/PaymentsRounded";
@@ -39,7 +39,7 @@ export type RotaInterna = {
 export const rotaPdv: RotaInterna = {
     caminho: "pdv",
     titulo: "Vender",
-    icone: <PointOfSaleRoundedIcon />,
+    icone: <AddShoppingCartRoundedIcon />,
     elemento: <Vendas />,
 };
 
@@ -71,7 +71,7 @@ export const rotasInternas: RotaInterna[] = [
     {
         caminho: "vendas",
         titulo: "Central de Vendas",
-        icone: <PointOfSaleRoundedIcon />,
+        icone: <ReceiptLongRoundedIcon />,
         elemento: <CentralVendas />,
     },
     {

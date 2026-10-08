@@ -5,7 +5,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import { Alert, Box, Button, Divider, IconButton, InputAdornment, Stack, Table, TableBody, TableCell,
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, Stack, Table, TableBody, TableCell,
     TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import { pesquisarProdutos, obterMensagemDaApi } from "../../services/produtoService";
 import { useRemoteSearch } from "../../hooks/useRemoteSearch";
@@ -15,7 +15,7 @@ import { listarConfiguracoesParaPDV } from "../../services/configuracaoFormaPaga
 import { obterSessao } from "../../utils/auth/sessao";
 import type { Produto } from "../../types/produto";
 import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
-import { encontrarProdutoPorCodigo, criarPedido, formatarValorMonetario, moeda, moverIndiceProduto, novoRascunho, pagamentosRascunho, subtotalItem, totais, type PagamentoPDV, type RascunhoPDV } from "./pdv";
+import { carregarRascunhoSalvo, salvarRascunho, encontrarProdutoPorCodigo, criarPedido, formatarValorMonetario, moeda, moverIndiceProduto, novoRascunho, pagamentosRascunho, subtotalItem, totais, type PagamentoPDV, type RascunhoPDV } from "./pdv";
 import ValorMonetarioPDV from "./ValorMonetarioPDV";
 import SessaoCaixaPDVDialog from "./SessaoCaixaPDVDialog";
 import VendaFinalizacaoDialog, { type EstadoFinalizacao } from "./VendaFinalizacaoDialog";
@@ -52,13 +52,10 @@ export default function Vendas() {
     const navigate = useNavigate();
     const sessao = obterSessao();
     const empresaId = sessao?.empresa.id;
-    const chaveRascunho = "novexa-pdv:" + empresaId + ":" + sessao?.id;
-    const [rascunho, setRascunho] = useState<RascunhoPDV>(() => {
-        try {
-            const salvo = JSON.parse(sessionStorage.getItem(chaveRascunho) ?? "null");
-            return salvo && Array.isArray(salvo.itens) ? { ...novoRascunho(), ...salvo } : novoRascunho();
-        } catch { return novoRascunho(); }
-    });
+    const chaveOperador = "novexa-pdv:" + empresaId + ":" + sessao?.id;
+    const [rascunho, setRascunho] = useState<RascunhoPDV>(novoRascunho);
+    const chaveRascunho = chaveOperador + ":" + rascunho.sessaoCaixaId;
+    const [limpezaAberta, setLimpezaAberta] = useState(false);
     const [resultados, setResultados] = useState<Produto[]>([]);
     const [buscaConcluida, setBuscaConcluida] = useState(false);
     const [configuracoes, setConfiguracoes] = useState<ConfiguracaoFormaPagamento[]>([]);
@@ -140,9 +137,9 @@ export default function Vendas() {
     }
 
     const definirSessaoCaixa = useCallback((sessaoCaixaId: number) => {
-        setRascunho(atual => ({ ...atual, sessaoCaixaId }));
+        setRascunho(carregarRascunhoSalvo(chaveOperador + ":" + sessaoCaixaId, sessaoCaixaId, chaveOperador));
         setSessaoCaixaResolvida(true);
-    }, []);
+    }, [chaveOperador]);
 
     useEffect(() => {
         if (sessaoCaixaResolvida && !salvando && !finalizacao) focarBusca();
@@ -153,8 +150,9 @@ export default function Vendas() {
     }, []);
 
     useEffect(() => {
-        try { sessionStorage.setItem(chaveRascunho, JSON.stringify(rascunho)); } catch { /* Mantém o rascunho em memória. */ }
-    }, [chaveRascunho, rascunho]);
+        if (!sessaoCaixaResolvida) return;
+        try { salvarRascunho(chaveRascunho, rascunho); } catch { /* Mantém o rascunho em memória. */ }
+    }, [chaveRascunho, rascunho, sessaoCaixaResolvida]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -209,6 +207,12 @@ export default function Vendas() {
         alterar({ itens: rascunho.itens.filter(i => i.produto.id !== id) });
         setSelecionado(null); focarBusca();
     }
+    function limparVenda() {
+        if (bloqueado) return;
+        try { sessionStorage.removeItem(chaveRascunho); } catch { /* Limpa tambem o estado em memoria. */ }
+        setRascunho(novoRascunho(rascunho.sessaoCaixaId));
+        setBusca(""); setOpcional(null); setSelecionado(null); setErro(""); setLimpezaAberta(false); focarBusca();
+    }
     function fecharFinalizacao() {
         if (finalizacao?.estado === "processing") return;
         if (finalizacaoTimerRef.current) clearTimeout(finalizacaoTimerRef.current);
@@ -253,7 +257,7 @@ export default function Vendas() {
             const proximoRascunho = novoRascunho(rascunho.sessaoCaixaId);
             setFinalizacao(atual => atual ? { ...atual, estado: "success" } : atual);
             setRascunho(proximoRascunho); setOpcional(null); setBusca("");
-            try { sessionStorage.setItem(chaveRascunho, JSON.stringify(proximoRascunho)); } catch { /* Venda já confirmada pelo servidor. */ }
+            try { sessionStorage.removeItem(chaveRascunho); } catch { /* Venda já confirmada pelo servidor. */ }
             finalizacaoTimerRef.current = setTimeout(() => {
                 setFinalizacao(null);
                 finalizacaoTimerRef.current = null;
@@ -285,6 +289,7 @@ export default function Vendas() {
         } finally { emEnvio.current = false; setSalvando(false); }
     }
     function atalhos(e: KeyboardEvent) {
+        if (limpezaAberta) { if (e.key === "Escape") { e.preventDefault(); setLimpezaAberta(false); } return; }
         if (e.key === "Escape") {
             if (listaAberta) { e.preventDefault(); setListaAberta(false); focarBusca(); return; }
             if (opcional) { e.preventDefault(); setOpcional(null); focarBusca(); return; }
@@ -307,6 +312,11 @@ export default function Vendas() {
 
     return <Box sx={{ height: { xs: "auto", md: "100dvh" }, minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default", p: 2, gap: 1.5 }}>
         <SessaoCaixaPDVDialog resolvida={sessaoCaixaResolvida} onResolvida={definirSessaoCaixa} />
+        <Dialog open={limpezaAberta} onClose={() => setLimpezaAberta(false)} aria-labelledby="pdv-limpar-titulo">
+            <DialogTitle id="pdv-limpar-titulo">Limpar esta venda?</DialogTitle>
+            <DialogContent>Os itens e os dados desta venda em andamento serão descartados.</DialogContent>
+            <DialogActions><Button onClick={() => setLimpezaAberta(false)}>Voltar</Button><Button onClick={limparVenda} color="error">Limpar venda</Button></DialogActions>
+        </Dialog>
         {finalizacao && <VendaFinalizacaoDialog
             open
             estado={finalizacao.estado}
@@ -320,7 +330,10 @@ export default function Vendas() {
         <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
             <Stack direction="row" spacing={2} sx={{ alignItems: "baseline", flexWrap: "wrap" }}><Typography component="h1" variant="h6">Vender</Typography>
                 <Typography variant="body2" color="text.secondary">{sessao?.empresa.nomeFantasia || sessao?.empresa.razaoSocial} · {sessao?.nomeUsuario}</Typography></Stack>
-            <Button component={Link} to="/dashboard" size="small" disabled={salvando}>Voltar ao ERP</Button>
+            <Stack direction="row" spacing={1}>
+                <Button size="small" color="inherit" startIcon={<DeleteOutlineRoundedIcon />} disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Limpar venda</Button>
+                <Button component={Link} to="/dashboard" size="small" disabled={salvando}>Voltar ao ERP</Button>
+            </Stack>
         </Stack>
         {erro && <Alert severity="error" role="alert">{erro}</Alert>}
         {erroConfig && <Alert severity="error" role="alert">{erroConfig}</Alert>}
