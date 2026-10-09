@@ -80,6 +80,8 @@ Cadastrar no ambiente do servico: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_S
 
 `JWT_EXPIRATION_MS`, `GEOCODING_URL` e `GEOCODING_USER_AGENT` sao opcionais. `PORT` vem da plataforma; a aplicacao escuta `0.0.0.0` e preserva `server.port=${PORT:8080}`. `EXPOSE 8080` documenta o fallback, nao fixa a porta do processo.
 
+Para tentar operar no Render Free de 512 MiB, o runtime usa `-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=32m -XX:MaxDirectMemorySize=16m -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError`. Substitui heap proporcional de 65% por limites explicitos, com code cache/buffers menores e GC serial. Os quatro tetos somam 432 MiB, deixando 80 MiB nominais para stacks, bibliotecas e outras alocacoes; nao sao um limite global de RSS nem garantia de caber sob carga. Pool Hikari permanece 5/0. Monitorar memoria, pausas e latencia no novo deploy; se continuar insuficiente, rever capacidade do plano sem desabilitar Flyway, Hibernate validate ou seguranca. Caso `JAVA_TOOL_OPTIONS` esteja definida no painel, remover o override antigo ou alinhar com a imagem.
+
 Depois do primeiro deploy do Vercel, definir `CORS_ALLOWED_ORIGINS` com a origem HTTPS real do frontend, sem caminho/barra final, separando multiplas origens por virgula. Nao usar URL inventada, wildcard ou credenciais no codigo. A URL HTTPS do Supabase tambem nao deve conter barra final.
 
 GET `/actuator/health`, `/actuator/health/liveness` e `/actuator/health/readiness` ja sao publicos pela SecurityConfig existente, sem detalhes internos no perfil `prod`. Readiness inclui banco e retorna 503 quando indisponivel; liveness verifica somente o estado da aplicacao. O Render aceita respostas HTTP 2xx/3xx no caminho de health check e tambem utiliza falhas consecutivas para reiniciar instancias: monitorar indisponibilidade compartilhada do banco. Nenhuma politica de seguranca foi relaxada.
@@ -133,6 +135,7 @@ Publicar primeiro sem trafego em servico de staging com banco isolado. Mesmo uma
 
 ## Referencias oficiais
 
+- [Opcoes JVM Java 21](https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html): heap, metaspace, code cache, buffers diretos e GC.
 - [Docker no Render](https://render.com/docs/docker): runtime, build e secrets fora da imagem.
 - [Monorepo no Render](https://render.com/docs/monorepo-support): Root Directory e caminhos relativos.
 - [Health checks no Render](https://render.com/docs/health-checks).

@@ -10,6 +10,10 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Limites de memoria para Render Free (2026-10-09)
+
+Apos relato de OOM no primeiro deploy de 512 MiB, runtime passou de heap proporcional de 65% para heap inicial/maximo 64/256 MiB, metaspace 128 MiB, code cache 32 MiB, buffers diretos 16 MiB e Serial GC. Pool 5/0, porta, Flyway, Hibernate validate e seguranca preservados. Detalhes/limites em [producao.md](../deploy/producao.md); ajuste nao comprova consumo total abaixo de 512 MiB nem homologacao sob carga. Opcoes aceitas pelo Temurin Java 21 local; novo deploy e medicao de RSS no Render pendentes.
+
 ## Preparacao Docker para Render (2026-10-09)
 
 Dockerfile existente adaptado para imagem Maven/JDK 21 no build, mantendo a versao do Maven Wrapper e runtime JRE 21 non-root. `.dockerignore` complementado e configuracao do Render documentada em [producao.md](../deploy/producao.md). Perfil prod, PORT dinamica, variaveis obrigatorias, CORS HTTPS, probes publicas existentes, Flyway e Hibernate validate preservados; sem alteracoes Java, migrations, contratos, frontend ou configuracao local.
