@@ -1,6 +1,6 @@
 ## Execucao e publicacao
 
-Backend: Java 21, Spring Boot 3.5.4 e PostgreSQL. Configuracao de producao por variaveis de ambiente, com secrets fora do Git. Perfil `prod`, Docker/Render/Cloud Run, probes e checklist de publicacao em [docs/deploy/producao.md](docs/deploy/producao.md).
+Backend: Java 21, Spring Boot 3.5.4 e PostgreSQL. Estrategia atual: frontend no Vercel, backend Docker em VM Oracle Cloud e banco/Storage no Supabase; Render abandonado. Perfil `prod`, secrets externos, Compose, Nginx/HTTPS e checklist em [docs/deploy/producao.md](docs/deploy/producao.md).
 
 # \# Novexa ERP
 

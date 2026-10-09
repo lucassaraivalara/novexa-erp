@@ -13,6 +13,6 @@ WORKDIR /app
 COPY --from=build --chown=novexa:novexa /build/target/novexa-api-0.0.1-SNAPSHOT.jar app.jar
 USER 10001:10001
 ENV SPRING_PROFILES_ACTIVE=prod
-ENV JAVA_TOOL_OPTIONS="-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=32m -XX:MaxDirectMemorySize=16m -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError"
+ENV JAVA_TOOL_OPTIONS="-Xms256m -Xmx1g -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError"
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

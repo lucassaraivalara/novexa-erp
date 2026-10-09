@@ -78,7 +78,7 @@ Leia somente os documentos necessários ao escopo da tarefa.
 | [fornecedores.md](fornecedores.md) | Cadastro rapido/completo, manutencao, lookup e tenant | Fornecedor e futuras integracoes embutidas |
 | [entradas-mercadoria.md](entradas-mercadoria.md) | Entrada manual, confirmacao, reversao, custos e contrato | Recebimento manual de mercadoria e futura importacao XML |
 | [roadmap.md](roadmap.md) | Sequência de evolução e dependências | Escolha das próximas tarefas |
-| [Producao / Render / Cloud Run](../deploy/producao.md) | Perfil prod, secrets, probes, banco e checklist | Preparacao de deploy e publicacao |
+| [Producao / Oracle Cloud](../deploy/producao.md) | Perfil prod, Docker/Compose, Vercel, Supabase, Nginx/HTTPS e checklist | Preparacao de deploy e publicacao; Render abandonado |
 | [Auditorias](../audits/) | Evidências históricas e diagnósticos | Investigação de um achado específico |
 
 Os documentos devem distinguir comportamento implementado de arquitetura alvo. Um item descrito no roadmap ou na arquitetura alvo não comprova implementação.
