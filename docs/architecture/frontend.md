@@ -118,6 +118,18 @@ payload, sessao, duplo submit e breakpoints 1440/1024/390px.
 
 sessionStorage usa chave por empresa, operador e sessao de caixa. A restauracao espera a sessao atual ser resolvida, rejeita dados de outra sessao e ignora rascunhos vazios. Venda em andamento sobrevive ao refresh; sucesso e Limpar venda removem o salvo, sem recriar estado vazio. Voltar ao ERP nao limpa a venda. Tentativa de faturamento incerta preserva chaveRequisicao/payload para retry e bloqueia limpeza. Vender na sidebar compartilha o icone de carrinho das acoes Nova venda, enquanto Central de Vendas usa icone de consulta.
 
+## Central de Vendas - listagem gerencial
+
+A listagem usa PageHeader e PageFilters, com filtros responsivos e acao Limpar
+filtros (remove status, periodo e cliente, retornando a primeira pagina sem
+alterar ordenacao ou tamanho da pagina). Desktop preserva AppTable; entre
+900px e 1199px, a sessao aparece junto do identificador da venda. Abaixo de
+900px, linhas empilhadas mantem status, cliente, data, sessao, total e acoes,
+com controles de ordenacao e paginacao remotas. Chips e botoes com tooltip
+reutilizam o padrao gerencial. Detalhe financeiro, calculos, permissoes e
+confirmacao de cancelamento permanecem inalterados. Testes Chromium cobrem
+layout real em 1440/1024/390px, limpeza de filtros e fluxos mobile.
+
 ## Foco no carrinho do PDV
 
 O foco automatico na Quantidade apos adicionar/incrementar um produto e aplicado em useLayoutEffect, depois do commit dos itens, com selecao explicita do valor atualizado. Nao depende de requestAnimationFrame ocorrer depois do render. A regressao do PDV atrasa o scheduler em contexto isolado e preserva as assercoes de foco, selecao e retorno a busca por Enter/Esc.

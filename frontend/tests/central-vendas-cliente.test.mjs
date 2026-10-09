@@ -13,15 +13,17 @@ before(async () => {
             resolveId(id) { if (id === "/fixture-cliente.js") return `\0${id}`; },
             load(id) { if (id === "\0/fixture-cliente.js") return `
                 import React from 'react'; import {createRoot} from 'react-dom/client';
-                import {MemoryRouter} from 'react-router-dom'; import {ThemeProvider} from '@mui/material';
+                import {MemoryRouter} from 'react-router-dom'; import {ThemeProvider,CssBaseline} from '@mui/material';
                 import theme from '/src/theme/theme.ts'; import Central from '/src/pages/Vendas/CentralVendas.tsx';
+                import AppRoutes from '/src/routes/AppRoutes.tsx';
                 import ClienteAutocomplete from '/src/components/clientes/ClienteAutocomplete.tsx';
                 function Operacional() { const [value,onChange] = React.useState(null);
                     return React.createElement(ClienteAutocomplete,{value,onChange}); }
-                const Tela = location.pathname === '/__operacional' ? Operacional : Central;
+                const Tela = location.pathname === '/__operacional' ? Operacional : location.pathname === '/vendas' ? AppRoutes : Central;
                 createRoot(document.getElementById('root')).render(React.createElement(ThemeProvider,{theme},
+                    React.createElement(CssBaseline),
                     React.createElement(MemoryRouter,{initialEntries:[location.pathname+location.search]},React.createElement(Tela))));`; },
-            configureServer(vite) { for (const caminho of ["/__central", "/__operacional"]) vite.middlewares.use(caminho, async (_req, res) => {
+            configureServer(vite) { for (const caminho of ["/__central", "/__operacional", "/vendas"]) vite.middlewares.use(caminho, async (_req, res) => {
                 res.setHeader("Content-Type", "text/html");
                 res.end(await vite.transformIndexHtml(caminho, '<div id="root"></div><script type="module" src="/fixture-cliente.js"></script>'));
             }); },
@@ -42,15 +44,15 @@ async function esperar(condicao) {
 }
 async function abrir(operacional = false, opcoes = {}) {
     const estado = { requests: [], ...opcoes };
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    const page = await browser.newPage({ viewport: estado.viewport ?? { width: 1440, height: 900 } });
     page.setDefaultTimeout(8000);
-    await page.addInitScript(() => localStorage.setItem("novexa-auth", JSON.stringify({ token: "teste", perfil: "ADMIN", empresa: { id: 1 } })));
+    await page.addInitScript(perfil => localStorage.setItem("novexa-auth", JSON.stringify({ token: "teste", perfil, empresa: { id: 1, nome: "Novexa" } })), estado.perfil ?? "ADMIN");
     await page.route("http://localhost:8080/**", async route => {
         const req = route.request(), u = new URL(req.url());
         if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
         const params = Object.fromEntries(u.searchParams); estado.requests.push({ path: u.pathname, params, method: req.method() });
         let data, status = 200;
-        if (u.pathname === "/vendas") data = { items: estado.listaVazia ? [] : [{ id: 30, dataHora: "2026-10-01T10:00:00", nomeCliente: "Venda retornada", total: 85,
+        if (u.pathname === "/vendas") data = { items: estado.listaVazia ? [] : estado.items ?? [{ id: 30, dataHora: "2026-10-01T10:00:00", nomeCliente: "Venda retornada", total: 85,
             status: "FATURADA", sessaoCaixaId: 1 }], page: Number(params.page), size: Number(params.size), totalItems: estado.listaVazia ? 0 : 63, totalPages: estado.listaVazia ? 0 : 3 };
         else if (u.pathname === "/vendas/30") {
             if (estado.erroDetalhe) { status = 404; data = { detail: "Venda não encontrada." }; }
@@ -84,8 +86,8 @@ async function abrir(operacional = false, opcoes = {}) {
         } else throw new Error(`HTTP inesperado: ${u.pathname}`);
         await route.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(data) });
     });
-    await page.goto(`${url}/__${operacional ? "operacional" : "central"}${estado.query ?? ""}`);
-    if (!operacional) await page.getByText(estado.listaVazia ? "Nenhuma venda encontrada" : "Venda retornada", { exact: true }).waitFor();
+    await page.goto(`${url}/${estado.layout ? "vendas" : `__${operacional ? "operacional" : "central"}`}${estado.query ?? ""}`);
+    if (!operacional) await page.getByText(estado.listaVazia ? "Nenhuma venda encontrada" : estado.items?.[0]?.nomeCliente ?? "Venda retornada", { exact: true }).waitFor();
     return { page, estado, campo: page.getByRole("combobox", { name: operacional ? "Cliente (opcional)" : "Cliente", exact: true }) };
 }
 async function selecionar(campo, page, termo) {
@@ -339,6 +341,104 @@ test("resumo compacto e parcelas permanecem legíveis em desktop/laptop/mobile",
             for (const rotulo of ["Total da venda", "Pago agora", "A receber"]) assert.ok(await resumo.getByText(rotulo, { exact: true }).isVisible());
             await page.screenshot({ path: `node_modules/.cache/central-vendas/resumo-${width}.png` });
         }
+    } finally { await page.close(); }
+});
+
+test("listagem gerencial com layout real preserva dados e acoes sem overflow em 1440/1024/390", async () => {
+    await mkdir("node_modules/.cache/central-vendas", { recursive: true });
+    const items = ["FATURADA", "ABERTA", "CANCELADA"].map((status, i) => ({
+        id: 30 + i, dataHora: "2026-10-01T10:00:00", nomeCliente: i ? "Cliente" + "X".repeat(100) : "Venda retornada",
+        total: i ? 1250.75 : 85, status, sessaoCaixaId: 42,
+    }));
+    for (const width of [1440, 1024, 390, 760]) {
+        const { page, estado } = await abrir(false, { layout: true, items, viewport: { width, height: 1000 } });
+        try {
+            const main = page.getByRole("main");
+            assert.ok(await main.getByRole("heading", { name: "Central de Vendas", exact: true }).isVisible());
+            const vender = main.getByRole("link", { name: "Vender", exact: true });
+            assert.equal(await vender.getAttribute("href"), "/pdv");
+            assert.equal(await vender.locator('[data-testid="AddShoppingCartRoundedIcon"]').count(), 1);
+            for (const nome of ["Status", "Data inicial", "Data final", "Cliente"]) assert.ok(await main.getByLabel(nome, { exact: true }).isVisible());
+            assert.equal(await main.getByRole("button", { name: "Visualizar detalhes", exact: true }).count(), 3);
+            const cancelar = main.getByRole("button", { name: "Cancelar venda", exact: true });
+            assert.equal(await cancelar.count(), 3);
+            assert.equal(await cancelar.nth(0).isEnabled(), true);
+            assert.equal(await cancelar.nth(1).isDisabled(), true);
+            assert.equal(await cancelar.nth(2).isDisabled(), true);
+            const lista = main.locator("[data-app-table]");
+            assert.ok(await lista.getByText("Faturada", { exact: true }).isVisible());
+            assert.ok(await lista.getByText("Aberta", { exact: true }).isVisible());
+            assert.ok(await lista.getByText("Cancelada", { exact: true }).isVisible());
+            assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+            assert.ok(await main.locator("[data-app-table]").evaluate(el => el.scrollWidth <= el.clientWidth + 1));
+            if (width >= 900) {
+                assert.equal(await main.getByRole("table").count(), 1);
+                assert.ok(await main.locator(".MuiTableContainer-root").evaluate(el => el.scrollWidth <= el.clientWidth + 1));
+            } else {
+                assert.equal(await main.getByRole("table").count(), 0);
+                assert.equal(await main.getByRole("article").count(), 3);
+                assert.ok(await main.getByRole("article", { name: "Venda #30" }).getByText("Sessão #42", { exact: true }).isVisible());
+            }
+            assert.equal(estado.requests.some(r => r.path !== "/vendas"), false);
+            await page.screenshot({ path: `node_modules/.cache/central-vendas/listagem-${width}.png`, fullPage: true });
+        } finally { await page.close(); }
+    }
+});
+
+test("limpar filtros remove status/periodo/cliente, retorna a pagina zero e preserva sort/tamanho", async () => {
+    const { page, estado, campo } = await abrir();
+    try {
+        await selecionar(campo, page, "Loja");
+        await page.getByLabel("Data inicial", { exact: true }).fill("2026-09-01");
+        await page.getByLabel("Data final", { exact: true }).fill("2026-10-10");
+        await page.getByRole("button", { name: "Ordenar por Total: crescente", exact: true }).click();
+        await esperar(() => ultimaVenda(estado)?.sort === "total,asc");
+        await page.getByRole("button", { name: "Próxima página", exact: true }).click();
+        await esperar(() => ultimaVenda(estado)?.page === "1");
+        await page.getByRole("button", { name: "Limpar filtros", exact: true }).click();
+        await esperar(() => ultimaVenda(estado)?.page === "0" && ultimaVenda(estado)?.status === undefined);
+        for (const filtro of ["status", "dataInicial", "dataFinal", "clienteId"]) assert.equal(ultimaVenda(estado)[filtro], undefined);
+        assert.equal(ultimaVenda(estado).sort, "total,asc");
+        assert.equal(ultimaVenda(estado).size, "25");
+        assert.equal(await campo.inputValue(), "");
+        assert.equal(await page.getByLabel("Data inicial", { exact: true }).inputValue(), "");
+        assert.equal(await page.getByLabel("Data final", { exact: true }).inputValue(), "");
+        assert.equal(await page.getByRole("button", { name: "Limpar filtros", exact: true }).isDisabled(), true);
+    } finally { await page.close(); }
+});
+
+test("mobile conserva ordenacao/paginacao remotas, detalhe financeiro e confirmacao de cancelamento", async () => {
+    const { page, estado } = await abrir(false, { viewport: { width: 390, height: 900 } });
+    try {
+        await page.getByRole("combobox", { name: "Ordenar por", exact: true }).click();
+        await page.getByRole("option", { name: "Total", exact: true }).click();
+        await esperar(() => ultimaVenda(estado)?.sort === "total,asc" && ultimaVenda(estado)?.page === "0");
+        await page.getByRole("button", { name: "Ordem crescente", exact: true }).click();
+        await esperar(() => ultimaVenda(estado)?.sort === "total,desc");
+        await page.getByRole("button", { name: "Próxima página", exact: true }).click();
+        await esperar(() => ultimaVenda(estado)?.page === "1");
+        await page.getByRole("combobox", { name: "Itens por página", exact: true }).click();
+        await page.getByRole("option", { name: "10", exact: true }).click();
+        await esperar(() => ultimaVenda(estado)?.size === "10" && ultimaVenda(estado)?.page === "0");
+        await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+        const dialog = page.getByRole("dialog", { name: "Venda #30", exact: true });
+        await dialog.getByRole("region", { name: "Resumo financeiro da venda" }).waitFor();
+        assert.match(await dialog.innerText(), /Pago agora\s*R\$\s*50,00/);
+        assert.match(await dialog.innerText(), /A receber\s*R\$\s*110,00/);
+        await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
+        await page.getByRole("button", { name: "Cancelar venda", exact: true }).click();
+        const confirmacao = page.getByRole("dialog", { name: "Cancelar venda #30?", exact: true });
+        await confirmacao.waitFor();
+        await confirmacao.getByRole("button", { name: "Voltar", exact: true }).click();
+        assert.equal(estado.requests.some(r => r.method === "POST"), false);
+    } finally { await page.close(); }
+});
+
+test("mobile de operador permite consulta sem oferecer cancelamento", async () => {
+    const { page } = await abrir(false, { perfil: "OPERADOR", viewport: { width: 390, height: 900 } });
+    try {
+        assert.equal(await page.getByRole("button", { name: "Cancelar venda", exact: true }).count(), 0);
+        assert.equal(await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).isEnabled(), true);
     } finally { await page.close(); }
 });
 

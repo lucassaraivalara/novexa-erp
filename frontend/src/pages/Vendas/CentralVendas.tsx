@@ -3,6 +3,10 @@ import { Link, useSearchParams } from "react-router-dom";
 import AddShoppingCartRoundedIcon from "@mui/icons-material/AddShoppingCartRounded";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
+import FilterAltOffRoundedIcon from "@mui/icons-material/FilterAltOffRounded";
+import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
+import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
 import {
     Alert,
     Box,
@@ -13,7 +17,9 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    IconButton,
     MenuItem,
+    Paper,
     Snackbar,
     Stack,
     Table,
@@ -21,12 +27,19 @@ import {
     TableCell,
     TableContainer,
     TableHead,
+    TablePagination,
     TableRow,
     TextField,
+    Tooltip,
     Typography,
+    useMediaQuery,
+    useTheme,
 } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
+import PageFilters from "../../components/ui/PageFilters";
+import EmptyState from "../../components/ui/EmptyState";
+import LoadingState from "../../components/ui/LoadingState";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import ClienteAutocomplete from "../../components/clientes/ClienteAutocomplete";
 import StatusChip from "../../components/ui/StatusChip";
@@ -69,6 +82,9 @@ const rotulosRecebivel: Record<StatusRecebivel, string> = {
 type CampoOrdenacaoVenda = "id" | "dataHora" | "total" | "status";
 
 export default function CentralVendas() {
+    const theme = useTheme();
+    const mobile = useMediaQuery(theme.breakpoints.down("md"));
+    const laptop = useMediaQuery(theme.breakpoints.between("sm", "lg"));
     const [parametros, setParametros] = useSearchParams();
     const vendaIdParametro = parametros.get("vendaId");
     const vendaId = vendaIdParametro && /^[1-9]\d*$/.test(vendaIdParametro) && Number.isSafeInteger(Number(vendaIdParametro))
@@ -261,16 +277,19 @@ export default function CentralVendas() {
     }
 
     const colunas: Coluna<VendaResumo>[] = [
-        { campo: "id", cabecalho: "Venda", largura: 90, ordenavel: true, render: valor => `#${valor}` },
-        { campo: "dataHora", cabecalho: "Data / hora", largura: 155, ordenavel: true, render: valor => dataHoraVenda(String(valor)) },
-        { campo: "nomeCliente", cabecalho: "Cliente", largura: 240, render: valor => String(valor || "Consumidor final") },
-        { campo: "total", cabecalho: "Total", largura: 130, alinhar: "right", ordenavel: true, render: valor => moedaVenda(Number(valor)) },
-        { campo: "status", cabecalho: "Status", largura: 120, ordenavel: true, render: valor => {
-            const status = valor as VendaResumo["status"];
-            return <Chip size="small" variant="outlined" color={corStatus(status)} label={rotulosStatus[status]} />;
-        } },
-        { campo: "sessaoCaixaId", cabecalho: "Caixa / sessão", largura: 140,
-            render: valor => valor ? `Sessão #${valor}` : "—" },
+        { campo: "id", cabecalho: "Venda", largura: laptop ? 90 : 100, ordenavel: true, render: (valor, venda) => <Box>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>#{String(valor)}</Typography>
+            {laptop && <Typography variant="caption" color="text.secondary">{venda.sessaoCaixaId ? `Sessão #${venda.sessaoCaixaId}` : "—"}</Typography>}
+        </Box> },
+        { campo: "dataHora", cabecalho: "Data / hora", largura: laptop ? 145 : 170, ordenavel: true,
+            render: valor => <Typography variant="body2" color="text.secondary">{dataHoraVenda(String(valor))}</Typography> },
+        { campo: "nomeCliente", cabecalho: "Cliente", render: valor => String(valor || "Consumidor final") },
+        { campo: "total", cabecalho: "Total", largura: 135, alinhar: "right", ordenavel: true,
+            render: valor => <Typography component="span" variant="body2" sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moedaVenda(Number(valor))}</Typography> },
+        { campo: "status", cabecalho: "Status", largura: 120, ordenavel: true,
+            render: (_, venda) => <StatusChip status={venda.status} label={rotulosStatus[venda.status]} /> },
+        ...(!laptop ? [{ campo: "sessaoCaixaId", cabecalho: "Caixa / sessão", largura: 130,
+            render: (valor: unknown) => <Typography variant="body2" color="text.secondary">{valor ? `Sessão #${valor}` : "—"}</Typography> }] : []),
     ];
 
     const acoes: AcaoTabela<VendaResumo>[] = [
@@ -299,52 +318,112 @@ export default function CentralVendas() {
     const pagoAgora = pagamentosRegistrados.reduce((total, pagamento) => total + pagamento.valor, 0);
     const aReceber = detalhe?.contasReceber?.reduce((total, conta) => total + conta.saldo, 0) ?? 0;
 
+    const ordenar = (campo: string) => { setPagina(0); setOrdenacao(atual => ({
+        campo: campo as CampoOrdenacaoVenda,
+        direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc",
+    })); };
+    const paginacao = { pagina, linhasPorPagina: porPagina, total: totalItems,
+        onPageChange: setPagina,
+        onRowsPerPageChange: (linhasPorPagina: number) => { setPorPagina(linhasPorPagina); setPagina(0); },
+        opcoesLinhasPorPagina: [10, 25, 50] };
+    const vazio = { titulo: "Nenhuma venda encontrada", descricao: "Ajuste os filtros ou inicie uma nova venda." };
+    const temFiltros = Object.values(filtros).some(Boolean);
+
     return <PageContainer>
-        <PageHeader titulo="Central de Vendas" descricao="Consulte vendas, confira detalhes e execute cancelamentos."
+        <PageHeader titulo="Central de Vendas" descricao="Histórico e acompanhamento das vendas."
             acaoPrincipal={<Button component={Link} to="/pdv" variant="contained"
-                startIcon={<AddShoppingCartRoundedIcon />}>Vender</Button>} />
+                startIcon={<AddShoppingCartRoundedIcon />}>Vender</Button>}
+            sx={{ "& h1": { fontSize: 28 }, gap: 1.5 }} />
 
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregarVendas()}>Tentar novamente</Button>}>{erro}</Alert>}
         {erroDetalhe && <Alert severity="error" action={vendaId !== null
             ? <Button color="inherit" onClick={() => void visualizar({ id: vendaId })}>Tentar novamente</Button> : undefined}>{erroDetalhe}</Alert>}
 
-        <AppTable colunas={colunas} linhas={vendas} carregando={carregando} compacta ordenacaoComIcone
-            obterChaveLinha={venda => venda.id} minWidth={940} acoes={acoes}
-            ordenacaoRemota
-            ordenacao={{
-                campo: ordenacao.campo,
-                direcao: ordenacao.direcao,
-                onSort: campo => { setPagina(0); setOrdenacao(atual => ({
-                    campo: campo as CampoOrdenacaoVenda,
-                    direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc",
-                })); },
-            }}
-            filtros={<Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap" }}>
-                <TextField select size="small" label="Status" value={filtros.status} sx={{ minWidth: 150 }}
+        <PageFilters>
+            <Box sx={{ display: "grid", width: "100%", minWidth: 0, gap: 1.5, alignItems: "start",
+                gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr)) 44px", lg: "150px 165px 165px minmax(180px, 1fr) 44px" } }}>
+                <TextField select fullWidth size="small" label="Status" value={filtros.status}
                     onChange={evento => alterarFiltro("status", evento.target.value as FiltrosCentralVendas["status"])}>
                     <MenuItem value="">Todos</MenuItem>
                     <MenuItem value="ABERTA">Aberta</MenuItem>
                     <MenuItem value="FATURADA">Faturada</MenuItem>
                     <MenuItem value="CANCELADA">Cancelada</MenuItem>
                 </TextField>
-                <TextField size="small" type="date" label="Data inicial" value={filtros.dataInicial}
+                <TextField fullWidth size="small" type="date" label="Data inicial" value={filtros.dataInicial}
                     slotProps={{ inputLabel: { shrink: true } }}
                     onChange={evento => alterarFiltro("dataInicial", evento.target.value)} />
-                <TextField size="small" type="date" label="Data final" value={filtros.dataFinal}
+                <TextField fullWidth size="small" type="date" label="Data final" value={filtros.dataFinal}
                     slotProps={{ inputLabel: { shrink: true } }}
                     onChange={evento => alterarFiltro("dataFinal", evento.target.value)} />
-                <ClienteAutocomplete size="small" label="Cliente" placeholder="Buscar cliente..." minWidth={220}
+                <Box sx={{ minWidth: 0, gridColumn: { sm: "1 / -1", md: "1 / 4", lg: "auto" } }}>
+                <ClienteAutocomplete size="small" label="Cliente" placeholder="Buscar cliente..." minWidth={0}
                     incluirInativos value={clienteSelecionado} onChange={cliente => {
                         setClienteSelecionado(cliente);
                         alterarFiltro("clienteId", cliente ? String(cliente.id) : "");
                     }} />
-            </Stack>}
-            vazio={{ titulo: "Nenhuma venda encontrada", descricao: "Ajuste os filtros ou inicie uma nova venda." }}
-            paginacao={{ pagina, linhasPorPagina: porPagina, total: totalItems,
-                onPageChange: setPagina,
-                onRowsPerPageChange: linhasPorPagina => { setPorPagina(linhasPorPagina); setPagina(0); },
-                opcoesLinhasPorPagina: [10, 25, 50] }}
-            alturaCorpo={480} />
+                </Box>
+                <Tooltip title="Limpar filtros"><span><IconButton aria-label="Limpar filtros" disabled={!temFiltros}
+                    onClick={() => { setFiltros({ ...filtrosIniciais, status: "" }); setClienteSelecionado(null); setPagina(0); }}
+                    sx={{ width: 44, height: 40, border: 1, borderColor: "divider", borderRadius: "6px" }}><FilterAltOffRoundedIcon /></IconButton></span></Tooltip>
+            </Box>
+        </PageFilters>
+
+        {mobile ? <Paper data-app-table variant="outlined" sx={{ minWidth: 0, overflow: "hidden" }}>
+            <Stack direction="row" sx={{ p: 1.5, gap: 1, alignItems: "center", borderBottom: 1, borderColor: "divider" }}>
+                <TextField select fullWidth size="small" label="Ordenar por" value={ordenacao.campo} onChange={e => ordenar(e.target.value)}>
+                    {colunas.flatMap(c => c.ordenavel ? [<MenuItem key={String(c.campo)} value={String(c.campo)}>{c.cabecalho}</MenuItem>] : [])}
+                </TextField>
+                <Tooltip title={ordenacao.direcao === "asc" ? "Ordem crescente" : "Ordem decrescente"}>
+                    <IconButton aria-label={ordenacao.direcao === "asc" ? "Ordem crescente" : "Ordem decrescente"}
+                        onClick={() => ordenar(ordenacao.campo)} sx={{ width: 44, height: 44, flexShrink: 0 }}>
+                        {ordenacao.direcao === "asc" ? <ArrowUpwardRoundedIcon /> : <ArrowDownwardRoundedIcon />}
+                    </IconButton>
+                </Tooltip>
+            </Stack>
+            {carregando ? <LoadingState tamanho="pequeno" mensagem="Carregando dados…" />
+                : !vendas.length ? <EmptyState {...vazio} icone={<ReceiptLongRoundedIcon />} />
+                    : vendas.map(venda => <Box component="article" aria-label={`Venda #${venda.id}`} key={venda.id}
+                        sx={{ p: 1.5, borderBottom: 1, borderColor: "divider", overflowWrap: "anywhere" }}>
+                        <Stack direction="row" sx={{ justifyContent: "space-between", gap: 1, alignItems: "center" }}>
+                            <Typography variant="subtitle2">#{venda.id}</Typography>
+                            <StatusChip status={venda.status} label={rotulosStatus[venda.status]} />
+                        </Stack>
+                        <Typography variant="body2" sx={{ mt: 1, fontWeight: 500 }}>{venda.nomeCliente || "Consumidor final"}</Typography>
+                        <Typography variant="caption" color="text.secondary">{dataHoraVenda(venda.dataHora)}</Typography>
+                        <Stack direction="row" sx={{ mt: 1.25, justifyContent: "space-between", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+                            <Typography variant="caption" color="text.secondary">{venda.sessaoCaixaId ? `Sessão #${venda.sessaoCaixaId}` : "Sem sessão"}</Typography>
+                            <Box sx={{ textAlign: "right", ml: "auto" }}><Typography variant="caption" color="text.secondary">Total</Typography>
+                                <Typography variant="body1" sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moedaVenda(venda.total)}</Typography></Box>
+                        </Stack>
+                        <Stack direction="row" sx={{ mt: 1, gap: 1 }}>
+                            {acoes.map(acao => <Tooltip key={acao.rotulo} title={acao.tooltip ?? acao.rotulo}><span>
+                                <IconButton aria-label={acao.rotulo} color={acao.cor ?? "inherit"} onClick={() => acao.onClick(venda)}
+                                    disabled={acao.desabilitado?.(venda)} sx={{ width: 44, height: 44, border: 1,
+                                        borderColor: acao.cor === "error" ? "error.light" : "divider", borderRadius: "6px" }}>
+                                    {acao.icone}
+                                </IconButton>
+                            </span></Tooltip>)}
+                        </Stack>
+                    </Box>)}
+            <Box component="footer" aria-label="Contagem e paginação da tabela" sx={{ p: 1.5 }}>
+                <Typography variant="caption" color="text.secondary" aria-live="polite">
+                    {totalItems ? pagina * porPagina + 1 : 0}–{Math.min((pagina + 1) * porPagina, totalItems)} de {totalItems}
+                </Typography>
+                <TablePagination component="div" count={totalItems} page={pagina} rowsPerPage={porPagina}
+                    rowsPerPageOptions={paginacao.opcoesLinhasPorPagina} onPageChange={(_, p) => paginacao.onPageChange(p)}
+                    onRowsPerPageChange={e => paginacao.onRowsPerPageChange(Number(e.target.value))}
+                    labelRowsPerPage="Itens por página" labelDisplayedRows={() => ""}
+                    getItemAriaLabel={tipo => tipo === "next" ? "Próxima página" : "Página anterior"}
+                    sx={{ "& .MuiTablePagination-toolbar": { px: 0, minHeight: 44, flexWrap: "wrap", gap: 0.5 },
+                        "& .MuiTablePagination-selectLabel": { fontSize: 12 }, "& .MuiTablePagination-actions": { ml: "auto" },
+                        "& .MuiTablePagination-spacer": { display: "none" }, "& .MuiIconButton-root": { width: 44, height: 44 } }} />
+            </Box>
+        </Paper> : <AppTable colunas={colunas} linhas={vendas} carregando={carregando} compacta ordenacaoComIcone
+            obterChaveLinha={venda => venda.id} minWidth={0} acoes={acoes} ordenacaoRemota
+            ordenacao={{ ...ordenacao, onSort: ordenar }} paginacao={paginacao}
+            vazio={{ ...vazio, icone: <ReceiptLongRoundedIcon /> }} alturaCorpo={480}
+            sx={{ "& tbody td": { py: 1.5 }, "& tbody td:nth-of-type(3)": { whiteSpace: "normal", overflowWrap: "anywhere" },
+                ...(laptop ? { "& .MuiTableCell-root": { px: 1 } } : {}) }} />}
 
         <Dialog open={vendaParaCancelar !== null} fullWidth maxWidth="xs"
             onClose={cancelando !== null ? undefined : () => setVendaParaCancelar(null)}
