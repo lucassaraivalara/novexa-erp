@@ -2,6 +2,8 @@ target
 config
 .git
 .idea
+*.iml
+.m2
 .env
 .env.*
 env-prod.yaml

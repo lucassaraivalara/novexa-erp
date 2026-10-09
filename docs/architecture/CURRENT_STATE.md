@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Preparacao Docker para Render (2026-10-09)
+
+Dockerfile existente adaptado para imagem Maven/JDK 21 no build, mantendo a versao do Maven Wrapper e runtime JRE 21 non-root. `.dockerignore` complementado e configuracao do Render documentada em [producao.md](../deploy/producao.md). Perfil prod, PORT dinamica, variaveis obrigatorias, CORS HTTPS, probes publicas existentes, Flyway e Hibernate validate preservados; sem alteracoes Java, migrations, contratos, frontend ou configuracao local.
+
+Validacao: `mvnw.cmd clean package -DskipTests` aprovado e revisao estatica do Dockerfile/entradas do build aprovada. Docker indisponivel nesta maquina: build da imagem, inicializacao com ambiente real e deploy no Render permanecem pendentes. Nenhum segredo adicionado ao repositorio.
+
 ## PDV: sessao de Caixa do operador (2026-10-08)
 
 Na branch `fix/pdv-sessao-operador`, sobre `3dc5b36`, resolucao inicial usa somente sessoes abertas cujo operadorAbertura.id corresponde ao usuario autenticado. Sessao propria unica e automatica; multiplas proprias mantem escolha. Sem propria, PDV permanece bloqueado com mensagem explicita e abertura existente em Caixa ativo livre. Contrato e comportamento em [frontend.md](frontend.md). Backend, pagamentos, regras financeiras e fechamento sem alteracoes; ainda nao integrado a main.

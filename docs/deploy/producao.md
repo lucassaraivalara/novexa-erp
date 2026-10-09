@@ -1,6 +1,6 @@
-# Publicacao do Novexa: backend / Cloud Run
+# Publicacao do Novexa: backend / Docker (Render e Cloud Run)
 
-Perfil implementado: `prod`, Java 21 / Spring Boot 3.5.4, PostgreSQL e Flyway V1..V34. Este guia prepara a publicacao; nao comprova deploy nem homologacao do piloto. Frontend, regras financeiras e migrations existentes nao sao alterados.
+Perfil implementado: `prod`, Java 21 / Spring Boot 3.5.4, PostgreSQL e migrations Flyway versionadas no repositorio. Este guia prepara a publicacao; nao comprova deploy nem homologacao do piloto. Frontend, regras financeiras e migrations existentes nao sao alterados.
 
 ## Configuracao e secrets
 
@@ -17,12 +17,12 @@ Ativar `SPRING_PROFILES_ACTIVE=prod`. Sem perfil explicito, `application-default
 | `SUPABASE_URL` | Origem HTTPS do storage, sem barra final. |
 | `SUPABASE_SECRET_KEY` | Secret de storage; somente backend. Nunca chave secreta em `VITE_*`. |
 | `SUPABASE_BUCKET` | Bucket ja provisionado com politica de acesso revisada. |
-| `PORT` | Injetada pelo Cloud Run; padrao local 8080. |
+| `PORT` | Injetada pelo Render ou Cloud Run; padrao local 8080. |
 | `DB_POOL_MAX` / `DB_POOL_MIN` | Padroes 5 / 0 por instancia. Ajustar ao limite global do banco. |
 | `DB_CONNECTION_TIMEOUT_MS` | Padrao 5000; deve ser maior que o timeout de validacao de 2000 ms. |
 | `GEOCODING_URL` / `GEOCODING_USER_AGENT` | Opcionais, seguem contrato existente; URL vazia preserva preenchimento manual. |
 
-Usar Secret Manager com versoes numericas fixas para `DB_PASSWORD`, `JWT_SECRET` e `SUPABASE_SECRET_KEY`. A service account do Cloud Run recebe `Secret Manager Secret Accessor` apenas nesses secrets; nao distribuir arquivo de chave de service account. Rotacionar secrets criando nova revisao. Trocar `JWT_SECRET` invalida tokens anteriores. Arquivos ignorados nao protegem um secret ja commitado: revisar diff/historico e rotacionar qualquer credencial exposta.
+No Cloud Run, usar Secret Manager com versoes numericas fixas para `DB_PASSWORD`, `JWT_SECRET` e `SUPABASE_SECRET_KEY`. A service account do Cloud Run recebe `Secret Manager Secret Accessor` apenas nesses secrets; nao distribuir arquivo de chave de service account. Rotacionar secrets criando nova revisao. Trocar `JWT_SECRET` invalida tokens anteriores. Arquivos ignorados nao protegem um secret ja commitado: revisar diff/historico e rotacionar qualquer credencial exposta.
 
 Antes de inicializar datasource/Flyway, startup rejeita propriedades obrigatorias vazias, JWT curto, banco nao PostgreSQL, CORS nao HTTPS/generico e overrides inseguros de Hibernate/Flyway. A mensagem de validacao informa a propriedade, nunca seu valor. Hikari e JwtService validam seus limites adicionais.
 
@@ -60,6 +60,39 @@ Toda resposta recebe `X-Request-ID`: um valor de 1..64 caracteres `[A-Za-z0-9._-
 
 Logs JSON em stdout possuem `severity`, `requestId`, metodo, template da rota, status e duracao. Negacoes antes do controller usam `route=unmapped`. Nao registrar bodies, query strings, Authorization, CPF, senha ou tokens. Consultar `jsonPayload.requestId` no Cloud Logging; criar alertas de taxa de 5xx, falha de probes, reinicios e conexoes esgotadas. Erros inesperados registram tipo da excecao, nao sua mensagem/payload.
 
+## Render / Docker
+
+Criar um Web Service conectado a `lucassaraivalara/novexa-erp` com:
+
+| Campo | Configuracao |
+|---|---|
+| Runtime / Language | `Docker` |
+| Branch | `main` |
+| Root Directory | `backend/novexa-api` |
+| Dockerfile Path | `./Dockerfile` (relativo ao Root Directory) |
+| Docker Build Context | `.` (relativo ao Root Directory) |
+| Docker Command | Sem override; usar o ENTRYPOINT da imagem |
+| Health Check Path | `/actuator/health/readiness` |
+
+Cadastrar no ambiente do servico: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY` e `SUPABASE_BUCKET`. Os valores reais ficam somente no Render; nao criar `.env` versionado, argumentos de build ou defaults de secrets. O Dockerfile ja define `SPRING_PROFILES_ACTIVE=prod`; nao substituir por `default` nem ativar os dois perfis.
+
+`DB_URL` deve ser JDBC (`jdbc:postgresql://HOST:PORT/DATABASE`), nao uma URI `postgres://`/`postgresql://` fornecida pelo painel. Usuario e senha ficam nas variaveis separadas. Revisar TLS/rede conforme a secao Banco / migrations, usando conexao compativel com Flyway.
+
+`JWT_EXPIRATION_MS`, `GEOCODING_URL` e `GEOCODING_USER_AGENT` sao opcionais. `PORT` vem da plataforma; a aplicacao escuta `0.0.0.0` e preserva `server.port=${PORT:8080}`. `EXPOSE 8080` documenta o fallback, nao fixa a porta do processo.
+
+Depois do primeiro deploy do Vercel, definir `CORS_ALLOWED_ORIGINS` com a origem HTTPS real do frontend, sem caminho/barra final, separando multiplas origens por virgula. Nao usar URL inventada, wildcard ou credenciais no codigo. A URL HTTPS do Supabase tambem nao deve conter barra final.
+
+GET `/actuator/health`, `/actuator/health/liveness` e `/actuator/health/readiness` ja sao publicos pela SecurityConfig existente, sem detalhes internos no perfil `prod`. Readiness inclui banco e retorna 503 quando indisponivel; liveness verifica somente o estado da aplicacao. O Render aceita respostas HTTP 2xx/3xx no caminho de health check e tambem utiliza falhas consecutivas para reiniciar instancias: monitorar indisponibilidade compartilhada do banco. Nenhuma politica de seguranca foi relaxada.
+
+Para validar a imagem em uma maquina com Docker, executar em `backend/novexa-api`:
+
+```powershell
+.\mvnw.cmd clean package -DskipTests
+docker build -t novexa-api-render .
+```
+
+O build nao inicia a aplicacao nem precisa de secrets. Inicializacao/health devem ser homologados somente apos fornecer as variaveis obrigatorias e um banco seguro de staging; nao executar smoke contra producao. Preparacao dos arquivos nao comprova deploy no Render, build da imagem, scan ou comportamento sob SIGTERM.
+
 ## Build / Cloud Run
 
 Na raiz `backend/novexa-api`, apos testes aprovados:
@@ -69,7 +102,7 @@ Na raiz `backend/novexa-api`, apos testes aprovados:
 docker build --platform linux/amd64 -t novexa-api:prod .
 ```
 
-Imagem multi-stage Temurin Java 21, sem secrets, executada como usuario 10001. Entrypoint exec-form entrega SIGTERM ao Java. `PORT` e dinamica, bind `0.0.0.0`. Shutdown graceful usa 8s por fase; Cloud Run concede janela de 10s apos SIGTERM. Validar requisicao em andamento no container antes de liberar trafego. Retrys continuam seguindo idempotencia do dominio; graceful shutdown nao garante completar uma transacao maior que a janela da plataforma.
+Imagem multi-stage Maven/JDK 21 no build (compilacao pelo Maven Wrapper do repositorio), Temurin JRE 21 no runtime, sem secrets, executada como usuario 10001. Entrypoint exec-form entrega SIGTERM ao Java. `PORT` e dinamica, bind `0.0.0.0`. Shutdown graceful usa 8s por fase; Cloud Run concede janela de 10s apos SIGTERM. Validar requisicao em andamento no container antes de liberar trafego. Retrys continuam seguindo idempotencia do dominio; graceful shutdown nao garante completar uma transacao maior que a janela da plataforma.
 
 Fixar digest da imagem publicada e fazer scan de vulnerabilidades; nao assumir que a tag da imagem base e imutavel. Nao foi adicionada dependencia ou versao nova ao projeto.
 
@@ -89,7 +122,7 @@ Publicar primeiro sem trafego em servico de staging com banco isolado. Mesmo uma
 - [ ] Build Docker, scan e execucao como non-root aprovados no ambiente com Docker.
 - [ ] Secrets fora do Git/imagem/frontend; service account e IAM minimo revisados; versoes de secrets fixadas.
 - [ ] Banco correto, backup/restauracao, rede/TLS, permissoes, CPFs e capacidade de conexoes conferidos.
-- [ ] Flyway V1..V34 e Hibernate validate aprovados em staging; nenhuma alteracao de migration antiga.
+- [ ] Migrations Flyway versionadas e Hibernate validate aprovados em staging; nenhuma alteracao de migration antiga.
 - [ ] Empresa e ADMIN inicial provisionados por procedimento autorizado, sem seed de senha/secrets em Git; login e acesso administrativo conferidos.
 - [ ] CORS permite apenas dominio aprovado; origem nao permitida negada; header X-Request-ID acessivel no browser.
 - [ ] Probes 200 em banco disponivel; readiness 503 com banco indisponivel e liveness nao reinicia por falha compartilhada de banco.
@@ -100,6 +133,9 @@ Publicar primeiro sem trafego em servico de staging com banco isolado. Mesmo uma
 
 ## Referencias oficiais
 
+- [Docker no Render](https://render.com/docs/docker): runtime, build e secrets fora da imagem.
+- [Monorepo no Render](https://render.com/docs/monorepo-support): Root Directory e caminhos relativos.
+- [Health checks no Render](https://render.com/docs/health-checks).
 - [Contrato do container Cloud Run](https://docs.cloud.google.com/run/docs/container-contract): PORT, bind, TLS e shutdown.
 - [Probes Cloud Run](https://docs.cloud.google.com/run/docs/configuring/healthchecks).
 - [Secret Manager no Cloud Run](https://docs.cloud.google.com/run/docs/configuring/services/secrets).

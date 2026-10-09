@@ -1,10 +1,10 @@
-FROM eclipse-temurin:21-jdk-jammy AS build
+FROM maven:3.10.0-eclipse-temurin-21-noble AS build
 WORKDIR /build
 COPY .mvn .mvn
 COPY mvnw pom.xml ./
 RUN sed -i 's/\r$//' mvnw && chmod +x mvnw
 COPY src src
-# Tests are a separate release gate; no credentials are supplied during image build.
+# Use the repository's Maven Wrapper version; tests are a separate release gate.
 RUN ./mvnw -B -DskipTests package
 
 FROM eclipse-temurin:21-jre-jammy
