@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Reprodutibilidade do deploy Oracle (2026-10-13)
+
+Arquivos de build/deploy, Maven Wrapper, fontes e 36 migrations V1..V36 versionados. O exemplo seguro das variaveis obrigatorias ja existe em [producao.md](../deploy/producao.md); o ambiente real permanece externo em `/etc/novexa/novexa-api.env`. `.gitignore` protege tambem `.agents/context/`, preservado fora do Git; `frontend/.env.example` referencia Vercel e a API Oracle. Arquivos locais ignorados sao credenciais, estado de ferramentas ou artefatos gerados; nenhum arquivo necessario ao deploy foi identificado fora do indice.
+
+Validacao: `mvnw.cmd clean package -DskipTests` aprovado; sintaxe e contrato do Compose conferidos com SnakeYAML, sem carregar secrets. Varredura dos arquivos versionados e commits recentes nao identificou credenciais reais; a chave Supabase local ignorada nao aparece nesses arquivos/commits. Tags oficiais Maven/Temurin confirmam ARM64. Docker indisponivel: `compose config`, build/execucao da imagem ARM64 e homologacao do deploy permanecem pendentes na VM. Nenhuma alteracao de codigo, dependencia ou migration.
+
 ## Deploy Oracle Cloud: preparacao (2026-10-09)
 
 Estrategia atual: frontend Vercel, backend em VM Oracle Cloud Ubuntu com Docker/Compose e Nginx/HTTPS, PostgreSQL/Storage Supabase. Render abandonado. Heap inicial/maximo 256 MiB/1 GiB e G1 GC substituem todos os limites de 512 MiB; JAVA_TOOL_OPTIONS pode ser substituida integralmente no arquivo externo. Compose sobe somente backend, com limite inicial configuravel de 2 GiB, porta publicada em loopback e restart unless-stopped. Hardening, pool 5/0, Java 21, Maven Wrapper, perfil prod, Flyway e Hibernate validate preservados. Instalacao, firewall, TLS, logs e novas versoes em [producao.md](../deploy/producao.md).

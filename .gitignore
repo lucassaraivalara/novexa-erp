@@ -2,6 +2,7 @@
 .m2/
 .codex/
 .kilo/
+/.agents/context/
 /backend/novexa-api/config/application-local.properties
 
 # Local environment and credential files
