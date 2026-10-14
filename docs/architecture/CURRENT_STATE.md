@@ -12,11 +12,13 @@ Dashboard ...... placeholder
 
 ## Navegacao gerencial por dominios (2026-10-14)
 
-Na branch `feat/navegacao-dominios`, sobre `71620c7`, shell gerencial reorganizado em Inicio, Cadastros, Estoque, Vendas, Financeiro e Administracao. Container flutuante unico com faixa navy, dominios e funcoes sobrepostas ao conteudo, sem deslocamento da pagina. Vender/PDV preservam /pdv; Caixas nao inicia sessao; permissao ADMIN de Usuarios preservada. Fornecedores e Entradas apontam para abas funcionais existentes sincronizadas pela URL. Nenhuma tela futura, onboarding, service, contrato ou regra de negocio alterados. Detalhes em [frontend.md](frontend.md); ainda nao integrado a main.
+Integrado a `main` pelo commit `099a9f2`, sobre `71620c7`, shell gerencial reorganizado em Inicio, Cadastros, Estoque, Vendas, Financeiro e Administracao. Container flutuante unico com faixa navy, dominios e funcoes sobrepostas ao conteudo, sem deslocamento da pagina. Vender/PDV preservam /pdv; Caixas nao inicia sessao; permissao ADMIN de Usuarios preservada. Fornecedores e Entradas apontam para abas funcionais existentes sincronizadas pela URL. Nenhuma tela futura, onboarding, service, contrato ou regra de negocio alterados. Detalhes em [frontend.md](frontend.md).
 
 Validacao: 65 testes direcionados de layout, fornecedores e estoque/entradas aprovados; build/TypeScript, lint dos arquivos alterados e diff check aprovados. Capturas Chromium em 1366x768, 1920x1080, 1024x768 e 390px, incluindo a rota real no Vite normal com HTTP simulado: conjunto unido, funcoes visiveis, sem overflow horizontal e sem deslocamento ao abrir. Homologacao com backend real nao executada; aviso de bundle grande permanece. Capturas ignoradas em node_modules, sem versionamento.
 
-Auditoria sobre `e5098dc` na mesma branch confirmou a composicao faixa navy/menu principal/submenu e corrigiu a falta de rolagem manual da faixa em telas baixas. Teste reproduziu a falha antes da correcao; 66 testes direcionados, build/TypeScript e lint aprovados (dois avisos existentes). Comparacao com imagens de referencia indisponivel; E2E separado de Sidebar ainda descreve o menu anterior. Evidencias e limites em [NAVEGACAO_2026-10-14.md](../audits/NAVEGACAO_2026-10-14.md); ainda nao integrado a main.
+Auditoria sobre `e5098dc` na mesma branch confirmou a composicao faixa navy/menu principal/submenu e corrigiu a falta de rolagem manual da faixa em telas baixas. Teste reproduziu a falha antes da correcao; 66 testes direcionados, build/TypeScript e lint aprovados (dois avisos existentes). Comparacao com imagens de referencia indisponivel; E2E separado de Sidebar ainda descreve o menu anterior. Evidencias e limites em [NAVEGACAO_2026-10-14.md](../audits/NAVEGACAO_2026-10-14.md).
+
+Publicacao (2026-10-14): fast-forward e push de `main` sem alteracao de codigo. Vercel Production `HxopH716KuK2PkUUrHoJWWhDKCY4`, Ready, fonte `099a9f2`, dominio `https://novexa-erp.vercel.app`. Dashboard autenticado recarregado e nova navegacao por dominios conferida. Testes/build/lint previamente aprovados do mesmo commit; `git diff --check` aprovado na integracao.
 
 ## PDV: layout de console (2026-10-14)
 
