@@ -121,14 +121,15 @@ test("PDV conecta seleção, sequência de foco, Escape, F2 e atalhos sem confli
     assert.match(fontePDV, /useLayoutEffect\(\(\) => \{[\s\S]*quantidadesRef\.current\[id\][\s\S]*campo\.focus\(\);\s*campo\.select\(\);[\s\S]*\}, \[rascunho\.itens\]\)/);
     assert.match(fontePDV, /if \(e\.key === "Enter"\) \{ e\.preventDefault\(\); focarBusca\(\); \}/);
     assert.match(fontePDV, /if \(listaAberta\).*setListaAberta\(false\)/s);
-    assert.match(fontePDV, /if \(opcional\).*setOpcional\(null\)/s);
+    assert.match(fontePDV, /if \(opcional\).*fecharOpcional\(\)/s);
     assert.match(fontePDV, /navigate\("\/vendas"\)/);
     assert.match(fontePDV, /e\.key === "F2".*void finalizar\(\)/s);
-    assert.match(fontePDV, /e\.key === "F4".*setOpcional\("desconto"\)/s);
+    assert.match(fontePDV, /e\.key === "F4".*remover\(id\)/s);
+    assert.match(fontePDV, /e\.key === "F7".*setOpcional\("desconto"\)/s);
     assert.match(fontePDV, /e\.key === "F8".*setOpcional\("cliente"\)/s);
-    assert.match(fontePDV, /F9: "observacoes", F7: "entrega"/);
-    assert.doesNotMatch(fontePDV, /e\.key === "F3"/);
-    assert.doesNotMatch(fontePDV, /e\.key === "F6"/);
+    assert.match(fontePDV, /F9: "observacoes"/);
+    assert.match(fontePDV, /e\.key === "F3".*focarQuantidade\(\)/s);
+    assert.match(fontePDV, /e\.key === "F6".*setLimpezaAberta\(true\)/s);
     assert.doesNotMatch(fontePDV, /F10: "entrega"/);
     // Listener no window garante que os atalhos funcionem mesmo se o foco cair fora da árvore do Box (bug do F9).
     assert.match(fontePDV, /window\.addEventListener\("keydown", atalhos\)/);

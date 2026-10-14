@@ -10,9 +10,15 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## PDV: interface operacional (2026-10-14)
+
+PDV operacional: total destacado, carrinho com selecao visivel, botoes grandes por categoria com `PdvActionButton`, faixa de comandos e opcionais em dialogos. Novo mapa F3 Quantidade, F4 Cancelar item, F5 Produto, F6 Cancelar venda (confirmacao existente), F7 Desconto; F2/F8/F9, leitor e Enter preservados. Entrega por botao; acoes de caixa F10/F11/F12 omitidas. Detalhes em [frontend.md](frontend.md). Backend, services, contratos e regras de negocio sem alteracoes.
+
+Validacao: 92 testes de `pdv.test.mjs`/`pdv-buscas.test.mjs` aprovados, incluindo atalhos, foco, confirmacao, retry, pagamentos e layout. Build/TypeScript e lint dos arquivos alterados aprovados; aviso de bundle grande permanece. Capturas Chromium com HTTP simulado conferidas em 1366x768, 1920x1080, 1024x768 e 390px: busca, itens, total e comandos sem overflow horizontal/sobreposicao; pagamentos mistos rolam sem deslocar total/Pagar no desktop. Homologacao com backend real nao executada.
+
 ## Rotas SPA na Vercel (2026-10-13)
 
-Correcao `605fa2b` da branch `fix/vercel-spa-routes` publicada na Vercel por Promote to Production, com novo build no ambiente de producao (deploy `D6BxYmPcfWhPpVYvGUZQjK1WTgrs`, Ready). `frontend/vercel.json` adiciona rewrite para `index.html`, necessario para acessos diretos com React Router em modo browser. `/usuarios` ja existe e exige perfil ADMIN; React Router/Vite e regras de acesso preservados. Root Directory `frontend`, build `npm run build` e output `dist` confirmados no projeto. Backend, banco e infraestrutura Oracle sem alteracoes; sem merge em `main`.
+Correcao `605fa2b` da branch `fix/vercel-spa-routes` publicada na Vercel por Promote to Production, com novo build no ambiente de producao (deploy `D6BxYmPcfWhPpVYvGUZQjK1WTgrs`, Ready). `frontend/vercel.json` adiciona rewrite para `index.html`, necessario para acessos diretos com React Router em modo browser. `/usuarios` ja existe e exige perfil ADMIN; React Router/Vite e regras de acesso preservados. Root Directory `frontend`, build `npm run build` e output `dist` confirmados no projeto. Backend, banco e infraestrutura Oracle sem alteracoes.
 
 Validacao: apos publicacao, `https://novexa-erp.vercel.app/` e `/usuarios` retornam HTTP 200; acesso direto a `/usuarios` no navegador sem sessao carrega o frontend e redireciona para `/login`. Tela autenticada ADMIN nao revalidada nesta publicacao. Build aprovado, JSON/rewrite e destino `dist/index.html` conferidos. Lint sem erros (dois avisos em arquivos nao alterados). Suite frontend executada com falhas em Contas a Pagar (ECONNREFUSED) e filtros de Entrada de Mercadoria, alem de conflitos de porta Vite; nao comprova regressao causada pelo rewrite.
 

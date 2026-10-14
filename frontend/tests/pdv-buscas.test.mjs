@@ -495,7 +495,8 @@ test("Cliente descarta resposta antiga e cancela ao fechar; venda sem cliente co
         await campo.fill("antiga"); await esperar(() => consultas(estado, "clientes").some(r => r.termo === "antiga"));
         await campo.fill("023.606"); await page.getByRole("listbox").getByRole("option").waitFor(); await page.waitForTimeout(1000);
         assert.equal(await page.getByText("Cliente antigo", { exact: true }).count(), 0);
-        await page.getByRole("button", { name: "F8 Cliente" }).click();
+        await campo.press("Escape");
+        if (await page.getByRole("dialog").count()) await page.keyboard.press("Escape");
         await busca.fill("P1"); await busca.press("Enter"); await page.getByLabel("Quantidade de Produto remoto").waitFor();
         await page.getByLabel("Recebido em dinheiro (R$)").fill("10"); await page.keyboard.press("F2");
         await esperar(() => estado.requests.some(r => r.path === "/vendas" && r.method === "POST"));
@@ -516,6 +517,70 @@ async function adicionarCem(page, busca) {
     await busca.fill("7890001"); await busca.press("Enter");
     await page.getByLabel("Quantidade de Produto remoto").fill("10");
 }
+
+test("comandos operacionais preservam quantidade, desconto, cliente, remocao e confirmacao sem enviar venda", async () => {
+    const { page, busca, estado } = await abrir();
+    try {
+        await esperarFoco(page, busca);
+        await busca.fill("7890001"); await busca.press("Enter");
+        const quantidade = page.getByLabel("Quantidade de Produto remoto");
+        await quantidade.waitFor();
+        await quantidade.fill("2"); await quantidade.press("Enter"); await esperarFoco(page, busca);
+        await busca.press("F3"); await esperarFoco(page, quantidade);
+        await quantidade.press("F5"); await esperarFoco(page, busca);
+        await busca.press("F7");
+        const desconto = page.getByLabel("Desconto em R$");
+        await desconto.fill("1"); await desconto.press("Enter"); await esperarFoco(page, busca);
+        assert.match(await page.getByLabel("Total da venda", { exact: true }).innerText(), /19,00/);
+        await busca.press("F8");
+        await page.getByRole("combobox", { name: "Cliente (opcional)" }).press("Escape"); await esperarFoco(page, busca);
+        await busca.press("F9");
+        await page.getByRole("textbox", { name: "Observações", exact: true }).fill("Sem sacola");
+        await page.getByRole("textbox", { name: "Observações", exact: true }).press("Escape"); await esperarFoco(page, busca);
+        await busca.press("F6"); await page.getByRole("dialog", { name: "Limpar esta venda?" }).waitFor();
+        await page.keyboard.press("Escape"); await esperarFoco(page, busca);
+        assert.equal(await quantidade.inputValue(), "2");
+        await busca.press("F4"); await esperarFoco(page, busca);
+        assert.equal(await quantidade.count(), 0);
+        assert.equal(estado.requests.some(r => r.method === "POST"), false);
+        await busca.fill("7890001"); await busca.press("Enter"); await quantidade.waitFor();
+        await quantidade.press("F6");
+        await page.getByRole("dialog").getByRole("button", { name: "Limpar venda", exact: true }).click();
+        await esperarFoco(page, busca); assert.equal(await quantidade.count(), 0);
+    } finally { await page.close(); }
+});
+
+test("frente de caixa mantem busca, itens, total e comandos visiveis em desktop e resumo em mobile", async () => {
+    const { page, busca, estado } = await abrir();
+    try {
+        estado.produtos = [
+            { ...produto("Café torrado 500g", "CAFE"), id: 1, precoVenda: 24.9 },
+            { ...produto("Pão de queijo tradicional", "PAO"), id: 2, precoVenda: 6.5, codigoBarras: "7890002" },
+            { ...produto("Leite integral 1L", "LEITE"), id: 3, precoVenda: 5.9, codigoBarras: "7890003" },
+        ];
+        for (const codigo of ["7890001", "7890002", "7890003"]) {
+            await busca.fill(codigo); await busca.press("Enter");
+            await esperarFoco(page, page.getByLabel(`Quantidade de ${estado.produtos.find(p => p.codigoBarras === codigo).nome}`));
+        }
+        for (const viewport of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }, { width: 390, height: 844 }]) {
+            await page.setViewportSize(viewport);
+            await page.keyboard.press("F5");
+            const elementos = [busca, page.getByLabel("Total da venda", { exact: true }), page.getByRole("button", { name: "Pagar · F2", exact: true })];
+            if (viewport.width >= 900) elementos.push(page.getByRole("table", { name: "Itens da venda" }), page.getByRole("group", { name: "Comandos do PDV" }));
+            const caixas = await Promise.all(elementos.map(el => el.boundingBox()));
+            for (const caixa of caixas) assert.ok(caixa && caixa.x >= 0 && caixa.y >= 0 && caixa.x + caixa.width <= viewport.width && caixa.y + caixa.height <= viewport.height);
+            for (let i = 0; i < caixas.length; i++) for (let j = i + 1; j < caixas.length; j++) {
+                const a = caixas[i], b = caixas[j];
+                assert.ok(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y, "Regioes operacionais nao devem se sobrepor");
+            }
+            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+            const comandos = page.getByRole("group", { name: "Comandos do PDV" });
+            assert.equal(await comandos.getByRole("button").count(), 8);
+            assert.equal(await page.getByRole("row").filter({ hasText: "Leite integral" }).getAttribute("class").then(c => c.includes("Mui-selected")), true);
+            await page.screenshot({ path: `node_modules/.vite-pdv-buscas-tests/pdv-operacional-${viewport.width}.png`, fullPage: true });
+        }
+    } finally { await page.close(); }
+});
 async function selecionarClientePrazo(page) {
     const campo = page.getByRole("combobox", { name: "Cliente (opcional)" });
     if (!await campo.count()) await page.getByRole("button", { name: "F8 Cliente" }).click();
@@ -877,6 +942,8 @@ test("A prazo abre cliente existente, bloqueia sem cliente e envia somente parce
         assert.equal(await page.getByLabel("Vencimento 1", { exact: true }).getAttribute("aria-invalid"), "true");
         await page.getByText("Informe o vencimento.", { exact: true }).waitFor();
         await page.screenshot({ path: "node_modules/.vite-pdv-buscas-tests/prazo-validacao.png", fullPage: true });
+        await page.getByRole("combobox", { name: "Cliente (opcional)" }).press("Escape");
+        await esperarFoco(page, busca);
         await page.getByLabel("Vencimento 1", { exact: true }).fill("2026-11-15");
         assert.equal(await page.getByRole("button", { name: "Pagar · F2" }).isEnabled(), false);
         assert.equal(await page.getByLabel("Recebido em dinheiro (R$)").count(), 0);
@@ -1012,7 +1079,7 @@ test("desktop mantem total e fechamento visiveis; somente pagamentos rolam com v
         try {
             await page.setViewportSize(viewport);
             const total = page.getByLabel("Total da venda", { exact: true });
-            const pagar = page.getByRole("button", { name: "Pagar · F2", exact: true });
+            const pagar = page.getByRole("button", { name: "Pagar · F2", exact: true, includeHidden: true });
             const conferirVisibilidade = async () => {
                 const caixas = await Promise.all([total.boundingBox(), pagar.boundingBox()]);
                 for (const caixa of caixas) {
@@ -1052,9 +1119,9 @@ test("desktop mantem total e fechamento visiveis; somente pagamentos rolam com v
             assert.equal(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight), true);
             await page.screenshot({ path: `node_modules/.vite-pdv-buscas-tests/fechamento-parcelas-${viewport.width}.png` });
             await page.getByRole("button", { name: "F9 Observações" }).click();
-            await page.getByLabel("Observações", { exact: true }).fill("Observação da venda");
+            await page.getByRole("textbox", { name: "Observações", exact: true }).fill("Observação da venda");
             await conferirVisibilidade();
-            await page.getByLabel("Observações", { exact: true }).press("Escape");
+            await page.getByRole("textbox", { name: "Observações", exact: true }).press("Escape");
             await busca.press("F8");
             await page.getByRole("combobox", { name: "Cliente (opcional)" }).waitFor();
             await conferirVisibilidade();

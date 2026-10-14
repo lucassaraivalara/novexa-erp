@@ -5,7 +5,16 @@ import SearchIcon from "@mui/icons-material/Search";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, InputAdornment, Stack, Table, TableBody, TableCell,
+import ShoppingCartCheckoutRoundedIcon from "@mui/icons-material/ShoppingCartCheckoutRounded";
+import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import PercentRoundedIcon from "@mui/icons-material/PercentRounded";
+import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
+import NotesRoundedIcon from "@mui/icons-material/NotesRounded";
+import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell,
     TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
 import { pesquisarProdutos, obterMensagemDaApi } from "../../services/produtoService";
 import { useRemoteSearch } from "../../hooks/useRemoteSearch";
@@ -19,6 +28,7 @@ import { carregarRascunhoSalvo, salvarRascunho, encontrarProdutoPorCodigo, criar
 import ValorMonetarioPDV from "./ValorMonetarioPDV";
 import SessaoCaixaPDVDialog from "./SessaoCaixaPDVDialog";
 import VendaFinalizacaoDialog, { type EstadoFinalizacao } from "./VendaFinalizacaoDialog";
+import PdvActionButton from "./PdvActionButton";
 
 type Opcional = "desconto" | "cliente" | "entrega" | "observacoes" | null;
 type Finalizacao = {
@@ -78,6 +88,10 @@ export default function Vendas() {
     const buscaRef = useRef<HTMLInputElement>(null);
     const recebidoRef = useRef<HTMLInputElement>(null);
     const opcionalRef = useRef<HTMLInputElement>(null);
+    const registrarOpcional = useCallback((campo: HTMLInputElement | null) => {
+        opcionalRef.current = campo;
+        campo?.focus();
+    }, []);
     const quantidadesRef = useRef<Record<number, HTMLInputElement | null>>({});
     const quantidadeFocoPendenteRef = useRef<number | null>(null);
     const quantidadeAntesRef = useRef("");
@@ -170,6 +184,14 @@ export default function Vendas() {
     }, [opcional, empresaId]);
 
     function focarBusca() { requestAnimationFrame(() => buscaRef.current?.focus()); }
+    function focarQuantidade() {
+        const id = selecionado ?? rascunho.itens.at(-1)?.produto.id;
+        if (id === undefined) return;
+        const campo = quantidadesRef.current[id];
+        campo?.focus(); campo?.select();
+    }
+    function fecharOpcional() { setOpcional(null); focarBusca(); }
+    function fecharLimpeza() { setLimpezaAberta(false); focarBusca(); }
     function alterar(patch: Partial<RascunhoPDV>) { if (!bloqueado) setRascunho(r => ({ ...r, ...patch })); }
     function alterarPagamento(indice: number, patch: Partial<PagamentoPDV>) {
         alterar({ pagamentos: pagamentosRascunho(rascunho).map((p, i) => i === indice ? { ...p, ...patch } : p) });
@@ -292,19 +314,29 @@ export default function Vendas() {
         } finally { emEnvio.current = false; setSalvando(false); }
     }
     function atalhos(e: KeyboardEvent) {
-        if (limpezaAberta) { if (e.key === "Escape") { e.preventDefault(); setLimpezaAberta(false); } return; }
+        if (e.altKey || e.ctrlKey && e.key !== "Delete" || e.metaKey) return;
+        if (["F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9"].includes(e.key)) e.preventDefault();
+        if (finalizacao) { if (e.key === "Escape") { e.preventDefault(); fecharFinalizacao(); } return; }
+        if (limpezaAberta) { if (e.key === "Escape") { e.preventDefault(); fecharLimpeza(); } return; }
+        if (opcional) {
+            if (e.key === "Escape") { e.preventDefault(); fecharOpcional(); }
+            return;
+        }
         if (e.key === "Escape") {
             if (listaAberta) { e.preventDefault(); setListaAberta(false); focarBusca(); return; }
-            if (opcional) { e.preventDefault(); setOpcional(null); focarBusca(); return; }
             e.preventDefault(); navigate("/vendas"); return;
         }
         if (e.key === "F2" && sessaoCaixaResolvida && !salvando) { e.preventDefault(); void finalizar(); return; }
         if (bloqueado) return;
         const id = selecionado ?? rascunho.itens.at(-1)?.produto.id;
         if (e.ctrlKey && e.key === "Delete" && id) { e.preventDefault(); remover(id); }
-        if (e.key === "F4") { e.preventDefault(); setOpcional("desconto"); requestAnimationFrame(() => opcionalRef.current?.focus()); return; }
+        if (e.key === "F3") { e.preventDefault(); focarQuantidade(); return; }
+        if (e.key === "F4") { e.preventDefault(); if (id) remover(id); return; }
+        if (e.key === "F5") { e.preventDefault(); focarBusca(); return; }
+        if (e.key === "F6") { e.preventDefault(); if (rascunho.itens.length) setLimpezaAberta(true); return; }
+        if (e.key === "F7") { e.preventDefault(); setOpcional("desconto"); requestAnimationFrame(() => opcionalRef.current?.focus()); return; }
         if (e.key === "F8") { e.preventDefault(); setOpcional("cliente"); return; }
-        const paineis: Record<string, Opcional> = { F9: "observacoes", F7: "entrega" };
+        const paineis: Record<string, Opcional> = { F9: "observacoes" };
         if (e.key in paineis) { e.preventDefault(); setOpcional(paineis[e.key]); requestAnimationFrame(() => opcionalRef.current?.focus()); }
     }
 
@@ -313,12 +345,12 @@ export default function Vendas() {
         return () => window.removeEventListener("keydown", atalhos);
     });
 
-    return <Box sx={{ height: { xs: "auto", md: "100dvh" }, minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default", p: 2, gap: 1.5 }}>
+    return <Box sx={{ height: { xs: "auto", md: "100dvh" }, minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "#F5F7FA", p: { xs: 1.5, md: 2 }, gap: 1.5 }}>
         <SessaoCaixaPDVDialog resolvida={sessaoCaixaResolvida} onResolvida={definirSessaoCaixa} />
-        <Dialog open={limpezaAberta} onClose={() => setLimpezaAberta(false)} aria-labelledby="pdv-limpar-titulo">
+        <Dialog open={limpezaAberta} onClose={fecharLimpeza} aria-labelledby="pdv-limpar-titulo">
             <DialogTitle id="pdv-limpar-titulo">Limpar esta venda?</DialogTitle>
             <DialogContent>Os itens e os dados desta venda em andamento serão descartados.</DialogContent>
-            <DialogActions><Button onClick={() => setLimpezaAberta(false)}>Voltar</Button><Button onClick={limparVenda} color="error">Limpar venda</Button></DialogActions>
+            <DialogActions><Button onClick={fecharLimpeza}>Voltar</Button><Button onClick={limparVenda} color="error">Limpar venda</Button></DialogActions>
         </Dialog>
         {finalizacao && <VendaFinalizacaoDialog
             open
@@ -331,21 +363,26 @@ export default function Vendas() {
             onVoltar={fecharFinalizacao}
             onTentarNovamente={finalizacao.podeTentarNovamente ? () => void finalizar() : undefined} />}
         <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
-            <Stack direction="row" spacing={2} sx={{ alignItems: "baseline", flexWrap: "wrap" }}><Typography component="h1" variant="h6">Vender</Typography>
-                <Typography variant="body2" color="text.secondary">{sessao?.empresa.nomeFantasia || sessao?.empresa.razaoSocial} · {sessao?.nomeUsuario}</Typography></Stack>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
+                <Box sx={{ display: "flex", p: 1, bgcolor: "#DCFCE7", color: "#15803D", borderRadius: "8px" }}><PointOfSaleRoundedIcon /></Box>
+                <Box sx={{ minWidth: 0 }}><Typography component="h1" sx={{ fontSize: 22, fontWeight: 800 }}>Vender</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>{sessao?.empresa.nomeFantasia || sessao?.empresa.razaoSocial} · {sessao?.nomeUsuario}
+                        {rascunho.sessaoCaixaId !== null && ` · Sessão #${rascunho.sessaoCaixaId}`}</Typography></Box>
+            </Stack>
             <Stack direction="row" spacing={1}>
                 <Button size="small" color="inherit" startIcon={<DeleteOutlineRoundedIcon />} disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Limpar venda</Button>
-                <Button component={Link} to="/dashboard" size="small" disabled={salvando}>Voltar ao ERP</Button>
+                <Button component={Link} to="/dashboard" size="small" startIcon={<ArrowBackRoundedIcon />} disabled={salvando}>Voltar ao ERP</Button>
             </Stack>
         </Stack>
         {erro && <Alert severity="error" role="alert">{erro}</Alert>}
         {erroConfig && <Alert severity="error" role="alert">{erroConfig}</Alert>}
         {rascunho.pendente && !salvando && !erro && <Alert severity="info">Finalização pendente de confirmação. F2 retoma sem duplicar a venda.</Alert>}
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) 350px" }, gap: 2, flex: 1, minHeight: 0, minWidth: 0 }}>
-            <Stack spacing={1.5} sx={{ minHeight: 0, minWidth: 0 }}>
-                <Box sx={{ position: "relative" }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) 380px", xl: "minmax(0, 1fr) 420px" }, gap: 1.5, flex: 1, minHeight: 0, minWidth: 0 }}>
+            <Stack spacing={1.5} sx={{ minHeight: 0, minWidth: 0, display: { xs: "contents", md: "flex" } }}>
+                <Box sx={{ position: "relative", order: { xs: 0 }, bgcolor: "background.paper", p: 1.5, borderRadius: "8px", border: 1, borderColor: "divider" }}>
                     <TextField fullWidth autoFocus inputRef={buscaRef} disabled={!sessaoCaixaResolvida || salvando} value={busca}
                         label="Buscar produto ou ler código de barras" placeholder={carregando ? "Buscando produtos…" : "Nome, código interno ou código de barras"}
+                        sx={{ "& input": { fontSize: 18, py: 1.75 } }}
                         helperText={avisoBusca || (!busca.trim() ? "Digite nome, código interno ou código de barras." : undefined)}
                         onChange={e => { setBusca(e.target.value); setListaAberta(true); setIndice(0); }}
                         slotProps={{ input: {
@@ -380,16 +417,18 @@ export default function Vendas() {
                         </Box>}
                 </Box>
                 {erroCatalogo && <Alert severity="error" action={<Button onClick={() => { refresh(); focarBusca(); }}>Recarregar</Button>}>{erroCatalogo}</Alert>}
-                <Box sx={{ flex: 1, overflow: "auto", border: 1, borderColor: "divider", bgcolor: "background.paper", borderRadius: "10px", boxShadow: "0 1px 3px rgba(16,24,40,.06)" }}>
+                <Box sx={{ flex: 1, order: { xs: 3 }, minHeight: 120, maxHeight: { xs: 260, md: "none" }, overflow: "auto", border: 1, borderColor: "divider", bgcolor: "background.paper", borderRadius: "8px" }}>
                     <Table stickyHeader size="small" aria-label="Itens da venda" sx={{ minWidth: { xs: 0, sm: 560 }, display: { xs: "block", sm: "table" },
-                        "& td, & th": { py: { xs: 0.5, sm: 0.25 }, px: 1, height: { xs: "auto", sm: 30 } },
+                        "& td, & th": { py: { xs: 0.5, sm: 1 }, px: 1.5, height: { xs: "auto", sm: 52 }, fontVariantNumeric: "tabular-nums" },
+                        "& th": { bgcolor: "#EDF1F5", color: "#475569", fontSize: 12, fontWeight: 700 },
+                        "& tr.Mui-selected": { bgcolor: "#EFF6FF", "&:hover": { bgcolor: "#DBEAFE" }, "& td:first-of-type": { boxShadow: "inset 3px 0 #2563EB" } },
                         "& td": { display: { xs: "block", sm: "table-cell" }, borderBottom: { xs: 0, sm: "1px solid" }, borderColor: "divider", minWidth: 0 },
-                        "& input": { p: { xs: "10px 12px", sm: "3px 6px" }, fontSize: 14 } }}>
+                        "& input": { p: "10px 12px", fontSize: 16, fontWeight: 700 } }}>
                         <TableHead sx={{ display: { xs: "none", sm: "table-header-group" } }}><TableRow><TableCell>Produto</TableCell><TableCell width={105}>Quantidade</TableCell><TableCell align="right">Unitário</TableCell><TableCell align="right">Subtotal</TableCell><TableCell width={65} /></TableRow></TableHead>
                         <TableBody sx={{ display: { xs: "block", sm: "table-row-group" } }}>{rascunho.itens.map((item, i) => <TableRow key={item.produto.id} selected={selecionado === item.produto.id} onClick={() => setSelecionado(item.produto.id)}
                             sx={{ display: { xs: "grid", sm: "table-row" }, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", py: { xs: 1, sm: 0 },
                                 borderBottom: { xs: 1, sm: 0 }, borderColor: "divider" }}>
-                            <TableCell sx={{ gridColumn: { xs: "1 / -1", sm: "auto" }, overflowWrap: "anywhere", fontWeight: { xs: 600, sm: "inherit" } }}>{String(i + 1).padStart(2, "0")} · {item.produto.nome}</TableCell>
+                            <TableCell sx={{ gridColumn: { xs: "1 / -1", sm: "auto" }, overflowWrap: "anywhere", fontWeight: 600 }}><Typography component="span" variant="caption" color="text.secondary" sx={{ mr: 1 }}>{String(i + 1).padStart(2, "0")}</Typography>{item.produto.nome}</TableCell>
                             <TableCell sx={{ gridRow: { xs: 3, sm: "auto" }, gridColumn: { xs: 1, sm: "auto" } }}>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" }, mb: 0.5 }}>Quantidade</Typography>
                                 <TextField fullWidth size="small" sx={{ "& .MuiInputBase-root": { minHeight: { xs: 44, sm: 0 } } }} value={item.quantidade} disabled={bloqueado}
@@ -417,20 +456,19 @@ export default function Vendas() {
                                     onClick={e => { e.stopPropagation(); remover(item.produto.id); }}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip></TableCell>
                         </TableRow>)}</TableBody>
                     </Table>
-                    {!rascunho.itens.length && <Box sx={{ p: 5, textAlign: "center", color: "text.secondary" }}><Typography>Leia o primeiro produto para começar</Typography><Typography variant="body2">Busque pelo nome e selecione o produto, ou leia o código de barras.</Typography></Box>}
+                    {!rascunho.itens.length && <Box sx={{ p: 3, textAlign: "center", color: "text.secondary" }}><Typography>Leia o primeiro produto para começar</Typography></Box>}
                 </Box>
-                <Typography variant="caption" color="text.secondary">Enter adicionar · ↑ ↓ selecionar · F2 pagar · F4 desconto · F8 cliente · Ctrl+Delete remover item · Esc fechar opção</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ order: { xs: 4 } }}>{rascunho.itens.length} itens · Enter adicionar · ↑ ↓ selecionar · Ctrl+Delete remover item · Esc fechar opção</Typography>
             </Stack>
-            <Stack spacing={1.5} sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", p: 2, overflow: { xs: "visible", md: "hidden" }, minHeight: 0, minWidth: 0, borderRadius: "10px", boxShadow: "0 1px 3px rgba(16,24,40,.06)" }}>
-                <Stack spacing={1.5} sx={{ flexShrink: 0 }}>
+            <Stack spacing={1.5} sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", p: 2, overflow: { xs: "visible", md: "hidden" }, minHeight: 0, minWidth: 0, borderRadius: "8px", display: { xs: "contents", md: "flex" } }}>
+                <Stack spacing={0.75} sx={{ flexShrink: 0, order: { xs: 1, md: 0 } }}>
                 <Typography variant="overline">Resumo da venda · {rascunho.itens.length} itens</Typography>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Subtotal</span><span>{moeda(t.subtotal)}</span></Stack>
                 {!!t.desconto && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Desconto</span><span>− {moeda(t.desconto)}</span></Stack>}
                 {rascunho.cliente && <Typography variant="body2">Cliente: {rascunho.cliente.nome}</Typography>}
-                <Box><Typography variant="body2">Total da venda</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 38, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
-                <Divider />
+                <Box sx={{ py: 1.5, borderTop: 1, borderBottom: 1, borderColor: "divider" }}><Typography variant="body2" color="text.secondary">Total da venda</Typography><Typography aria-label="Total da venda" sx={{ fontSize: { xs: 38, md: 46 }, lineHeight: 1.25, fontWeight: 800, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", color: "#14532D" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
                 </Stack>
-                <Box role="region" aria-label="Pagamentos da venda" sx={{ minHeight: 0, flex: { md: 1 }, overflowY: { xs: "visible", md: "auto" } }}>
+                <Box role="region" aria-label="Pagamentos da venda" sx={{ order: { xs: 5, md: 0 }, minHeight: 0, flex: { md: 1 }, overflowY: { xs: "visible", md: "auto" } }}>
                 <Stack spacing={1.5}>
                 <Typography variant="overline">Pagamento</Typography>
                 {carregandoConfig ? (
@@ -440,7 +478,7 @@ export default function Vendas() {
                 ) : (
                     <>
                         {t.parcelas.map((p, i) => <Stack key={i} spacing={1} role="group" aria-label={`Pagamento ${i + 1}`}
-                            sx={t.parcelas.length > 1 ? { p: 1.25, border: 1, borderColor: "divider", borderRadius: 1.5 } : undefined}>
+                            sx={t.parcelas.length > 1 ? { py: 1.25, borderBottom: 1, borderColor: "divider" } : undefined}>
                         {t.parcelas.length > 1 && <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
                             <Typography variant="body2" sx={{ fontWeight: 700 }}>Forma {i + 1}</Typography>
                             <Tooltip title="Remover forma"><IconButton aria-label={`Remover pagamento ${i + 1}`} disabled={bloqueado} sx={{ width: 36, height: 36 }}
@@ -533,29 +571,41 @@ export default function Vendas() {
                 )}
                 </Stack>
                 </Box>
-                <Stack spacing={1.5} sx={{ flexShrink: 0 }}>
+                <Stack spacing={1.5} sx={{ flexShrink: 0, order: { xs: 2, md: 0 } }}>
                 {!carregandoConfig && !erroConfig && t.restante !== 0 && <Alert severity={t.restante > 0 ? "warning" : "error"} icon={false} sx={{ py: 0.75, border: 1, borderColor: t.restante > 0 ? "warning.main" : "error.main", "& .MuiAlert-message": { width: "100%" } }}>
                     <Stack direction="row" sx={{ justifyContent: "space-between", fontWeight: 700 }}><span>{t.restante > 0 ? "Falta distribuir" : "Valor excedente"}</span><Typography aria-label={t.restante > 0 ? "Falta distribuir" : "Valor excedente"} sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.abs(t.restante))}</Typography></Stack>
                     <Typography variant="caption" sx={{ display: "block" }}>{t.restante > 0 ? "Distribua o restante para liberar o Pagar." : "Reduza o valor aplicado em uma forma de pagamento."}</Typography>
                 </Alert>}
-                <Button size="large" variant="contained" disableElevation disabled={!sessaoCaixaResolvida || salvando || carregandoConfig || (!rascunho.pendente && (!rascunho.itens.length || !t.valido || !t.pagamentosValidos || t.restante !== 0
-                    || t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))))} onClick={() => void finalizar()} sx={{ minHeight: 52, fontSize: "1.05rem", fontWeight: 700 }}>
-                    {salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado · F2" : "Pagar · F2"}
-                </Button>
-                <Divider />
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0.5 }}>
-                    {([["desconto", "F4 Desconto"], ["cliente", "F8 Cliente"], ["entrega", "F7 Entrega"], ["observacoes", "F9 Observações"]] as const).map(([campo, label]) =>
-                        <Button key={campo} size="small" disabled={bloqueado} color={opcional === campo ? "primary" : "inherit"} onClick={() => setOpcional(opcional === campo ? null : campo)}>{label}</Button>)}
-                </Box>
-                {opcional === "cliente" && <ClienteAutocomplete value={rascunho.cliente} disabled={bloqueado} inputRef={opcionalRef}
+                <PdvActionButton categoria="confirmacao" icone={<ShoppingCartCheckoutRoundedIcon />} atalho="F2" aria-label={salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado · F2" : "Pagar · F2"}
+                    disabled={!sessaoCaixaResolvida || salvando || carregandoConfig || (!rascunho.pendente && (!rascunho.itens.length || !t.valido || !t.pagamentosValidos || t.restante !== 0
+                    || t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))))} onClick={() => void finalizar()}>
+                    {salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado" : "Pagar"}
+                </PdvActionButton>
+                </Stack>
+            </Stack>
+        </Box>
+        <Box role="group" aria-label="Comandos do PDV" sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(4, minmax(0, 1fr))", lg: "repeat(8, minmax(0, 1fr))" }, gap: 1, flexShrink: 0 }}>
+            <PdvActionButton categoria="alteracao" icone={<EditRoundedIcon />} atalho="F3" disabled={bloqueado || !rascunho.itens.length} onClick={focarQuantidade}>Quantidade</PdvActionButton>
+            <PdvActionButton categoria="cancelamento" icone={<DeleteOutlineRoundedIcon />} atalho="F4" disabled={bloqueado || !rascunho.itens.length} onClick={() => { const id = selecionado ?? rascunho.itens.at(-1)?.produto.id; if (id) remover(id); }}>Cancelar item</PdvActionButton>
+            <PdvActionButton categoria="cancelamento" icone={<CloseRoundedIcon />} atalho="F6" disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Cancelar venda</PdvActionButton>
+            <PdvActionButton categoria="alteracao" icone={<PercentRoundedIcon />} atalho="F7" disabled={bloqueado} onClick={() => setOpcional("desconto")}>Desconto</PdvActionButton>
+            <PdvActionButton categoria="consulta" icone={<SearchIcon />} atalho="F5" disabled={bloqueado} onClick={focarBusca}>Produto</PdvActionButton>
+            <PdvActionButton categoria="consulta" icone={<PersonOutlineRoundedIcon />} atalho="F8" aria-label="F8 Cliente" disabled={bloqueado} onClick={() => setOpcional("cliente")}>Cliente</PdvActionButton>
+            <PdvActionButton categoria="auxiliar" icone={<NotesRoundedIcon />} atalho="F9" aria-label="F9 Observações" disabled={bloqueado} onClick={() => setOpcional("observacoes")}>Observações</PdvActionButton>
+            <PdvActionButton categoria="auxiliar" icone={<LocalShippingOutlinedIcon />} disabled={bloqueado} onClick={() => setOpcional("entrega")}>Entrega</PdvActionButton>
+        </Box>
+        <Dialog open={opcional !== null} onClose={fecharOpcional} disableRestoreFocus fullWidth maxWidth="sm" aria-labelledby="pdv-opcional-titulo">
+            <DialogTitle id="pdv-opcional-titulo">{opcional === "cliente" ? "Cliente" : opcional === "desconto" ? "Desconto" : opcional === "entrega" ? "Entrega" : "Observações"}</DialogTitle>
+            <DialogContent sx={{ pt: "12px !important" }}>
+                {opcional === "cliente" && <ClienteAutocomplete value={rascunho.cliente} disabled={bloqueado} inputRef={registrarOpcional}
                     onChange={cliente => { alterar({ cliente }); setOpcional(null); focarBusca(); }} />}
-                {opcional && opcional !== "cliente" && <TextField inputRef={opcionalRef} disabled={bloqueado}
+                {opcional && opcional !== "cliente" && <TextField fullWidth inputRef={registrarOpcional} disabled={bloqueado}
                     label={opcional === "desconto" ? "Desconto em R$" : opcional === "entrega" ? "Endereço / instruções de entrega" : "Observações"}
                     value={rascunho[opcional]} multiline={opcional !== "desconto"} minRows={opcional !== "desconto" ? 2 : undefined}
                     slotProps={{ htmlInput: { maxLength: opcional === "entrega" ? 500 : opcional === "observacoes" ? 2000 : 12 } }}
                     onChange={e => alterar({ [opcional]: e.target.value })} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); setOpcional(null); focarBusca(); } }} />}
-                </Stack>
-            </Stack>
-        </Box>
+            </DialogContent>
+            <DialogActions><Button onClick={fecharOpcional}>Concluir</Button></DialogActions>
+        </Dialog>
     </Box>;
 }

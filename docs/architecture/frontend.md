@@ -8,6 +8,12 @@ Sidebar oferece Dashboard, Vender (/pdv), Central de Vendas (/vendas), Clientes,
 
 URLs, layout operacional independente do PDV, permissoes e componentes visuais preservados. Produtos mantem Produtos/Fornecedores; Estoque mantem Saldo/Entradas; Caixas e Dados Bancarios preservam suas abas. Entrada avulsa identifica a movimentacao isolada de produto, distinta da Entrada manual de mercadoria. Nomes apresentados nao renomeiam dominios, services ou endpoints.
 
+## PDV - comandos operacionais
+
+`/pdv` usa `PdvActionButton` exclusivo do PDV: icone MUI, atalho visivel, cores por categoria, hover discreto, foco e estado desabilitado. Desktop mantem busca/carrinho, resumo com total dominante e Pagar verde, alem de faixa de comandos. Pagamentos mistos rolam na propria regiao sem deslocar total ou Pagar. Em telas menores, busca, total e Pagar precedem a lista compacta; comandos ficam acessiveis por rolagem. Topo mostra empresa, operador e ID da sessao ja resolvida.
+
+F2 preserva finalizacao/retry; F3 foca Quantidade do item selecionado (ou ultimo); F4 remove esse item; F5 foca Produto; F6 abre a confirmacao existente de Limpar venda; F7 abre Desconto; F8 Cliente e F9 Observacoes preservados. F4/F7 substituem o antigo mapa Desconto/Entrega; Entrega continua por botao, sem atalho. Enter, setas, Ctrl+Delete, scanner e foco na Quantidade apos adicionar permanecem; Enter na Quantidade retorna a busca. Opcionais abrem dialogo com foco no campo e devolvem foco a busca ao concluir/fechar; Esc fecha primeiro a opcao intermediaria. F10/F11/F12 omitidos: nao ha fluxo dessas acoes no PDV. Nenhuma mudanca nos services, pedido, calculos ou regras de pagamento/estoque/caixa.
+
 ## PDV - sessao de Caixa
 
 O dialogo consulta GET `/financeiro/caixas/sessoes/abertas`, cujo contrato ja inclui operadorAbertura.id/nome, e compara o titular com `obterSessao().id`. Somente sessoes proprias participam da selecao automatica ou manual. Sem sessao propria, apresenta "Nao ha sessao de caixa aberta para o seu usuario" e mantem o PDV bloqueado ate resolver a abertura existente; opcoes de abertura incluem apenas Caixas ativos sem sessao aberta. Nenhuma mudanca no endpoint empresarial, autenticacao, pagamento ou regra de titularidade do backend.
