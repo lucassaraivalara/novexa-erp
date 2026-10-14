@@ -12,9 +12,9 @@ Dashboard ...... placeholder
 
 ## Rotas SPA na Vercel (2026-10-13)
 
-Correcao local na branch `fix/vercel-spa-routes`: `frontend/vercel.json` adiciona rewrite para `index.html`, necessario para acessos diretos com React Router em modo browser. `/usuarios` ja existe e exige perfil ADMIN; React Router/Vite e regras de acesso preservados. Publicacao e confirmacao HTTP apos novo deploy do frontend permanecem pendentes. Backend, banco e infraestrutura Oracle sem alteracoes.
+Correcao `605fa2b` da branch `fix/vercel-spa-routes` publicada na Vercel por Promote to Production, com novo build no ambiente de producao (deploy `D6BxYmPcfWhPpVYvGUZQjK1WTgrs`, Ready). `frontend/vercel.json` adiciona rewrite para `index.html`, necessario para acessos diretos com React Router em modo browser. `/usuarios` ja existe e exige perfil ADMIN; React Router/Vite e regras de acesso preservados. Root Directory `frontend`, build `npm run build` e output `dist` confirmados no projeto. Backend, banco e infraestrutura Oracle sem alteracoes; sem merge em `main`.
 
-Validacao: HTTP publico de `/usuarios` retorna 404 antes da publicacao; build aprovado, JSON/rewrite e destino `dist/index.html` conferidos. Lint sem erros (dois avisos em arquivos nao alterados). Suite frontend executada com falhas em Contas a Pagar (ECONNREFUSED) e filtros de Entrada de Mercadoria, alem de conflitos de porta Vite; nao comprova regressao causada pelo rewrite. Confirmacao na Vercel depende de novo deploy com Root Directory `frontend`, conforme README.
+Validacao: apos publicacao, `https://novexa-erp.vercel.app/` e `/usuarios` retornam HTTP 200; acesso direto a `/usuarios` no navegador sem sessao carrega o frontend e redireciona para `/login`. Tela autenticada ADMIN nao revalidada nesta publicacao. Build aprovado, JSON/rewrite e destino `dist/index.html` conferidos. Lint sem erros (dois avisos em arquivos nao alterados). Suite frontend executada com falhas em Contas a Pagar (ECONNREFUSED) e filtros de Entrada de Mercadoria, alem de conflitos de porta Vite; nao comprova regressao causada pelo rewrite.
 
 ## Reprodutibilidade do deploy Oracle (2026-10-13)
 
