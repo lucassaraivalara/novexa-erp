@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Rotas SPA na Vercel (2026-10-13)
+
+Correcao local na branch `fix/vercel-spa-routes`: `frontend/vercel.json` adiciona rewrite para `index.html`, necessario para acessos diretos com React Router em modo browser. `/usuarios` ja existe e exige perfil ADMIN; React Router/Vite e regras de acesso preservados. Publicacao e confirmacao HTTP apos novo deploy do frontend permanecem pendentes. Backend, banco e infraestrutura Oracle sem alteracoes.
+
+Validacao: HTTP publico de `/usuarios` retorna 404 antes da publicacao; build aprovado, JSON/rewrite e destino `dist/index.html` conferidos. Lint sem erros (dois avisos em arquivos nao alterados). Suite frontend executada com falhas em Contas a Pagar (ECONNREFUSED) e filtros de Entrada de Mercadoria, alem de conflitos de porta Vite; nao comprova regressao causada pelo rewrite. Confirmacao na Vercel depende de novo deploy com Root Directory `frontend`, conforme README.
+
 ## Reprodutibilidade do deploy Oracle (2026-10-13)
 
 Arquivos de build/deploy, Maven Wrapper, fontes e 36 migrations V1..V36 versionados. O exemplo seguro das variaveis obrigatorias ja existe em [producao.md](../deploy/producao.md); o ambiente real permanece externo em `/etc/novexa/novexa-api.env`. `.gitignore` protege tambem `.agents/context/`, preservado fora do Git; `frontend/.env.example` referencia Vercel e a API Oracle. Arquivos locais ignorados sao credenciais, estado de ferramentas ou artefatos gerados; nenhum arquivo necessario ao deploy foi identificado fora do indice.

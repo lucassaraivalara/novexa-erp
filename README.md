@@ -1,5 +1,7 @@
 ## Execucao e publicacao
 
+Frontend Vercel: usar `frontend` como Root Directory, `npm run build` e output `dist`. `frontend/vercel.json` encaminha acessos diretos das rotas SPA para `index.html`. A gestao de usuarios fica em `/usuarios` (sessao com perfil ADMIN); sem sessao, o frontend redireciona para `/login`. Alteracoes no rewrite exigem novo deploy do frontend.
+
 Backend: Java 21, Spring Boot 3.5.4 e PostgreSQL. Estrategia atual: frontend no Vercel, backend Docker em VM Oracle Cloud e banco/Storage no Supabase; Render abandonado. Perfil `prod`, secrets externos, Compose, Nginx/HTTPS e checklist em [docs/deploy/producao.md](docs/deploy/producao.md).
 
 # \# Novexa ERP
