@@ -4,6 +4,7 @@ import axios from "axios";
 import SearchIcon from "@mui/icons-material/Search";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import RemoveRoundedIcon from "@mui/icons-material/RemoveRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import ShoppingCartCheckoutRoundedIcon from "@mui/icons-material/ShoppingCartCheckoutRounded";
 import PointOfSaleRoundedIcon from "@mui/icons-material/PointOfSaleRounded";
@@ -24,7 +25,7 @@ import { listarConfiguracoesParaPDV } from "../../services/configuracaoFormaPaga
 import { obterSessao } from "../../utils/auth/sessao";
 import type { Produto } from "../../types/produto";
 import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
-import { carregarRascunhoSalvo, salvarRascunho, encontrarProdutoPorCodigo, criarPedido, formatarValorMonetario, moeda, moverIndiceProduto, novoRascunho, pagamentosRascunho, subtotalItem, totais, type PagamentoPDV, type RascunhoPDV } from "./pdv";
+import { carregarRascunhoSalvo, salvarRascunho, encontrarProdutoPorCodigo, criarPedido, decimal, formatarValorMonetario, moeda, moverIndiceProduto, novoRascunho, pagamentosRascunho, subtotalItem, totais, type PagamentoPDV, type RascunhoPDV } from "./pdv";
 import ValorMonetarioPDV from "./ValorMonetarioPDV";
 import SessaoCaixaPDVDialog from "./SessaoCaixaPDVDialog";
 import VendaFinalizacaoDialog, { type EstadoFinalizacao } from "./VendaFinalizacaoDialog";
@@ -104,6 +105,12 @@ export default function Vendas() {
         onInvalidTerm: () => setResultados([]),
     });
     const carregando = loading || buscandoCodigo;
+    const itemAtual = rascunho.itens.find(item => item.produto.id === selecionado) ?? rascunho.itens.at(-1);
+    const emInclusao = !!busca.trim();
+    const produtoEmInclusao = encontrarProdutoPorCodigo(resultados, busca) ?? (listaAberta ? resultados[indice] : undefined);
+    const produtoExibido = emInclusao ? produtoEmInclusao : itemAtual?.produto;
+    const pagarDesabilitado = !sessaoCaixaResolvida || salvando || carregandoConfig || (!rascunho.pendente && (!rascunho.itens.length || !t.valido || !t.pagamentosValidos || t.restante !== 0
+        || t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))));
 
     useLayoutEffect(() => {
         const id = quantidadeFocoPendenteRef.current;
@@ -193,6 +200,14 @@ export default function Vendas() {
     function fecharOpcional() { setOpcional(null); focarBusca(); }
     function fecharLimpeza() { setLimpezaAberta(false); focarBusca(); }
     function alterar(patch: Partial<RascunhoPDV>) { if (!bloqueado) setRascunho(r => ({ ...r, ...patch })); }
+    function ajustarQuantidade(id: number, passo: number) {
+        const item = rascunho.itens.find(i => i.produto.id === id);
+        if (!item) return;
+        const atual = decimal(item.quantidade, 3);
+        if (atual === null || atual + passo * 1000 <= 0) return;
+        alterar({ itens: rascunho.itens.map(i => i === item ? { ...i, quantidade: String((atual + passo * 1000) / 1000) } : i) });
+        setSelecionado(id); focarBusca();
+    }
     function alterarPagamento(indice: number, patch: Partial<PagamentoPDV>) {
         alterar({ pagamentos: pagamentosRascunho(rascunho).map((p, i) => i === indice ? { ...p, ...patch } : p) });
     }
@@ -345,7 +360,19 @@ export default function Vendas() {
         return () => window.removeEventListener("keydown", atalhos);
     });
 
-    return <Box sx={{ height: { xs: "auto", md: "100dvh" }, minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "#F5F7FA", p: { xs: 1.5, md: 2 }, gap: 1.5 }}>
+    const comandos = <Box role="group" aria-label="Comandos do PDV" sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(3, minmax(0, 1fr))", sm: "repeat(5, minmax(0, 1fr))", lg: "repeat(9, minmax(0, 1fr))" }, gap: 0.75, p: 1, bgcolor: "#E2E8F0", borderBottom: 1, borderColor: "#CBD5E1", flexShrink: 0 }}>
+        <PdvActionButton compacto categoria="confirmacao" icone={<ShoppingCartCheckoutRoundedIcon />} atalho="F2" aria-label="Finalizar venda · F2" disabled={pagarDesabilitado} onClick={() => void finalizar()}>Finalizar</PdvActionButton>
+        <PdvActionButton compacto categoria="cancelamento" icone={<DeleteOutlineRoundedIcon />} atalho="F4" disabled={bloqueado || !rascunho.itens.length} onClick={() => { const id = itemAtual?.produto.id; if (id) remover(id); }}>Cancelar item</PdvActionButton>
+        <PdvActionButton compacto categoria="cancelamento" icone={<CloseRoundedIcon />} atalho="F6" disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Cancelar venda</PdvActionButton>
+        <PdvActionButton compacto categoria="alteracao" icone={<EditRoundedIcon />} atalho="F3" disabled={bloqueado || !rascunho.itens.length} onClick={focarQuantidade}>Quantidade</PdvActionButton>
+        <PdvActionButton compacto categoria="alteracao" icone={<PercentRoundedIcon />} atalho="F7" disabled={bloqueado} onClick={() => setOpcional("desconto")}>Desconto</PdvActionButton>
+        <PdvActionButton compacto categoria="consulta" icone={<SearchIcon />} atalho="F5" disabled={bloqueado} onClick={focarBusca}>Produto</PdvActionButton>
+        <PdvActionButton compacto categoria="consulta" icone={<PersonOutlineRoundedIcon />} atalho="F8" aria-label="F8 Cliente" disabled={bloqueado} onClick={() => setOpcional("cliente")}>Cliente</PdvActionButton>
+        <PdvActionButton compacto categoria="auxiliar" icone={<NotesRoundedIcon />} atalho="F9" aria-label="F9 Observações" disabled={bloqueado} onClick={() => setOpcional("observacoes")}>Observações</PdvActionButton>
+        <PdvActionButton compacto categoria="auxiliar" icone={<LocalShippingOutlinedIcon />} disabled={bloqueado} onClick={() => setOpcional("entrega")}>Entrega</PdvActionButton>
+    </Box>;
+
+    return <Box sx={{ height: { xs: "auto", md: "100dvh" }, minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "#E9EEF3" }}>
         <SessaoCaixaPDVDialog resolvida={sessaoCaixaResolvida} onResolvida={definirSessaoCaixa} />
         <Dialog open={limpezaAberta} onClose={fecharLimpeza} aria-labelledby="pdv-limpar-titulo">
             <DialogTitle id="pdv-limpar-titulo">Limpar esta venda?</DialogTitle>
@@ -362,27 +389,31 @@ export default function Vendas() {
             mensagemErro={finalizacao.mensagemErro}
             onVoltar={fecharFinalizacao}
             onTentarNovamente={finalizacao.podeTentarNovamente ? () => void finalizar() : undefined} />}
-        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
-                <Box sx={{ display: "flex", p: 1, bgcolor: "#DCFCE7", color: "#15803D", borderRadius: "8px" }}><PointOfSaleRoundedIcon /></Box>
-                <Box sx={{ minWidth: 0 }}><Typography component="h1" sx={{ fontSize: 22, fontWeight: 800 }}>Vender</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>{sessao?.empresa.nomeFantasia || sessao?.empresa.razaoSocial} · {sessao?.nomeUsuario}
-                        {rascunho.sessaoCaixaId !== null && ` · Sessão #${rascunho.sessaoCaixaId}`}</Typography></Box>
+        <Stack component="header" direction="row" aria-label="Topo operacional" sx={{ minHeight: 48, bgcolor: "#202C3A", color: "#FFFFFF", px: 1.5, py: 0.75, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", minWidth: 0, flexWrap: "wrap" }}>
+                <PointOfSaleRoundedIcon sx={{ color: "#4ADE80", fontSize: 24 }} />
+                <Typography component="h1" sx={{ fontSize: 16, fontWeight: 800 }}>Novexa <Box component="span" sx={{ color: "#AAB8C8", fontWeight: 500 }}> / Vender</Box></Typography>
+                <Typography variant="caption" sx={{ color: "#D4DDE7", overflowWrap: "anywhere" }}>{sessao?.empresa.nomeFantasia || sessao?.empresa.razaoSocial} · {sessao?.nomeUsuario}
+                    {rascunho.sessaoCaixaId !== null && ` · Sessão #${rascunho.sessaoCaixaId}`}</Typography>
             </Stack>
             <Stack direction="row" spacing={1}>
-                <Button size="small" color="inherit" startIcon={<DeleteOutlineRoundedIcon />} disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Limpar venda</Button>
-                <Button component={Link} to="/dashboard" size="small" startIcon={<ArrowBackRoundedIcon />} disabled={salvando}>Voltar ao ERP</Button>
+                <Button size="small" color="inherit" sx={{ fontSize: 12, "&.Mui-disabled": { color: "#8997A7" } }} startIcon={<DeleteOutlineRoundedIcon />} disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Limpar venda</Button>
+                <Button component={Link} to="/dashboard" color="inherit" size="small" sx={{ fontSize: 12 }} startIcon={<ArrowBackRoundedIcon />} disabled={salvando}>Voltar ao ERP</Button>
             </Stack>
         </Stack>
+        {comandos}
         {erro && <Alert severity="error" role="alert">{erro}</Alert>}
         {erroConfig && <Alert severity="error" role="alert">{erroConfig}</Alert>}
         {rascunho.pendente && !salvando && !erro && <Alert severity="info">Finalização pendente de confirmação. F2 retoma sem duplicar a venda.</Alert>}
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) 380px", xl: "minmax(0, 1fr) 420px" }, gap: 1.5, flex: 1, minHeight: 0, minWidth: 0 }}>
-            <Stack spacing={1.5} sx={{ minHeight: 0, minWidth: 0, display: { xs: "contents", md: "flex" } }}>
-                <Box sx={{ position: "relative", order: { xs: 0 }, bgcolor: "background.paper", p: 1.5, borderRadius: "8px", border: 1, borderColor: "divider" }}>
-                    <TextField fullWidth autoFocus inputRef={buscaRef} disabled={!sessaoCaixaResolvida || salvando} value={busca}
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) 320px", xl: "minmax(0, 1fr) 360px" }, gap: 1, p: 1, flex: 1, minHeight: 0, minWidth: 0 }}>
+            <Stack spacing={1} sx={{ minHeight: 0, minWidth: 0, display: { xs: "contents", md: "flex" } }}>
+                <Box role="group" aria-label="Inclusão de produto" sx={{ order: { xs: 0 }, bgcolor: "background.paper", p: 1.25, border: 1, borderColor: "#CBD5E1" }}>
+                    <Typography variant="caption" sx={{ display: "block", color: "#0E7C66", fontWeight: 800, mb: 1 }}>INCLUSÃO DE PRODUTO</Typography>
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr) 100px", sm: "minmax(0, 1fr) 110px 100px 90px" }, gap: 1, alignItems: "start" }}>
+                    <Box sx={{ position: "relative", minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
+                    <TextField fullWidth size="small" autoFocus inputRef={buscaRef} disabled={!sessaoCaixaResolvida || salvando} value={busca}
                         label="Buscar produto ou ler código de barras" placeholder={carregando ? "Buscando produtos…" : "Nome, código interno ou código de barras"}
-                        sx={{ "& input": { fontSize: 18, py: 1.75 } }}
+                        sx={{ "& input": { fontSize: 14 } }}
                         helperText={avisoBusca || (!busca.trim() ? "Digite nome, código interno ou código de barras." : undefined)}
                         onChange={e => { setBusca(e.target.value); setListaAberta(true); setIndice(0); }}
                         slotProps={{ input: {
@@ -404,7 +435,7 @@ export default function Vendas() {
                                 void adicionarPorCodigo();
                             }
                         }} />
-                    {listaAberta && !!resultados.length && !bloqueado && <Box id="pdv-resultados" role="listbox" sx={{ position: "absolute", zIndex: 10, top: "100%", width: "100%", bgcolor: "background.paper", border: 1, borderColor: "divider" }}>
+                    {listaAberta && !!resultados.length && !bloqueado && <Box id="pdv-resultados" role="listbox" sx={{ position: "absolute", zIndex: 10, top: "100%", width: "100%", maxHeight: 280, overflowY: "auto", bgcolor: "background.paper", border: 1, borderColor: "divider", boxShadow: "0 8px 20px #202C3A20" }}>
                         {resultados.map((p, i) => <Box key={p.id} id={"pdv-opcao-" + i} role="option" aria-selected={i === indice}
                             onMouseDown={e => e.preventDefault()} onClick={() => adicionar(p)} sx={{ p: 1, cursor: "pointer", bgcolor: i === indice ? "action.selected" : undefined, display: "flex", justifyContent: "space-between" }}>
                             <span>{p.nome} <Typography component="span" variant="caption" color="text.secondary">{p.codigoBarras || p.codigoInterno} · {p.unidadeMedida}</Typography></span>
@@ -415,22 +446,46 @@ export default function Vendas() {
                         <Box sx={{ position: "absolute", zIndex: 10, top: "100%", width: "100%", bgcolor: "background.paper", border: 1, borderColor: "divider", p: 1 }}>
                             <Typography variant="body2" color="text.secondary">Nenhum produto encontrado para esta busca.</Typography>
                         </Box>}
+                    </Box>
+                    <Tooltip describeChild title={emInclusao ? "Inclusão de uma unidade; ajuste a quantidade no item adicionado" : itemAtual ? "Quantidade do item selecionado na lista" : "Adicione um item para ajustar sua quantidade"}>
+                        <TextField size="small" label="Quantidade" value={emInclusao ? "1" : itemAtual?.quantidade ?? ""} disabled={bloqueado || !emInclusao && !itemAtual}
+                            slotProps={{ input: { readOnly: emInclusao }, htmlInput: { "aria-label": "Quantidade do item selecionado", inputMode: "decimal" } }}
+                            onFocus={e => { quantidadeAntesRef.current = itemAtual?.quantidade ?? ""; e.target.select(); }}
+                            onChange={e => { if (itemAtual) alterar({ itens: rascunho.itens.map(i => i === itemAtual ? { ...i, quantidade: e.target.value } : i) }); }}
+                            onKeyDown={e => {
+                                if (e.key === "Enter") { e.preventDefault(); focarBusca(); }
+                                if (e.key === "Escape") {
+                                    e.preventDefault(); e.stopPropagation();
+                                    if (itemAtual && !emInclusao) alterar({ itens: rascunho.itens.map(i => i === itemAtual ? { ...i, quantidade: quantidadeAntesRef.current } : i) });
+                                    focarBusca();
+                                }
+                            }} />
+                    </Tooltip>
+                    <TextField size="small" label="Unitário" value={produtoExibido ? moeda(Math.round(produtoExibido.precoVenda * 100)) : ""}
+                        slotProps={{ input: { readOnly: true }, htmlInput: { "aria-label": "Unitário do item selecionado" } }} />
+                    <Button variant="contained" startIcon={<AddRoundedIcon />} disabled={bloqueado || !busca.trim()} onMouseDown={e => e.preventDefault()} onClick={() => void adicionarPorCodigo()}
+                        sx={{ height: 40, px: 1, fontSize: 12, bgcolor: "#0E7C66" }}>Adicionar</Button>
+                    </Box>
                 </Box>
                 {erroCatalogo && <Alert severity="error" action={<Button onClick={() => { refresh(); focarBusca(); }}>Recarregar</Button>}>{erroCatalogo}</Alert>}
-                <Box sx={{ flex: 1, order: { xs: 3 }, minHeight: 120, maxHeight: { xs: 260, md: "none" }, overflow: "auto", border: 1, borderColor: "divider", bgcolor: "background.paper", borderRadius: "8px" }}>
+                <Box sx={{ flex: 1, order: { xs: 3 }, minHeight: 120, maxHeight: { xs: 260, md: "none" }, overflow: "auto", border: 1, borderColor: "#CBD5E1", bgcolor: "#F1F4F7", backgroundImage: "linear-gradient(#E2E8F0 1px, transparent 1px)", backgroundSize: "100% 40px" }}>
                     <Table stickyHeader size="small" aria-label="Itens da venda" sx={{ minWidth: { xs: 0, sm: 560 }, display: { xs: "block", sm: "table" },
-                        "& td, & th": { py: { xs: 0.5, sm: 1 }, px: 1.5, height: { xs: "auto", sm: 52 }, fontVariantNumeric: "tabular-nums" },
-                        "& th": { bgcolor: "#EDF1F5", color: "#475569", fontSize: 12, fontWeight: 700 },
+                        "& td, & th": { py: 0.5, px: 1, height: { xs: "auto", sm: 40 }, fontVariantNumeric: "tabular-nums" },
+                        "& th": { bgcolor: "#DEE6ED", color: "#475569", fontSize: 11, fontWeight: 800 },
+                        "& tbody tr": { bgcolor: "#FFFFFF", "&:nth-of-type(even)": { bgcolor: "#F8FAFC" } },
                         "& tr.Mui-selected": { bgcolor: "#EFF6FF", "&:hover": { bgcolor: "#DBEAFE" }, "& td:first-of-type": { boxShadow: "inset 3px 0 #2563EB" } },
                         "& td": { display: { xs: "block", sm: "table-cell" }, borderBottom: { xs: 0, sm: "1px solid" }, borderColor: "divider", minWidth: 0 },
-                        "& input": { p: "10px 12px", fontSize: 16, fontWeight: 700 } }}>
-                        <TableHead sx={{ display: { xs: "none", sm: "table-header-group" } }}><TableRow><TableCell>Produto</TableCell><TableCell width={105}>Quantidade</TableCell><TableCell align="right">Unitário</TableCell><TableCell align="right">Subtotal</TableCell><TableCell width={65} /></TableRow></TableHead>
+                        "& input": { p: "5px 6px", fontSize: 14, fontWeight: 700 } }}>
+                        <TableHead sx={{ display: { xs: "none", sm: "table-header-group" } }}><TableRow><TableCell>Produto</TableCell><TableCell width={150}>Quantidade</TableCell><TableCell align="right">Unitário</TableCell><TableCell align="right">Subtotal</TableCell><TableCell width={42} /></TableRow></TableHead>
                         <TableBody sx={{ display: { xs: "block", sm: "table-row-group" } }}>{rascunho.itens.map((item, i) => <TableRow key={item.produto.id} selected={selecionado === item.produto.id} onClick={() => setSelecionado(item.produto.id)}
                             sx={{ display: { xs: "grid", sm: "table-row" }, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", py: { xs: 1, sm: 0 },
                                 borderBottom: { xs: 1, sm: 0 }, borderColor: "divider" }}>
                             <TableCell sx={{ gridColumn: { xs: "1 / -1", sm: "auto" }, overflowWrap: "anywhere", fontWeight: 600 }}><Typography component="span" variant="caption" color="text.secondary" sx={{ mr: 1 }}>{String(i + 1).padStart(2, "0")}</Typography>{item.produto.nome}</TableCell>
                             <TableCell sx={{ gridRow: { xs: 3, sm: "auto" }, gridColumn: { xs: 1, sm: "auto" } }}>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" }, mb: 0.5 }}>Quantidade</Typography>
+                                <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                                <Tooltip title="Diminuir quantidade"><span><IconButton tabIndex={-1} aria-label={"Diminuir uma unidade: " + item.produto.nome} size="small" disabled={bloqueado || (decimal(item.quantidade, 3) ?? 0) <= 1000}
+                                    sx={{ width: 26, height: 28, borderRadius: "4px", bgcolor: "#FEE2E2", color: "#DC2626" }} onClick={e => { e.stopPropagation(); ajustarQuantidade(item.produto.id, -1); }}><RemoveRoundedIcon sx={{ fontSize: 16 }} /></IconButton></span></Tooltip>
                                 <TextField fullWidth size="small" sx={{ "& .MuiInputBase-root": { minHeight: { xs: 44, sm: 0 } } }} value={item.quantidade} disabled={bloqueado}
                                 inputRef={(el: HTMLInputElement | null) => { quantidadesRef.current[item.produto.id] = el; }}
                                 slotProps={{ htmlInput: { "aria-label": "Quantidade de " + item.produto.nome, inputMode: "decimal" } }}
@@ -443,7 +498,10 @@ export default function Vendas() {
                                         focarBusca();
                                     }
                                 }}
-                                onChange={e => alterar({ itens: rascunho.itens.map(x => x === item ? { ...x, quantidade: e.target.value } : x) })} /></TableCell>
+                                onChange={e => alterar({ itens: rascunho.itens.map(x => x === item ? { ...x, quantidade: e.target.value } : x) })} />
+                                <Tooltip title="Aumentar quantidade"><span><IconButton tabIndex={-1} aria-label={"Aumentar uma unidade: " + item.produto.nome} size="small" disabled={bloqueado || decimal(item.quantidade, 3) === null}
+                                    sx={{ width: 26, height: 28, borderRadius: "4px", bgcolor: "#DCFCE7", color: "#16A34A" }} onClick={e => { e.stopPropagation(); ajustarQuantidade(item.produto.id, 1); }}><AddRoundedIcon sx={{ fontSize: 16 }} /></IconButton></span></Tooltip>
+                                </Stack></TableCell>
                             <TableCell align="right" sx={{ gridRow: { xs: 2, sm: "auto" }, gridColumn: { xs: 1, sm: "auto" }, textAlign: { xs: "left", sm: "right" } }}>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" } }}>Unitário</Typography>
                                 {moeda(Math.round(item.produto.precoVenda * 100))}</TableCell>
@@ -456,17 +514,25 @@ export default function Vendas() {
                                     onClick={e => { e.stopPropagation(); remover(item.produto.id); }}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip></TableCell>
                         </TableRow>)}</TableBody>
                     </Table>
-                    {!rascunho.itens.length && <Box sx={{ p: 3, textAlign: "center", color: "text.secondary" }}><Typography>Leia o primeiro produto para começar</Typography></Box>}
+                    {!rascunho.itens.length && <Box sx={{ py: 2, px: 1, textAlign: "center", color: "text.secondary", bgcolor: "#F1F4F7" }}><Typography variant="body2">Leia o primeiro produto para começar</Typography></Box>}
                 </Box>
-                <Typography variant="caption" color="text.secondary" sx={{ order: { xs: 4 } }}>{rascunho.itens.length} itens · Enter adicionar · ↑ ↓ selecionar · Ctrl+Delete remover item · Esc fechar opção</Typography>
+                <Box sx={{ order: { xs: 4 }, px: 1.5, py: 1, bgcolor: "#DEE6ED", borderLeft: "3px solid #0E7C66", minWidth: 0 }}>
+                    <Stack direction="row" sx={{ justifyContent: "space-between", gap: 1 }}><Typography variant="body2" sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>{itemAtual?.produto.nome ?? "Venda em andamento"}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 800, flexShrink: 0 }}>{itemAtual && subtotalItem(itemAtual) !== null ? moeda(subtotalItem(itemAtual)!) : ""}</Typography></Stack>
+                    <Typography variant="caption" color="text.secondary">{itemAtual ? `${itemAtual.produto.codigoInterno || itemAtual.produto.codigoBarras || ""} · ${itemAtual.produto.unidadeMedida} · ` : ""}{rascunho.itens.length} itens · Enter adicionar · Esc fechar opção</Typography>
+                </Box>
             </Stack>
-            <Stack spacing={1.5} sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", p: 2, overflow: { xs: "visible", md: "hidden" }, minHeight: 0, minWidth: 0, borderRadius: "8px", display: { xs: "contents", md: "flex" } }}>
+            <Stack component="aside" aria-label="Resumo e pagamento" spacing={1} sx={{ bgcolor: "background.paper", border: 1, borderColor: "#CBD5E1", p: 1.5, overflow: { xs: "visible", md: "hidden" }, minHeight: 0, minWidth: 0, display: { xs: "contents", md: "flex" } }}>
                 <Stack spacing={0.75} sx={{ flexShrink: 0, order: { xs: 1, md: 0 } }}>
                 <Typography variant="overline">Resumo da venda · {rascunho.itens.length} itens</Typography>
+                <Stack direction="row" sx={{ alignItems: "center", gap: 1, py: 0.75, borderBottom: 1, borderColor: "divider" }}>
+                    <PersonOutlineRoundedIcon sx={{ color: "#2563EB", fontSize: 20 }} />
+                    <Typography variant="body2" sx={{ flex: 1, overflowWrap: "anywhere" }}>{rascunho.cliente ? `Cliente: ${rascunho.cliente.nome}` : "Cliente não informado"}</Typography>
+                    <Tooltip title="Selecionar cliente · F8"><IconButton aria-label="Selecionar cliente" size="small" disabled={bloqueado} onClick={() => setOpcional("cliente")}><EditRoundedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
+                </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Subtotal</span><span>{moeda(t.subtotal)}</span></Stack>
                 {!!t.desconto && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Desconto</span><span>− {moeda(t.desconto)}</span></Stack>}
-                {rascunho.cliente && <Typography variant="body2">Cliente: {rascunho.cliente.nome}</Typography>}
-                <Box sx={{ py: 1.5, borderTop: 1, borderBottom: 1, borderColor: "divider" }}><Typography variant="body2" color="text.secondary">Total da venda</Typography><Typography aria-label="Total da venda" sx={{ fontSize: { xs: 38, md: 46 }, lineHeight: 1.25, fontWeight: 800, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", color: "#14532D" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
+                <Box sx={{ py: 1, borderTop: 1, borderBottom: 1, borderColor: "divider" }}><Typography variant="body2" color="text.secondary">Total da venda</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 40, lineHeight: 1.25, fontWeight: 800, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", color: "#14532D" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
                 </Stack>
                 <Box role="region" aria-label="Pagamentos da venda" sx={{ order: { xs: 5, md: 0 }, minHeight: 0, flex: { md: 1 }, overflowY: { xs: "visible", md: "auto" } }}>
                 <Stack spacing={1.5}>
@@ -577,22 +643,11 @@ export default function Vendas() {
                     <Typography variant="caption" sx={{ display: "block" }}>{t.restante > 0 ? "Distribua o restante para liberar o Pagar." : "Reduza o valor aplicado em uma forma de pagamento."}</Typography>
                 </Alert>}
                 <PdvActionButton categoria="confirmacao" icone={<ShoppingCartCheckoutRoundedIcon />} atalho="F2" aria-label={salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado · F2" : "Pagar · F2"}
-                    disabled={!sessaoCaixaResolvida || salvando || carregandoConfig || (!rascunho.pendente && (!rascunho.itens.length || !t.valido || !t.pagamentosValidos || t.restante !== 0
-                    || t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))))} onClick={() => void finalizar()}>
+                    disabled={pagarDesabilitado} onClick={() => void finalizar()}>
                     {salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado" : "Pagar"}
                 </PdvActionButton>
                 </Stack>
             </Stack>
-        </Box>
-        <Box role="group" aria-label="Comandos do PDV" sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(4, minmax(0, 1fr))", lg: "repeat(8, minmax(0, 1fr))" }, gap: 1, flexShrink: 0 }}>
-            <PdvActionButton categoria="alteracao" icone={<EditRoundedIcon />} atalho="F3" disabled={bloqueado || !rascunho.itens.length} onClick={focarQuantidade}>Quantidade</PdvActionButton>
-            <PdvActionButton categoria="cancelamento" icone={<DeleteOutlineRoundedIcon />} atalho="F4" disabled={bloqueado || !rascunho.itens.length} onClick={() => { const id = selecionado ?? rascunho.itens.at(-1)?.produto.id; if (id) remover(id); }}>Cancelar item</PdvActionButton>
-            <PdvActionButton categoria="cancelamento" icone={<CloseRoundedIcon />} atalho="F6" disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Cancelar venda</PdvActionButton>
-            <PdvActionButton categoria="alteracao" icone={<PercentRoundedIcon />} atalho="F7" disabled={bloqueado} onClick={() => setOpcional("desconto")}>Desconto</PdvActionButton>
-            <PdvActionButton categoria="consulta" icone={<SearchIcon />} atalho="F5" disabled={bloqueado} onClick={focarBusca}>Produto</PdvActionButton>
-            <PdvActionButton categoria="consulta" icone={<PersonOutlineRoundedIcon />} atalho="F8" aria-label="F8 Cliente" disabled={bloqueado} onClick={() => setOpcional("cliente")}>Cliente</PdvActionButton>
-            <PdvActionButton categoria="auxiliar" icone={<NotesRoundedIcon />} atalho="F9" aria-label="F9 Observações" disabled={bloqueado} onClick={() => setOpcional("observacoes")}>Observações</PdvActionButton>
-            <PdvActionButton categoria="auxiliar" icone={<LocalShippingOutlinedIcon />} disabled={bloqueado} onClick={() => setOpcional("entrega")}>Entrega</PdvActionButton>
         </Box>
         <Dialog open={opcional !== null} onClose={fecharOpcional} disableRestoreFocus fullWidth maxWidth="sm" aria-labelledby="pdv-opcional-titulo">
             <DialogTitle id="pdv-opcional-titulo">{opcional === "cliente" ? "Cliente" : opcional === "desconto" ? "Desconto" : opcional === "entrega" ? "Entrega" : "Observações"}</DialogTitle>

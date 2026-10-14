@@ -575,10 +575,66 @@ test("frente de caixa mantem busca, itens, total e comandos visiveis em desktop 
             }
             assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
             const comandos = page.getByRole("group", { name: "Comandos do PDV" });
-            assert.equal(await comandos.getByRole("button").count(), 8);
+            assert.equal(await comandos.getByRole("button").count(), 9);
+            if (viewport.width >= 900) {
+                const topo = await page.getByRole("banner", { name: "Topo operacional" }).boundingBox();
+                const faixa = await comandos.boundingBox();
+                const inclusao = await page.getByRole("group", { name: "Inclusão de produto" }).boundingBox();
+                assert.ok(topo.y + topo.height <= faixa.y && faixa.y + faixa.height <= inclusao.y, "Comandos devem ficar acima da inclusao");
+                const linha = await Promise.all([
+                    busca, page.getByLabel("Quantidade do item selecionado"), page.getByLabel("Unitário do item selecionado"), page.getByRole("button", { name: "Adicionar", exact: true }),
+                ].map(el => el.boundingBox()));
+                assert.ok(linha.every(caixa => Math.abs(caixa.y - linha[0].y) < 2), "Inclusao deve ficar em uma linha no desktop");
+                const altura = await page.getByRole("row").filter({ hasText: "Leite integral" }).boundingBox();
+                assert.ok(altura.height <= 48, "Linha do carrinho deve ser compacta");
+            }
             assert.equal(await page.getByRole("row").filter({ hasText: "Leite integral" }).getAttribute("class").then(c => c.includes("Mui-selected")), true);
             await page.screenshot({ path: `node_modules/.vite-pdv-buscas-tests/pdv-operacional-${viewport.width}.png`, fullPage: true });
         }
+        await page.setViewportSize({ width: 1366, height: 768 });
+        for (let id = 4; id <= 16; id++) {
+            estado.produtos = [{ ...produto(`Produto ${id}`, `P${id}`), id, codigoBarras: `78900${id}` }];
+            await busca.fill(`78900${id}`); await busca.press("Enter");
+            await esperarFoco(page, page.getByLabel(`Quantidade de Produto ${id}`, { exact: true }));
+        }
+        const itens = page.getByRole("table", { name: "Itens da venda" });
+        assert.equal(await itens.evaluate(el => el.parentElement.scrollHeight > el.parentElement.clientHeight), true);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight), true);
+        const faixa = await page.getByRole("group", { name: "Comandos do PDV" }).boundingBox();
+        assert.ok(faixa.y >= 0 && faixa.y + faixa.height < 120);
+        await page.screenshot({ path: "node_modules/.vite-pdv-buscas-tests/pdv-console-lista-1366.png" });
+    } finally { await page.close(); }
+});
+test("controles de quantidade e inclusao em linha reutilizam o item selecionado sem editar preco ou enviar venda", async () => {
+    const { page, busca, estado } = await abrir();
+    try {
+        await busca.fill("7890001"); await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+        const quantidade = page.getByLabel("Quantidade de Produto remoto", { exact: true });
+        await esperarFoco(page, quantidade);
+        const diminuir = page.getByRole("button", { name: "Diminuir uma unidade: Produto remoto" });
+        const aumentar = page.getByRole("button", { name: "Aumentar uma unidade: Produto remoto" });
+        assert.equal(await diminuir.isDisabled(), true);
+        await aumentar.click(); await esperarFoco(page, busca);
+        assert.equal(await quantidade.inputValue(), "2");
+        await diminuir.click(); await esperarFoco(page, busca);
+        assert.equal(await quantidade.inputValue(), "1");
+        const linha = page.getByLabel("Quantidade do item selecionado");
+        await linha.fill("1,25"); await linha.press("Enter"); await esperarFoco(page, busca);
+        assert.equal(await quantidade.inputValue(), "1,25");
+        await diminuir.click();
+        assert.equal(await quantidade.inputValue(), "0.25");
+        assert.equal(await diminuir.isDisabled(), true);
+        assert.match(await page.getByLabel("Total da venda", { exact: true }).innerText(), /2,50/);
+        await linha.fill("3"); await linha.press("Escape"); await esperarFoco(page, busca);
+        assert.equal(await quantidade.inputValue(), "0.25");
+        assert.equal(await page.getByLabel("Unitário do item selecionado").getAttribute("readonly"), "");
+        estado.produtos = [{ ...produto("Outro produto", "P2"), id: 2, precoVenda: 15, codigoBarras: "7890002" }];
+        await busca.fill("7890002"); await page.getByRole("listbox").getByRole("option").waitFor();
+        assert.equal(await linha.inputValue(), "1");
+        assert.equal(await linha.getAttribute("readonly"), "");
+        assert.match(await page.getByLabel("Unitário do item selecionado").inputValue(), /15,00/);
+        assert.equal(await quantidade.inputValue(), "0.25");
+        assert.equal(estado.requests.some(r => r.method === "POST"), false);
     } finally { await page.close(); }
 });
 async function selecionarClientePrazo(page) {

@@ -10,6 +10,14 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## PDV: layout de console (2026-10-14)
+
+Layout de console: topo escuro, comandos coloridos no alto, inclusao compacta em linha, carrinho denso com controles de quantidade e painel direito de 320/360px. `PdvActionButton` reutilizado em modo compacto; F2 superior usa o mesmo fluxo/bloqueio do Pagar. Busca/leitor, Enter, F2-F9, Ctrl+Delete, Tab e retorno de foco preservados. Detalhes e comportamento da quantidade em [frontend.md](frontend.md). Backend, services, contratos e regras de venda/financeiro/estoque/caixa sem alteracoes.
+
+Validacao: 93 testes relacionados ao PDV aprovados, build/TypeScript e lint dos arquivos alterados aprovados. Conferencia Chromium com HTTP simulado em 1366x768, 1920x1080 e 390px; topo/comandos, inclusao em linha e total sem sobreposicao. Lista de 16 produtos rola somente no carrinho em 1366x768; pagamentos mistos tambem preservam total/Pagar em 1024x768. Aviso de bundle grande permanece; homologacao com backend real nao executada.
+
+Revisao final aprovada pela rota real `/pdv` no servidor Vite normal, com sessao isolada e HTTP simulado: 1366x768, 1920x1080 e 1024x768, incluindo lista de 18 produtos e finalizacao mista DINHEIRO/PIX. Carrinho ocupa aproximadamente 75% da largura em 1366x768; topo/comandos usam 115px e total/F2 permanecem visiveis. Area livre da lista e reservada ao crescimento dos itens, sem paineis decorativos. Capturas e script de revisao permanecem ignorados em node_modules.
+
 ## PDV: interface operacional (2026-10-14)
 
 PDV operacional: total destacado, carrinho com selecao visivel, botoes grandes por categoria com `PdvActionButton`, faixa de comandos e opcionais em dialogos. Novo mapa F3 Quantidade, F4 Cancelar item, F5 Produto, F6 Cancelar venda (confirmacao existente), F7 Desconto; F2/F8/F9, leitor e Enter preservados. Entrega por botao; acoes de caixa F10/F11/F12 omitidas. Detalhes em [frontend.md](frontend.md). Backend, services, contratos e regras de negocio sem alteracoes.
