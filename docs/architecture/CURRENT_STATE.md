@@ -16,6 +16,8 @@ Na branch `feat/navegacao-dominios`, sobre `71620c7`, shell gerencial reorganiza
 
 Validacao: 65 testes direcionados de layout, fornecedores e estoque/entradas aprovados; build/TypeScript, lint dos arquivos alterados e diff check aprovados. Capturas Chromium em 1366x768, 1920x1080, 1024x768 e 390px, incluindo a rota real no Vite normal com HTTP simulado: conjunto unido, funcoes visiveis, sem overflow horizontal e sem deslocamento ao abrir. Homologacao com backend real nao executada; aviso de bundle grande permanece. Capturas ignoradas em node_modules, sem versionamento.
 
+Auditoria sobre `e5098dc` na mesma branch confirmou a composicao faixa navy/menu principal/submenu e corrigiu a falta de rolagem manual da faixa em telas baixas. Teste reproduziu a falha antes da correcao; 66 testes direcionados, build/TypeScript e lint aprovados (dois avisos existentes). Comparacao com imagens de referencia indisponivel; E2E separado de Sidebar ainda descreve o menu anterior. Evidencias e limites em [NAVEGACAO_2026-10-14.md](../audits/NAVEGACAO_2026-10-14.md); ainda nao integrado a main.
+
 ## PDV: layout de console (2026-10-14)
 
 Layout de console: topo escuro, comandos coloridos no alto, inclusao compacta em linha, carrinho denso com controles de quantidade e painel direito de 320/360px. `PdvActionButton` reutilizado em modo compacto; F2 superior usa o mesmo fluxo/bloqueio do Pagar. Busca/leitor, Enter, F2-F9, Ctrl+Delete, Tab e retorno de foco preservados. Detalhes e comportamento da quantidade em [frontend.md](frontend.md). Backend, services, contratos e regras de venda/financeiro/estoque/caixa sem alteracoes.

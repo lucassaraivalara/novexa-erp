@@ -57,7 +57,8 @@ export default function Sidebar() {
                 bgcolor: "background.paper", border: "1px solid #DCE3E9", borderRadius: "12px",
                 boxShadow: "0 8px 28px rgba(16,27,43,.12)",
             }}>
-                <Stack aria-label="Áreas compactas" sx={{ width: layoutTokens.sidebar.faixaIcones, flexShrink: 0, bgcolor: "#111B2B", color: "#D9E3EF", alignItems: "center", py: 2, gap: 0.75 }}>
+                <Stack aria-label="Áreas compactas" sx={{ width: layoutTokens.sidebar.faixaIcones, flexShrink: 0, bgcolor: "#111B2B", color: "#D9E3EF", alignItems: "center", py: 2, gap: 0.75,
+                    overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none", "& > *": { flexShrink: 0 } }}>
                     <Box sx={{ height: 64, display: "flex", alignItems: "flex-start", color: "#4FCAA4" }}><StorefrontRoundedIcon sx={{ fontSize: 26 }} /></Box>
                     <Tooltip title="Vender" placement="right"><IconButton component={Link} to={obterCaminhoDaRota(rotaPdv)} aria-label="Vender (ícone)"
                         sx={{ width: 40, height: 44, color: "#FFFFFF", bgcolor: "#0E7C66", borderRadius: "6px", "&:hover": { bgcolor: "#096653" } }}>{rotaPdv.icone}</IconButton></Tooltip>

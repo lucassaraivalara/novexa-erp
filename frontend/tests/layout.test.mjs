@@ -217,6 +217,26 @@ test("Sidebar mostra tooltip somente quando os labels estao ocultos", () => with
     await page.getByRole("tooltip",{name:"Cadastros",exact:true}).waitFor();
 }));
 
+test("Faixa de icones preserva alvos e acesso aos dominios em telas baixas", () => withLayout(async page => {
+    for (const width of [1024,390]) {
+        await page.setViewportSize({width,height:320});
+        const rail = page.getByLabel("Áreas compactas",{exact:true});
+        const admin = rail.getByRole("button",{name:"Administração (ícone)",exact:true});
+        await rail.hover();
+        await page.mouse.wheel(0,600);
+        await expect.poll(() => rail.evaluate(element => element.scrollTop),{timeout:1500}).toBeGreaterThan(0);
+        const sizes = await rail.locator("button,a").evaluateAll(elements => elements.map(element => element.getBoundingClientRect().height));
+        assert.ok(sizes.every(height => height >= 44),`compact targets shrank at ${width}px: ${sizes}`);
+        const bounds = await admin.boundingBox();
+        assert.ok(bounds.y >= 8 && bounds.y + bounds.height <= 312);
+        await admin.click();
+        await page.getByRole("region",{name:"Funções de Administração"}).waitFor();
+        await page.keyboard.press("Escape");
+        assert.equal(await admin.evaluate(element => element === document.activeElement),true);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true);
+    }
+}));
+
 test("AppHeader preserva titulo, empresa, usuario, iniciais e logout", () => withLayout(async page => {
     await page.getByRole("heading",{name:"Clientes",exact:true}).waitFor();
     await page.getByText("Loja Novexa",{exact:true}).waitFor();

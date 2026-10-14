@@ -8,6 +8,8 @@ Sidebar organiza Inicio (Dashboard), Cadastros (Produtos, Clientes, Fornecedores
 
 Desktop usa um unico conjunto flutuante, a 8px das bordas, com altura calc(100dvh - 16px), sombra externa unica e raio de 12px apenas no contorno. Faixa navy de 56px e coluna de dominios de 208px compartilham a mesma selecao; painel de funcoes de 264px abre sobre o conteudo sem mudar o espaco reservado do shell. No mobile, a faixa abre diretamente as mesmas funcoes. Clique fora, Escape, fechar ou navegar recolhem o painel; seta direita abre e foca a primeira funcao, seta esquerda/Escape devolvem foco ao acionador. Icones possuem tooltip e nomes acessiveis.
 
+Em telas baixas, a faixa de icones possui rolagem vertical independente, preservando os alvos de 44px e o acesso aos ultimos dominios.
+
 Vender e PDV apontam para /pdv, cujo layout operacional independente permanece. Caixas aponta para /financeiro/caixas sem abrir sessao. Produtos/Fornecedores e Saldo/Entradas usam as mesmas telas existentes; menu, abas, titulo e selecao sincronizam por ?aba=fornecedores e ?aba=entradas. Caixas e Dados Bancarios preservam suas abas. Entrada avulsa identifica a movimentacao isolada de produto, distinta da Entrada manual de mercadoria. Nomes apresentados nao renomeiam dominios, services ou endpoints.
 
 ## PDV - comandos operacionais
