@@ -3,6 +3,7 @@ import InputRoundedIcon from "@mui/icons-material/InputRounded";
 import OutputRoundedIcon from "@mui/icons-material/OutputRounded";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
     Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
     Divider, MenuItem, Stack, Tab, Tabs, TablePagination, TextField, Typography,
@@ -41,9 +42,14 @@ function codigoProduto(produto: Produto): string {
 }
 
 export default function Estoque() {
-    const [aba, setAba] = useState<"saldo" | "entradas">(() => new URLSearchParams(window.location.search).get("aba") === "entradas" ? "entradas" : "saldo");
+    const [params, setParams] = useSearchParams();
+    const aba = params.get("aba") === "entradas" ? "entradas" : "saldo";
     return <Stack spacing={2}>
-        <Tabs value={aba} onChange={(_, valor) => setAba(valor)} aria-label="Área de estoque"
+        <Tabs value={aba} onChange={(_, valor) => {
+            const proximo = new URLSearchParams(params);
+            if (valor === "entradas") proximo.set("aba", valor); else proximo.delete("aba");
+            setParams(proximo, { replace: true });
+        }} aria-label="Área de estoque"
             sx={{ borderBottom: 1, borderColor: "divider" }}>
             <Tab value="saldo" label="Saldo" /><Tab value="entradas" label="Entradas" />
         </Tabs>

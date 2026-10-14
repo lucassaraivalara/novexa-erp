@@ -29,7 +29,7 @@ function AppHeader() {
         navigate("/login", { replace: true });
     }
 
-    const tituloPagina = obterTituloDaPagina(location.pathname);
+    const tituloPagina = obterTituloDaPagina(location.pathname, location.search);
 
     return (
         <AppBar

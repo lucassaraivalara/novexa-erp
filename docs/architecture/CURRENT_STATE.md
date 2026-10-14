@@ -10,6 +10,12 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Navegacao gerencial por dominios (2026-10-14)
+
+Na branch `feat/navegacao-dominios`, sobre `71620c7`, shell gerencial reorganizado em Inicio, Cadastros, Estoque, Vendas, Financeiro e Administracao. Container flutuante unico com faixa navy, dominios e funcoes sobrepostas ao conteudo, sem deslocamento da pagina. Vender/PDV preservam /pdv; Caixas nao inicia sessao; permissao ADMIN de Usuarios preservada. Fornecedores e Entradas apontam para abas funcionais existentes sincronizadas pela URL. Nenhuma tela futura, onboarding, service, contrato ou regra de negocio alterados. Detalhes em [frontend.md](frontend.md); ainda nao integrado a main.
+
+Validacao: 65 testes direcionados de layout, fornecedores e estoque/entradas aprovados; build/TypeScript, lint dos arquivos alterados e diff check aprovados. Capturas Chromium em 1366x768, 1920x1080, 1024x768 e 390px, incluindo a rota real no Vite normal com HTTP simulado: conjunto unido, funcoes visiveis, sem overflow horizontal e sem deslocamento ao abrir. Homologacao com backend real nao executada; aviso de bundle grande permanece. Capturas ignoradas em node_modules, sem versionamento.
+
 ## PDV: layout de console (2026-10-14)
 
 Layout de console: topo escuro, comandos coloridos no alto, inclusao compacta em linha, carrinho denso com controles de quantidade e painel direito de 320/360px. `PdvActionButton` reutilizado em modo compacto; F2 superior usa o mesmo fluxo/bloqueio do Pagar. Busca/leitor, Enter, F2-F9, Ctrl+Delete, Tab e retorno de foco preservados. Detalhes e comportamento da quantidade em [frontend.md](frontend.md). Backend, services, contratos e regras de venda/financeiro/estoque/caixa sem alteracoes.

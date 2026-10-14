@@ -2,7 +2,10 @@ import theme, { visualTokens } from "../../theme/theme";
 
 export const layoutTokens = {
     sidebar: {
-        largura: { xs: 60, sm: 232 },
+        largura: { xs: 72, sm: 280 },
+        faixaIcones: 56,
+        colunaPrincipal: 208,
+        colunaSecundaria: 264,
         alturaItemMenu: 40,
         tamanhoIconeMenu: 20,
         paddingX: { xs: 0.75, sm: 1.25 },

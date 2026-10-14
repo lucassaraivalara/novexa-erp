@@ -61,9 +61,10 @@ before(async () => {
                 if (id === "\0/fixture-entrada.js") return `
                 import React from 'react'; import { createRoot } from 'react-dom/client';
                 import { CssBaseline, ThemeProvider } from '@mui/material';
+                import { BrowserRouter } from 'react-router-dom';
                 import theme from '/src/theme/theme.ts'; import Estoque from '/src/pages/Estoque/Estoque.tsx';
                 createRoot(document.getElementById('root')).render(React.createElement(ThemeProvider, { theme },
-                    React.createElement(CssBaseline), React.createElement(Estoque)));`;
+                    React.createElement(CssBaseline), React.createElement(BrowserRouter, null, React.createElement(Estoque))));`;
             },
             configureServer(vite) {
                 vite.middlewares.use("/__entrada", async (_req, res) => {

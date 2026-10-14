@@ -1,231 +1,115 @@
 import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
-import { useState } from "react";
-import {
-    Box,
-    Collapse,
-    Divider,
-    Drawer,
-    List,
-    ListItemButton,
-    ListItemIcon,
-    ListItemText,
-    Stack,
-    Tooltip,
-    Typography,
-    useMediaQuery,
-    useTheme,
-} from "@mui/material";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Box, Button, ClickAwayListener, Divider, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
-import { itemMenuAtivo, menuPrincipal, obterCaminhoDaRota, type ItemMenu } from "../../routes/navigation";
+import { itemMenuAtivo, menuPrincipal, obterCaminhoDaRota, rotaPdv, type AreaMenu } from "../../routes/navigation";
 import { podeGerenciarUsuarios } from "../../utils/auth/perfis";
 import { obterSessao } from "../../utils/auth/sessao";
 import { layoutTokens } from "./layoutTokens";
 
-function Sidebar() {
-    const theme = useTheme();
-    const somenteIcones = useMediaQuery(theme.breakpoints.down("sm"));
-    return (
-        <Drawer
-            variant="permanent"
-            sx={{
-                width: layoutTokens.sidebar.largura,
-                flexShrink: 0,
-                "& .MuiDrawer-paper": {
-                    width: layoutTokens.sidebar.largura,
-                    boxSizing: "border-box",
-                    border: 0,
-                    borderRight: "1px solid",
-                    borderColor: "#233047",
-                    borderRadius: 0,
-                    boxShadow: "inset -1px 0 0 rgba(255,255,255,.03)",
-                    color: "#E6EBF2",
-                    backgroundColor: "#111B2B",
-                },
-            }}
-        >
-            <Stack sx={{ height: "100%" }}>
-                <Stack
-                    direction="row"
-                    spacing={1.25}
-                    sx={{
-                        alignItems: "center",
-                        justifyContent: { xs: "center", sm: "flex-start" },
-                        flexShrink: 0,
-                        minHeight: layoutTokens.header.altura,
-                        px: { xs: 0.75, sm: 1.5 },
-                        py: 1.25,
-                        m: { xs: 0, sm: 1.5 },
-                        borderRadius: "10px",
-                        bgcolor: "transparent",
-                    }}
-                >
-                    <Box
-                        sx={{
-                            display: "grid",
-                            flexShrink: 0,
-                            width: 32,
-                            height: 32,
-                            placeItems: "center",
-                            border: "1px solid rgba(255,255,255,.08)",
-                            borderRadius: "8px",
-                            color: "#FFFFFF",
-                            backgroundColor: "primary.main",
-                        }}
-                    >
-                        <StorefrontRoundedIcon sx={{ fontSize: 18 }} />
-                    </Box>
+const estiloItem = {
+    minHeight: 44, px: 1.5, gap: 1, borderRadius: "6px", color: "text.secondary",
+    "&.Mui-selected": { bgcolor: "#DDF2E9", color: "#075E4B", "&:hover": { bgcolor: "#D2EBDF" } },
+    "&:hover": { bgcolor: "#F0F5F3" },
+    "&.Mui-focusVisible": { outline: "2px solid #0E7C66", outlineOffset: -2 },
+    "& .MuiListItemIcon-root": { minWidth: 20, color: "inherit", "& svg": { fontSize: 20 } },
+    "& .MuiListItemText-primary": { fontSize: 14, fontWeight: 500 },
+};
 
-                    <Box sx={{ display: { xs: "none", sm: "block" } }}>
-                        <Typography
-                            variant="subtitle1"
-                            sx={{ fontSize: "20px", fontWeight: 700, lineHeight: 1.2, letterSpacing: 0, color: "#FFFFFF" }}
-                        >
-                            NOVEXA
-                        </Typography>
-                        <Typography variant="caption" sx={{ fontSize: "11px", color: "#E7F4F0" }}>
-                            ERP para pequenos negócios
-                        </Typography>
-                    </Box>
-                </Stack>
-
-                <Divider sx={{ borderColor: "#233047" }} />
-
-                <Box
-                    component="nav"
-                    aria-label="Menu principal"
-                    sx={{
-                        minHeight: 0,
-                        overflowX: "hidden",
-                        overflowY: "auto",
-                        flex: 1,
-                        scrollbarWidth: "thin",
-                        scrollbarColor: `${theme.palette.divider} transparent`,
-                        "&::-webkit-scrollbar": { width: 4 },
-                        "&::-webkit-scrollbar-thumb": {
-                            borderRadius: 4,
-                            backgroundColor: "divider",
-                        },
-                    }}
-                >
-                    <List sx={{ px: 0.75, py: 1 }}>
-                        {menuPrincipal.map(item => <EntradaMenu key={item.id} item={item} somenteIcones={somenteIcones} />)}
-                    </List>
-                </Box>
-
-            </Stack>
-        </Drawer>
-    );
-}
-
-function EntradaMenu({ item, nivel = 0, somenteIcones }: { item: ItemMenu; nivel?: number; somenteIcones: boolean }) {
+export default function Sidebar() {
     const location = useLocation();
-    const ativo = itemMenuAtivo(item, location.pathname);
-    const grupo = item.tipo === "grupo";
-    const indisponivel = item.tipo === "indisponivel";
-    const [expansao, setExpansao] = useState({
-        localizacao: location.key,
-        aberto: grupo && (ativo || Boolean(item.abertoInicialmente)),
-    });
-    if (item.id === "usuarios" && !podeGerenciarUsuarios(obterSessao()?.perfil)) return null;
-    // Ao navegar para um descendente, revela sua categoria mesmo se estava fechada.
-    const aberto = expansao.aberto || (ativo && expansao.localizacao !== location.key);
-    const titulo = item.tipo === "rota" ? item.titulo ?? item.rota.titulo : item.titulo;
-    const icone = item.tipo === "rota" ? item.rota.icone : item.icone;
-    const conteudo = <>
-        <ListItemIcon sx={{ minWidth: 0, flexShrink: 0, color: "inherit", "& svg": { fontSize: layoutTokens.sidebar.tamanhoIconeMenu } }}>
-            {icone}
-        </ListItemIcon>
-        <ListItemText
-            primary={titulo}
-            slotProps={{
-                primary: {
-                    noWrap: true,
-                    sx: { fontSize: grupo ? "12px" : "14px", fontWeight: grupo ? 600 : 500, lineHeight: 1.35, letterSpacing: 0, textTransform: grupo ? "uppercase" : "none" },
-                },
-            }}
-            sx={{ display: { xs: "none", sm: "block" }, minWidth: 0, my: 0 }}
-        />
-        {grupo && <ChevronRightRoundedIcon sx={{
-            position: { xs: "absolute", sm: "static" },
-            right: 2,
-            fontSize: { xs: 12, sm: 15 },
-            flexShrink: 0,
-            opacity: 0.65,
-            transform: aberto ? "rotate(90deg)" : "rotate(0deg)",
-            transition: "transform 120ms ease",
-            "@media (prefers-reduced-motion: reduce)": { transition: "none" },
-        }} />}
-    </>;
-    const estilo = {
-        position: "relative",
-        minHeight: { xs: 42, sm: layoutTokens.sidebar.alturaItemMenu },
-        width: "100%",
-        mb: 0.125,
-        borderRadius: `${layoutTokens.radius.button}px`,
-        color: indisponivel
-            ? "#7D8BA0"
-            : grupo ? "#AAB7C9" : ativo ? "primary.dark" : "#E6EBF2",
-        justifyContent: { xs: "center", sm: "flex-start" },
-        columnGap: { xs: 0, sm: 1 },
-        pl: { xs: 0, sm: nivel ? 2 : 1.25 },
-        pr: { xs: 0, sm: 1 },
-        py: 0.5,
-        textAlign: "left",
-        transition: "background-color 120ms ease, color 120ms ease",
-        "&.Mui-selected": {
-            color: "primary.dark",
-            backgroundColor: "#CDEEE2",
-            "&::before": {
-                position: "absolute",
-                top: 8,
-                bottom: 8,
-                left: 0,
-                width: 3,
-                borderRadius: "2px",
-                backgroundColor: "primary.main",
-                content: "\"\"",
-            },
-        },
-        "&.Mui-selected:hover": { color: "primary.dark", backgroundColor: "#CDEEE2" },
-        "&:hover": { backgroundColor: "rgba(255,255,255,.06)" },
-        "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: -2 },
-        "&[aria-disabled=true]": {
-            color: "#7D8BA0",
-            cursor: "default",
-            backgroundColor: "transparent",
-            "&:hover": { color: "#7D8BA0", backgroundColor: "transparent" },
-        },
-    };
+    const theme = useTheme();
+    const mobile = useMediaQuery(theme.breakpoints.down("sm"));
+    const [selecao, setSelecao] = useState<{ key: string; id: string | null }>({ key: location.key, id: null });
+    const acionadorRef = useRef<HTMLButtonElement | null>(null);
+    const painelRef = useRef<HTMLDivElement | null>(null);
+    const areas = menuPrincipal.map(area => ({ ...area, filhos: area.filhos.filter(item => item.id !== "usuarios" || podeGerenciarUsuarios(obterSessao()?.perfil)) }));
+    const aberta = selecao.key === location.key ? areas.find(area => area.id === selecao.id) : undefined;
+    const fechar = useCallback((restaurarFoco = true) => {
+        setSelecao({ key: location.key, id: null });
+        if (restaurarFoco) acionadorRef.current?.focus();
+    }, [location.key]);
 
-    return <Box component="li" sx={{
-        listStyle: "none",
-        ...(grupo && nivel === 0 ? {
-            mt: 1,
-            pt: 1,
-            borderTop: "1px solid",
-            borderColor: "#233047",
-        } : {}),
-    }}>
-        <Tooltip title={somenteIcones ? (indisponivel ? `${titulo} — ainda não disponível` : titulo) : ""} placement="right">
-            {item.tipo === "rota" ? (
-                <ListItemButton component={Link} to={obterCaminhoDaRota(item.rota)} selected={ativo} aria-current={ativo ? "page" : undefined} aria-label={titulo} sx={estilo}>
-                    {conteudo}
-                </ListItemButton>
-            ) : (
-                <ListItemButton component="button" type="button" selected={ativo && !grupo} aria-label={indisponivel ? `${titulo} — ainda não disponível` : titulo}
-                    aria-disabled={indisponivel || undefined} aria-expanded={grupo ? aberto : undefined} aria-controls={grupo ? `menu-${item.id}` : undefined}
-                    onClick={grupo ? () => setExpansao({ localizacao: location.key, aberto: !aberto }) : undefined} sx={estilo}>
-                    {conteudo}
-                </ListItemButton>
-            )}
-        </Tooltip>
-        {grupo && <Collapse in={aberto} timeout={140}>
-            <List id={`menu-${item.id}`} aria-label={titulo} disablePadding sx={{ pt: 0.25 }}>
-                {item.filhos.map(filho => <EntradaMenu key={filho.id} item={filho} nivel={nivel + 1} somenteIcones={somenteIcones} />)}
-            </List>
-        </Collapse>}
+    useEffect(() => {
+        if (!aberta) return;
+        const escape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") { event.preventDefault(); fechar(); }
+        };
+        window.addEventListener("keydown", escape);
+        return () => window.removeEventListener("keydown", escape);
+    }, [aberta, fechar]);
+
+    function abrir(area: AreaMenu, acionador: HTMLButtonElement, focarPainel = false) {
+        acionadorRef.current = acionador;
+        setSelecao({ key: location.key, id: focarPainel || aberta?.id !== area.id ? area.id : null });
+        if (focarPainel) requestAnimationFrame(() => painelRef.current?.querySelector<HTMLAnchorElement>("a")?.focus());
+    }
+
+    return <Box sx={{ width: layoutTokens.sidebar.largura, flexShrink: 0 }}>
+        <ClickAwayListener onClickAway={() => fechar(false)}>
+            <Box component="nav" aria-label="Menu principal" sx={{
+                position: "fixed", zIndex: theme.zIndex.drawer, left: 8, top: 8,
+                height: "calc(100dvh - 16px)", display: "flex", overflow: "hidden",
+                width: mobile ? aberta ? "min(320px, calc(100vw - 16px))" : layoutTokens.sidebar.faixaIcones
+                    : layoutTokens.sidebar.faixaIcones + layoutTokens.sidebar.colunaPrincipal + (aberta ? layoutTokens.sidebar.colunaSecundaria : 0),
+                bgcolor: "background.paper", border: "1px solid #DCE3E9", borderRadius: "12px",
+                boxShadow: "0 8px 28px rgba(16,27,43,.12)",
+            }}>
+                <Stack aria-label="Áreas compactas" sx={{ width: layoutTokens.sidebar.faixaIcones, flexShrink: 0, bgcolor: "#111B2B", color: "#D9E3EF", alignItems: "center", py: 2, gap: 0.75 }}>
+                    <Box sx={{ height: 64, display: "flex", alignItems: "flex-start", color: "#4FCAA4" }}><StorefrontRoundedIcon sx={{ fontSize: 26 }} /></Box>
+                    <Tooltip title="Vender" placement="right"><IconButton component={Link} to={obterCaminhoDaRota(rotaPdv)} aria-label="Vender (ícone)"
+                        sx={{ width: 40, height: 44, color: "#FFFFFF", bgcolor: "#0E7C66", borderRadius: "6px", "&:hover": { bgcolor: "#096653" } }}>{rotaPdv.icone}</IconButton></Tooltip>
+                    <Divider flexItem sx={{ borderColor: "#28364A", my: 1 }} />
+                    {areas.map(area => {
+                        const ativo = aberta?.id === area.id || itemMenuAtivo(area, location.pathname, location.search);
+                        return <Tooltip key={area.id} title={area.titulo} placement="right"><IconButton aria-label={`${area.titulo} (ícone)`}
+                            aria-expanded={aberta?.id === area.id} aria-controls={aberta?.id === area.id ? "funcoes-area" : undefined}
+                            onClick={event => abrir(area, event.currentTarget)} onKeyDown={event => {
+                                if (event.key === "ArrowRight") { event.preventDefault(); abrir(area, event.currentTarget, true); }
+                            }} sx={{ width: 40, height: 44, borderRadius: "6px", color: ativo ? "#91E0C1" : "#C7D2E2",
+                                bgcolor: ativo ? "#223E3D" : "transparent", "&:hover": { bgcolor: "#25354A" },
+                                "&.Mui-focusVisible": { outline: "2px solid #4FCAA4", outlineOffset: -2 } }}>{area.icone}</IconButton></Tooltip>;
+                    })}
+                </Stack>
+                {!mobile && <Stack sx={{ width: layoutTokens.sidebar.colunaPrincipal, flexShrink: 0, borderRight: aberta ? "1px solid #E3E8ED" : undefined }}>
+                    <Box sx={{ height: 96, px: 2.5, pt: 2.5, flexShrink: 0 }}>
+                        <Typography sx={{ fontSize: 22, fontWeight: 800, color: "#0E7C66" }}>NOVEXA</Typography>
+                        <Typography variant="caption" color="text.secondary">Gestão</Typography>
+                    </Box>
+                    <Box sx={{ px: 1.25, pb: 1 }}><Button component={Link} to={obterCaminhoDaRota(rotaPdv)} fullWidth startIcon={rotaPdv.icone} variant="contained" disableElevation
+                        sx={{ justifyContent: "flex-start", height: 44, borderRadius: "6px", fontSize: 14 }}>Vender</Button></Box>
+                    <List aria-label="Áreas do sistema" sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: 1.25, pt: 1.5 }}>
+                        {areas.map(area => <ListItemButton component="button" type="button" key={area.id} aria-label={area.titulo}
+                            selected={aberta?.id === area.id || itemMenuAtivo(area, location.pathname, location.search)}
+                            aria-expanded={aberta?.id === area.id} aria-controls={aberta?.id === area.id ? "funcoes-area" : undefined}
+                            onClick={event => abrir(area, event.currentTarget)} onKeyDown={event => {
+                                if (event.key === "ArrowRight") { event.preventDefault(); abrir(area, event.currentTarget, true); }
+                            }} sx={{ ...estiloItem, width: "100%", mb: 0.5 }}>
+                            <ListItemIcon>{area.icone}</ListItemIcon><ListItemText primary={area.titulo} />
+                            <ChevronRightRoundedIcon sx={{ fontSize: 16, opacity: 0.5 }} />
+                        </ListItemButton>)}
+                    </List>
+                </Stack>}
+                {aberta && <Stack ref={painelRef} id="funcoes-area" role="region" aria-label={`Funções de ${aberta.titulo}`} sx={{ minWidth: 0, flex: 1 }}
+                    onKeyDown={event => { if (event.key === "ArrowLeft") { event.preventDefault(); fechar(); } }}>
+                    <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", height: 72, px: 2, borderBottom: "1px solid #E3E8ED", flexShrink: 0 }}>
+                        <Typography component="h2" sx={{ fontSize: 16, fontWeight: 700 }}>{aberta.titulo}</Typography>
+                        <Tooltip title="Fechar funções"><IconButton aria-label="Fechar funções" size="small" onClick={() => fechar()}><CloseRoundedIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
+                    </Stack>
+                    <List sx={{ overflowY: "auto", minHeight: 0, p: 1.25 }}>
+                        {aberta.filhos.map(item => <Box key={item.id} component="li" sx={{ listStyle: "none" }}>
+                            {item.id === "formas-pagamento" && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5, mb: 0.5, px: 1.5 }}>Configurações de pagamento</Typography>}
+                            <ListItemButton component={Link} to={obterCaminhoDaRota(item.rota)} onClick={() => fechar(false)}
+                                selected={itemMenuAtivo(item, location.pathname, location.search)} aria-current={itemMenuAtivo(item, location.pathname, location.search) ? "page" : undefined}
+                                sx={{ ...estiloItem, mb: 0.5 }}>
+                                <ListItemIcon>{item.rota.icone}</ListItemIcon><ListItemText primary={item.titulo ?? item.rota.titulo} />
+                            </ListItemButton>
+                        </Box>)}
+                    </List>
+                </Stack>}
+            </Box>
+        </ClickAwayListener>
     </Box>;
 }
-
-export default Sidebar;

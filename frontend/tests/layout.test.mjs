@@ -2,7 +2,7 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 
 let server;
 let browser;
@@ -60,42 +60,46 @@ async function withLayout(run, options = {}) {
     } finally { await page.close(); }
 }
 
-test("Sidebar organiza tarefas, configuracoes e remove item indisponivel", () => withLayout(async page => {
+test("Sidebar organiza seis dominios compartilhados pela faixa compacta", () => withLayout(async page => {
     const nav = page.getByRole("navigation");
-    assert.deepEqual(await nav.getByRole("link").allTextContents(), ["Dashboard","Vender","Central de Vendas","Clientes","Produtos","Estoque","Caixas","Contas a Pagar","Contas a Receber","Recebimentos de cartão","Contas e saldos","Formas de Pagamento","Dados Bancários","Empresas","Usuários"]);
+    const domains = ["Início","Cadastros","Estoque","Vendas","Financeiro","Administração"];
+    assert.deepEqual(await nav.getByRole("list",{name:"Áreas do sistema"}).getByRole("button").allTextContents(),domains);
+    for (const domain of domains) assert.equal(await nav.getByRole("button",{name:`${domain} (ícone)`,exact:true}).count(),1);
     assert.equal(await nav.getByRole("link",{name:"Vender",exact:true}).getByTestId("AddShoppingCartRoundedIcon").count(),1);
-    assert.equal(await nav.getByRole("link",{name:"Central de Vendas",exact:true}).getByTestId("ReceiptLongRoundedIcon").count(),1);
-    assert.equal(await nav.getByRole("button",{name:"Financeiro",exact:true}).getAttribute("aria-expanded"),"true");
-    assert.equal(await nav.getByRole("button",{name:"Configurações",exact:true}).getAttribute("aria-expanded"),"true");
-    assert.equal(await nav.getByRole("button",{name:"Administra\u00e7\u00e3o",exact:true}).count(),1);
+    assert.equal(await nav.getByRole("link",{name:"Vender (ícone)",exact:true}).getAttribute("href"),"/pdv");
+    assert.equal(await nav.getByRole("region").count(),0);
+    await nav.getByRole("button",{name:"Cadastros",exact:true}).click();
+    assert.deepEqual(await nav.getByRole("region").getByRole("link").allTextContents(),["Produtos","Clientes","Fornecedores"]);
     const active = nav.getByRole("link",{name:"Clientes",exact:true});
     assert.equal(await active.getAttribute("aria-current"),"page");
-    assert.equal(await active.evaluate(el => getComputedStyle(el,"::before").width),"3px");
     assert.equal(await nav.getByRole("button",{name:/Novo Cliente/}).count(),0);
-    const config = nav.getByRole("list",{name:"Configurações",exact:true});
-    assert.deepEqual(await config.getByRole("link").allTextContents(),["Formas de Pagamento","Dados Bancários"]);
-    assert.equal(await config.getByRole("link",{name:"Contas a Pagar"}).count(),0);
+    await nav.getByRole("button",{name:"Administração",exact:true}).click();
+    assert.deepEqual(await nav.getByRole("region").getByRole("link").allTextContents(),["Empresas","Usuários"]);
+    await nav.getByRole("button",{name:"Vendas",exact:true}).click();
+    assert.equal(await nav.getByRole("link",{name:"PDV",exact:true}).getAttribute("href"),"/pdv");
+    await nav.getByRole("button",{name:"Financeiro",exact:true}).click();
+    assert.deepEqual(await nav.getByRole("region").getByRole("link").allTextContents(),["Caixas","Contas financeiras","Contas a Pagar","Contas a Receber","Recebimentos de cartão","Formas de Pagamento","Dados Bancários"]);
+    assert.equal(await nav.getByRole("link",{name:"Caixas",exact:true}).getAttribute("href"),"/financeiro/caixas");
     assert.equal(new URL(page.url()).pathname,"/clientes");
 }));
 
 test("Novos labels preservam URLs e titulos da topbar", () => withLayout(async page => {
-    for (const [label,path] of [
-        ["Central de Vendas","/vendas"], ["Recebimentos de cartão","/financeiro/recebiveis"],
-        ["Contas e saldos","/financeiro/contas-financeiras"], ["Formas de Pagamento","/financeiro/formas-pagamento"],
-        ["Dados Bancários","/financeiro/dados-bancarios"],
+    for (const [label,path,title,domain] of [
+        ["Central de Vendas","/vendas","Central de Vendas","Vendas"], ["Recebimentos de cartão","/financeiro/recebiveis","Recebimentos de cartão","Financeiro"],
+        ["Contas financeiras","/financeiro/contas-financeiras","Contas e saldos","Financeiro"], ["Formas de Pagamento","/financeiro/formas-pagamento","Formas de Pagamento","Financeiro"],
+        ["Dados Bancários","/financeiro/dados-bancarios","Dados Bancários","Financeiro"],
     ]) {
+        await page.getByRole("navigation").getByRole("button",{name:domain,exact:true}).click();
         const link = page.getByRole("navigation").getByRole("link",{name:label,exact:true});
         assert.equal(await link.getAttribute("href"),path);
         await link.click();
-        await page.getByRole("heading",{name:label,exact:true}).waitFor();
+        await page.getByRole("heading",{name:title,exact:true}).waitFor();
         assert.equal(new URL(page.url()).pathname,path);
+        assert.equal(await page.getByRole("navigation").getByRole("region").count(),0);
+        await page.getByRole("navigation").getByRole("button",{name:domain,exact:true}).click();
         assert.equal(await link.getAttribute("aria-current"),"page");
+        await page.keyboard.press("Escape");
     }
-    const group = page.getByRole("button",{name:"Configurações",exact:true});
-    await group.click();
-    assert.equal(await group.getAttribute("aria-expanded"),"false");
-    await group.click();
-    assert.equal(await group.getAttribute("aria-expanded"),"true");
 }));
 
 async function mockCatalogs(page) {
@@ -116,7 +120,7 @@ test("Vender abre o PDV real na rota protegida e sem duplicar layout", () => wit
     assert.equal(await sell.getAttribute("href"),"/pdv");
     await sell.click();
     // Sem caixa aberto, o dialog operacional existente oculta o conteudo de fundo do leitor de tela.
-    await page.getByRole("heading",{name:"Vender",exact:true,includeHidden:true}).waitFor();
+    await page.getByRole("heading",{name:/Vender/,includeHidden:true}).waitFor();
     assert.equal(new URL(page.url()).pathname,"/pdv");
     assert.equal(await page.getByRole("navigation",{name:"Menu principal"}).count(),0);
 }));
@@ -128,8 +132,15 @@ test("Produtos e Estoque preservam abas contextuais reais", () => withLayout(asy
     await products.waitFor();
     assert.deepEqual(await products.getByRole("tab").allTextContents(),["Produtos","Fornecedores"]);
     await products.getByRole("tab",{name:"Fornecedores",exact:true}).click();
-    assert.equal(await products.getByRole("tab",{name:"Fornecedores",exact:true}).getAttribute("aria-selected"),"true");
-    assert.equal(await page.getByRole("navigation").getByRole("link",{name:"Fornecedores",exact:true}).count(),0);
+    await expect(products.getByRole("tab",{name:"Fornecedores",exact:true})).toHaveAttribute("aria-selected","true");
+    assert.equal(new URL(page.url()).searchParams.get("aba"),"fornecedores");
+    await page.getByRole("button",{name:"Cadastros",exact:true}).click();
+    assert.equal(await page.getByRole("link",{name:"Fornecedores",exact:true}).getAttribute("aria-current"),"page");
+    await page.getByRole("link",{name:"Produtos",exact:true}).click();
+    await expect(products.getByRole("tab",{name:"Produtos",exact:true})).toHaveAttribute("aria-selected","true");
+    await page.getByRole("button",{name:"Cadastros",exact:true}).click();
+    await page.getByRole("link",{name:"Fornecedores",exact:true}).click();
+    await expect(products.getByRole("tab",{name:"Fornecedores",exact:true})).toHaveAttribute("aria-selected","true");
     await page.goto(`${url}/estoque?real`);
     const stock = page.getByRole("tablist",{name:"Área de estoque"});
     await stock.waitFor();
@@ -137,6 +148,14 @@ test("Produtos e Estoque preservam abas contextuais reais", () => withLayout(asy
     await stock.getByRole("tab",{name:"Entradas",exact:true}).click();
     await page.getByRole("button",{name:"Entrada manual",exact:true}).waitFor();
     assert.equal(await stock.getByRole("tab",{name:"Entradas",exact:true}).getAttribute("aria-selected"),"true");
+    assert.equal(new URL(page.url()).searchParams.get("aba"),"entradas");
+    await page.getByRole("navigation").getByRole("button",{name:"Estoque",exact:true}).click();
+    assert.equal(await page.getByRole("link",{name:"Entradas de mercadoria",exact:true}).getAttribute("aria-current"),"page");
+    await page.getByRole("link",{name:"Estoque",exact:true}).click();
+    await expect(stock.getByRole("tab",{name:"Saldo",exact:true})).toHaveAttribute("aria-selected","true");
+    await page.getByRole("navigation").getByRole("button",{name:"Estoque",exact:true}).click();
+    await page.getByRole("link",{name:"Entradas de mercadoria",exact:true}).click();
+    await expect(stock.getByRole("tab",{name:"Entradas",exact:true})).toHaveAttribute("aria-selected","true");
 }));
 
 test("Cabecalhos de pagina e atalhos usam a nomenclatura da navegacao", async () => {
@@ -154,12 +173,23 @@ test("Cabecalhos de pagina e atalhos usam a nomenclatura da navegacao", async ()
 
 test("Sidebar preserva navegacao, expansao e foco de teclado", () => withLayout(async page => {
     const nav = page.getByRole("navigation");
+    const domain = nav.getByRole("button",{name:"Cadastros",exact:true});
+    await domain.focus();
+    await page.keyboard.press("ArrowRight");
     const products = nav.getByRole("link",{name:"Produtos",exact:true});
-    await products.focus();
+    assert.equal(await products.evaluate(el => el === document.activeElement),true);
+    await page.keyboard.press("ArrowLeft");
+    assert.equal(await domain.evaluate(el => el === document.activeElement),true);
+    await page.keyboard.press("ArrowRight");
     await page.keyboard.press("Enter");
     await page.getByRole("heading",{name:"Conteudo /produtos"}).waitFor();
+    await domain.click();
     assert.equal(await products.getAttribute("aria-current"),"page");
+    await page.keyboard.press("Escape");
+    assert.equal(await domain.evaluate(el => el === document.activeElement),true);
     const group = nav.getByRole("button",{name:"Financeiro",exact:true});
+    await group.click();
+    assert.equal(await group.getAttribute("aria-expanded"),"true");
     await group.click();
     assert.equal(await group.getAttribute("aria-expanded"),"false");
     await group.click();
@@ -168,7 +198,10 @@ test("Sidebar preserva navegacao, expansao e foco de teclado", () => withLayout(
 }));
 
 for (const perfil of ["GERENTE","OPERADOR","USUARIO"]) test(`Sidebar e rota preservam restricao de Usuarios para ${perfil}`, () => withLayout(async page => {
+    await page.getByRole("button",{name:"Administração",exact:true}).click();
     assert.equal(await page.getByRole("navigation").getByRole("link",{name:"Usu\u00e1rios",exact:true}).count(),0);
+    assert.equal(await page.getByRole("link",{name:"Empresas",exact:true}).count(),1);
+    await page.getByRole("button",{name:"Cadastros",exact:true}).click();
     assert.equal(await page.getByRole("navigation").getByRole("link",{name:"Clientes",exact:true}).count(),1);
     await mockCatalogs(page);
     await page.goto(`${url}/usuarios?real`);
@@ -176,13 +209,12 @@ for (const perfil of ["GERENTE","OPERADOR","USUARIO"]) test(`Sidebar e rota pres
 }, {perfil}));
 
 test("Sidebar mostra tooltip somente quando os labels estao ocultos", () => withLayout(async page => {
-    const clients = page.getByRole("navigation").getByRole("link",{name:"Clientes",exact:true});
-    await clients.hover();
+    await page.getByRole("button",{name:"Cadastros",exact:true}).hover();
     await page.waitForTimeout(700);
     assert.equal(await page.getByRole("tooltip").count(),0);
     await page.setViewportSize({width:390,height:900});
-    await clients.hover();
-    await page.getByRole("tooltip",{name:"Clientes",exact:true}).waitFor();
+    await page.getByRole("button",{name:"Cadastros (ícone)",exact:true}).hover();
+    await page.getByRole("tooltip",{name:"Cadastros",exact:true}).waitFor();
 }));
 
 test("AppHeader preserva titulo, empresa, usuario, iniciais e logout", () => withLayout(async page => {
@@ -240,17 +272,46 @@ test("AppHeader preserva logo e nomes longos com ellipsis e tooltip condicional"
 test("MainLayout preserva Outlet e estrutura fluida nos tres breakpoints", () => withLayout(async page => {
     for (const width of [1440,1024,390]) {
         await page.setViewportSize({width,height:900});
+        await expect(page.getByRole("navigation")).toHaveCSS("width",width < 600 ? "56px" : "264px");
         await page.getByRole("heading",{name:"Conteudo /clientes"}).waitFor();
         const sizes = await page.evaluate(() => ({page:document.documentElement.scrollWidth,header:document.querySelector('header').getBoundingClientRect().height,
             sidebar:document.querySelector('nav').getBoundingClientRect().width,padding:getComputedStyle(document.querySelector('main')).paddingLeft}));
         assert.ok(sizes.page <= width);
         assert.ok(sizes.header >= 64 && sizes.header <= 65);
-        assert.equal(sizes.sidebar,width < 600 ? 59 : 231);
+        assert.equal(sizes.sidebar,width < 600 ? 56 : 264);
         assert.equal(sizes.padding,width < 600 ? "16px" : "24px");
         assert.equal(await page.getByText("Loja Novexa",{exact:true}).isVisible(),width >= 900);
         assert.equal(await page.getByRole("button",{name:"Sair",exact:true}).isVisible(),true);
-        const config = page.getByRole("button",{name:"Configurações",exact:true});
+        const config = page.getByRole("button",{name:width < 600 ? "Financeiro (ícone)" : "Financeiro",exact:true});
         assert.equal(await config.isVisible(),true);
         if (process.env.NOVEXA_NAV_SCREENSHOTS) await page.screenshot({path:`node_modules/.vite-layout-tests/navigation-${width}.png`,fullPage:true});
+    }
+}));
+
+test("Menu flutuante sobrepoe conteudo sem deslocamento e fecha ao clicar fora", () => withLayout(async page => {
+    await mockCatalogs(page);
+    await page.goto(`${url}/dashboard?real`);
+    await page.getByRole("heading",{name:/Maria Silva/}).waitFor();
+    const nav = page.getByRole("navigation",{name:"Menu principal"});
+    for (const [width,height] of [[1366,768],[1920,1080],[1024,768],[390,844]]) {
+        await page.setViewportSize({width,height});
+        const before = await page.locator("main").boundingBox();
+        const trigger = nav.getByRole("button",{name:width < 600 ? "Financeiro (ícone)" : "Financeiro",exact:true});
+        await trigger.click();
+        await nav.getByRole("region",{name:"Funções de Financeiro"}).waitFor();
+        assert.deepEqual(await page.locator("main").boundingBox(),before,"opening submenu must not move content");
+        const bounds = await nav.boundingBox();
+        assert.equal(bounds.x,8);
+        assert.equal(bounds.y,8);
+        assert.equal(bounds.height,height-16);
+        assert.ok(bounds.x+bounds.width <= width-8);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true);
+        assert.equal(await nav.evaluate(el => getComputedStyle(el).borderRadius),"12px");
+        assert.equal(await nav.evaluate(el => [...el.children].every(child => getComputedStyle(child).boxShadow === "none")),true);
+        assert.equal(await nav.getByRole("link",{name:"Dados Bancários",exact:true}).isVisible(),true);
+        if (process.env.NOVEXA_NAV_SCREENSHOTS) await page.screenshot({path:`node_modules/.vite-layout-tests/navigation-open-${width}.png`});
+        await page.mouse.click(width-20,72);
+        assert.equal(await nav.getByRole("region").count(),0);
+        if (process.env.NOVEXA_NAV_SCREENSHOTS) await page.screenshot({path:`node_modules/.vite-layout-tests/navigation-closed-${width}.png`});
     }
 }));

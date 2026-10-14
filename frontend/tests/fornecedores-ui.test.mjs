@@ -28,10 +28,11 @@ const montagem = (corpo) => `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { CssBaseline, ThemeProvider } from '@mui/material';
+import { BrowserRouter } from 'react-router-dom';
 import theme from '/src/theme/theme.ts';
 ${corpo}
 createRoot(document.getElementById('root')).render(
-    React.createElement(ThemeProvider, { theme }, React.createElement(CssBaseline), React.createElement(Pagina)));
+    React.createElement(ThemeProvider, { theme }, React.createElement(CssBaseline), React.createElement(BrowserRouter, null, React.createElement(Pagina))));
 `;
 const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" };
 
@@ -223,9 +224,9 @@ test("cadastro rápido mostra só o essencial, devolve o criado em onSalvo e o a
     } finally { await page.close(); }
 });
 
-test("não há item de menu nem filtro local para fornecedores", async () => {
+test("menu aponta a aba real de fornecedores sem filtro local", async () => {
     const navegacao = await readFile(new URL("../src/routes/navigation.tsx", import.meta.url), "utf8");
-    assert.doesNotMatch(navegacao, /fornecedor/i);
+    assert.match(navegacao, /id: "fornecedores".*busca: "\?aba=fornecedores"/);
     const pagina = await readFile(new URL("../src/pages/Produtos/Fornecedores.tsx", import.meta.url), "utf8");
     assert.doesNotMatch(pagina, /(fornecedores|linhas|items)\.(filter|sort|slice)\(/);
     assert.doesNotMatch(pagina, /axios|api\./);
