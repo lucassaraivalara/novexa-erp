@@ -124,13 +124,13 @@ export default function ContasFinanceiras() {
                 color={conta.ativo ? "success" : "default"} /> },
     ];
     const acoes: AcaoTabela<ContaFinanceira>[] = [
-        { rotulo: "Transferir", icone: <CompareArrowsRoundedIcon fontSize="small" />, onClick: (conta) => { setContasTransferencia(null); setTransferirId(conta.id); },
-            desabilitado: (conta) => transferirId !== null || !conta.ativo || !tiposContaFinanceiraFuncionais.includes(conta.tipo), tooltip: "Transferir" },
-        { rotulo: "Editar", icone: <EditOutlinedIcon fontSize="small" />, onClick: setEditor, tooltip: "Editar conta" },
-        { rotulo: "Movimentar", icone: <SwapHorizRoundedIcon fontSize="small" />, onClick: (conta) => setMovimentarId(conta.id),
-            desabilitado: (conta) => !conta.ativo, tooltip: "Registrar entrada ou saída" },
         { rotulo: "Extrato", icone: <ReceiptLongOutlinedIcon fontSize="small" />, onClick: (conta) => setExtratoId(conta.id),
-            tooltip: "Ver extrato" },
+            cor: "primary", tooltip: "Ver extrato" },
+        { rotulo: "Movimentar", icone: <SwapHorizRoundedIcon fontSize="small" />, onClick: (conta) => setMovimentarId(conta.id),
+            desabilitado: (conta) => !conta.ativo, cor: "primary", tooltip: "Registrar entrada ou saída" },
+        { rotulo: "Transferir", icone: <CompareArrowsRoundedIcon fontSize="small" />, onClick: (conta) => { setContasTransferencia(null); setTransferirId(conta.id); },
+            desabilitado: (conta) => transferirId !== null || !conta.ativo || !tiposContaFinanceiraFuncionais.includes(conta.tipo), cor: "primary", tooltip: "Transferir" },
+        { rotulo: "Editar", icone: <EditOutlinedIcon fontSize="small" />, onClick: setEditor, tooltip: "Editar conta" },
         { rotulo: "Alterar situação", icone: <PowerSettingsNewRoundedIcon fontSize="small" />,
             onClick: (conta) => { setErro(""); setSituacao(conta); }, tooltip: "Ativar ou inativar conta" },
     ];
@@ -139,7 +139,8 @@ export default function ContasFinanceiras() {
 
     return <PageContainer>
         <PageHeader titulo="Contas e saldos"
-            acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setEditor(null)}>Nova conta</Button>} />
+            descricao="Saldos, movimentos e transferências das contas financeiras. A identificação bancária fica em Dados bancários."
+            acoesSecundarias={<Button variant="outlined" startIcon={<AddRoundedIcon />} onClick={() => setEditor(null)}>Nova conta</Button>} />
         {erro && !situacao && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErro("")}
             action={contas.length === 0 ? <Button color="inherit" onClick={() => { setCarregando(true); setTentativa((n) => n + 1); }}>Tentar novamente</Button> : undefined}>{erro}</Alert>}
         {erroResumo && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" onClick={atualizar}>Tentar novamente</Button>}>{erroResumo}</Alert>}
