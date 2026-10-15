@@ -127,28 +127,39 @@ export default function Recebiveis() {
     }
 
     const colunas: Coluna<Recebivel>[] = [
+        { campo: "status", cabecalho: "Situação", largura: 125, ordenavel: true,
+            render: (_, item) => <StatusChip status={item.status} label={statusLabels[item.status]} /> },
+        { campo: "dataPrevistaRecebimento", cabecalho: "Data prevista", largura: 120, ordenavel: true,
+            render: (_, item) => formatarData(item.dataPrevistaRecebimento) },
+        { campo: "valorBruto", cabecalho: "Valor bruto", largura: 130, alinhar: "right", ordenavel: true,
+            render: (_, item) => moeda.format(item.valorBruto) },
+        { campo: "valorTaxasPrevisto", cabecalho: "Taxas previstas", largura: 135, alinhar: "right",
+            render: (_, item) => item.valorTaxasPrevisto === null ? "—" : moeda.format(item.valorTaxasPrevisto) },
+        { campo: "valorLiquidoPrevisto", cabecalho: "Líquido previsto", largura: 140, alinhar: "right",
+            render: (_, item) => <Typography component="span" variant="body2" sx={{ fontWeight: 700 }}>
+                {item.valorLiquidoPrevisto === null ? "—" : moeda.format(item.valorLiquidoPrevisto)}</Typography> },
+        { campo: "valorLiquidoRecebido", cabecalho: "Liquidação registrada", largura: 185, alinhar: "right",
+            render: (_, item) => <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {item.valorLiquidoRecebido == null ? "—" : moeda.format(item.valorLiquidoRecebido)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", whiteSpace: "normal" }}>
+                    {formatarData(item.dataLiquidacao, true)}
+                </Typography>
+                {item.status === "CANCELADO" && (item.valorLiquidoRecebido != null || item.dataLiquidacao != null) &&
+                    <Typography variant="caption" color="text.secondary">Registro histórico</Typography>}
+            </Box> },
         { campo: "vendaId", cabecalho: "Venda", largura: 90, render: (_, item) => Number.isSafeInteger(item.vendaId) && item.vendaId > 0
             ? <Link href={`/vendas?vendaId=${item.vendaId}`} target="_blank" rel="noopener noreferrer"
                 aria-label={`Ver venda #${item.vendaId}`} title="Abrir venda em nova aba; volte a esta aba para retomar a consulta.">#{item.vendaId}</Link>
             : "—" },
         { campo: "dataVenda", cabecalho: "Data da venda", largura: 160, ordenavel: true,
             render: (_, item) => formatarData(item.dataVenda, true) },
-        { campo: "configuracaoNomeExibicao", cabecalho: "Forma / configuração", largura: 190,
-            render: (_, item) => item.configuracaoNomeExibicao ?? "—" },
-        { campo: "tipo", cabecalho: "Tipo", largura: 100, ordenavel: true,
-            render: (_, item) => tipos[item.tipo] },
-        { campo: "numeroParcela", cabecalho: "Parcela", largura: 90,
-            render: (_, item) => `${item.numeroParcela}/${item.totalParcelas}` },
-        { campo: "valorBruto", cabecalho: "Valor bruto", largura: 130, alinhar: "right", ordenavel: true,
-            render: (_, item) => moeda.format(item.valorBruto) },
-        { campo: "valorTaxasPrevisto", cabecalho: "Taxas previstas", largura: 135, alinhar: "right",
-            render: (_, item) => item.valorTaxasPrevisto === null ? "—" : moeda.format(item.valorTaxasPrevisto) },
-        { campo: "valorLiquidoPrevisto", cabecalho: "Valor líquido previsto", largura: 155, alinhar: "right",
-            render: (_, item) => item.valorLiquidoPrevisto === null ? "—" : moeda.format(item.valorLiquidoPrevisto) },
-        { campo: "dataPrevistaRecebimento", cabecalho: "Previsão", largura: 120, ordenavel: true,
-            render: (_, item) => formatarData(item.dataPrevistaRecebimento) },
-        { campo: "status", cabecalho: "Status", largura: 125, ordenavel: true,
-            render: (_, item) => <StatusChip status={item.status} label={statusLabels[item.status]} /> },
+        { campo: "tipo", cabecalho: "Tipo / configuração", largura: 190, ordenavel: true,
+            render: (_, item) => <Box sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>
+                <Typography variant="body2">{tipos[item.tipo]} · Parcela {item.numeroParcela}/{item.totalParcelas}</Typography>
+                <Typography variant="caption" color="text.secondary">{item.configuracaoNomeExibicao ?? "—"}</Typography>
+            </Box> },
         { campo: "id", cabecalho: "Ações", largura: 70, alinhar: "center", render: (_, item) => podeLiquidar && item.status === "PENDENTE"
             ? <Tooltip title="Liquidar recebível"><IconButton size="small" aria-label={`Liquidar recebível #${item.id}`}
                 onClick={() => abrirConfirmacao(item)}><CreditCardRoundedIcon fontSize="small" /></IconButton></Tooltip>
@@ -159,7 +170,7 @@ export default function Recebiveis() {
     const formaConfirmacao = confirmacao ? tipos[confirmacao.tipo] : "";
 
     return <PageContainer>
-        <PageHeader titulo="Recebimentos de cartão" descricao="Acompanhe recebíveis de cartão. O crédito em conta ocorre na liquidação." />
+        <PageHeader titulo="Recebimentos de cartão" descricao="Valores previstos não são saldo disponível. A liquidação registra o crédito; registros cancelados preservam o histórico." />
         {erro && <Alert severity="error" sx={{ mb: 2 }} action={items.length === 0
             ? <Button color="inherit" onClick={() => { setCarregando(true); setTentativa((atual) => atual + 1); }}>Tentar novamente</Button>
             : undefined}>{erro}</Alert>}
