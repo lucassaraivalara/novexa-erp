@@ -6,11 +6,15 @@ Venda .......... ABERTA → FATURADA consolidado
 Pagamento ...... fundação backend (base aeaec2e)
 Formas de Pagamento .... catálogo técnico global + configurações empresariais backend (Bloco 3A)
 Caixa .......... cadastro; backend operacional integrado à Venda, suprimento/sangria e fechamento com resumo
-Dados Bancários  shell frontend com abas, sem contrato backend
+Dados Bancários  cadastros de Banco, Agência e Conta Bancária via services existentes; identidade separada de saldo/extrato
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
 ## Central de configurações e organização dos domínios (2026-10-15)
+
+Consolidação na branch `feat/central-configuracoes`, sobre `8d565ac`, por revisão de commits e código: navegação/central e área ativa; Produtos/Fornecedores/Entradas com consultas contextuais; Caixas com operação, histórico e cadastro secundário; Contas e saldos separado da identidade bancária; consulta e ações de Pagar/Receber; previsão e liquidação de cartão; situação comercial, pagamentos e parcelas no detalhe da venda. Os ajustes posteriores à central estão implementados, não apenas descritos em prompts. Detalhes em [frontend.md](frontend.md). Sem nova mudança funcional no produto nesta consolidação.
+
+Corrigidas descrições atuais desatualizadas de Dados bancários e do envio de `contaFinanceiraId` na baixa a pagar. Smoke de Caixas alinhado ao acesso por Cadastro de caixas e à confirmação pelo registro na tabela, sem aguardar mensagem inexistente. Validação desta consolidação restrita à revisão do diff e `git diff --check`; testes, build, lint e homologação das etapas posteriores à central permanecem pendentes por orientação explícita. Evidências históricas abaixo não validam o conjunto atual. Não foi identificada implementação pendente dentro do escopo aprovado; o acesso de cartão continua limitado ao filtro por venda disponível no contrato.
 
 Navegação Venda/Financeiro na mesma branch, sobre `b9e96bb`: vínculos existentes entre venda e Conta a Receber reutilizados em nova aba; detalhe com cartão oferece Recebimentos de cartão filtrado por vendaId, e cada recebível vinculado abre a venda de origem. Consulta original preservada; sem novas consultas por linha, regras, status ou permissões. Filtro inválido não abre listagem sem contexto. Limite do contrato: cartão tem filtro por venda, sem detalhe individual/filtro por pagamento ou recebível. Detalhes em [frontend.md](frontend.md). Testes ajustados e ampliados, sem execução; testes, build, lint e homologação desta etapa pendentes por orientação explícita.
 

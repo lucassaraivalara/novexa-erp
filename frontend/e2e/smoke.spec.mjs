@@ -77,11 +77,12 @@ test.describe("smoke da base estável", () => {
 
         await page.goto("/financeiro/caixas");
         await expect(page.getByRole("main").getByRole("heading", { name: "Caixas", exact: true })).toBeVisible();
-        await page.getByRole("button", { name: "Novo Caixa" }).click();
+        await page.getByRole("button", { name: "Cadastro de caixas", exact: true }).click();
+        const cadastroCaixas = page.getByRole("dialog", { name: "Cadastro de caixas", exact: true });
+        await cadastroCaixas.getByRole("button", { name: "Novo caixa", exact: true }).click();
         await page.getByLabel("Descrição").fill(caixa);
         await page.getByRole("button", { name: "Criar" }).click();
-        await expect(page.getByText("Caixa salvo com sucesso.")).toBeVisible();
-        const linhaCaixa = page.getByRole("row").filter({ hasText: caixa });
+        const linhaCaixa = cadastroCaixas.getByRole("row").filter({ hasText: caixa });
         await expect(linhaCaixa).toBeVisible();
         await linhaCaixa.getByRole("button", { name: "Editar caixa" }).click();
         await page.getByLabel("Descrição").fill(`${caixa} atualizado`);
