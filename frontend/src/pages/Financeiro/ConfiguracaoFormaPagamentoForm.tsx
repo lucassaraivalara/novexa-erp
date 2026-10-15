@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Checkbox, Dialog, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Button, Checkbox, Dialog, DialogContent, DialogTitle, FormControlLabel, Link, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -71,6 +71,7 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
     const [contasFinanceiras, setContasFinanceiras] = useState<ContaFinanceira[]>([]);
     const [carregandoContas, setCarregandoContas] = useState(true);
     const [erroContas, setErroContas] = useState("");
+    const [tentativaContas, setTentativaContas] = useState(0);
     const legadaSemDestino = Boolean(config && ["DEBITO", "CREDITO"].includes(config.tipo) && !config.contaFinanceiraDestino);
 
     const { register, handleSubmit, reset, control, watch, setValue, formState: { errors } } = useForm<ConfiguracaoFormaPagamentoInput>({
@@ -101,7 +102,13 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                 if (!cancelado) setCarregandoContas(false);
             });
         return () => { cancelado = true; };
-    }, []);
+    }, [tentativaContas]);
+
+    function atualizarDestinos() {
+        setCarregandoContas(true);
+        setErroContas("");
+        setTentativaContas((valor) => valor + 1);
+    }
 
     useEffect(() => {
         if (config) {
@@ -236,9 +243,13 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                                         </TextField>
                                     )}
                                 />
-                                {erroContas && <Alert severity="error">{erroContas}</Alert>}
+                                {erroContas && <Alert severity="error" action={<Button type="button" color="inherit" size="small" onClick={atualizarDestinos}>Tentar novamente</Button>}>{erroContas}</Alert>}
                                 {!carregandoContas && !erroContas && contasFiltradas.length === 0 && (
-                                    <Alert severity="info">Nenhuma conta financeira ativa disponível. Cadastre uma conta do tipo Banco ou Carteira digital em Financeiro → Contas e saldos para selecionar um novo destino.</Alert>
+                                    <Alert severity="info">
+                                        Nenhuma conta financeira ativa disponível. Cadastre uma conta do tipo Banco ou Carteira digital em{' '}
+                                        <Link href="/financeiro/contas-financeiras" target="_blank" rel="noopener noreferrer">Contas e saldos (nova aba)</Link>.
+                                        <Button type="button" size="small" onClick={atualizarDestinos}>Atualizar destinos</Button>
+                                    </Alert>
                                 )}
                                 {ehCartao && <>
                                     <Controller name="taxaPercentual" control={control} render={({ field }) => (
