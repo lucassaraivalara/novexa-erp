@@ -241,6 +241,9 @@ for (const [forma, label, tipo] of [["CARTAO_DEBITO", "Cartão de débito", "DEB
             assert.deepEqual(consultasRecebiveis(estado).map(r => r.params), [{ vendaId: "30", page: "0", size: "25", sort: "id,asc" }]);
             assert.equal(await page.getByRole("button", { name: /Liquidar/ }).count(), 0);
             assert.equal(await page.getByRole("link", { name: "Ver recebimento do cartão", exact: true }).count(), 0);
+            const linkCartao = page.getByRole("link", { name: "Ver recebimentos de cartão desta venda", exact: true });
+            assert.equal(await linkCartao.getAttribute("href"), "/financeiro/recebiveis?vendaId=30");
+            assert.equal(await linkCartao.getAttribute("target"), "_blank");
             assert.doesNotMatch(await grupo.innerText(), /taxa|adquirente|snapshot|Conta de destino|Movimento #/i);
             assert.ok(estado.requests.every(r => r.method === "GET"));
         } finally { await page.close(); }

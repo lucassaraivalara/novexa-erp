@@ -81,7 +81,8 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                             <Box key={titulo} sx={{ minWidth: 0 }}><Typography component="dt" variant="caption" color="text.secondary">{titulo}</Typography>
                                 <Typography component="dd" variant="body2" sx={{ m: 0, fontWeight: 600, overflowWrap: "anywhere", fontVariantNumeric: "tabular-nums" }}>
                                     {titulo === "Venda" && conta.origem === "VENDA_A_PRAZO" && conta.vendaId
-                                        ? <Link component={RouterLink} to={`/vendas?vendaId=${conta.vendaId}`} aria-label={`Ver venda #${conta.vendaId}`}>{valor}</Link>
+                                        ? <Link component={RouterLink} to={`/vendas?vendaId=${conta.vendaId}`} aria-label={`Ver venda #${conta.vendaId}`}
+                                            target="_blank" rel="noopener noreferrer" title="Abrir venda em nova aba; volte a esta aba para retomar a consulta.">{valor}</Link>
                                         : valor}
                                 </Typography></Box>)}
                     </Box>

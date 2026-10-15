@@ -52,9 +52,9 @@ async function abrir(extras = {}, viewport = { width: 1440, height: 1000 }, opco
     const estado = { conta: conta(1, extras), requests: [], falhaBaixa: false, falhaAcao: false, keys: new Set(), falhaStatus: 503, ...opcoes };
     const page = await browser.newPage({ viewport }); page.setDefaultTimeout(10000);
     const errors = []; page.on("pageerror", e => errors.push(e.message));
-    await page.addInitScript(() => localStorage.setItem("novexa-auth", JSON.stringify({ token: "teste", perfil: "ADMIN", usuarioId: 2,
+    await page.context().addInitScript(() => localStorage.setItem("novexa-auth", JSON.stringify({ token: "teste", perfil: "ADMIN", usuarioId: 2,
         nome: "Gestora", empresa: { id: 1, nomeFantasia: "Loja de teste" } })));
-    await page.route("http://localhost:8080/**", async route => {
+    await page.context().route("http://localhost:8080/**", async route => {
         const req = route.request(), u = new URL(req.url());
         if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
         const params = Object.fromEntries(u.searchParams), body = req.postDataJSON();
@@ -275,25 +275,34 @@ test("link da Central abre a parcela da venda sem permitir editar ou cancelar in
     } finally { await page.close(); }
 });
 
-test("conta da venda abre a Central pelo vínculo e permite voltar à parcela", async () => {
+test("conta da venda abre a Central e parcela em novas abas preservando a consulta original", async () => {
     const { page, estado, errors } = await abrir({ origem: "VENDA_A_PRAZO", vendaId: 123 });
     try {
+        const busca = page.getByRole("textbox", { name: "Buscar descrição, cliente ou documento", exact: true });
+        await busca.fill("outubro");
+        await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.termo === "outubro");
         await detalhe(page);
         const link = page.getByRole("link", { name: "Ver venda #123", exact: true });
         assert.equal(await link.getAttribute("href"), "/vendas?vendaId=123");
-        await link.click(); await page.waitForURL(`${url}/vendas?vendaId=123`);
-        const dialog = page.getByRole("dialog", { name: "Venda #123", exact: true });
+        assert.equal(await link.getAttribute("target"), "_blank");
+        const [venda] = await Promise.all([page.waitForEvent("popup"), link.click()]);
+        await venda.waitForURL(`${url}/vendas?vendaId=123`);
+        const dialog = venda.getByRole("dialog", { name: "Venda #123", exact: true });
         await dialog.getByRole("region", { name: "Resumo financeiro da venda" }).waitFor();
         assert.match(await dialog.innerText(), /Cliente:\s*Maria Oliveira/);
         assert.equal(chamadas(estado, "/vendas/123").length, 1);
         assert.equal(chamadas(estado, "/vendas/123/pagamentos").length, 1);
-        await dialog.getByRole("link", { name: "Ver em Contas a Receber", exact: true }).click();
-        await page.waitForURL(`${url}${base}?contaId=1`);
-        await page.getByText("Esta conta é controlada pela venda de origem.", { exact: true }).waitFor();
-        await page.getByRole("link", { name: "Ver venda #123", exact: true }).click();
-        await page.getByRole("region", { name: "Resumo financeiro da venda" }).waitFor();
-        await page.keyboard.press("Escape");
-        await page.waitForURL(`${url}/vendas`);
+        const [parcela] = await Promise.all([venda.waitForEvent("popup"), dialog.getByRole("link", { name: "Ver em Contas a Receber", exact: true }).click()]);
+        await parcela.waitForURL(`${url}${base}?contaId=1`);
+        await parcela.getByText("Esta conta é controlada pela venda de origem.", { exact: true }).waitFor();
+        await parcela.close();
+        await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
+        await venda.waitForURL(`${url}/vendas`);
+        await venda.close();
+        await page.bringToFront();
+        assert.equal(page.url(), `${url}${base}`);
+        assert.equal(await busca.inputValue(), "outubro");
+        assert.equal(await page.getByText("Esta conta é controlada pela venda de origem.", { exact: true }).isVisible(), true);
         assert.deepEqual(errors, []);
         assert.ok(estado.requests.every(r => r.method === "GET"));
     } finally { await page.close(); }

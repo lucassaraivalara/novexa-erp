@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import AddShoppingCartRoundedIcon from "@mui/icons-material/AddShoppingCartRounded";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import FilterAltOffRoundedIcon from "@mui/icons-material/FilterAltOffRounded";
 import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
@@ -487,6 +488,9 @@ export default function CentralVendas() {
                             })}
                             {!!detalhe.contasReceber?.length && <Chip size="small" variant="outlined" label="A prazo" />}
                         </Stack>}
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            Pagamentos registrados podem aguardar confirmação de PIX ou liquidação de cartão. A receber mostra parcelas a prazo.
+                        </Typography>
                     </Box>
                     <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 1.5 }}>
                     <Table size="small" aria-label="Itens da venda" sx={{ minWidth: 420 }}>
@@ -510,6 +514,9 @@ export default function CentralVendas() {
                         action={<Button color="inherit" onClick={() => { setRecebiveis(null); setTentativaRecebiveis(n => n + 1); }}>Tentar novamente</Button>}>
                         Recebimentos de cartão: {recebiveis.erro}
                     </Alert>}
+                    {temCartao && <Button component={Link} to={`/financeiro/recebiveis?vendaId=${detalhe.id}`} target="_blank" rel="noopener noreferrer"
+                        size="small" endIcon={<OpenInNewRoundedIcon />} sx={{ alignSelf: "flex-start" }}
+                        title="Abrir recebimentos desta venda em nova aba; volte a esta aba para retomar a consulta.">Ver recebimentos de cartão desta venda</Button>}
                     {pagamentos.map(pagamento => {
                         const pix = pagamento.formaPagamento === "PIX";
                         const cartao = pagamento.formaPagamento === "CARTAO_DEBITO" || pagamento.formaPagamento === "CARTAO_CREDITO";
@@ -545,12 +552,13 @@ export default function CentralVendas() {
                         {detalhe.contasReceber.map(conta => <Stack key={conta.id} direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" }, flexWrap: "wrap", p: 1.25, border: 1, borderColor: "divider", borderRadius: 1.5 }}>
                             <Typography variant="body2">{conta.numeroParcela}/{conta.totalParcelas} · {formatarData(conta.dataVencimento)} · <strong>{moedaVenda(conta.valorOriginal)}</strong> · Saldo {moedaVenda(conta.saldo)}</Typography>
                             <StatusChip status={conta.status} label={rotulosContaReceber[conta.status]} />
-                            <Button component={Link} to={`/financeiro/contas-receber?contaId=${conta.id}`} size="small">Ver em Contas a Receber</Button>
+                            <Button component={Link} to={`/financeiro/contas-receber?contaId=${conta.id}`} size="small" target="_blank" rel="noopener noreferrer"
+                                endIcon={<OpenInNewRoundedIcon />} title="Abrir parcela em nova aba; volte a esta aba para retomar a consulta.">Ver em Contas a Receber</Button>
                         </Stack>)}
                     </Stack>}
                 </Stack>}
             </DialogContent>
-            <DialogActions><Button onClick={() => setSelecionada(null)} disabled={carregandoDetalhe || confirmandoPix}>Fechar</Button></DialogActions>
+            <DialogActions><Button onClick={fecharDetalhe} disabled={carregandoDetalhe || confirmandoPix}>Fechar</Button></DialogActions>
         </Dialog>
 
         <Dialog open={pixParaConfirmar !== null} fullWidth maxWidth="xs"
