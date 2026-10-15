@@ -88,6 +88,11 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                     </Box>
                     {conta.observacao && <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{conta.observacao}</Typography>}
                     {conta.origem === "VENDA_A_PRAZO" && <Typography variant="body2" color="text.secondary">Esta conta é controlada pela venda de origem.</Typography>}
+                    <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap", pt: 0.5 }}>
+                        {podeReceberConta(conta) && <Button variant="contained" disableElevation onClick={() => onReceber(conta)}>Receber</Button>}
+                        {podeEditarConta(conta) && <Button variant="outlined" startIcon={<EditOutlinedIcon />} onClick={() => onEditar(conta)}>Editar</Button>}
+                        {podeCancelarConta(conta) && <Button color="error" onClick={() => { setErroAcao(""); setAcao({ tipo: "cancelar" }); }}>Cancelar conta</Button>}
+                    </Stack>
                     <Divider />
                     <Typography variant="h6">Histórico de recebimentos</Typography>
                     {!conta.recebimentos.length && <Typography variant="body2" color="text.secondary">Nenhum recebimento registrado.</Typography>}
@@ -107,11 +112,6 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                             aria-label={`Estornar recebimento de ${moeda.format(m.valor)}`}
                             onClick={() => { setMotivo(""); setErroAcao(""); setAcao({ tipo: "estornar", movimento: m }); }}>Estornar recebimento</Button></Tooltip></Box>}
                     </Stack>)}
-                    <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap", pt: 0.5 }}>
-                        {podeReceberConta(conta) && <Button variant="contained" disableElevation onClick={() => onReceber(conta)}>Receber</Button>}
-                        {podeEditarConta(conta) && <Button variant="outlined" startIcon={<EditOutlinedIcon />} onClick={() => onEditar(conta)}>Editar</Button>}
-                        {podeCancelarConta(conta) && <Button color="error" onClick={() => { setErroAcao(""); setAcao({ tipo: "cancelar" }); }}>Cancelar conta</Button>}
-                    </Stack>
                 </>}
             </Stack>
         </Drawer>

@@ -103,17 +103,17 @@ export default function ContasReceber() {
         { campo: "descricao", cabecalho: "Descrição", largura: laptop ? 145 : 210, ordenavel: true },
         { campo: "cliente.nome", cabecalho: "Cliente", largura: laptop ? 100 : 155 },
         { campo: "dataVencimento", cabecalho: "Vencimento", largura: 115, ordenavel: true, render: v => formatarData(String(v)) },
+        { campo: "saldo", cabecalho: "Saldo", largura: 100, alinhar: "right", render: v => <Typography component="span" variant="body2" sx={{ fontWeight: 700, color: "primary.main" }}>{moeda.format(Number(v))}</Typography> },
+        { campo: "status", cabecalho: "Status", largura: 160, ordenavel: true, render: (_, c) => <StatusChip status={c.status}
+            label={rotulosStatus[c.status] + ((c.status === "PENDENTE" || c.status === "PARCIAL") && c.dataVencimento < hoje() ? " · Vencida" : "")} /> },
         ...(!laptop ? [
             { campo: "valorOriginal", cabecalho: "Valor original", largura: 140, alinhar: "right" as const, ordenavel: true, render: (v: unknown) => moeda.format(Number(v)) },
             { campo: "valorRecebido", cabecalho: "Recebido", largura: 125, alinhar: "right" as const, ordenavel: true, render: (v: unknown) => moeda.format(Number(v)) },
         ] : []),
-        { campo: "saldo", cabecalho: "Saldo", largura: 100, alinhar: "right", render: v => <Typography component="span" variant="body2" sx={{ fontWeight: 700, color: "primary.main" }}>{moeda.format(Number(v))}</Typography> },
-        { campo: "status", cabecalho: "Status", largura: 160, ordenavel: true, render: (_, c) => <StatusChip status={c.status}
-            label={rotulosStatus[c.status] + ((c.status === "PENDENTE" || c.status === "PARCIAL") && c.dataVencimento < hoje() ? " · Vencida" : "")} /> },
     ];
     const acoes: AcaoTabela<ContaReceber>[] = [
+        { rotulo: "Receber", icone: <CheckCircleOutlineRoundedIcon />, onClick: c => void abrirRecebimento(c), cor: "primary", desabilitado: c => abrindo || !podeReceberConta(c) },
         { rotulo: "Consultar histórico", icone: <HistoryRoundedIcon />, onClick: c => setDetalhe(c.id) },
-        { rotulo: "Receber", icone: <CheckCircleOutlineRoundedIcon />, onClick: c => void abrirRecebimento(c), desabilitado: c => abrindo || !podeReceberConta(c) },
     ];
     const resumos = [
         ["vencidas", "Vencidas", "error.main"], ["seteDias", "A vencer em 7 dias", "warning.main"],
@@ -125,10 +125,11 @@ export default function ContasReceber() {
     const vazio = { titulo: temFiltros ? "Nenhuma conta encontrada com os filtros atuais." : "Nenhuma conta a receber cadastrada.",
         descricao: temFiltros ? "Ajuste ou limpe os filtros." : "Cadastre uma nova conta a receber." };
     return <PageContainer sx={{ "& > :not(style) ~ :not(style)": { mt: 1.75 } }}>
-        <PageHeader titulo="Contas a Receber" acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />}
-            disableElevation onClick={() => setEditor({ conta: null })}>Nova conta</Button>}
-            acoesSecundarias={<Tooltip title="Atualizar"><IconButton aria-label="Atualizar contas" aria-busy={carregando}
-                onClick={() => setRevisao(n => n + 1)}>{carregando ? <CircularProgress size={20} /> : <RefreshRoundedIcon />}</IconButton></Tooltip>} />
+        <PageHeader titulo="Contas a Receber" descricao="Consulte vencimentos e saldos pendentes. Receber registra uma baixa parcial ou total na conta financeira de destino."
+            acoesSecundarias={<><Button variant="outlined" startIcon={<AddRoundedIcon />}
+                onClick={() => setEditor({ conta: null })}>Nova conta</Button>
+                <Tooltip title="Atualizar"><IconButton aria-label="Atualizar contas" aria-busy={carregando}
+                    onClick={() => setRevisao(n => n + 1)}>{carregando ? <CircularProgress size={20} /> : <RefreshRoundedIcon />}</IconButton></Tooltip></>} />
         {erroOperacao && <Alert severity="error" onClose={() => setErroOperacao("")}>{erroOperacao}</Alert>}
         {abrindo && <CircularProgress size={20} aria-label="Abrindo operação" />}
         <Box component="section" aria-label="Resumo financeiro de contas a receber">

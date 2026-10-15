@@ -152,7 +152,7 @@ export default function ContasPagar() {
         setProcessando(true); setErro("");
         try {
             await pagarConta(pagamento.id, { contaFinanceiraId, dataPagamento, valorPago: valor });
-            setPagamento(null); setSucesso("Conta marcada como paga.");
+            setPagamento(null); setSucesso("Pagamento registrado.");
             setTentativa((n) => n + 1);
         } catch (e) { setErro(mensagemContaPagar(e, "Não foi possível registrar o pagamento.")); }
         finally { setProcessando(false); }
@@ -173,23 +173,24 @@ export default function ContasPagar() {
 
     const colunas: Coluna<ContaPagar>[] = [
         { campo: "descricao", cabecalho: "Histórico", largura: 240 },
+        { campo: "dataVencimento", cabecalho: "Vencimento", largura: 130, render: (valor) => data(String(valor)) },
+        { campo: "id", cabecalho: "Em aberto", largura: 130, alinhar: "right", render: (_, conta) =>
+            <Typography component="span" variant="body2" sx={{ fontWeight: 700, color: "primary.main", fontVariantNumeric: "tabular-nums" }}>{moeda.format(emAberto(conta))}</Typography> },
+        { campo: "status", cabecalho: "Status", largura: 110, render: (_, conta) =>
+            <Chip size="small" variant="outlined" label={conta.status === "ABERTA" && conta.dataVencimento < hojeLocal ? "Vencida" : rotulos[conta.status]}
+                color={conta.status === "PAGA" ? "success" : conta.status === "CANCELADA" ? "default" : conta.dataVencimento < hojeLocal ? "error" : "warning"} /> },
         { campo: "fornecedorNome", cabecalho: "Fornecedor", largura: 170, render: (valor) => String(valor ?? "—") },
         { campo: "documento", cabecalho: "Documento", largura: 135, render: (valor) => String(valor ?? "—") },
         { campo: "categoria", cabecalho: "Categoria", largura: 130, render: (valor) => String(valor ?? "—") },
         { campo: "dataEmissao", cabecalho: "Emissão", largura: 125, render: (valor) => data(valor as string | null) },
-        { campo: "dataVencimento", cabecalho: "Vencimento", largura: 130, render: (valor) => data(String(valor)) },
         { campo: "valor", cabecalho: "Valor", largura: 130, alinhar: "right", render: (valor) => moeda.format(Number(valor)) },
         { campo: "valorPago", cabecalho: "Pago", largura: 130, alinhar: "right", render: (valor) => moeda.format(Number(valor ?? 0)) },
-        { campo: "id", cabecalho: "Em aberto", largura: 130, alinhar: "right", render: (_, conta) => moeda.format(emAberto(conta)) },
-        { campo: "status", cabecalho: "Status", largura: 110, render: (_, conta) =>
-            <Chip size="small" variant="outlined" label={conta.status === "ABERTA" && conta.dataVencimento < hojeLocal ? "Vencida" : rotulos[conta.status]}
-                color={conta.status === "PAGA" ? "success" : conta.status === "CANCELADA" ? "default" : conta.dataVencimento < hojeLocal ? "error" : "warning"} /> },
     ];
     const acoes: AcaoTabela<ContaPagar>[] = [
+        { rotulo: "Pagar", icone: <CheckCircleOutlineRoundedIcon fontSize="small" />, onClick: abrirPagamento,
+            desabilitado: (conta) => conta.status !== "ABERTA", cor: "primary", tooltip: "Pagar conta" },
         { rotulo: "Editar", icone: <EditOutlinedIcon fontSize="small" />, onClick: (conta) => setEditor({ conta }),
             desabilitado: (conta) => conta.status !== "ABERTA", tooltip: "Editar conta aberta" },
-        { rotulo: "Pagar", icone: <CheckCircleOutlineRoundedIcon fontSize="small" />, onClick: abrirPagamento,
-            desabilitado: (conta) => conta.status !== "ABERTA", tooltip: "Marcar como paga" },
         { rotulo: "Cancelar", icone: <CancelOutlinedIcon fontSize="small" />, onClick: (conta) => abrirConfirmacao(conta, "cancelar"),
             desabilitado: (conta) => conta.status !== "ABERTA", cor: "error", tooltip: "Cancelar conta" },
         { rotulo: "Estornar", icone: <UndoRoundedIcon fontSize="small" />, onClick: (conta) => abrirConfirmacao(conta, "estornar"),
@@ -204,8 +205,8 @@ export default function ContasPagar() {
     );
 
     return <PageContainer>
-        <PageHeader titulo="Contas a Pagar" descricao="Acompanhe vencimentos e pagamentos da empresa."
-            acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setEditor({ conta: null })}>Nova conta</Button>} />
+        <PageHeader titulo="Contas a Pagar" descricao="Consulte vencimentos e valores em aberto. Pagar registra o pagamento integral na conta financeira de origem."
+            acoesSecundarias={<Button variant="outlined" startIcon={<AddRoundedIcon />} onClick={() => setEditor({ conta: null })}>Nova conta</Button>} />
         {erro && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErro("")}
             action={contas.length === 0 ? <Button color="inherit" onClick={() => { setCarregando(true); setTentativa((n) => n + 1); }}>Tentar novamente</Button> : undefined}>{erro}</Alert>}
         <Box component="section" aria-label="Resumo de contas a pagar" sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", lg: "repeat(5, minmax(0, 1fr))" }, gap: 1.5, mb: 2 }}>
@@ -256,7 +257,7 @@ export default function ContasPagar() {
             onFechar={() => setEditor(null)} onSalvo={() => { setTentativa(n => n + 1); setEditor(null); setSucesso("Conta salva."); }} />}
         <Dialog open={pagamento !== null} onClose={processando ? undefined : () => setPagamento(null)} fullWidth maxWidth="xs" aria-labelledby="pagar-conta-titulo">
             <form onSubmit={(e) => void confirmarPagamento(e)}>
-                <DialogTitle id="pagar-conta-titulo">Marcar como paga</DialogTitle>
+                <DialogTitle id="pagar-conta-titulo">Pagar conta</DialogTitle>
                 <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
                     <Typography variant="body2" color="text.secondary">{pagamento?.descricao}</Typography>
                     <TextField required fullWidth type="date" label="Data do pagamento" value={dataPagamento}
@@ -272,7 +273,7 @@ export default function ContasPagar() {
                                 </MenuItem>
                             ))}
                     </TextField>
-                    <TextField required fullWidth label="Valor pago (R$)" value={valorPago} helperText="Pagamento integral nesta versão" slotProps={{ htmlInput: { inputMode: "decimal" } }}
+                    <TextField required fullWidth label="Valor pago (R$)" value={valorPago} helperText="O pagamento deve ser integral." slotProps={{ htmlInput: { inputMode: "decimal" } }}
                         onChange={(e) => setValorPago(e.target.value)} />
                     {erro && <Alert severity="error">{erro}</Alert>}
                 </Stack></DialogContent>
@@ -286,13 +287,13 @@ export default function ContasPagar() {
             <DialogTitle id="acao-conta-titulo">{confirmacao?.tipo === "cancelar" ? "Cancelar conta?" : "Estornar pagamento?"}</DialogTitle>
             <DialogContent><Stack spacing={2}>
                 <Typography variant="body2">{confirmacao?.tipo === "cancelar"
-                    ? `A conta ${confirmacao.conta.descricao} será cancelada.`
+                    ? `A conta ${confirmacao.conta.descricao} será cancelada e permanecerá no histórico.`
                     : "O título voltará a ficar aberto, a movimentação financeira vinculada será estornada e o saldo da conta financeira será recomposto."}</Typography>
                 {erro && <Alert severity="error">{erro}</Alert>}
             </Stack></DialogContent>
             <DialogActions><Button onClick={() => setConfirmacao(null)} disabled={processando}>Voltar</Button>
                 <Button variant="contained" color={confirmacao?.tipo === "cancelar" ? "error" : "primary"}
-                    onClick={() => void confirmarAcao()} disabled={processando}>{processando ? "Salvando…" : "Confirmar"}</Button></DialogActions>
+                    onClick={() => void confirmarAcao()} disabled={processando}>{processando ? "Salvando…" : confirmacao?.tipo === "cancelar" ? "Cancelar conta" : "Estornar pagamento"}</Button></DialogActions>
         </Dialog>
         <Snackbar open={Boolean(sucesso)} autoHideDuration={4000} onClose={() => setSucesso("")} message={sucesso} />
     </PageContainer>;
