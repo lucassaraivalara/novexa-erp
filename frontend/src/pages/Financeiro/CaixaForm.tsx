@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Dialog, DialogContent, DialogTitle, Stack, TextField, FormControlLabel, Switch } from "@mui/material";
+import { Alert, Dialog, DialogContent, DialogTitle, Stack, TextField, FormControlLabel, Switch, Typography } from "@mui/material";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import { useForm, type SubmitHandler, useWatch, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -77,6 +77,9 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
                 <DialogTitle id="caixa-form-titulo">{caixa ? "Editar Caixa" : "Novo Caixa"}</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{ pt: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                            Identificação e situação do caixa físico. O cadastro não abre uma sessão nem movimenta dinheiro.
+                        </Typography>
 
                 {erro && (
                     <Alert severity="error">
