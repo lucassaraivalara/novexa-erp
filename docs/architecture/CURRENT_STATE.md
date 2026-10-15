@@ -10,6 +10,14 @@ Dados Bancários  shell frontend com abas, sem contrato backend
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Central de configurações e organização dos domínios (2026-10-15)
+
+Implementado na branch `feat/central-configuracoes`, sobre `3abcff0`, ainda sem integração à `main`: Visão geral abre Dashboard diretamente; Configurações substitui Administração no rodapé e abre `/configuracoes`. Central com Empresa (Empresas), Usuários e acesso (Usuários somente ADMIN, seção omitida para os demais perfis) e Financeiro (Formas de pagamento e Dados bancários), reutilizando as telas existentes sem carregar cadastros ou criar regras. As quatro telas mantêm URLs, área Configurações ativa e retorno pelo cabeçalho. Financeiro preserva Caixas, Contas e saldos, Contas a Pagar, Contas a Receber e Recebimentos de cartão. PDV, permissões, abas e contratos preservados. Detalhes em [frontend.md](frontend.md).
+
+Validação: 20 testes de layout/navegação e 50 testes relacionados de fornecedores, estoque e entradas aprovados; E2E de Sidebar atualizado para o shell atual, com quatro cenários Chromium aprovados. Central e navegação verificadas em desktop, notebook, mobile e janelas de 320px de altura, incluindo teclado, rolagem, ausência de consultas na central e de overflow horizontal. HTTP simulado, sem homologação financeira real. Smoke autenticado ignorado por ausência de credenciais.
+
+Build/TypeScript e lint aprovados (aviso de bundle grande e dois avisos existentes do React Hook Form). Suíte completa: 370/373; duas falhas de apresentação em Contas a Receber reproduzidas também no baseline `3abcff0` (teste pressupõe link de submenu aberto e tabela excede a largura interna) e um timeout de carregamento do PDV na execução paralela, aprovado isoladamente. Esses problemas anteriores/limites da execução não foram alterados nesta tarefa.
+
 ## Navegacao gerencial por dominios (2026-10-14)
 
 Integrado a `main` pelo commit `099a9f2`, sobre `71620c7`, shell gerencial reorganizado em Inicio, Cadastros, Estoque, Vendas, Financeiro e Administracao. Container flutuante unico com faixa navy, dominios e funcoes sobrepostas ao conteudo, sem deslocamento da pagina. Vender/PDV preservam /pdv; Caixas nao inicia sessao; permissao ADMIN de Usuarios preservada. Fornecedores e Entradas apontam para abas funcionais existentes sincronizadas pela URL. Nenhuma tela futura, onboarding, service, contrato ou regra de negocio alterados. Detalhes em [frontend.md](frontend.md).

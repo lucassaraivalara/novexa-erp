@@ -27,6 +27,7 @@ import SavingsRoundedIcon from "@mui/icons-material/SavingsRounded";
 import ContasFinanceiras from "../pages/Financeiro/ContasFinanceiras";
 import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
 import Recebiveis from "../pages/Financeiro/Recebiveis";
+import Configuracoes from "../pages/Configuracoes/Configuracoes";
 
 export type RotaInterna = {
     caminho: string;
@@ -45,6 +46,12 @@ export const rotaPdv: RotaInterna = {
 };
 
 export const rotasInternas: RotaInterna[] = [
+    {
+        caminho: "configuracoes",
+        titulo: "Configurações",
+        icone: <SettingsRoundedIcon />,
+        elemento: <Configuracoes />,
+    },
     {
         caminho: "dashboard",
         titulo: "Dashboard",
@@ -134,25 +141,21 @@ export const rotasInternas: RotaInterna[] = [
 // O menu aponta para telas e abas existentes; o PDV mantém seu layout independente.
 export type ItemMenu =
     | { tipo: "rota"; id: string; rota: RotaInterna; titulo?: string }
-    | { tipo: "grupo"; id: string; titulo: string; icone: ReactNode; filhos: Extract<ItemMenu, { tipo: "rota" }>[] };
+    | { tipo: "grupo"; id: string; titulo: string; icone: ReactNode; destinoDireto?: string; rodape?: boolean; filhos: Extract<ItemMenu, { tipo: "rota" }>[] };
 
 export type AreaMenu = Extract<ItemMenu, { tipo: "grupo" }>;
 
-const rotaEmpresas = rotasInternas.find(r => r.caminho === "empresa")!;
 const rotaCaixas = rotasInternas.find(r => r.caminho === "financeiro/caixas")!;
 const rotaContasFinanceiras = rotasInternas.find(r => r.caminho === "financeiro/contas-financeiras")!;
 const rotaContasPagar = rotasInternas.find(r => r.caminho === "financeiro/contas-pagar")!;
 const rotaContasReceber = rotasInternas.find(r => r.caminho === "financeiro/contas-receber")!;
 const rotaRecebiveis = rotasInternas.find(r => r.caminho === "financeiro/recebiveis")!;
-const rotaUsuarios = rotasInternas.find(r => r.caminho === "usuarios")!;
-const rotaDadosBancarios = rotasInternas.find(r => r.caminho === "financeiro/dados-bancarios")!;
-const rotaFormasPagamento = rotasInternas.find(r => r.caminho === "financeiro/formas-pagamento")!;
 
 const rotaProdutos = rotasInternas.find(r => r.caminho === "produtos")!;
 const rotaEstoque = rotasInternas.find(r => r.caminho === "estoque")!;
 
 export const menuPrincipal: AreaMenu[] = [
-    { tipo: "grupo", id: "inicio", titulo: "Início", icone: <DashboardRoundedIcon />, filhos: [
+    { tipo: "grupo", id: "inicio", titulo: "Visão geral", destinoDireto: "/dashboard", icone: <DashboardRoundedIcon />, filhos: [
         { tipo: "rota", id: "dashboard", rota: rotasInternas.find(r => r.caminho === "dashboard")! },
     ] },
     { tipo: "grupo", id: "cadastros", titulo: "Cadastros", icone: <Inventory2RoundedIcon />, filhos: [
@@ -161,7 +164,7 @@ export const menuPrincipal: AreaMenu[] = [
         { tipo: "rota", id: "fornecedores", rota: { ...rotaProdutos, titulo: "Fornecedores", busca: "?aba=fornecedores", icone: <BusinessRoundedIcon /> } },
     ] },
     { tipo: "grupo", id: "estoque", titulo: "Estoque", icone: <WarehouseRoundedIcon />, filhos: [
-        { tipo: "rota", id: "saldo", rota: rotaEstoque },
+        { tipo: "rota", id: "saldo", titulo: "Saldo", rota: rotaEstoque },
         { tipo: "rota", id: "entradas", rota: { ...rotaEstoque, titulo: "Entradas de mercadoria", busca: "?aba=entradas" } },
     ] },
     { tipo: "grupo", id: "vendas", titulo: "Vendas", icone: <ReceiptLongRoundedIcon />, filhos: [
@@ -175,27 +178,31 @@ export const menuPrincipal: AreaMenu[] = [
         icone: <AccountBalanceWalletRoundedIcon />,
         filhos: [
             { tipo: "rota", id: "caixas", titulo: "Caixas", rota: rotaCaixas },
-            { tipo: "rota", id: "contas-financeiras", titulo: "Contas financeiras", rota: rotaContasFinanceiras },
+            { tipo: "rota", id: "contas-financeiras", rota: rotaContasFinanceiras },
             { tipo: "rota", id: "contas-pagar", titulo: "Contas a Pagar", rota: rotaContasPagar },
             { tipo: "rota", id: "contas-receber", rota: rotaContasReceber },
             { tipo: "rota", id: "recebiveis", rota: rotaRecebiveis },
-            { tipo: "rota", id: "formas-pagamento", rota: rotaFormasPagamento },
-            { tipo: "rota", id: "dados-bancarios", rota: rotaDadosBancarios },
         ],
     },
     {
         tipo: "grupo",
-        id: "administracao",
-        titulo: "Administração",
+        id: "configuracoes",
+        titulo: "Configurações",
+        destinoDireto: "/configuracoes",
+        rodape: true,
         icone: <SettingsRoundedIcon />,
         filhos: [
-            { tipo: "rota", id: "empresas", titulo: "Empresas", rota: rotaEmpresas },
-            { tipo: "rota", id: "usuarios", titulo: "Usuários", rota: rotaUsuarios },
+            { tipo: "rota", id: "central-configuracoes", titulo: "Central de configurações", rota: rotasInternas.find(r => r.caminho === "configuracoes")! },
         ],
     },
 ];
 
+export function ehRotaConfiguracao(pathname: string): boolean {
+    return ["/configuracoes", "/empresa", "/usuarios", "/financeiro/formas-pagamento", "/financeiro/dados-bancarios"].includes(pathname);
+}
+
 export function itemMenuAtivo(item: ItemMenu, pathname: string, search = ""): boolean {
+    if (item.tipo === "grupo" && item.id === "configuracoes") return ehRotaConfiguracao(pathname);
     if (item.tipo === "grupo") return item.filhos.some(filho => itemMenuAtivo(filho, pathname, search));
     if (`/${item.rota.caminho}` !== pathname) return false;
     const aba = new URLSearchParams(search).get("aba");
