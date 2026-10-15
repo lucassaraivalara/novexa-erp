@@ -297,6 +297,7 @@ export default function CentralVendas() {
         {
             rotulo: "Visualizar detalhes",
             tooltip: "Visualizar detalhes",
+            cor: "primary",
             icone: <VisibilityOutlinedIcon fontSize="small" />,
             onClick: venda => void visualizar(venda),
             desabilitado: venda => carregandoDetalhe || cancelando === venda.id,
@@ -307,7 +308,7 @@ export default function CentralVendas() {
             icone: <CancelOutlinedIcon fontSize="small" />,
             onClick: solicitarCancelamento,
             desabilitado: venda => !podeCancelarVenda(venda.status) || cancelando !== null,
-            cor: "error",
+            cor: "inherit",
         } satisfies AcaoTabela<VendaResumo>] : []),
     ];
 
@@ -331,7 +332,7 @@ export default function CentralVendas() {
     const temFiltros = Object.values(filtros).some(Boolean);
 
     return <PageContainer>
-        <PageHeader titulo="Central de Vendas" descricao="Histórico e acompanhamento das vendas."
+        <PageHeader titulo="Central de Vendas" descricao="Consulte a situação comercial das vendas e seus pagamentos no detalhe."
             acaoPrincipal={<Button component={Link} to="/pdv" variant="contained"
                 startIcon={<AddShoppingCartRoundedIcon />}>Vender</Button>}
             sx={{ "& h1": { fontSize: 28 }, gap: 1.5 }} />
@@ -453,7 +454,8 @@ export default function CentralVendas() {
             <DialogTitle id="detalhe-venda-titulo">Venda #{selecionada?.id}</DialogTitle>
             <DialogContent dividers>
                 {carregandoDetalhe || !detalhe ? <Typography color="text.secondary">Carregando detalhes…</Typography> : <Stack spacing={2}>
-                    <Stack direction="row" sx={{ alignItems: "center", flexWrap: "wrap", columnGap: 3, rowGap: 0.75, px: 1.5, py: 1, border: 1, borderColor: "divider", borderRadius: 1.5, bgcolor: "background.default" }}>
+                    <Stack component="section" aria-label="Situação comercial da venda" direction="row" sx={{ alignItems: "center", flexWrap: "wrap", columnGap: 3, rowGap: 0.75, px: 1.5, py: 1, border: 1, borderColor: "divider", borderRadius: 1.5, bgcolor: "background.default" }}>
+                        <Typography variant="body2" color="text.secondary">Situação comercial</Typography>
                         <Chip size="small" color={corStatus(detalhe.status)} label={rotulosStatus[detalhe.status]} />
                         <Typography variant="body2" color="text.secondary"><strong>Data:</strong> {dataHoraVenda(detalhe.dataHora)}</Typography>
                         <Typography variant="body2" color="text.secondary"><strong>Cliente:</strong> {selecionada?.nomeCliente || detalhe.contasReceber?.[0]?.cliente?.nome
@@ -468,7 +470,7 @@ export default function CentralVendas() {
                                 <Typography component="dd" sx={{ m: 0, fontSize: 24, fontWeight: 700, color: "primary.main", fontVariantNumeric: "tabular-nums" }}>{moedaVenda(detalhe.total)}</Typography>
                             </Box>
                             <Box sx={{ minWidth: 0 }}>
-                                <Typography component="dt" variant="caption" color="text.secondary">Pago agora</Typography>
+                                <Typography component="dt" variant="caption" color="text.secondary">Pagamentos registrados</Typography>
                                 <Typography component="dd" sx={{ m: 0, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{erroPagamentos ? "Indisponível" : moedaVenda(pagoAgora)}</Typography>
                             </Box>
                             {!!detalhe.contasReceber?.length && <Box sx={{ minWidth: 0 }}>
@@ -489,9 +491,11 @@ export default function CentralVendas() {
                             {!!detalhe.contasReceber?.length && <Chip size="small" variant="outlined" label="A prazo" />}
                         </Stack>}
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                            Pagamentos registrados podem aguardar confirmação de PIX ou liquidação de cartão. A receber mostra parcelas a prazo.
+                            Venda faturada não confirma recebimento financeiro. Pagamentos registrados podem aguardar confirmação de PIX ou liquidação de cartão. A receber mostra o saldo das contas a prazo.
                         </Typography>
                     </Box>
+                    <Stack component="section" aria-labelledby="itens-venda-titulo" spacing={1.25}>
+                    <Typography id="itens-venda-titulo" component="h3" variant="h6" sx={{ fontSize: 16, fontWeight: 700 }}>Itens da venda</Typography>
                     <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 1.5 }}>
                     <Table size="small" aria-label="Itens da venda" sx={{ minWidth: 420 }}>
                         <TableHead><TableRow><TableCell>Produto</TableCell><TableCell align="right">Quantidade</TableCell>
@@ -508,7 +512,9 @@ export default function CentralVendas() {
                         <Typography>Desconto: <strong>{moedaVenda(detalhe.desconto)}</strong></Typography>
                         {!!detalhe.troco && <Typography>Troco: <strong>{moedaVenda(detalhe.troco)}</strong></Typography>}
                     </Stack>
-                    {(!!pagamentos.length || !!erroPagamentos) && <Typography variant="h6" sx={{ fontSize: 16, fontWeight: 700 }}>Pagamentos</Typography>}
+                    </Stack>
+                    {(!!pagamentos.length || !!erroPagamentos) && <Stack component="section" aria-labelledby="pagamentos-venda-titulo" spacing={1.25}>
+                    <Typography id="pagamentos-venda-titulo" component="h3" variant="h6" sx={{ fontSize: 16, fontWeight: 700 }}>Pagamentos</Typography>
                     {erroPagamentos && <Alert severity="error">{erroPagamentos}</Alert>}
                     {temCartao && recebiveis?.vendaId === detalhe.id && recebiveis.erro && <Alert severity="warning"
                         action={<Button color="inherit" onClick={() => { setRecebiveis(null); setTentativaRecebiveis(n => n + 1); }}>Tentar novamente</Button>}>
@@ -547,8 +553,9 @@ export default function CentralVendas() {
                             </Button>}
                         </Stack>;
                     })}
-                    {!!detalhe.contasReceber?.length && <Stack spacing={1}>
-                        <Typography variant="h6" sx={{ fontSize: 16, fontWeight: 700 }}>A prazo</Typography>
+                    </Stack>}
+                    {!!detalhe.contasReceber?.length && <Stack component="section" aria-labelledby="parcelas-venda-titulo" spacing={1}>
+                        <Typography id="parcelas-venda-titulo" component="h3" variant="h6" sx={{ fontSize: 16, fontWeight: 700 }}>Contas a receber · Parcelas a prazo</Typography>
                         {detalhe.contasReceber.map(conta => <Stack key={conta.id} direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" }, flexWrap: "wrap", p: 1.25, border: 1, borderColor: "divider", borderRadius: 1.5 }}>
                             <Typography variant="body2">{conta.numeroParcela}/{conta.totalParcelas} · {formatarData(conta.dataVencimento)} · <strong>{moedaVenda(conta.valorOriginal)}</strong> · Saldo {moedaVenda(conta.saldo)}</Typography>
                             <StatusChip status={conta.status} label={rotulosContaReceber[conta.status]} />
