@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
+import jakarta.persistence.EntityManager;
 
 @Service
 @Transactional(readOnly = true)
@@ -17,13 +19,22 @@ public class ContaPagarService {
     private final EmpresaRepository empresas;
     private final FornecedorRepository fornecedores;
     private final ContaFinanceiraService financeiro;
+    private final EntradaMercadoriaRepository entradas;
+    private final EntityManager em;
 
     public ContaPagarService(ContaPagarRepository contas, EmpresaRepository empresas,
-            FornecedorRepository fornecedores, ContaFinanceiraService financeiro) {
+            FornecedorRepository fornecedores, ContaFinanceiraService financeiro,
+            EntradaMercadoriaRepository entradas, EntityManager em) {
         this.contas = contas;
         this.empresas = empresas;
         this.fornecedores = fornecedores;
         this.financeiro = financeiro;
+        this.entradas = entradas; this.em = em;
+    }
+
+    public ContaPagarResponseDTO buscar(Long id, Long empresaId) {
+        return ContaPagarResponseDTO.de(contas.findByIdAndEmpresaId(id, empresaId).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta a pagar não encontrada.")));
     }
 
     public PaginaResponseDTO<ContaPagarResponseDTO> listarPagina(Long empresaId, String busca, StatusContaPagar status,
@@ -73,6 +84,9 @@ public class ContaPagarService {
     public ContaPagarResponseDTO editar(Long id, Long empresaId, ContaPagarRequestDTO pedido) {
         var conta = buscarParaAlterar(id, empresaId);
         exigirAberta(conta);
+        var entrada = conta.getEntradaMercadoria();
+        if (entrada != null && !Objects.equals(pedido.fornecedorId(), conta.getFornecedor() == null ? null : conta.getFornecedor().getId()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mantenha o fornecedor atual da conta enquanto existir vínculo.");
         preencher(conta, pedido, empresaId);
         return ContaPagarResponseDTO.de(contas.saveAndFlush(conta));
     }
@@ -96,6 +110,9 @@ public class ContaPagarService {
     public ContaPagarResponseDTO cancelar(Long id, Long empresaId) {
         var conta = buscarParaAlterar(id, empresaId);
         exigirAberta(conta);
+        if (conta.getEntradaMercadoria() != null
+                && conta.getEntradaMercadoria().getOrigemContaPagar() == OrigemContaPagarEntrada.GERADA)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cancele a entrada de origem para cancelar a conta gerada.");
         conta.cancelar();
         return ContaPagarResponseDTO.de(contas.saveAndFlush(conta));
     }
@@ -125,8 +142,12 @@ public class ContaPagarService {
     private String opcional(String texto) { return texto == null || texto.isBlank() ? null : texto.trim(); }
 
     private ContaPagarEntity buscarParaAlterar(Long id, Long empresaId) {
-        return contas.buscarParaAlterar(id, empresaId).orElseThrow(() ->
+        var conta = contas.buscarParaAlterar(id, empresaId).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta a pagar não encontrada."));
+        em.refresh(conta);
+        // Link/unlink/cancelamento da Entrada também detêm este lock de Conta a Pagar.
+        conta.setEntradaMercadoria(entradas.findByContaPagarIdAndEmpresaId(id, empresaId).orElse(null));
+        return conta;
     }
 
     private void exigirAberta(ContaPagarEntity conta) {

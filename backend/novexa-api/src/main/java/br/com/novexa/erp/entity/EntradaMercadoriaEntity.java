@@ -37,6 +37,13 @@ public class EntradaMercadoriaEntity {
     private LocalDateTime dataCancelamento;
     @Column(updatable = false) private UUID chaveRequisicao;
     @Column(length = 64, updatable = false) private String resumoRequisicao;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conta_pagar_id") private ContaPagarEntity contaPagar;
+    @Enumerated(EnumType.STRING) @Column(length = 20) private OrigemContaPagarEntrada origemContaPagar;
+    private Long usuarioVinculoContaId;
+    private LocalDateTime dataVinculoConta;
+    private UUID chaveGeracaoConta;
+    @Column(length = 64) private String resumoGeracaoConta;
     @OneToMany(mappedBy = "entrada", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("ordem ASC") private List<ItemEntradaMercadoriaEntity> itens = new ArrayList<>();
 
@@ -77,6 +84,24 @@ public class EntradaMercadoriaEntity {
     public UUID getChaveRequisicao() { return chaveRequisicao; }
     public void setChaveRequisicao(UUID v) { chaveRequisicao = v; }
     public String getResumoRequisicao() { return resumoRequisicao; }
+    public ContaPagarEntity getContaPagar() { return contaPagar; }
+    public OrigemContaPagarEntrada getOrigemContaPagar() { return origemContaPagar; }
+    public Long getUsuarioVinculoContaId() { return usuarioVinculoContaId; }
+    public LocalDateTime getDataVinculoConta() { return dataVinculoConta; }
+    public UUID getChaveGeracaoConta() { return chaveGeracaoConta; }
+    public String getResumoGeracaoConta() { return resumoGeracaoConta; }
+    public void vincularConta(ContaPagarEntity conta, OrigemContaPagarEntrada origem, Long usuarioId,
+            UUID chave, String resumo) {
+        contaPagar = conta; origemContaPagar = origem;
+        usuarioVinculoContaId = usuarioId; dataVinculoConta = LocalDateTime.now();
+        chaveGeracaoConta = chave; resumoGeracaoConta = resumo;
+        conta.setEntradaMercadoria(this);
+    }
+    public void desvincularConta() {
+        contaPagar.setEntradaMercadoria(null);
+        contaPagar = null; origemContaPagar = null; usuarioVinculoContaId = null; dataVinculoConta = null;
+        chaveGeracaoConta = null; resumoGeracaoConta = null;
+    }
     public void setResumoRequisicao(String v) { resumoRequisicao = v; }
     public List<ItemEntradaMercadoriaEntity> getItens() { return itens; }
     public void registrarEdicao() { dataAtualizacao = LocalDateTime.now(); }

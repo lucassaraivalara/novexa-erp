@@ -1,17 +1,19 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlineRounded";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-    MenuItem, Paper, Snackbar, Stack, TextField, Typography } from "@mui/material";
+    Link, MenuItem, Paper, Snackbar, Stack, TextField, Typography } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import PageFilters from "../../components/ui/PageFilters";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import FornecedorAutocomplete, { type FornecedorOpcao } from "../../components/fornecedores/FornecedorAutocomplete";
-import { cancelarConta, estornarConta, listarContasPagar,
+import { buscarContaPagar, cancelarConta, estornarConta, listarContasPagar,
     mensagemContaPagar, pagarConta, listarCategoriasContasPagar, resumirContasPagar,
     type ResumoContasPagar } from "../../services/contaPagarService";
 import { listarContasFinanceiras } from "../../services/contaFinanceiraService";
@@ -30,6 +32,11 @@ const hoje = () => {
 };
 
 export default function ContasPagar() {
+    const [parametros, setParametros] = useSearchParams();
+    const contaIdParametro = parametros.get("contaId");
+    const [detalhe, setDetalhe] = useState<ContaPagar | null>(null);
+    const [erroDetalhe, setErroDetalhe] = useState("");
+    const [tentativaDetalhe, setTentativaDetalhe] = useState(0);
     const [contas, setContas] = useState<ContaPagar[]>([]);
     const [fornecedorFiltro, setFornecedorFiltro] = useState<FornecedorOpcao | null>(null);
     const [contasFinanceiras, setContasFinanceiras] = useState<ContaFinanceira[]>([]);
@@ -57,6 +64,26 @@ export default function ContasPagar() {
     const [contaFinanceiraId, setContaFinanceiraId] = useState<number | "" >("");
     const [confirmacao, setConfirmacao] = useState<{ conta: ContaPagar; tipo: "cancelar" | "estornar" } | null>(null);
     const [processando, setProcessando] = useState(false);
+
+    useEffect(() => {
+        if (contaIdParametro === null) return;
+        const controller = new AbortController();
+        if (!/^[1-9]\d*$/.test(contaIdParametro) || !Number.isSafeInteger(Number(contaIdParametro))) {
+            const timer = setTimeout(() => setErroDetalhe("Informe uma conta a pagar válida para abrir o detalhe."), 0);
+            return () => clearTimeout(timer);
+        }
+        buscarContaPagar(Number(contaIdParametro), controller.signal).then(conta => {
+            if (!controller.signal.aborted) { setDetalhe(conta); setErroDetalhe(""); }
+        }).catch(e => { if (!controller.signal.aborted) setErroDetalhe(mensagemContaPagar(e, "Não foi possível abrir a conta vinculada.")); });
+        return () => controller.abort();
+    }, [contaIdParametro, tentativaDetalhe]);
+
+    function fecharDetalhe() {
+        setDetalhe(null); setErroDetalhe("");
+        if (parametros.has("contaId")) {
+            const novos = new URLSearchParams(parametros); novos.delete("contaId"); setParametros(novos, { replace: true });
+        }
+    }
 
     useEffect(() => {
         const controller = new AbortController();
@@ -172,7 +199,12 @@ export default function ContasPagar() {
     }
 
     const colunas: Coluna<ContaPagar>[] = [
-        { campo: "descricao", cabecalho: "Histórico", largura: 240 },
+        { campo: "descricao", cabecalho: "Histórico", largura: 240, render: (_, conta) => <Box sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>
+            <Typography variant="body2">{conta.descricao}</Typography>
+            {conta.entradaMercadoriaId && <Link variant="caption" href={`/estoque?aba=entradas&entradaId=${conta.entradaMercadoriaId}`} target="_blank" rel="noopener noreferrer">
+                {conta.origemVinculoEntrada === "GERADA" ? "Gerada pela entrada" : "Vinculada à entrada"} #{conta.entradaMercadoriaId}
+            </Link>}
+        </Box> },
         { campo: "dataVencimento", cabecalho: "Vencimento", largura: 130, render: (valor) => data(String(valor)) },
         { campo: "id", cabecalho: "Em aberto", largura: 130, alinhar: "right", render: (_, conta) =>
             <Typography component="span" variant="body2" sx={{ fontWeight: 700, color: "primary.main", fontVariantNumeric: "tabular-nums" }}>{moeda.format(emAberto(conta))}</Typography> },
@@ -189,10 +221,11 @@ export default function ContasPagar() {
     const acoes: AcaoTabela<ContaPagar>[] = [
         { rotulo: "Pagar", icone: <CheckCircleOutlineRoundedIcon fontSize="small" />, onClick: abrirPagamento,
             desabilitado: (conta) => conta.status !== "ABERTA", cor: "primary", tooltip: "Pagar conta" },
+        { rotulo: "Consultar conta", icone: <VisibilityOutlinedIcon fontSize="small" />, onClick: setDetalhe, tooltip: "Consultar conta" },
         { rotulo: "Editar", icone: <EditOutlinedIcon fontSize="small" />, onClick: (conta) => setEditor({ conta }),
             desabilitado: (conta) => conta.status !== "ABERTA", tooltip: "Editar conta aberta" },
         { rotulo: "Cancelar", icone: <CancelOutlinedIcon fontSize="small" />, onClick: (conta) => abrirConfirmacao(conta, "cancelar"),
-            desabilitado: (conta) => conta.status !== "ABERTA", cor: "error", tooltip: "Cancelar conta" },
+            desabilitado: (conta) => conta.status !== "ABERTA" || conta.origemVinculoEntrada === "GERADA", cor: "error", tooltip: "Cancelar conta (geradas são canceladas pela entrada)" },
         { rotulo: "Estornar", icone: <UndoRoundedIcon fontSize="small" />, onClick: (conta) => abrirConfirmacao(conta, "estornar"),
             desabilitado: (conta) => conta.status !== "PAGA", tooltip: "Estornar pagamento" },
     ];
@@ -207,6 +240,7 @@ export default function ContasPagar() {
     return <PageContainer>
         <PageHeader titulo="Contas a Pagar" descricao="Consulte vencimentos e valores em aberto. Pagar registra o pagamento integral na conta financeira de origem."
             acoesSecundarias={<Button variant="outlined" startIcon={<AddRoundedIcon />} onClick={() => setEditor({ conta: null })}>Nova conta</Button>} />
+        {erroDetalhe && <Alert severity="error" onClose={fecharDetalhe} action={<Button color="inherit" onClick={() => setTentativaDetalhe(n => n + 1)}>Tentar novamente</Button>}>{erroDetalhe}</Alert>}
         {erro && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErro("")}
             action={contas.length === 0 ? <Button color="inherit" onClick={() => { setCarregando(true); setTentativa((n) => n + 1); }}>Tentar novamente</Button> : undefined}>{erro}</Alert>}
         <Box component="section" aria-label="Resumo de contas a pagar" sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", lg: "repeat(5, minmax(0, 1fr))" }, gap: 1.5, mb: 2 }}>
@@ -255,6 +289,7 @@ export default function ContasPagar() {
                 opcoesLinhasPorPagina: [10, 25, 50] }} />
         {editor && <ContaPagarDrawer key={editor.conta?.id ?? "nova"} conta={editor.conta}
             onFechar={() => setEditor(null)} onSalvo={() => { setTentativa(n => n + 1); setEditor(null); setSucesso("Conta salva."); }} />}
+        {detalhe && <ContaPagarDrawer key={`detalhe-${detalhe.id}`} conta={detalhe} somenteLeitura onFechar={fecharDetalhe} onSalvo={() => {}} />}
         <Dialog open={pagamento !== null} onClose={processando ? undefined : () => setPagamento(null)} fullWidth maxWidth="xs" aria-labelledby="pagar-conta-titulo">
             <form onSubmit={(e) => void confirmarPagamento(e)}>
                 <DialogTitle id="pagar-conta-titulo">Pagar conta</DialogTitle>

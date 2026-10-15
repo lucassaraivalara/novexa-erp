@@ -24,6 +24,8 @@ public class ContaPagarEntity {
     @Column(length = 1000) private String observacao;
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "movimentacao_financeira_id") private MovimentacaoFinanceiraEntity movimentacaoFinanceira;
+    @OneToOne(mappedBy = "contaPagar", fetch = FetchType.LAZY)
+    private EntradaMercadoriaEntity entradaMercadoria;
 
     protected ContaPagarEntity() { }
 
@@ -72,4 +74,10 @@ public class ContaPagarEntity {
     public BigDecimal getValorPago() { return valorPago; }
     public String getObservacao() { return observacao; }
     public MovimentacaoFinanceiraEntity getMovimentacaoFinanceira() { return movimentacaoFinanceira; }
+    public EntradaMercadoriaEntity getEntradaMercadoria() { return entradaMercadoria; }
+    public void setEntradaMercadoria(EntradaMercadoriaEntity entrada) { entradaMercadoria = entrada; }
+    public boolean possuiPagamentoEfetivo() {
+        return status == StatusContaPagar.PAGA || (valorPago != null && valorPago.signum() > 0)
+                || (movimentacaoFinanceira != null && !movimentacaoFinanceira.isEstornada());
+    }
 }

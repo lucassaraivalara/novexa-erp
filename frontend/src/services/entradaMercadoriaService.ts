@@ -3,6 +3,7 @@ import axios from "axios";
 import { obterMensagemDaApi } from "./produtoService";
 import type { PaginaResponse } from "../types/paginacao";
 import type { EntradaMercadoria, EntradaMercadoriaInput, EntradaXmlInput, EntradaXmlPreview, OrigemEntradaMercadoria, StatusEntradaMercadoria } from "../types/entradaMercadoria";
+import type { ObrigacaoEntrada, GerarObrigacaoEntrada } from "../types/entradaMercadoria";
 
 export type FiltrosEntradaMercadoria = {
     page?: number; size?: number; sort?: string; termo?: string;
@@ -22,6 +23,14 @@ export const confirmarEntrada = async (id: number) =>
     (await api.post<EntradaMercadoria>(`${caminho}/${id}/confirmar`)).data;
 export const cancelarEntrada = async (id: number) =>
     (await api.post<EntradaMercadoria>(`${caminho}/${id}/cancelar`)).data;
+export const consultarObrigacaoEntrada = async (id: number, signal?: AbortSignal) =>
+    (await api.get<ObrigacaoEntrada>(`${caminho}/${id}/conta-pagar`, { signal })).data;
+export const gerarObrigacaoEntrada = async (id: number, dados: GerarObrigacaoEntrada) =>
+    (await api.post<ObrigacaoEntrada>(`${caminho}/${id}/conta-pagar/gerar`, dados)).data;
+export const vincularObrigacaoEntrada = async (id: number, contaPagarId: number) =>
+    (await api.post<ObrigacaoEntrada>(`${caminho}/${id}/conta-pagar/vincular`, { contaPagarId })).data;
+export const desvincularObrigacaoEntrada = async (id: number, contaPagarId: number) =>
+    (await api.post<ObrigacaoEntrada>(`${caminho}/${id}/conta-pagar/desvincular`, { contaPagarId })).data;
 
 // Mesmo limite atual de spring.servlet.multipart.max-file-size; o backend valida novamente.
 export const limiteArquivoXml = 2 * 1024 * 1024;

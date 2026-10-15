@@ -17,6 +17,11 @@ public class ContaPagarController {
 
     public ContaPagarController(ContaPagarService service) { this.service = service; }
 
+    @GetMapping("/{id}")
+    public ContaPagarResponseDTO buscar(@PathVariable Long id, @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return service.buscar(id, usuario.empresaId());
+    }
+
     @GetMapping
     public PaginaResponseDTO<ContaPagarResponseDTO> listar(
             @RequestParam(required = false) String busca,

@@ -100,6 +100,18 @@ async function abrir(estado, largura = 1440, rota = "/__entrada") {
             const page = Number(u.searchParams.get("page")), size = Number(u.searchParams.get("size"));
             return responder(200, { items: estado.entradas.map(e => ({ ...e, itens: null })), page, size, totalItems: 60, totalPages: Math.ceil(60 / size) });
         }
+        const obrigacao = u.pathname.match(/^\/estoque\/entradas\/(\d+)\/conta-pagar(?:\/(gerar|vincular|desvincular))?$/);
+        if (obrigacao) {
+            const id = Number(obrigacao[1]), atual = estado.entradas.find(e => e.id === id);
+            estado.obrigacoes ??= {};
+            if (req.method() === "POST" && obrigacao[2] === "gerar") {
+                estado.obrigacoes[id] = { entradaId: id, origem: "GERADA", conta: { id: 501, status: "ABERTA", ...corpo },
+                    podeGerar: false, podeVincular: false, podeDesvincular: false, podeCancelarEntrada: true, motivoBloqueioCancelamento: null };
+            }
+            return responder(200, estado.obrigacoes[id] ?? { entradaId: id, origem: null, conta: null,
+                podeGerar: atual.status === "CONFIRMADA", podeVincular: atual.status === "CONFIRMADA", podeDesvincular: false,
+                podeCancelarEntrada: atual.status === "CONFIRMADA", motivoBloqueioCancelamento: atual.status === "CONFIRMADA" ? null : "Somente entradas confirmadas podem ser canceladas." });
+        }
         if (u.pathname === "/estoque/entradas/importar-xml") {
             if (estado.atrasarPreview) await new Promise(r => setTimeout(r, 500));
             return responder(estado.erroPreview ?? 200, estado.erroPreview ? "Detalhe técnico que não deve aparecer no preview" : estado.preview ?? previewXml());
@@ -362,6 +374,46 @@ async function selecionarXml(page, estado, arquivo = { name: "nota.xml", mimeTyp
     if (!estado.erroPreview) await page.getByRole("dialog", { name: /^Revisar NF-e/ }).waitFor();
     return page.getByRole("dialog", { name: /^Revisar NF-e/ });
 }
+test("obrigação é explícita, permite valor separado e abre a conta exata em nova aba", async () => {
+    const estado = novoEstado(), page = await abrir(estado);
+    try {
+        await entradas(page);
+        await page.getByRole("row").filter({ hasText: "N2" }).getByRole("button", { name: "Visualizar entrada" }).click();
+        const detalhe = page.getByRole("dialog", { name: "Entrada de mercadoria #2", exact: true });
+        await detalhe.getByText(/Sem obrigação vinculada/).waitFor();
+        assert.equal(estado.chamadas.filter(c => c.metodo === "POST").length, 0);
+        await detalhe.getByRole("button", { name: "Gerar conta a pagar", exact: true }).click();
+        const dialog = page.getByRole("dialog", { name: "Gerar conta a pagar", exact: true });
+        assert.equal(await dialog.getByLabel("Valor financeiro (R$)").inputValue(), "10");
+        await dialog.getByLabel("Valor financeiro (R$)").fill("79,25");
+        await dialog.getByLabel("Vencimento").fill("2026-12-10");
+        await dialog.getByRole("button", { name: "Gerar conta a pagar", exact: true }).click();
+        await detalhe.getByText("Conta gerada pela entrada #501", { exact: true }).waitFor();
+        const chamada = estado.chamadas.find(c => c.caminho.endsWith("/conta-pagar/gerar"));
+        assert.equal(chamada.corpo.valor, 79.25);
+        assert.ok(chamada.corpo.chaveRequisicao);
+        assert.equal(chamada.corpo.contaFinanceiraId, undefined);
+        assert.equal(await detalhe.getByRole("link", { name: "Abrir conta a pagar (nova aba)" }).getAttribute("href"), "/financeiro/contas-pagar?contaId=501");
+        assert.equal(await detalhe.getByRole("link", { name: "Abrir conta a pagar (nova aba)" }).getAttribute("target"), "_blank");
+    } finally { await page.close(); }
+});
+
+test("conta paga bloqueia cancelamento antes do POST e mostra o motivo", async () => {
+    const estado = novoEstado();
+    estado.obrigacoes = { 2: { entradaId: 2, origem: "PREEXISTENTE", conta: { id: 72, descricao: "Compra já paga", valor: 10, status: "PAGA" },
+        podeGerar: false, podeVincular: false, podeDesvincular: false, podeCancelarEntrada: false,
+        motivoBloqueioCancelamento: "A conta possui pagamento efetivo. Trate o pagamento explicitamente antes de cancelar." } };
+    const page = await abrir(estado);
+    try {
+        await entradas(page);
+        await page.getByRole("row").filter({ hasText: "N2" }).getByRole("button", { name: "Cancelar entrada" }).click();
+        const dialog = page.getByRole("dialog", { name: "Cancelar esta entrada?" });
+        await dialog.getByText(/A conta possui pagamento efetivo/).waitFor();
+        assert.equal(await dialog.getByRole("button", { name: "Cancelar entrada", exact: true }).isDisabled(), true);
+        assert.equal(estado.chamadas.filter(c => c.metodo === "POST").length, 0);
+    } finally { await page.close(); }
+});
+
 const criacoesXml = estado => estado.chamadas.filter(c => c.caminho === "/estoque/entradas/from-xml");
 
 test("XML: botão, multipart arquivo, preview original e matches, sem persistencia ou estoque", async () => {

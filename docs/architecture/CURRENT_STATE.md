@@ -10,6 +10,14 @@ Dados Bancários  cadastros de Banco, Agência e Conta Bancária via services ex
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Etapa 5 — Entrada e Conta a Pagar explícitas (2026-10-15)
+
+Implementação na branch `feat/central-configuracoes`, sobre `daf77eb`, ainda sem integração: Entrada confirmada pode gerar uma Conta a Pagar aberta com valor financeiro informado separadamente, ou vincular uma conta preexistente aberta/paga. Não há geração por confirmação/XML nem pagamento, baixa ou estorno automático. Vínculo único, tenant-safe, distingue GERADA/PREEXISTENTE; conta gerada não é desvinculada nem cancelada diretamente pelo financeiro. Cancelar a Entrada cancela sua conta gerada aberta na mesma transação do estoque; conta preexistente exige desvinculação, e pagamento efetivo bloqueia cancelamento/desvinculação até tratamento financeiro explícito. Sem vínculo, as regras de Entrada permanecem.
+
+Frontend consulta a obrigação apenas no detalhe/cancelamento, oferece geração/vinculação com busca paginada, expõe bloqueios e abre os registros exatos por `contaId`/`entradaId` em nova aba. A conta mostra a Entrada vinculada; formulários e consultas originais permanecem montados. V37 aditiva reservada/criada nesta branch, sem alteração de migrations anteriores ou backfill. Contrato e limites em [entradas-mercadoria.md](entradas-mercadoria.md) e [financeiro.md](financeiro.md).
+
+Validação pendente por orientação explícita: testes backend/frontend preparados, mas não executados; nenhum build, lint, homologação ou aplicação da V37/PostgreSQL/Flyway/Hibernate validate nesta etapa. Revisão de código/diff e `git diff --check` somente. Contrato definido para implementação da interface, **não declarado CONTRACT READY**; não representa integração homologada. Concorrência real e UI responsiva/teclado também aguardam validação.
+
 ## Central de configurações e organização dos domínios (2026-10-15)
 
 Consolidação na branch `feat/central-configuracoes`, sobre `8d565ac`, por revisão de commits e código: navegação/central e área ativa; Produtos/Fornecedores/Entradas com consultas contextuais; Caixas com operação, histórico e cadastro secundário; Contas e saldos separado da identidade bancária; consulta e ações de Pagar/Receber; previsão e liquidação de cartão; situação comercial, pagamentos e parcelas no detalhe da venda. Os ajustes posteriores à central estão implementados, não apenas descritos em prompts. Detalhes em [frontend.md](frontend.md). Sem nova mudança funcional no produto nesta consolidação.

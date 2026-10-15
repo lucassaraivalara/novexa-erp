@@ -90,6 +90,27 @@ Erros de preview 400/422/409/413 exibem mensagens amigaveis sem detalhes tecnico
 
 Cadastro rapido validado com 37 testes direcionados de Entrada/XML/Produto e 3 verificacoes diretamente afetadas do formulario completo, build/TypeScript e lint. Navegador desktop/mobile com API simulada cobre selecao por item, ausencia de estoque no payload, erros, precisao e bloqueio de clique duplo; nao substitui homologacao com backend real.
 
+## Etapa 5 — obrigação financeira explícita
+
+Implementado na branch `feat/central-configuracoes`, sobre `daf77eb`, com validação pendente. Apenas Entrada CONFIRMADA aceita geração/vinculação por ação do usuário. Criar rascunho, importar XML e confirmar estoque não geram dívida. Cada Entrada possui no máximo uma conta vinculada, e uma conta não pode estar vinculada a duas Entradas. GERADA identifica conta criada pela Entrada; PREEXISTENTE identifica conta manual já cadastrada. Datas/usuário de vinculação são persistidos. Desvincular uma preexistente remove a associação atual e preserva a conta; não existe novo histórico financeiro ou exclusão de títulos.
+
+Contrato autenticado, empresa sempre do JWT; respostas 200 com ObrigacaoEntradaDTO (`entradaId`, `origem`, `conta`, `usuarioVinculoId`, `dataVinculo`, `podeGerar`, `podeVincular`, `podeDesvincular`, `podeCancelarEntrada`, `motivoBloqueioCancelamento`):
+
+- `GET /estoque/entradas/{id}/conta-pagar`: consulta; sem vínculo, `conta`/`origem` nulos. Flags descrevem o estado financeiro; saldo físico e demais regras de cancelamento continuam revalidados pelo endpoint existente.
+- `POST /estoque/entradas/{id}/conta-pagar/gerar`: `{chaveRequisicao: UUID, descricao, valor, dataVencimento}`. Valor positivo, até duas casas, independente do total operacional; fornecedor/documento/emissão vêm da Entrada, sem inferir frete/impostos. Reutiliza criação de ContaPagar ABERTA, sem movimento financeiro. Mesma chave e mesmos dados normalizados retornam a obrigação existente, inclusive após cancelamento; chave/payload diferentes com vínculo existente retornam 409. Conta gerada permanece vinculada para preservar origem e impedir nova geração.
+- `POST /estoque/entradas/{id}/conta-pagar/vincular`: `{contaPagarId}`. Aceita ABERTA/PAGA da empresa, sem vínculo anterior; fornecedor informado deve coincidir com a Entrada. Conta sem fornecedor pode ser escolhida explicitamente, sem preencher ou alterar seu cadastro. Valor, pagamento e histórico existentes não mudam. Repetir o mesmo vínculo retorna o estado atual.
+- `POST /estoque/entradas/{id}/conta-pagar/desvincular`: `{contaPagarId}` esperado. Apenas PREEXISTENTE sem pagamento efetivo e em Entrada confirmada; vínculo diferente retorna 409. Repetir sem vínculo não altera nada. Conta gerada não pode perder a origem.
+
+Pagamento efetivo considera status PAGA, valor pago positivo ou movimento financeiro não estornado; registros legados pagos também bloqueiam. A integração nunca chama baixa ou estorno. Depois do tratamento financeiro explícito pelos fluxos existentes, o estado é reavaliado.
+
+Cancelamento da Entrada: sem conta, comportamento anterior; com GERADA aberta, cancela a obrigação e reverte estoque na mesma transação (falha física também desfaz cancelamento financeiro). Com PREEXISTENTE, bloqueia até desvincular, sem cancelá-la automaticamente. Com pagamento efetivo, bloqueia também a desvinculação. Cancelamento repetido de Entrada CANCELADA conserva o histórico. Não restaura custo nem altera regras de estoque.
+
+V37 aditiva inclui vínculo opcional, FK ContaPagar/usuário por empresa, unicidade da conta, check de origem/auditoria e chave/resumo de geração, sem backfill. Operações bloqueiam contas antes da Entrada; o cancelamento prossegue para os produtos só depois da decisão financeira. Leitura anterior ao lock é revalidada; mudança concorrente do vínculo retorna 409 para atualização/retry. ContaPagar mantém seu lock nas operações de editar/pagar/cancelar/estornar; não adquire lock de Entrada depois dele por outra ordem.
+
+Frontend: detalhe confirmado/cancelado mostra origem, situação e valor financeiro; geração sugere somente `valorTotal`, permite edição e preserva UUID/payload em tentativa incerta. Vinculação consulta páginas de contas, sem carregar catálogo completo; canceladas, já vinculadas e fornecedores incompatíveis não são selecionáveis. Consulta/atualização da obrigação não apaga dados do formulário. A conta exata abre `/financeiro/contas-pagar?contaId=...`; o retorno abre `/estoque?aba=entradas&entradaId=...`. Ambos usam nova aba para preservar o contexto de origem. Fechar detalhes remove apenas o parâmetro correspondente. Cancelar exige consulta prévia de bloqueios e nova validação no backend; não há consultas de obrigação por linha da listagem.
+
+Testes de regressão backend e frontend preparados, sem execução. Testes, build, lint, homologação, concorrência PostgreSQL, V37/Flyway/Hibernate validate e responsividade/teclado pendentes por orientação explícita. Sem CONTRACT READY.
+
 ## Fora desta etapa
 
-ProdutoFornecedor, matching por nome, Pedido/Ordem de Compra, Cotacao, recebimento parcial, custo medio, tributacao e geracao automatica de Conta a Pagar nao foram implementados. Entrada nao altera Caixa, Contas Financeiras, PIX, Recebiveis ou Transferencias.
+ProdutoFornecedor, matching por nome, Pedido/Ordem de Compra, Cotacao, recebimento parcial, custo medio, tributacao e geracao automatica de Conta a Pagar nao foram implementados. A integração explícita acima não movimenta Caixa, Contas Financeiras, PIX, Recebiveis ou Transferencias.

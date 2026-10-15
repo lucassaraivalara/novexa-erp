@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { Alert, Box, Button, Drawer, IconButton, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Drawer, IconButton, Link, Stack, TextField, Typography } from "@mui/material";
 import FornecedorAutocomplete, { type FornecedorOpcao } from "../../components/fornecedores/FornecedorAutocomplete";
 import { mensagemContaPagar, salvarContaPagar } from "../../services/contaPagarService";
 import type { ContaPagar, ContaPagarInput } from "../../types/contaPagar";
@@ -9,9 +9,10 @@ type Props = {
     conta: ContaPagar | null;
     onFechar: () => void;
     onSalvo: (conta: ContaPagar) => void;
+    somenteLeitura?: boolean;
 };
 
-export default function ContaPagarDrawer({ conta, onFechar, onSalvo }: Props) {
+export default function ContaPagarDrawer({ conta, onFechar, onSalvo, somenteLeitura = false }: Props) {
     const [form, setForm] = useState({
         descricao: conta?.descricao ?? "",
         documento: conta?.documento ?? "",
@@ -30,7 +31,7 @@ export default function ContaPagarDrawer({ conta, onFechar, onSalvo }: Props) {
 
     async function enviar(evento: FormEvent<HTMLFormElement>) {
         evento.preventDefault();
-        if (salvando) return;
+        if (salvando || somenteLeitura) return;
         const valor = Number(form.valor.replace(",", "."));
         if (!Number.isFinite(valor) || valor <= 0 || Math.abs(valor * 100 - Math.round(valor * 100)) > 0.000001) {
             setErro("Informe um valor positivo com até duas casas decimais.");
@@ -52,16 +53,22 @@ export default function ContaPagarDrawer({ conta, onFechar, onSalvo }: Props) {
         slotProps={{ paper: { "aria-labelledby": "conta-pagar-drawer-titulo", sx: { width: { xs: "100%", sm: 500 }, maxWidth: "100vw" } } }}>
         <Box component="form" onSubmit={(e) => void enviar(e)} sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
             <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", px: 3, py: 2, borderBottom: 1, borderColor: "divider" }}>
-                <Typography id="conta-pagar-drawer-titulo" variant="h6" component="h2">{conta ? "Editar conta" : "Nova conta a pagar"}</Typography>
+                <Typography id="conta-pagar-drawer-titulo" variant="h6" component="h2">{somenteLeitura ? `Conta a pagar #${conta?.id}` : conta ? "Editar conta" : "Nova conta a pagar"}</Typography>
                 <IconButton aria-label="Fechar formulário" onClick={onFechar} disabled={salvando}><CloseRoundedIcon /></IconButton>
             </Stack>
             <Stack spacing={2} sx={{ p: 3, overflowY: "auto", flex: 1 }}>
                 {erro && <Alert severity="error">{erro}</Alert>}
+                {conta?.entradaMercadoriaId && <Alert severity="info">
+                    {conta.origemVinculoEntrada === "GERADA" ? "Conta gerada pela entrada. Cancele a obrigação pela origem." : "Conta preexistente vinculada à entrada."}{' '}
+                    <Link href={`/estoque?aba=entradas&entradaId=${conta.entradaMercadoriaId}`} target="_blank" rel="noopener noreferrer">Abrir entrada #{conta.entradaMercadoriaId} (nova aba)</Link>
+                </Alert>}
+                {somenteLeitura && conta && <Typography variant="body2">Situação: {conta.status === "PAGA" ? "Paga" : conta.status === "ABERTA" ? "Aberta" : "Cancelada"}</Typography>}
+                <Stack component="fieldset" spacing={2} disabled={somenteLeitura || salvando} sx={{ border: 0, m: 0, p: 0, minWidth: 0 }}>
                 <TextField autoFocus required fullWidth label="Descrição" name="descricao" value={form.descricao}
                     onChange={(e) => setForm({ ...form, descricao: e.target.value })} slotProps={{ htmlInput: { maxLength: 200 } }} />
                 <TextField fullWidth label="Número do documento" name="documento" value={form.documento}
                     onChange={(e) => setForm({ ...form, documento: e.target.value })} slotProps={{ htmlInput: { maxLength: 80 } }} />
-                <FornecedorAutocomplete value={fornecedor} placeholder="Sem fornecedor"
+                <FornecedorAutocomplete value={fornecedor} placeholder="Sem fornecedor" disabled={somenteLeitura || !!conta?.entradaMercadoriaId}
                     onChange={(item) => { setFornecedor(item); setForm({ ...form, fornecedorId: item?.id ?? "" }); }} />
                 <TextField fullWidth label="Categoria" name="categoria" value={form.categoria}
                     onChange={(e) => setForm({ ...form, categoria: e.target.value })} slotProps={{ htmlInput: { maxLength: 100 } }} />
@@ -75,10 +82,11 @@ export default function ContaPagarDrawer({ conta, onFechar, onSalvo }: Props) {
                     onChange={(e) => setForm({ ...form, valor: e.target.value })} />
                 <TextField fullWidth multiline minRows={3} label="Observação" name="observacao" value={form.observacao}
                     onChange={(e) => setForm({ ...form, observacao: e.target.value })} slotProps={{ htmlInput: { maxLength: 1000 } }} />
+                </Stack>
             </Stack>
             <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", px: 3, py: 2, borderTop: 1, borderColor: "divider" }}>
-                <Button onClick={onFechar} disabled={salvando}>Cancelar</Button>
-                <Button type="submit" variant="contained" disabled={salvando}>{salvando ? "Salvando…" : "Salvar"}</Button>
+                <Button onClick={onFechar} disabled={salvando}>{somenteLeitura ? "Fechar" : "Cancelar"}</Button>
+                {!somenteLeitura && <Button type="submit" variant="contained" disabled={salvando}>{salvando ? "Salvando…" : "Salvar"}</Button>}
             </Stack>
         </Box>
     </Drawer>;

@@ -9,6 +9,7 @@ import { atualizarEntrada, buscarEntradaPorId, confirmarEntrada, criarEntrada, c
 import { obterMensagemDaApi } from "../../services/produtoService";
 import type { EntradaMercadoria, EntradaMercadoriaInput, EntradaXmlPreview } from "../../types/entradaMercadoria";
 import EntradaMercadoriaItens from "./EntradaMercadoriaItens";
+import EntradaObrigacao from "./EntradaObrigacao";
 import { novoItemEntrada, numeroEntrada, totalPreviewEntrada, validarItensEntrada, type ItemFormularioEntrada } from "./entradaMercadoriaRegras";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -135,7 +136,7 @@ export default function EntradaMercadoriaForm({ entrada, previewXml, onFechar, o
 
     if (somenteLeitura) return <Dialog open onClose={onFechar} fullWidth maxWidth="md" aria-labelledby="entrada-detalhe-titulo">
         <DialogTitle id="entrada-detalhe-titulo">Entrada de mercadoria #{persistida.id}</DialogTitle>
-        <DialogContent dividers>{conteudo}</DialogContent><DialogActions><Button onClick={onFechar}>Fechar</Button></DialogActions>
+        <DialogContent dividers>{conteudo}<EntradaObrigacao key={persistida.id} entrada={persistida} /></DialogContent><DialogActions><Button onClick={onFechar}>Fechar</Button></DialogActions>
     </Dialog>;
     return <>
         <CadastroDialog aberto variante="full" titulo={persistida ? `Editar entrada #${persistida.id}` : previewXml ? "Revisar NF-e" : "Entrada manual"}

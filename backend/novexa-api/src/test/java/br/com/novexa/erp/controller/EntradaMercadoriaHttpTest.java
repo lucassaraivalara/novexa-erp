@@ -42,6 +42,7 @@ class EntradaMercadoriaHttpTest {
     @Autowired ProdutoRepository produtos;
     @Autowired EntradaMercadoriaRepository entradas;
     @Autowired MovimentacaoEstoqueRepository movimentos;
+    @Autowired ContaFinanceiraRepository contasFinanceirasTeste;
     @Autowired JwtService jwt;
     @MockitoSpyBean MovimentacaoEstoqueService estoque;
     EmpresaEntity empresa, outra;
@@ -58,7 +59,7 @@ class EntradaMercadoriaHttpTest {
     }
     @AfterEach void limpar() {
         reset(estoque);
-        for (String tabela : List.of("itens_entrada_mercadoria", "entradas_mercadoria", "movimentacoes_caixa", "movimentacoes_financeiras",
+        for (String tabela : List.of("itens_entrada_mercadoria", "entradas_mercadoria", "contas_pagar", "movimentacoes_caixa", "movimentacoes_financeiras", "contas_financeiras",
                 "recebiveis", "pagamentos", "itens_venda", "vendas", "movimentacoes_estoque", "produtos", "fornecedores",
                 "sessoes_caixa", "caixas", "usuario", "empresas")) jdbc.update("delete from " + tabela);
     }
@@ -95,6 +96,112 @@ class EntradaMercadoriaHttpTest {
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(dados)));
     }
     BigDecimal saldo(ProdutoEntity p) { return produtos.findById(p.getId()).orElseThrow().getEstoqueAtual(); }
+
+    ResultActions obrigacao(long entradaId, String acao, Object dados) throws Exception {
+        return mvc.perform(post("/estoque/entradas/" + entradaId + "/conta-pagar/" + acao)
+                .header("Authorization", authorization).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(dados)));
+    }
+    Map<String, Object> geracao() {
+        return Map.of("chaveRequisicao", UUID.randomUUID(), "descricao", "Obrigação da entrada", "valor", "65.25", "dataVencimento", "2026-12-10");
+    }
+    long confirmarNovaEntrada() throws Exception {
+        long entradaId = criarEntrada(); operacao(entradaId, "confirmar").andExpect(status().isOk()); return entradaId;
+    }
+    long contaPreexistente() throws Exception {
+        return id(mvc.perform(post("/financeiro/contas-pagar").header("Authorization", authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("descricao", "Compra registrada",
+                        "fornecedorId", fornecedor.getId(), "valor", "65.25", "dataVencimento", "2026-12-10"))))
+                .andExpect(status().isCreated()));
+    }
+
+    @Test void obrigacaoExplicitaTemValorSeparadoERepeticaoNaoDuplicaNemMovimentaSaldo() throws Exception {
+        long entradaId = confirmarNovaEntrada();
+        mvc.perform(get("/estoque/entradas/" + entradaId + "/conta-pagar").header("Authorization", authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.conta").isEmpty());
+        var pedido = geracao();
+        var gerada = obrigacao(entradaId, "gerar", pedido).andExpect(status().isOk())
+                .andExpect(jsonPath("$.origem").value("GERADA")).andExpect(jsonPath("$.conta.valor").value(65.25))
+                .andExpect(jsonPath("$.conta.status").value("ABERTA")).andExpect(jsonPath("$.podeDesvincular").value(false));
+        long contaId = json.readTree(gerada.andReturn().getResponse().getContentAsString()).path("conta").path("id").asLong();
+        obrigacao(entradaId, "gerar", pedido).andExpect(status().isOk()).andExpect(jsonPath("$.conta.id").value(contaId));
+        var alterado = new HashMap<>(pedido); alterado.put("valor", "66.00");
+        obrigacao(entradaId, "gerar", alterado).andExpect(status().isConflict());
+        obrigacao(entradaId, "gerar", geracao()).andExpect(status().isConflict());
+        mvc.perform(get("/estoque/entradas/" + entradaId).header("Authorization", authorization))
+                .andExpect(jsonPath("$.valorTotal").value(17.5));
+        assertThat(jdbc.queryForObject("select count(*) from contas_pagar", Long.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from movimentacoes_financeiras", Long.class)).isZero();
+        assertThat(saldo(produto)).isEqualByComparingTo("15");
+    }
+
+    @Test void cancelarEntradaCancelaSomenteContaGeradaAbertaERepeteSemNovoEfeito() throws Exception {
+        long entradaId = confirmarNovaEntrada();
+        var resposta = obrigacao(entradaId, "gerar", geracao()).andExpect(status().isOk());
+        long contaId = json.readTree(resposta.andReturn().getResponse().getContentAsString()).path("conta").path("id").asLong();
+        mvc.perform(post("/financeiro/contas-pagar/" + contaId + "/cancelar").header("Authorization", authorization)).andExpect(status().isConflict());
+        obrigacao(entradaId, "desvincular", Map.of("contaPagarId", contaId)).andExpect(status().isConflict());
+        operacao(entradaId, "cancelar").andExpect(status().isOk());
+        operacao(entradaId, "cancelar").andExpect(status().isOk());
+        mvc.perform(get("/financeiro/contas-pagar/" + contaId).header("Authorization", authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELADA"))
+                .andExpect(jsonPath("$.entradaMercadoriaId").value(entradaId)).andExpect(jsonPath("$.origemVinculoEntrada").value("GERADA"));
+        assertThat(saldo(produto)).isEqualByComparingTo("10");
+        assertThat(jdbc.queryForObject("select count(*) from movimentacoes_financeiras", Long.class)).isZero();
+    }
+
+    @Test void contaPreexistenteRequerDesvinculacaoENuncaECanceladaPelaEntrada() throws Exception {
+        long entradaId = confirmarNovaEntrada(), contaId = contaPreexistente();
+        obrigacao(entradaId, "vincular", Map.of("contaPagarId", contaId)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.origem").value("PREEXISTENTE")).andExpect(jsonPath("$.podeCancelarEntrada").value(false));
+        obrigacao(entradaId, "vincular", Map.of("contaPagarId", contaId)).andExpect(status().isOk());
+        operacao(entradaId, "cancelar").andExpect(status().isConflict());
+        long outraEntrada = confirmarNovaEntrada();
+        obrigacao(outraEntrada, "vincular", Map.of("contaPagarId", contaId)).andExpect(status().isConflict());
+        obrigacao(entradaId, "desvincular", Map.of("contaPagarId", contaId)).andExpect(status().isOk());
+        obrigacao(entradaId, "desvincular", Map.of("contaPagarId", contaId)).andExpect(status().isOk());
+        operacao(entradaId, "cancelar").andExpect(status().isOk());
+        mvc.perform(get("/financeiro/contas-pagar/" + contaId).header("Authorization", authorization))
+                .andExpect(jsonPath("$.status").value("ABERTA")).andExpect(jsonPath("$.entradaMercadoriaId").isEmpty());
+    }
+
+    @Test void vincularPagaNaoRepetePagamentoEBloqueiaCancelamentoEDesvinculacao() throws Exception {
+        long entradaId = confirmarNovaEntrada(), contaId = contaPreexistente();
+        var financeiras = new ContaFinanceiraEntity(empresa, "Cofre teste", TipoContaFinanceira.COFRE, new BigDecimal("200"));
+        // O pagamento real usa o fluxo financeiro existente; a vinculação não o executa novamente.
+        financeiras = contasFinanceirasTeste.saveAndFlush(financeiras);
+        mvc.perform(post("/financeiro/contas-pagar/" + contaId + "/pagar").header("Authorization", authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("contaFinanceiraId", financeiras.getId(),
+                        "valorPago", "65.25", "dataPagamento", "2026-10-15")))).andExpect(status().isOk());
+        long movimentosAntes = jdbc.queryForObject("select count(*) from movimentacoes_financeiras", Long.class);
+        obrigacao(entradaId, "vincular", Map.of("contaPagarId", contaId)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.conta.status").value("PAGA")).andExpect(jsonPath("$.podeDesvincular").value(false));
+        operacao(entradaId, "cancelar").andExpect(status().isConflict());
+        obrigacao(entradaId, "desvincular", Map.of("contaPagarId", contaId)).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("select count(*) from movimentacoes_financeiras", Long.class)).isEqualTo(movimentosAntes);
+        assertThat(contasFinanceirasTeste.findById(financeiras.getId()).orElseThrow().getSaldoAtual()).isEqualByComparingTo("134.75");
+        mvc.perform(post("/financeiro/contas-pagar/" + contaId + "/estornar").header("Authorization", authorization)).andExpect(status().isOk());
+        obrigacao(entradaId, "desvincular", Map.of("contaPagarId", contaId)).andExpect(status().isOk());
+    }
+
+    @Test void obrigacaoRespeitaEstadoTenantEReverteCancelamentoSeEstoqueFalhar() throws Exception {
+        long entradaId = criarEntrada();
+        obrigacao(entradaId, "gerar", geracao()).andExpect(status().isConflict());
+        mvc.perform(get("/estoque/entradas/" + entradaId + "/conta-pagar").header("Authorization", authorizationB)).andExpect(status().isNotFound());
+        operacao(entradaId, "confirmar").andExpect(status().isOk());
+        long contaOutra = id(mvc.perform(post("/financeiro/contas-pagar").header("Authorization", authorizationB)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("descricao", "Outra empresa",
+                        "fornecedorId", fornecedorB.getId(), "valor", "65.25", "dataVencimento", "2026-12-10"))))
+                .andExpect(status().isCreated()));
+        obrigacao(entradaId, "vincular", Map.of("contaPagarId", contaOutra)).andExpect(status().isNotFound());
+        obrigacao(entradaId, "gerar", geracao()).andExpect(status().isOk());
+        var user = usuarios.findAll().stream().filter(u -> u.getEmpresa().getId().equals(empresa.getId())).findFirst().orElseThrow();
+        estoque.movimentar(empresa.getId(), produto.getId(), user.getId(), TipoMovimentacaoEstoque.SAIDA,
+                OrigemMovimentacaoEstoque.MANUAL, new BigDecimal("15"), "Consumo");
+        operacao(entradaId, "cancelar").andExpect(status().isConflict());
+        mvc.perform(get("/estoque/entradas/" + entradaId + "/conta-pagar").header("Authorization", authorization))
+                .andExpect(jsonPath("$.conta.status").value("ABERTA"));
+        assertThat(entradas.findById(entradaId).orElseThrow().getStatus()).isEqualTo(StatusEntradaMercadoria.CONFIRMADA);
+    }
 
     @Test void criaRascunhoComTotaisCalculadosSemAlterarEstoqueCustoOuFinanceiro() throws Exception {
         var p = pedido(); p.put("valorTotal", 999); p.put("empresaId", outra.getId()); p.put("origem", "XML"); p.put("status", "CONFIRMADA");
