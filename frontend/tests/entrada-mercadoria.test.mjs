@@ -142,7 +142,7 @@ async function abrir(estado, largura = 1440, rota = "/__entrada") {
     return page;
 }
 async function entradas(page) {
-    await page.getByRole("tab", { name: "Entradas", exact: true }).click();
+    await page.getByRole("tab", { name: "Entradas de mercadoria", exact: true }).click();
     await page.getByRole("row").filter({ hasText: "N1" }).waitFor();
 }
 async function preencher(page, estado) {

@@ -212,10 +212,10 @@ test("Produtos e Estoque preservam abas contextuais reais", () => withLayout(asy
     await page.goto(`${url}/estoque?real&origem=atalho`);
     const stock = page.getByRole("tablist",{name:"Área de estoque"});
     await stock.waitFor();
-    assert.deepEqual(await stock.getByRole("tab").allTextContents(),["Saldo","Entradas"]);
-    await stock.getByRole("tab",{name:"Entradas",exact:true}).click();
+    assert.deepEqual(await stock.getByRole("tab").allTextContents(),["Saldo","Entradas de mercadoria"]);
+    await stock.getByRole("tab",{name:"Entradas de mercadoria",exact:true}).click();
     await page.getByRole("button",{name:"Entrada manual",exact:true}).waitFor();
-    assert.equal(await stock.getByRole("tab",{name:"Entradas",exact:true}).getAttribute("aria-selected"),"true");
+    assert.equal(await stock.getByRole("tab",{name:"Entradas de mercadoria",exact:true}).getAttribute("aria-selected"),"true");
     assert.equal(new URL(page.url()).searchParams.get("aba"),"entradas");
     assert.equal(new URL(page.url()).searchParams.get("origem"),"atalho");
     await page.getByRole("navigation").getByRole("button",{name:"Estoque",exact:true}).click();
@@ -224,7 +224,7 @@ test("Produtos e Estoque preservam abas contextuais reais", () => withLayout(asy
     await expect(stock.getByRole("tab",{name:"Saldo",exact:true})).toHaveAttribute("aria-selected","true");
     await page.getByRole("navigation").getByRole("button",{name:"Estoque",exact:true}).click();
     await page.getByRole("link",{name:"Entradas de mercadoria",exact:true}).click();
-    await expect(stock.getByRole("tab",{name:"Entradas",exact:true})).toHaveAttribute("aria-selected","true");
+    await expect(stock.getByRole("tab",{name:"Entradas de mercadoria",exact:true})).toHaveAttribute("aria-selected","true");
 }));
 
 test("Cabecalhos de pagina e atalhos usam a nomenclatura da navegacao", async () => {
@@ -343,7 +343,7 @@ test("Dashboard usa identidade real, atalhos funcionais e não transborda nos br
     }
     await page.getByRole("link",{name:/Entrada de mercadoria/}).click();
     await page.waitForURL(`${url}/estoque?aba=entradas`);
-    assert.equal(await page.getByRole("tab",{name:"Entradas",exact:true}).getAttribute("aria-selected"),"true");
+    assert.equal(await page.getByRole("tab",{name:"Entradas de mercadoria",exact:true}).getAttribute("aria-selected"),"true");
 }, {usuario:"Maria Silva",empresa:"Loja Novexa"}));
 
 test("AppHeader preserva logo e nomes longos com ellipsis e tooltip condicional", () => withLayout(async page => {

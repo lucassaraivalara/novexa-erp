@@ -86,7 +86,7 @@ export default function EntradasMercadoria() {
         { rotulo: "Cancelar entrada", icone: <BlockOutlinedIcon />, cor: "error", onClick: setCancelamento, desabilitado: e => ocupado || e.status !== "CONFIRMADA" },
     ];
     return <PageContainer>
-        <PageHeader titulo="Entradas de mercadoria" descricao="Registre e acompanhe o recebimento de mercadorias."
+        <PageHeader titulo="Entradas de mercadoria" descricao="Registre recebimentos com fornecedor e itens. O estoque é atualizado ao confirmar a entrada."
             acoesSecundarias={<Button variant="outlined" startIcon={<UploadFileOutlinedIcon />} disabled={ocupado}
                 onClick={() => { setSucesso(""); setImportandoXml(true); }}>Importar XML</Button>}
             acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} disabled={ocupado}

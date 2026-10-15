@@ -37,7 +37,7 @@ test.describe("smoke da base estável", () => {
         await expect(page.getByText("Produto atualizado com sucesso.")).toBeVisible();
 
         await page.goto("/estoque");
-        await expect(page.getByRole("main").getByRole("heading", { name: "Estoque" })).toBeVisible();
+        await expect(page.getByRole("main").getByRole("heading", { name: "Saldo" })).toBeVisible();
         await expect(page.getByRole("row").filter({ hasText: produto })).toBeVisible();
         let linhaEstoque = page.getByRole("row").filter({ hasText: produto });
 

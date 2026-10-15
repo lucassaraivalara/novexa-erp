@@ -49,9 +49,9 @@ export default function Estoque() {
             const proximo = new URLSearchParams(params);
             if (valor === "entradas") proximo.set("aba", valor); else proximo.delete("aba");
             setParams(proximo, { replace: true });
-        }} aria-label="Área de estoque"
+        }} aria-label="Área de estoque" variant="scrollable" scrollButtons="auto"
             sx={{ borderBottom: 1, borderColor: "divider" }}>
-            <Tab value="saldo" label="Saldo" /><Tab value="entradas" label="Entradas" />
+            <Tab value="saldo" label="Saldo" /><Tab value="entradas" label="Entradas de mercadoria" />
         </Tabs>
         {aba === "saldo" ? <SaldoEstoque /> : <EntradasMercadoria />}
     </Stack>;
@@ -181,7 +181,7 @@ function SaldoEstoque() {
         ? novoSaldoEsperado(operacao!, dialogo.produto.estoqueAtual, valor) : null;
 
     return <PageContainer>
-        <PageHeader titulo="Estoque" descricao="Consulte saldos e registre movimentações operacionais." />
+        <PageHeader titulo="Saldo" descricao="Consulte saldos. A entrada avulsa movimenta um produto; o ajuste define o novo saldo físico." />
         {erro && <Alert severity="error" onClose={() => setErro("")}>{erro}</Alert>}
         <Stack spacing={1.5}>
             <PageFilters

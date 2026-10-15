@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Link, Stack, TextField, Typography } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import StatusChip from "../../components/ui/StatusChip";
@@ -90,6 +90,13 @@ export default function EntradaMercadoriaForm({ entrada, previewXml, onFechar, o
 
     const conteudo = <Stack spacing={2.5}>
         {erro && <Alert severity="error">{erro}</Alert>}
+        {!somenteLeitura && <Stack spacing={0.5}>
+            <Stack direction="row" sx={{ flexWrap: "wrap", gap: 2 }}>
+                <Link href="/produtos" target="_blank" rel="noopener noreferrer">Consultar produtos (nova aba)</Link>
+                <Link href="/produtos?aba=fornecedores" target="_blank" rel="noopener noreferrer">Consultar fornecedores (nova aba)</Link>
+            </Stack>
+            <Typography variant="body2" color="text.secondary">Após consultar, volte à aba desta entrada para continuar com os dados preenchidos.</Typography>
+        </Stack>}
         {persistida && <Box><StatusChip status={persistida.status} /></Box>}
         {previewXml && <Stack spacing={1} sx={{ overflowWrap: "anywhere" }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Dados da NF-e</Typography>
@@ -132,7 +139,7 @@ export default function EntradaMercadoriaForm({ entrada, previewXml, onFechar, o
     </Dialog>;
     return <>
         <CadastroDialog aberto variante="full" titulo={persistida ? `Editar entrada #${persistida.id}` : previewXml ? "Revisar NF-e" : "Entrada manual"}
-            salvando={salvando} onFechar={onFechar} onSubmit={revisar} textoSalvar="Confirmar entrada" textoCancelar="Voltar"
+            salvando={salvando} onFechar={onFechar} onSubmit={revisar} textoSalvar="Confirmar entrada" textoCancelar="Voltar às entradas"
             desabilitarSalvar={resolucaoPendente}
             acoesSecundarias={<Button type="button" disabled={salvando || resolucaoPendente} onClick={() => void salvar(false)}>{previewXml ? "Salvar como rascunho" : "Salvar rascunho"}</Button>}>
             {conteudo}

@@ -214,7 +214,7 @@ function Produtos() {
         <PageContainer>
             <PageHeader
                 titulo="Produtos"
-                descricao="Cadastre, consulte e mantenha o catálogo da empresa."
+                descricao="Cadastre e mantenha os dados dos produtos. Registre o recebimento de mercadorias em Estoque."
                 acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={abrirCadastro}>Novo produto</Button>}
             />
 

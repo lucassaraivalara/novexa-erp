@@ -72,7 +72,7 @@ export const rotasInternas: RotaInterna[] = [
     },
     {
         caminho: "estoque",
-        titulo: "Estoque",
+        titulo: "Saldo",
         icone: <WarehouseRoundedIcon />,
         elemento: <Estoque />,
     },

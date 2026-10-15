@@ -16,7 +16,9 @@ Desktop usa um unico conjunto flutuante, a 8px das bordas, com altura calc(100dv
 
 Em telas baixas, a faixa de icones possui rolagem vertical independente, preservando os alvos de 44px e o acesso aos ultimos dominios.
 
-Vender e PDV apontam para /pdv, cujo layout operacional independente permanece. Caixas aponta para /financeiro/caixas sem abrir sessao. Produtos/Fornecedores e Saldo/Entradas usam as mesmas telas existentes; menu, abas, titulo e selecao sincronizam por ?aba=fornecedores e ?aba=entradas. Caixas e Dados Bancarios preservam suas abas. Entrada avulsa identifica a movimentacao isolada de produto, distinta da Entrada manual de mercadoria. Nomes apresentados nao renomeiam dominios, services ou endpoints.
+Vender e PDV apontam para /pdv, cujo layout operacional independente permanece. Caixas aponta para /financeiro/caixas sem abrir sessao. Produtos/Fornecedores e Saldo/Entradas de mercadoria usam as mesmas telas existentes; menu, abas, titulo e selecao sincronizam por ?aba=fornecedores e ?aba=entradas. Caixas e Dados Bancarios preservam suas abas. Entrada avulsa identifica a movimentacao isolada de produto, distinta da Entrada manual de mercadoria. Nomes apresentados nao renomeiam dominios, services ou endpoints.
+
+Entradas de mercadoria oferece consultas a Produtos (`/produtos`) e Fornecedores (`/produtos?aba=fornecedores`) em nova aba no formulário manual/XML, preservando os dados e a URL da entrada original. A orientação indica retornar à aba da entrada para continuar; Voltar às entradas fecha o formulário pelo callback existente. Cadastros rápidos continuam no mesmo formulário, sem novas ações de criação. A área Estoque usa Saldo e Entradas de mercadoria também nas abas e títulos, com abas roláveis em telas pequenas. Textos distinguem o catálogo, o recebimento confirmado e a movimentação/ajuste avulso. Detalhes em [entradas-mercadoria.md](entradas-mercadoria.md). Etapa na branch `feat/central-configuracoes`, sobre `8fd6b40`; testes, build, lint e homologação pendentes por orientação explícita.
 
 ## PDV - comandos operacionais
 
