@@ -120,13 +120,13 @@ export const rotasInternas: RotaInterna[] = [
     },
     {
         caminho: "financeiro/dados-bancarios",
-        titulo: "Dados Bancários",
+        titulo: "Dados bancários",
         icone: <AccountBalanceRoundedIcon />,
         elemento: <DadosBancarios />,
     },
     {
         caminho: "financeiro/formas-pagamento",
-        titulo: "Formas de Pagamento",
+        titulo: "Formas de pagamento",
         icone: <PaymentsRoundedIcon />,
         elemento: <FormasPagamento />,
     },

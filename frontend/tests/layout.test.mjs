@@ -160,7 +160,7 @@ test("Central compacta preserva destinos, teclado e acesso no rodape sem consult
 
 test("Rotas administrativas diretas mantem Configuracoes ativa, retorno e historico", () => withLayout(async page => {
     await mockCatalogs(page);
-    for (const [path,title] of [["/empresa","Empresas"],["/usuarios","Usuários"],["/financeiro/formas-pagamento","Formas de Pagamento"],["/financeiro/dados-bancarios","Dados Bancários"]]) {
+    for (const [path,title] of [["/empresa","Empresas"],["/usuarios","Usuários"],["/financeiro/formas-pagamento","Formas de pagamento"],["/financeiro/dados-bancarios","Dados bancários"]]) {
         await page.goto(`${url}${path}?real&origem=atalho`);
         await page.getByRole("main").getByRole("heading",{name:title,exact:true}).waitFor();
         const config = page.getByRole("navigation").getByRole("link",{name:"Configurações",exact:true});
@@ -228,7 +228,7 @@ test("Produtos e Estoque preservam abas contextuais reais", () => withLayout(asy
 }));
 
 test("Cabecalhos de pagina e atalhos usam a nomenclatura da navegacao", async () => {
-    for (const [file,title] of [["Financeiro/Recebiveis","Recebimentos de cartão"],["Financeiro/ContasFinanceiras","Contas e saldos"],["Financeiro/FormasPagamento","Formas de Pagamento"],["Vendas/CentralVendas","Central de Vendas"]]) {
+    for (const [file,title] of [["Financeiro/Recebiveis","Recebimentos de cartão"],["Financeiro/ContasFinanceiras","Contas e saldos"],["Financeiro/FormasPagamento","Formas de pagamento"],["Vendas/CentralVendas","Central de Vendas"]]) {
         const source = await readFile(new URL(`../src/pages/${file}.tsx`,import.meta.url),"utf8");
         assert.ok(source.includes(`titulo="${title}"`));
     }

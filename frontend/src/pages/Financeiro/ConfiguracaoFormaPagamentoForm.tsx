@@ -205,7 +205,7 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                         {exigeContaDestino && (
                             <>
                                 <Typography variant="body2" color="text.secondary">
-                                    Para {rotulosTipoFormaPagamento[tipoSelecionado as TipoFormaPagamento]}, selecione a conta financeira de destino (Banco ou Carteira digital).
+                                    {ehCartao ? "Destino da liquidação dos recebíveis de cartão." : "Destino financeiro do recebimento."} A conta é cadastrada em Contas e saldos (Banco ou Carteira digital).
                                 </Typography>
                                 <Controller
                                     name="contaFinanceiraDestinoId"
@@ -238,7 +238,7 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                                 />
                                 {erroContas && <Alert severity="error">{erroContas}</Alert>}
                                 {!carregandoContas && !erroContas && contasFiltradas.length === 0 && (
-                                    <Alert severity="info">Nenhuma conta financeira ativa disponível. Cadastre uma Conta Financeira do tipo Banco ou Carteira digital para selecionar um novo destino.</Alert>
+                                    <Alert severity="info">Nenhuma conta financeira ativa disponível. Cadastre uma conta do tipo Banco ou Carteira digital em Financeiro → Contas e saldos para selecionar um novo destino.</Alert>
                                 )}
                                 {ehCartao && <>
                                     <Controller name="taxaPercentual" control={control} render={({ field }) => (

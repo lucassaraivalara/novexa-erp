@@ -99,7 +99,7 @@ export default function Usuarios() {
         <PageContainer>
             <PageHeader
                 titulo="Usuários"
-                descricao="Gerencie os usuários da empresa."
+                descricao="Gerencie usuários e seus perfis de acesso."
                 acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => { setFocarSenha(false); setEdicao(null); }}>Novo usuário</Button>}
             />
 

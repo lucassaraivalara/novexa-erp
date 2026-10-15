@@ -19,8 +19,8 @@ export default function DadosBancarios() {
     return (
         <PageContainer>
             <PageHeader
-                titulo="Dados Bancários"
-                descricao="Organize bancos, agências e contas bancárias em uma única rotina."
+                titulo="Dados bancários"
+                descricao="Cadastre a identidade bancária: bancos, agências e contas. Saldos e extratos ficam em Contas e saldos."
             />
 
             <Tabs
