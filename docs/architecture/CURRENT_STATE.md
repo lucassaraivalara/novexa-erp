@@ -10,6 +10,14 @@ Dados Bancários  cadastros de Banco, Agência e Conta Bancária via services ex
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Etapa 7 — Relatório fixo de preços de Produtos (2026-10-15)
+
+Implementado somente na branch `feat/central-configuracoes`, sobre `1d28116`, com validação pendente: Produtos oferece ação secundária Relatório de preços, em diálogo próprio, sem desmontar o cadastro ou alterar seus filtros/URL. Exibe produto, código interno/SKU, unidade, preço de venda, custo e situação. Reutiliza `GET /produtos` com paginação real, busca por nome ou código interno, situação e ordenação por produto, código interno, preço de venda ou situação. Categoria e ordenação por custo/unidade não são oferecidas porque não existem no contrato atual.
+
+Preparar impressão/PDF consulta todas as páginas filtradas em lotes de até 100 e libera a impressão nativa do navegador somente após carregar o resultado completo, incluindo os custos internos. A janela informa empresa, filtros, ordem, quantidade e horário da consulta. Falhas, cancelamento, mudança de sessão/empresa ou inconsistência detectada entre páginas interrompem a preparação sem imprimir resultado parcial. Sem endpoint, DTO, migration ou dependência novos; permissões e empresa do JWT preservadas. O contrato não oferece snapshot transacional entre páginas, e o resultado completo é montado em memória para impressão. Detalhes em [frontend.md](frontend.md#relatório-fixo-de-preços-de-produtos).
+
+Testes, build, lint e homologação/conferência visual não executados nesta etapa por orientação explícita; validação funcional e de impressão/PDF pendente. Revisão do diff e `git diff --check` são as verificações desta entrega. As pendências gerais e o estado CONTRACT READY das etapas anteriores permanecem inalterados.
+
 ## Etapa 6 — Histórico de estoque e Entrada de origem (2026-10-15)
 
 Implementado na branch `feat/central-configuracoes`, sobre `24f3f33`: o histórico paginado de estoque acrescenta `entradaMercadoriaId`, nulo quando não há vínculo persistido. A origem é obtida somente pelos IDs de confirmação/reversão guardados nos itens da Entrada, com filtro de empresa e produto e uma consulta em lote para os movimentos da página. Não interpreta motivo ou enum de origem para deduzir documento; não modifica saldo, custo ou movimentos. Contrato em [estoque.md](estoque.md#17-histórico).

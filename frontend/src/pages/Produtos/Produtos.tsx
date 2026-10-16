@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import {
     Alert, Button, Chip, CircularProgress, Dialog, DialogActions,
     DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, Snackbar,
@@ -19,6 +20,7 @@ import {
 import type { Produto, ProdutoInput } from "../../types/produto";
 import { obterEmpresaAtiva } from "../../utils/auth/sessao";
 import ProdutoForm from "./ProdutoForm";
+import RelatorioPrecosDialog from "./RelatorioPrecosDialog";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const quantidade = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
@@ -36,6 +38,7 @@ function Produtos() {
     const [produtos, setProdutos] = useState<Produto[]>([]);
     const [erroCarregamento, setErroCarregamento] = useState("");
     const [formularioAberto, setFormularioAberto] = useState(false);
+    const [relatorioAberto, setRelatorioAberto] = useState(false);
     const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null);
     const [carregandoProduto, setCarregandoProduto] = useState(false);
     const [salvando, setSalvando] = useState(false);
@@ -216,6 +219,7 @@ function Produtos() {
                 titulo="Produtos"
                 descricao="Cadastre e mantenha os dados dos produtos. Registre o recebimento de mercadorias em Estoque."
                 acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={abrirCadastro}>Novo produto</Button>}
+                acoesSecundarias={<Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={() => setRelatorioAberto(true)}>Relatório de preços</Button>}
             />
 
             {erroCarregamento && (
@@ -282,6 +286,8 @@ function Produtos() {
                     }}
                 />
             </Stack>
+
+            {relatorioAberto && <RelatorioPrecosDialog key={empresaId} onFechar={() => setRelatorioAberto(false)} />}
 
             <ProdutoForm
                 aberto={formularioAberto}
