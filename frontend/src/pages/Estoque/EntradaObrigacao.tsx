@@ -28,6 +28,7 @@ export default function EntradaObrigacao({ entrada }: { entrada: EntradaMercador
     const [carregandoBusca, setCarregandoBusca] = useState(false);
     const [salvando, setSalvando] = useState(false);
     const ocupado = useRef(false);
+    const descricaoInput = useRef<HTMLInputElement>(null);
     const tentativa = useRef<GerarObrigacaoEntrada | null>(null);
     const [incerta, setIncerta] = useState(false);
 
@@ -104,7 +105,8 @@ export default function EntradaObrigacao({ entrada }: { entrada: EntradaMercador
             {obrigacao?.podeVincular && <Button size="small" onClick={() => abrir("vincular")}>Vincular conta existente</Button>}
             <Button size="small" disabled={salvando} onClick={() => setRevisao(n => n + 1)}>Atualizar vínculo</Button>
         </Stack>
-        <Dialog open={modo !== null} onClose={salvando ? undefined : () => setModo(null)} fullWidth maxWidth="sm" aria-labelledby="obrigacao-entrada-titulo">
+        <Dialog open={modo !== null} onClose={salvando ? undefined : () => setModo(null)} fullWidth maxWidth="sm" aria-labelledby="obrigacao-entrada-titulo"
+            slotProps={{ transition: { onEntered: () => { if (modo === "gerar" && !incerta) descricaoInput.current?.focus(); } } }}>
             <form onSubmit={confirmar}>
                 <DialogTitle id="obrigacao-entrada-titulo">{titulo}</DialogTitle>
                 <DialogContent dividers><Stack spacing={2}>
@@ -112,7 +114,7 @@ export default function EntradaObrigacao({ entrada }: { entrada: EntradaMercador
                     {erro && <Alert severity="error">{erro}</Alert>}
                     {modo === "gerar" && <>
                         {incerta && <Alert severity="warning">Confira o vínculo antes de repetir. A nova tentativa usará os mesmos dados.</Alert>}
-                        <TextField required autoFocus label="Descrição" value={descricao} disabled={salvando || incerta} onChange={e => setDescricao(e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} />
+                        <TextField required inputRef={descricaoInput} label="Descrição" value={descricao} disabled={salvando || incerta} onChange={e => setDescricao(e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} />
                         <TextField required label="Valor financeiro (R$)" value={valor} disabled={salvando || incerta} onChange={e => setValor(e.target.value)}
                             helperText="Sugestão: total operacional. Revise o valor; frete e impostos não são acrescentados automaticamente." slotProps={{ htmlInput: { inputMode: "decimal" } }} />
                         <TextField required type="date" label="Vencimento" value={vencimento} disabled={salvando || incerta} onChange={e => setVencimento(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
