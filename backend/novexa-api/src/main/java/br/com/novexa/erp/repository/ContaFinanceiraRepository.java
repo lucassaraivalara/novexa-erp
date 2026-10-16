@@ -13,8 +13,8 @@ public interface ContaFinanceiraRepository extends JpaRepository<ContaFinanceira
     @EntityGraph(attributePaths = {"contaBancaria.agencia.banco"})
     @Query("select c from ContaFinanceiraEntity c where c.empresa.id = :empresaId " +
             "and (:ativo is null or c.ativo = :ativo) and (:tipo is null or c.tipo = :tipo) " +
-            "and (:termo is null or lower(c.nome) like lower(concat('%', :termo, '%')) " +
-            "or lower(replace(cast(c.tipo as string), '_', ' ')) like lower(concat('%', :termo, '%')))")
+            "and (:termo is null or lower(c.nome) like lower(concat('%', cast(:termo as string), '%')) " +
+            "or lower(replace(cast(c.tipo as string), '_', ' ')) like lower(concat('%', cast(:termo as string), '%')))")
     org.springframework.data.domain.Page<ContaFinanceiraEntity> listarPagina(Long empresaId, String termo,
             Boolean ativo, br.com.novexa.erp.entity.TipoContaFinanceira tipo,
             org.springframework.data.domain.Pageable pageable);

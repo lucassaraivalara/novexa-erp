@@ -5,6 +5,9 @@ import br.com.novexa.erp.repository.*;
 import br.com.novexa.erp.service.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -243,6 +246,34 @@ class ContaFinanceiraHttpTest {
                                 "empresaId", empresaB.getId(), "contaBancariaId", bancaria.getId()))))
                 .andExpect(status().isCreated()).andReturn();
         return json.readTree(resposta.getResponse().getContentAsString()).get("id").asLong();
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"   ", " \t\n "})
+    void paginaTrataBuscaAusenteComoSemFiltro(String termo) throws Exception {
+        var alfa = contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Alfa", TipoContaFinanceira.COFRE, java.math.BigDecimal.TEN));
+        var zeta = contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Zeta", TipoContaFinanceira.COFRE, java.math.BigDecimal.ONE));
+        contas.saveAndFlush(new ContaFinanceiraEntity(empresaB, "Alfa", TipoContaFinanceira.COFRE, java.math.BigDecimal.TEN));
+        var pedido = get("/financeiro/contas-financeiras/pagina").header("Authorization", tokenA)
+                .param("page", "0").param("size", "10").param("sort", "nome,asc")
+                .param("empresaId", empresaB.getId().toString());
+        if (termo != null) pedido.param("termo", termo);
+        mvc.perform(pedido).andExpect(status().isOk())
+                .andExpect(jsonPath("$.page").value(0)).andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.totalItems").value(2)).andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(alfa.getId()))
+                .andExpect(jsonPath("$.items[1].id").value(zeta.getId()));
+    }
+
+    @Test void paginaNormalizaBuscaPreenchidaSemRetornarOutraEmpresa() throws Exception {
+        var reserva = contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Reserva", TipoContaFinanceira.COFRE, java.math.BigDecimal.TEN));
+        contas.saveAndFlush(new ContaFinanceiraEntity(empresaA, "Outra", TipoContaFinanceira.COFRE, java.math.BigDecimal.ONE));
+        contas.saveAndFlush(new ContaFinanceiraEntity(empresaB, "Reserva", TipoContaFinanceira.COFRE, java.math.BigDecimal.TEN));
+        mvc.perform(get("/financeiro/contas-financeiras/pagina").header("Authorization", tokenA)
+                        .param("termo", "  ReSeRvA  ").param("size", "1").param("sort", "nome,desc"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(reserva.getId()));
     }
 
     @Test void paginaUsaTotaisDoTenantEOrdenacaoComDesempate() throws Exception {

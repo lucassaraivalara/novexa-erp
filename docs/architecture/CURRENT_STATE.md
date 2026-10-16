@@ -10,6 +10,14 @@ Dados Bancários  cadastros de Banco, Agência e Conta Bancária via services ex
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Contas Financeiras — busca vazia na paginação (2026-10-16)
+
+Correção na `main`, sobre `ecd0e5c`: a listagem `/financeiro/contas-financeiras/pagina` falhava sem busca porque o parâmetro nulo nas concatenações era tratado como `bytea`, gerando `function lower(bytea) does not exist` (SQLSTATE `42883`). A reprodução em PostgreSQL 18.6 descartável confirmou HTTP 500 nos quatro casos de termo ausente/vazio/branco antes do ajuste. A query passou a converter explicitamente o termo para texto; controller e normalização existente do service foram preservados. Detalhes em [financeiro.md](financeiro.md#contas-financeiras--base-gerencial-manual).
+
+Após a correção, 36 testes relacionados passaram, sem ignorados: 25 de `ContaFinanceiraHttpTest` em H2 e 11 de paginação/resumo herdados por `ContaFinanceiraPaginacaoPostgresTest`, com Flyway e Hibernate validate em schema descartável. Cobrem ausência de busca, vazio, espaços/tabulação/quebra de linha, busca preenchida/aparada, nome/tipo, situação, isolamento por JWT, paginação e ordenação com desempate. A instância temporária local foi encerrada; nenhum banco operacional foi acessado. Contratos, saldos, Caixa, pagamentos e migrations preservados. Implantação da API e conferência em produção pendentes: o deploy do frontend no Vercel não atualiza a API Docker na Oracle; procedimento em [producao.md](../deploy/producao.md#logs-reboot-e-novas-versoes).
+
+Validação geral `clean test`: 1.774 testes, com 1.251 aprovações, 513 condicionais ignorados e os dez erros preexistentes da preparação de `PaginacaoHttpTest` (fixture de Venda sem `valor_prazo`), sem correção fora do escopo. Os testes PostgreSQL desta correção foram executados separadamente com as propriedades de conexão habilitadas, como registrado acima. Build `package -DskipTests` aprovado; sem alteração frontend ou linter backend configurado. Evidências locais ignoradas em `frontend/node_modules/.novexa-finance-query-audit/`. A suíte geral continua pendente.
+
 ## Correção da suíte frontend na main (2026-10-16)
 
 Corrigidas as oito falhas remanescentes: assertions do resumo de Vendas e da orientação de cartão, consulta preservada sob o drawer de Contas a Receber, abertura do submenu antes de verificar seu link, posição de Configurações acima das preferências e espera da transição responsiva antes de medir o layout. A coluna Descrição de Contas a Receber foi reduzida em notebook para eliminar o excesso horizontal em 1024 px, mantendo dados e ações. Rotas, contratos, permissões, dependências e regras financeiras preservados.
