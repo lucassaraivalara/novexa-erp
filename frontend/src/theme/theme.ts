@@ -1,4 +1,4 @@
-import { createTheme } from "@mui/material/styles";
+import { createTheme, type PaletteMode } from "@mui/material/styles";
 
 export const visualTokens = {
     radius: { control: 6, surface: 10, dialog: 10, pill: 999 },
@@ -9,20 +9,22 @@ export const visualTokens = {
     numeric: { fontVariantNumeric: "tabular-nums" },
 } as const;
 
-const theme = createTheme({
+export function createNovexaTheme(mode: PaletteMode = "light") {
+    const dark = mode === "dark";
+    return createTheme({
     palette: {
-        mode: "light",
+        mode,
         primary: { main: "#0E7C66", dark: "#0A5F4E", light: "#E7F4F0", contrastText: "#FFFFFF" },
         secondary: { main: "#101828", contrastText: "#FFFFFF" },
-        background: { default: "#F7F9FB", paper: "#FFFFFF" },
-        text: { primary: "#101828", secondary: "#5D6B7A", disabled: "#98A2B3" },
-        divider: "#E4E8EC",
+        background: { default: dark ? "#101722" : "#F7F9FB", paper: dark ? "#182231" : "#FFFFFF" },
+        text: { primary: dark ? "#F3F6FA" : "#101828", secondary: dark ? "#B8C4D1" : "#5D6B7A", disabled: "#98A2B3" },
+        divider: dark ? "#2D3A4B" : "#E4E8EC",
         success: { main: "#16794A", light: "#E8F5EE", contrastText: "#FFFFFF" },
         warning: { main: "#B25E09", light: "#FDF3E2", contrastText: "#FFFFFF" },
         error: { main: "#C4372E", light: "#FCECEA", contrastText: "#FFFFFF" },
         info: { main: "#2F5BD3", light: "#ECF1FD", contrastText: "#FFFFFF" },
         action: {
-            active: "#5D6B7A", hover: "rgba(16,24,40,.04)", selected: "rgba(14,124,102,.08)",
+            active: dark ? "#B8C4D1" : "#5D6B7A", hover: dark ? "rgba(255,255,255,.08)" : "rgba(16,24,40,.04)", selected: "rgba(14,124,102,.12)",
             disabled: "#98A2B3", disabledBackground: "rgba(16,24,40,.04)",
         },
     },
@@ -155,6 +157,9 @@ const theme = createTheme({
             },
         },
     },
-});
+    });
+}
+
+const theme = createNovexaTheme("light");
 
 export default theme;

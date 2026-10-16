@@ -11,7 +11,6 @@ import { createRoot } from "react-dom/client";
 // Ele disponibiliza o nosso tema para todos os componentes
 // que estiverem dentro dele.
 import { CssBaseline } from "@mui/material";
-import { ThemeProvider } from "@mui/material/styles";
 
 // Importa o CSS global da aplicação.
 import "./index.css";
@@ -20,7 +19,7 @@ import "./index.css";
 import App from "./App.tsx";
 
 // Importa o tema que criamos no arquivo theme.ts.
-import theme from "./theme/theme.ts";
+import { ThemeModeProvider } from "./theme/ThemeModeProvider.tsx";
 
 const router = createBrowserRouter([{ path: "*", element: <App /> }]);
 
@@ -39,7 +38,7 @@ createRoot(document.getElementById("root")!).render(
             O "theme={theme}" está passando para o MUI
             o tema que criamos em src/theme/theme.ts.
         */}
-        <ThemeProvider theme={theme}>
+        <ThemeModeProvider>
 
             {/* Aplica as cores de fundo e estilos-base definidos no tema MUI. */}
             <CssBaseline />
@@ -52,7 +51,7 @@ createRoot(document.getElementById("root")!).render(
             */}
             <RouterProvider router={router} />
 
-        </ThemeProvider>
+        </ThemeModeProvider>
 
     </StrictMode>,
 );
