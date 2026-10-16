@@ -26,6 +26,9 @@ public interface MovimentacaoCaixaRepository extends JpaRepository<MovimentacaoC
             from MovimentacaoCaixaEntity m
             where m.empresa.id = :empresaId
               and m.sessao.id in :sessaoIds
+              and (m.tipo <> br.com.novexa.erp.entity.TipoMovimentacaoCaixa.SUPRIMENTO
+                   or m.observacao is null
+                   or m.observacao <> 'Saldo inicial / Abertura de caixa')
             group by m.sessao.id
             """)
     List<SaldoMovimentacoesSessao> resumirSaldos(@Param("empresaId") Long empresaId,

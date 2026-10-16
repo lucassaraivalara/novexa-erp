@@ -89,11 +89,31 @@ class CaixaOperacionalHttpTest {
         produto = produtos.saveAndFlush(produto);
     }
 
-    @Test void saldoInicialZeroNaoCriaMovimentacao() {
+    @Test void saldoInicialZeroNaoCriaMovimentacao() throws Exception {
         var caixaSemSaldo = caixa(empresa);
         var sessaoSemSaldo = sessoesService.abrir(caixaSemSaldo.getId(), BigDecimal.ZERO, principal).id();
 
         assertThat(movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessaoSemSaldo, empresa.getId())).isEmpty();
+        conferirSaldoDashboardECaixa(sessaoSemSaldo, "0");
+    }
+
+    @Test void dashboardSegueCaixaSemDuplicarAberturaComVendaSuprimentoSangriaEEstorno() throws Exception {
+        conferirSaldoDashboardECaixa(sessao, "100");
+
+        var vendida = vendaService.finalizar(venda(FormaPagamento.DINHEIRO, sessao), principal);
+        // Recebido 20 com troco 10: somente os 10 aplicados entram no caixa.
+        conferirSaldoDashboardECaixa(sessao, "110");
+
+        operacional.movimentar(sessao, manual(TipoMovimentacaoCaixa.SUPRIMENTO, "100"), principal);
+        conferirSaldoDashboardECaixa(sessao, "210");
+
+        operacional.movimentar(sessao, new MovimentacaoCaixaRequestDTO(
+                UUID.randomUUID(), TipoMovimentacaoCaixa.SANGRIA, new BigDecimal("7"), "Retirada de teste"), principal);
+        conferirSaldoDashboardECaixa(sessao, "203");
+
+        mvc.perform(post("/vendas/" + vendida.id() + "/cancelar").header("Authorization", token))
+                .andExpect(status().isOk());
+        conferirSaldoDashboardECaixa(sessao, "193");
     }
 
     @Test void aberturaComSaldoInicialApareceNoHistoricoHttp() throws Exception {
@@ -777,6 +797,20 @@ class CaixaOperacionalHttpTest {
         var externa = usuario(empresa("B"), "22233344405");
         mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + "/detalhe")
                 .header("Authorization", "Bearer " + jwt.gerarToken(externa))).andExpect(status().isNotFound());
+    }
+
+    private void conferirSaldoDashboardECaixa(Long sessaoId, String esperado) throws Exception {
+        var resposta = mvc.perform(get("/dashboard/resumo").header("Authorization", token))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        var resumo = json.readValue(resposta, DashboardResumoDTO.class);
+        var saldoDashboard = resumo.sessoesCaixaAbertas().stream()
+                .filter(aberta -> aberta.sessaoId().equals(sessaoId)).findFirst().orElseThrow()
+                .saldoEsperadoDinheiro();
+        assertThat(saldoDashboard).isEqualByComparingTo(esperado);
+
+        mvc.perform(get("/financeiro/caixas/sessoes/" + sessaoId + "/resumo").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.saldoEsperadoDinheiro").value(new BigDecimal(esperado).doubleValue()));
     }
 
     private FechamentoCaixaDTO conferencia(String dinheiro, String observacao, FechamentoCaixaDTO.Forma... formas) {

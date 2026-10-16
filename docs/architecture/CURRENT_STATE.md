@@ -10,6 +10,14 @@ Dados Bancários  cadastros de Banco, Agência e Conta Bancária via services ex
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Dashboard — abertura de Caixa sem duplicidade (2026-10-16)
+
+Correção na `main`, baseada em `a9164aa`: a agregação de movimentos usada por `GET /dashboard/resumo` exclui o SUPRIMENTO identificado como evento de abertura, conforme o resumo operacional de Caixa já fazia. Antes do ajuste, o novo teste reproduziu R$ 200,00 em vez de R$ 100,00. O saldo inicial é contabilizado uma única vez, sem excluir suprimentos manuais, sangrias, vendas ou estornos. Empresa, consulta em lote, endpoint, DTO, histórico e gravações permanecem iguais. Nenhum dado de produção, migration, dependência ou frontend alterado. Regra detalhada em [financeiro.md](financeiro.md#caixa-operacional-integrado-à-venda--backend-mvp).
+
+Validação direcionada: 87 testes backend H2 aprovados (`DashboardHttpTest`, `CaixaOperacionalHttpTest`, `SessaoCaixaHttpTest`), sem ignorados. Regressão compara os dois endpoints em abertura zero/positiva e, após abertura de 100, venda de 10 com recebido 20/troco 10, suprimento manual de 100 sem observação, sangria de 7 e estorno da venda: resultados 100 → 110 → 210 → 203 → 193. Testes existentes preservam sessões sem evento de abertura, isolamento e exclusão de sessões fechadas. Dois testes frontend existentes do Dashboard, builds frontend/backend e lint aprovados; permanecem os avisos anteriores de bundle e React Hook Form. `git diff --check` aprovado.
+
+Suíte backend `clean test`: 1.775 casos, 1.252 aprovados, 513 condicionais ignorados e dez erros preexistentes de `PaginacaoHttpTest.preparar` (fixture de Venda sem `valor_prazo` obrigatório); zero falhas de asserção. Os três testes relacionados também passaram nessa execução. A suíte geral permanece não aprovada; não houve correção dessas fixtures, execução PostgreSQL ou nova homologação em produção nesta rodada. Maven 3.9.16 existente usado diretamente com cache local, sem alterar wrapper/pom; evidências ignoradas em `frontend/node_modules/.novexa-dashboard-caixa-fix/`. Implantação da API Oracle e conferência Dashboard/Caixa na mesma sessão permanecem pendentes; o deploy do frontend no Vercel não atualiza a API.
+
 ## Contas Financeiras — busca vazia na paginação (2026-10-16)
 
 Correção na `main`, sobre `ecd0e5c`: a listagem `/financeiro/contas-financeiras/pagina` falhava sem busca porque o parâmetro nulo nas concatenações era tratado como `bytea`, gerando `function lower(bytea) does not exist` (SQLSTATE `42883`). A reprodução em PostgreSQL 18.6 descartável confirmou HTTP 500 nos quatro casos de termo ausente/vazio/branco antes do ajuste. A query passou a converter explicitamente o termo para texto; controller e normalização existente do service foram preservados. Detalhes em [financeiro.md](financeiro.md#contas-financeiras--base-gerencial-manual).
