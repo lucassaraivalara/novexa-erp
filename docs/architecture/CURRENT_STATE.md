@@ -10,6 +10,12 @@ Dados Bancários  cadastros de Banco, Agência e Conta Bancária via services ex
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Correção da suíte frontend na main (2026-10-16)
+
+Corrigidas as oito falhas remanescentes: assertions do resumo de Vendas e da orientação de cartão, consulta preservada sob o drawer de Contas a Receber, abertura do submenu antes de verificar seu link, posição de Configurações acima das preferências e espera da transição responsiva antes de medir o layout. A coluna Descrição de Contas a Receber foi reduzida em notebook para eliminar o excesso horizontal em 1024 px, mantendo dados e ações. Rotas, contratos, permissões, dependências e regras financeiras preservados.
+
+Os oito testes relacionados passaram. `npm test` aprovou 387/388: houve timeout intermitente na abertura da fixture de Vendas no caso de cartão ausente/vinculado a outra origem, antes das assertions. O caso passou isoladamente e a suíte completa passou com `node --test --test-concurrency=2 tests/*.test.mjs` (388/388, sem ignorados). A instabilidade sob concorrência padrão permanece registrada; não foram ampliados timeouts nem alterados scripts. Build e lint aprovados, com os avisos preexistentes de bundle e React Hook Form. Esta validação é somente frontend e não encerra as pendências backend registradas abaixo.
+
 ## Etapa 7 — Relatório fixo de preços de Produtos (2026-10-15)
 
 Implementado no commit `c32231a`, somente na branch `feat/central-configuracoes`: Produtos oferece ação secundária Relatório de preços, em diálogo próprio, sem desmontar o cadastro ou alterar seus filtros/URL. Exibe produto, código interno/SKU, unidade, preço de venda, custo e situação. Reutiliza `GET /produtos` com paginação real, busca por nome ou código interno, situação e ordenação por produto, código interno, preço de venda ou situação. Categoria e ordenação por custo/unidade não são oferecidas porque não existem no contrato atual.

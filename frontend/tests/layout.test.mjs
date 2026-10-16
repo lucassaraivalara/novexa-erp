@@ -151,7 +151,11 @@ test("Central compacta preserva destinos, teclado e acesso no rodape sem consult
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true);
         if (height >= 568) {
             const bounds = await config.boundingBox();
-            assert.ok(bounds.y > height - 90,"Configurações deve ficar no rodapé");
+            const areas = width < 600 ? page.getByLabel("Áreas compactas",{exact:true})
+                : page.getByRole("list",{name:"Áreas do sistema",exact:true});
+            const limite = await areas.boundingBox();
+            const distancia = limite.y + limite.height - bounds.y - bounds.height;
+            assert.ok(distancia >= 0 && distancia <= 20,"Configurações deve encerrar as áreas, acima das preferências do menu");
         }
         if (process.env.NOVEXA_NAV_SCREENSHOTS) await page.screenshot({path:`node_modules/.vite-layout-tests/configuracoes-${width}-${height}.png`,fullPage:true});
     }
@@ -336,6 +340,7 @@ test("Dashboard usa identidade real, atalhos funcionais e não transborda nos br
     assert.equal(await page.getByRole("link",{name:"Abrir caixa",exact:true}).getAttribute("href"),"/financeiro/caixas");
     for (const width of [1440,1024,390]) {
         await page.setViewportSize({width,height:900});
+        await expect(page.getByRole("main")).toHaveCSS("width",`${width - (width < 600 ? 72 : 280)}px`);
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),true,`horizontal overflow at ${width}px`);
         const rows = await page.locator('a[aria-label^="Nova venda"],a[aria-label^="Entrada de mercadoria"],a[aria-label^="Confirmar PIX"],a[aria-label^="Pagar conta"]').evaluateAll(links => new Set(links.map(link => Math.round(link.getBoundingClientRect().top))).size);
         assert.equal(rows,2,`quick actions should remain 2x2 at ${width}px`);
@@ -389,6 +394,7 @@ test("Menu flutuante sobrepoe conteudo sem deslocamento e fecha ao clicar fora",
     const nav = page.getByRole("navigation",{name:"Menu principal"});
     for (const [width,height] of [[1366,768],[1920,1080],[1024,768],[390,844]]) {
         await page.setViewportSize({width,height});
+        await expect(page.getByRole("main")).toHaveCSS("width",`${width - (width < 600 ? 72 : 280)}px`);
         const before = await page.locator("main").boundingBox();
         const trigger = nav.getByRole("button",{name:width < 600 ? "Financeiro (ícone)" : "Financeiro",exact:true});
         await trigger.click();

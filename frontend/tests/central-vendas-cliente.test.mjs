@@ -215,7 +215,8 @@ test("resumo exclui cancelados e A_PRAZO de pagamentos; saldo usa baixas já rea
         const resumo = page.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
         await resumo.waitFor(); await verificarValor(resumo, "Pagamentos registrados", "R$ 50,00");
         await verificarValor(resumo, "A receber", "R$ 110,00");
-        assert.equal(await resumo.getByText(/PIX|150,00/).count(), 0);
+        const formas = resumo.getByLabel("Formas utilizadas", { exact: true });
+        assert.deepEqual(await formas.locator(".MuiChip-label").allTextContents(), ["Dinheiro · R$ 50,00", "A prazo"]);
     } finally { await page.close(); }
 });
 

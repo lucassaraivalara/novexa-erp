@@ -2,7 +2,7 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, mkdir } from "node:fs/promises";
 import { createServer } from "vite";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 
 let server, browser, url, api, service, utils;
 const base = "/financeiro/contas-receber";
@@ -301,8 +301,9 @@ test("conta da venda abre a Central e parcela em novas abas preservando a consul
         await venda.close();
         await page.bringToFront();
         assert.equal(page.url(), `${url}${base}`);
-        assert.equal(await busca.inputValue(), "outubro");
         assert.equal(await page.getByText("Esta conta é controlada pela venda de origem.", { exact: true }).isVisible(), true);
+        await page.getByRole("button", { name: "Fechar detalhe", exact: true }).click();
+        await expect(busca).toHaveValue("outubro");
         assert.deepEqual(errors, []);
         assert.ok(estado.requests.every(r => r.method === "GET"));
     } finally { await page.close(); }
@@ -477,7 +478,12 @@ test("desktop/mobile seguem identidade atual sem overflow; screenshot comparativ
     await mkdir("node_modules/.cache/contas-receber", { recursive: true });
     for (const width of [1440, 1024, 390]) {
         const { page, errors } = await abrir({}, { width, height: 1000 }); try {
-            assert.equal(await page.getByRole("link", { name: /Contas a Receber/ }).count(), 1);
+            const nav = page.getByRole("navigation", { name: "Menu principal" });
+            await nav.getByRole("button", { name: width < 600 ? "Financeiro (ícone)" : "Financeiro", exact: true }).click();
+            const acesso = nav.getByRole("link", { name: "Contas a Receber", exact: true });
+            await expect(acesso).toHaveAttribute("aria-current", "page");
+            assert.equal(await acesso.getAttribute("href"), base);
+            await page.keyboard.press("Escape");
             const estilos = await page.locator("[data-app-table]").evaluate(el => { const s = getComputedStyle(el); return { raio: s.borderRadius, fundo: s.backgroundColor }; });
             assert.equal(estilos.raio, "0px 0px 10px 10px"); assert.equal(estilos.fundo, "rgb(255, 255, 255)");
             assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));

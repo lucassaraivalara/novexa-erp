@@ -100,7 +100,7 @@ export default function ContasReceber() {
         finally { abrindoRef.current = false; setAbrindo(false); }
     }
     const colunas: Coluna<ContaReceber>[] = [
-        { campo: "descricao", cabecalho: "Descrição", largura: laptop ? 145 : 210, ordenavel: true },
+        { campo: "descricao", cabecalho: "Descrição", largura: laptop ? 110 : 210, ordenavel: true },
         { campo: "cliente.nome", cabecalho: "Cliente", largura: laptop ? 100 : 155 },
         { campo: "dataVencimento", cabecalho: "Vencimento", largura: 115, ordenavel: true, render: v => formatarData(String(v)) },
         { campo: "saldo", cabecalho: "Saldo", largura: 100, alinhar: "right", render: v => <Typography component="span" variant="body2" sx={{ fontWeight: 700, color: "primary.main" }}>{moeda.format(Number(v))}</Typography> },

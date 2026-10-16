@@ -219,7 +219,12 @@ test("Destino histórico inativo continua visível e pode ser mantido", () => wi
 
 test("Sem contas disponíveis orienta cadastro sem escolher destino", () => withEditor(async page => {
     await selecionar(page, tipo(page), "Débito");
-    await page.getByRole("alert").filter({hasText: "Cadastre uma Conta Financeira"}).waitFor();
+    const aviso = page.getByRole("alert").filter({hasText: "Nenhuma conta financeira ativa disponível"});
+    await aviso.waitFor();
+    const cadastro = aviso.getByRole("link", {name: "Contas e saldos (nova aba)", exact: true});
+    assert.equal(await cadastro.getAttribute("href"), "/financeiro/contas-financeiras");
+    assert.equal(await cadastro.getAttribute("target"), "_blank");
+    assert.equal(await aviso.getByRole("button", {name: "Atualizar destinos", exact: true}).isVisible(), true);
     assert.equal(await destino(page).textContent(), "\u200b");
 }, {contas: []}));
 
