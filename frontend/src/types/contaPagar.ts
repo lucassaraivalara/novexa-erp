@@ -15,6 +15,8 @@ export type ContaPagar = {
     valorPago: number | null;
     movimentacaoFinanceiraId?: number;
     observacao: string | null;
+    entradaMercadoriaId?: number | null;
+    origemVinculoEntrada?: "GERADA" | "PREEXISTENTE" | null;
 };
 
 export type ContaPagarInput = Pick<ContaPagar, "descricao" | "documento" | "fornecedorId" | "categoria" |

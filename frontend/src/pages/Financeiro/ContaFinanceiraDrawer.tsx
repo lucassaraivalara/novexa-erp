@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { Alert, Box, Button, Drawer, IconButton, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Drawer, IconButton, Link, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { mensagemContaFinanceira, salvarContaFinanceira } from "../../services/contaFinanceiraService";
 import { rotulosTipoContaFinanceira, tiposContaFinanceiraFuncionais, type ContaFinanceira, type TipoContaFinanceira } from "../../types/contaFinanceira";
 import { listarContasBancarias } from "../../services/dadosBancariosService";
@@ -70,6 +70,9 @@ export default function ContaFinanceiraDrawer({ conta, onFechar, onSalvo }: Prop
                     {tipos.map((valor) => <MenuItem key={valor} value={valor}>{rotulosTipoContaFinanceira[valor]}</MenuItem>)}
                 </TextField>
                 {tipo === "BANCO" && <>
+                    <Typography variant="body2" color="text.secondary">
+                        A conta financeira controla saldo e extrato. Os dados bancários identificam banco, agência e conta.
+                    </Typography>
                     {conta?.tipo === "BANCO" && !conta.contaBancaria && <Alert severity="info">
                         Conta legada sem vínculo bancário. Selecione uma conta bancária para salvar a edição.
                     </Alert>}
@@ -79,13 +82,19 @@ export default function ContaFinanceiraDrawer({ conta, onFechar, onSalvo }: Prop
                     <TextField select required fullWidth label="Conta bancária" value={contaBancariaId}
                         disabled={carregandoBancarias || salvando}
                         onChange={(e) => setContaBancariaId(Number(e.target.value))}
-                        helperText={carregandoBancarias ? "Carregando contas bancárias…" : opcoesBancarias.length === 0
-                            ? "Nenhuma conta bancária ativa. Cadastre em Dados Bancários." : undefined}
+                        helperText={carregandoBancarias ? "Carregando contas bancárias…" : undefined}
                         slotProps={{ select: { sx: { "& .MuiSelect-select": { whiteSpace: "normal" } } } }}>
                         {opcoesBancarias.map((b) => <MenuItem key={b.id} value={b.id} sx={{ whiteSpace: "normal" }}>
                             {b.bancoNome} · Ag. {b.agenciaNumero} · {b.tipo === "CORRENTE" ? "CC" : "CP"} {b.numero}{b.digito ? `-${b.digito}` : ""}{!b.ativo ? " (inativa)" : ""}
                         </MenuItem>)}
                     </TextField>
+                    {!carregandoBancarias && !erroBancarias && opcoesBancarias.length === 0 && <Alert severity="info">
+                        Nenhuma conta bancária ativa. Cadastre em{' '}
+                        <Link href="/financeiro/dados-bancarios" target="_blank" rel="noopener noreferrer">Dados bancários (nova aba)</Link>.
+                        <Button type="button" size="small" onClick={() => {
+                            setCarregandoBancarias(true); setTentativa((n) => n + 1);
+                        }}>Atualizar contas bancárias</Button>
+                    </Alert>}
                 </>}
                 {conta ? <Stack spacing={2} direction={{ xs: "column", sm: "row" }}>
                     <TextField fullWidth disabled label="Saldo inicial" value={conta.saldoInicial.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} />

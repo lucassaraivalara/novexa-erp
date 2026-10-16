@@ -13,10 +13,11 @@ const fixture = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { CssBaseline, ThemeProvider } from '@mui/material';
+import { BrowserRouter } from 'react-router-dom';
 import theme from '/src/theme/theme.ts';
 import ContasPagar from '/src/pages/Financeiro/ContasPagar.tsx';
 createRoot(document.getElementById('root')).render(
-    React.createElement(ThemeProvider, { theme }, React.createElement(CssBaseline), React.createElement(ContasPagar)));
+    React.createElement(ThemeProvider, { theme }, React.createElement(CssBaseline), React.createElement(BrowserRouter, null, React.createElement(ContasPagar))));
 `;
 
 const pagina = (items) => ({ items, page: 0, size: items.length || 25, totalItems: items.length, totalPages: items.length ? 1 : 0 });

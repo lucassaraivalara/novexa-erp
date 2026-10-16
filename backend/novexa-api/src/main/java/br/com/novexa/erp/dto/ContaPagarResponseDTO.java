@@ -7,7 +7,7 @@ import java.time.LocalDate;
 public record ContaPagarResponseDTO(Long id, String descricao, String documento, Long fornecedorId, String fornecedorNome,
         String categoria, LocalDate dataEmissao, LocalDate dataVencimento, BigDecimal valor,
         StatusContaPagar status, LocalDate dataPagamento, BigDecimal valorPago, String observacao,
-        Long movimentacaoFinanceiraId) {
+        Long movimentacaoFinanceiraId, Long entradaMercadoriaId, OrigemContaPagarEntrada origemVinculoEntrada) {
     public static ContaPagarResponseDTO de(ContaPagarEntity conta) {
         var fornecedor = conta.getFornecedor();
         return new ContaPagarResponseDTO(conta.getId(), conta.getDescricao(), conta.getDocumento(),
@@ -16,6 +16,8 @@ public record ContaPagarResponseDTO(Long id, String descricao, String documento,
                 conta.getCategoria(), conta.getDataEmissao(), conta.getDataVencimento(),
                 conta.getValor(), conta.getStatus(), conta.getDataPagamento(), conta.getValorPago(),
                 conta.getObservacao(), conta.getMovimentacaoFinanceira() == null
-                        ? null : conta.getMovimentacaoFinanceira().getId());
+                        ? null : conta.getMovimentacaoFinanceira().getId(),
+                conta.getEntradaMercadoria() == null ? null : conta.getEntradaMercadoria().getId(),
+                conta.getEntradaMercadoria() == null ? null : conta.getEntradaMercadoria().getOrigemContaPagar());
     }
 }

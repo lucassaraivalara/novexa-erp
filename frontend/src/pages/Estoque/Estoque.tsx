@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
     Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-    Divider, MenuItem, Stack, Tab, Tabs, TablePagination, TextField, Typography,
+    Divider, Link, MenuItem, Stack, Tab, Tabs, TablePagination, TextField, Typography,
 } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
@@ -49,9 +49,9 @@ export default function Estoque() {
             const proximo = new URLSearchParams(params);
             if (valor === "entradas") proximo.set("aba", valor); else proximo.delete("aba");
             setParams(proximo, { replace: true });
-        }} aria-label="Área de estoque"
+        }} aria-label="Área de estoque" variant="scrollable" scrollButtons="auto"
             sx={{ borderBottom: 1, borderColor: "divider" }}>
-            <Tab value="saldo" label="Saldo" /><Tab value="entradas" label="Entradas" />
+            <Tab value="saldo" label="Saldo" /><Tab value="entradas" label="Entradas de mercadoria" />
         </Tabs>
         {aba === "saldo" ? <SaldoEstoque /> : <EntradasMercadoria />}
     </Stack>;
@@ -181,7 +181,7 @@ function SaldoEstoque() {
         ? novoSaldoEsperado(operacao!, dialogo.produto.estoqueAtual, valor) : null;
 
     return <PageContainer>
-        <PageHeader titulo="Estoque" descricao="Consulte saldos e registre movimentações operacionais." />
+        <PageHeader titulo="Saldo" descricao="Consulte saldos. A entrada avulsa movimenta um produto; o ajuste define o novo saldo físico." />
         {erro && <Alert severity="error" onClose={() => setErro("")}>{erro}</Alert>}
         <Stack spacing={1.5}>
             <PageFilters
@@ -256,6 +256,11 @@ function SaldoEstoque() {
                     <Stack direction="row" sx={{ justifyContent: "space-between", gap: 2 }}><Typography sx={{ fontWeight: 700 }}>{movimentacao.tipo} · {movimentacao.origem}</Typography><Typography variant="body2" color="text.secondary">{dataFormatada.format(new Date(movimentacao.dataHora))}</Typography></Stack>
                     <Typography variant="body2">Saldo: {quantidadeFormatada.format(movimentacao.saldoAnterior)} → {quantidadeFormatada.format(movimentacao.saldoPosterior)} · Valor: {quantidadeFormatada.format(movimentacao.quantidade)}</Typography>
                     <Typography variant="body2" color="text.secondary">{movimentacao.motivo || "Sem motivo informado"} · {movimentacao.nomeUsuario}</Typography>
+                    {movimentacao.entradaMercadoriaId != null && <Typography variant="body2">
+                        <Link href={`/estoque?aba=entradas&entradaId=${movimentacao.entradaMercadoriaId}`} target="_blank" rel="noopener noreferrer">
+                            Abrir entrada de origem #{movimentacao.entradaMercadoriaId} (nova aba)
+                        </Link>
+                    </Typography>}
                 </Stack>)}
             </Stack>}</DialogContent>
             <TablePagination component="div" count={totalHistorico} page={paginaHistorico} rowsPerPage={sizeHistorico}

@@ -112,9 +112,9 @@ test("detalhe separa alocacao imediata e prazo, exibe vencimentos/status e links
     try {
         await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
         const dialog = page.getByRole("dialog", { name: "Venda #30" });
-        await dialog.getByText("Pago agora", { exact: true }).waitFor();
+        await dialog.getByText("Pagamentos registrados", { exact: true }).waitFor();
         const texto = await dialog.innerText();
-        assert.match(texto, /Pago agora\s*R\$\s*50,00/);
+        assert.match(texto, /Pagamentos registrados\s*R\$\s*50,00/);
         assert.match(texto, /A receber\s*R\$\s*110,00/); assert.match(texto, /1\/2.*15\/11\/2026.*75,00.*35,00/);
         assert.match(texto, /Parcial/); assert.match(texto, /Pendente/);
         assert.equal(await dialog.getByText("Recebido:", { exact: false }).count(), 0);
@@ -196,7 +196,7 @@ for (const cenario of [
             const resumo = dialog.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
             await resumo.waitFor();
             await verificarValor(resumo, "Total da venda", "R$ 100,00");
-            await verificarValor(resumo, "Pago agora", cenario.pago);
+            await verificarValor(resumo, "Pagamentos registrados", cenario.pago);
             if (cenario.saldo) await verificarValor(resumo, "A receber", cenario.saldo);
             else assert.equal(await resumo.getByText("A receber", { exact: true }).count(), 0);
             for (const forma of cenario.formas) assert.ok(await resumo.getByText(forma, { exact: true }).isVisible());
@@ -213,7 +213,7 @@ test("resumo exclui cancelados e A_PRAZO de pagamentos; saldo usa baixas já rea
     try {
         await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
         const resumo = page.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
-        await resumo.waitFor(); await verificarValor(resumo, "Pago agora", "R$ 50,00");
+        await resumo.waitFor(); await verificarValor(resumo, "Pagamentos registrados", "R$ 50,00");
         await verificarValor(resumo, "A receber", "R$ 110,00");
         assert.equal(await resumo.getByText(/PIX|150,00/).count(), 0);
     } finally { await page.close(); }
@@ -232,7 +232,7 @@ for (const [forma, label, tipo] of [["CARTAO_DEBITO", "Cartão de débito", "DEB
             assert.equal(consultasRecebiveis(estado).length, 0);
             await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
             const resumo = page.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
-            await resumo.waitFor(); await verificarValor(resumo, "Pago agora", "R$ 200,00");
+            await resumo.waitFor(); await verificarValor(resumo, "Pagamentos registrados", "R$ 200,00");
             assert.ok(await resumo.getByText(`${label} · R$ 200,00`, { exact: true }).isVisible());
             assert.doesNotMatch(await resumo.innerText(), /confirmado|pendente|liquidado/i);
             assert.equal(await resumo.getByText("A receber", { exact: true }).count(), 0);
@@ -241,6 +241,9 @@ for (const [forma, label, tipo] of [["CARTAO_DEBITO", "Cartão de débito", "DEB
             assert.deepEqual(consultasRecebiveis(estado).map(r => r.params), [{ vendaId: "30", page: "0", size: "25", sort: "id,asc" }]);
             assert.equal(await page.getByRole("button", { name: /Liquidar/ }).count(), 0);
             assert.equal(await page.getByRole("link", { name: "Ver recebimento do cartão", exact: true }).count(), 0);
+            const linkCartao = page.getByRole("link", { name: "Ver recebimentos de cartão desta venda", exact: true });
+            assert.equal(await linkCartao.getAttribute("href"), "/financeiro/recebiveis?vendaId=30");
+            assert.equal(await linkCartao.getAttribute("target"), "_blank");
             assert.doesNotMatch(await grupo.innerText(), /taxa|adquirente|snapshot|Conta de destino|Movimento #/i);
             assert.ok(estado.requests.every(r => r.method === "GET"));
         } finally { await page.close(); }
@@ -269,7 +272,7 @@ test("consulta paginada de uma venda associa vários cartões por pagamento sem 
         await page.getByRole("group", { name: "Cartão de crédito · R$ 50,00", exact: true }).getByText("Aguardando liquidação", { exact: true }).waitFor();
         assert.ok(await page.getByRole("group", { name: "Cartão de débito · R$ 150,00", exact: true }).getByText("Liquidado", { exact: true }).isVisible());
         const resumo = page.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
-        await verificarValor(resumo, "Pago agora", "R$ 200,00"); await verificarValor(resumo, "A receber", "R$ 110,00");
+        await verificarValor(resumo, "Pagamentos registrados", "R$ 200,00"); await verificarValor(resumo, "A receber", "R$ 110,00");
         assert.deepEqual(consultasRecebiveis(estado).map(r => r.params.page), ["0", "1"]);
         assert.ok(consultasRecebiveis(estado).every(r => r.params.vendaId === "30" && !r.params.pagamentoId));
         await mkdir("node_modules/.cache/central-vendas", { recursive: true });
@@ -290,7 +293,7 @@ test("falha de consulta não vira recebível ausente nem altera totais; retry n�
         const grupo = page.getByRole("group", { name: "Cartão de crédito · R$ 200,00", exact: true });
         assert.ok(await grupo.getByText("Situação indisponível", { exact: true }).isVisible());
         assert.equal(await grupo.getByText("Recebível não localizado", { exact: true }).count(), 0);
-        await verificarValor(page.getByRole("region", { name: "Resumo financeiro da venda" }), "Pago agora", "R$ 200,00");
+        await verificarValor(page.getByRole("region", { name: "Resumo financeiro da venda" }), "Pagamentos registrados", "R$ 200,00");
         estado.erroRecebiveis = 0;
         await page.getByRole("button", { name: "Tentar novamente", exact: true }).click();
         await grupo.getByText("Aguardando liquidação", { exact: true }).waitFor();
@@ -320,7 +323,7 @@ test("falha ao buscar pagamentos não inventa pago zero nem impede mostrar saldo
     try {
         await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
         const resumo = page.getByRole("region", { name: "Resumo financeiro da venda", exact: true });
-        await resumo.waitFor(); await verificarValor(resumo, "Pago agora", "Indisponível");
+        await resumo.waitFor(); await verificarValor(resumo, "Pagamentos registrados", "Indisponível");
         await verificarValor(resumo, "A receber", "R$ 110,00");
         assert.ok(await page.getByRole("alert").getByText("Não foi possível carregar os pagamentos.", { exact: true }).isVisible());
     } finally { await page.close(); }
@@ -338,7 +341,7 @@ test("resumo compacto e parcelas permanecem legíveis em desktop/laptop/mobile",
             await page.setViewportSize({ width, height: 900 });
             assert.ok(await resumo.evaluate(el => el.scrollWidth <= el.clientWidth));
             assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-            for (const rotulo of ["Total da venda", "Pago agora", "A receber"]) assert.ok(await resumo.getByText(rotulo, { exact: true }).isVisible());
+            for (const rotulo of ["Total da venda", "Pagamentos registrados", "A receber"]) assert.ok(await resumo.getByText(rotulo, { exact: true }).isVisible());
             await page.screenshot({ path: `node_modules/.cache/central-vendas/resumo-${width}.png` });
         }
     } finally { await page.close(); }
@@ -423,7 +426,7 @@ test("mobile conserva ordenacao/paginacao remotas, detalhe financeiro e confirma
         await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
         const dialog = page.getByRole("dialog", { name: "Venda #30", exact: true });
         await dialog.getByRole("region", { name: "Resumo financeiro da venda" }).waitFor();
-        assert.match(await dialog.innerText(), /Pago agora\s*R\$\s*50,00/);
+        assert.match(await dialog.innerText(), /Pagamentos registrados\s*R\$\s*50,00/);
         assert.match(await dialog.innerText(), /A receber\s*R\$\s*110,00/);
         await dialog.getByRole("button", { name: "Fechar", exact: true }).click();
         await page.getByRole("button", { name: "Cancelar venda", exact: true }).click();

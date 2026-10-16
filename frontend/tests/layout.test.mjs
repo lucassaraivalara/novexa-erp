@@ -34,7 +34,7 @@ before(async () => {
             load(id) { if (id === "\0layout-fixture.js") return fixture; },
             configureServer(vite) {
                 vite.middlewares.use(async (req,res,next) => {
-                    if (!["/dashboard","/pdv","/vendas","/estoque","/clientes","/produtos","/usuarios","/financeiro/contas-pagar","/financeiro/recebiveis","/financeiro/contas-financeiras","/financeiro/formas-pagamento","/financeiro/dados-bancarios","/login"].includes(req.url.split('?')[0])) return next();
+                    if (!["/dashboard","/pdv","/vendas","/estoque","/clientes","/produtos","/empresa","/usuarios","/configuracoes","/financeiro/contas-pagar","/financeiro/recebiveis","/financeiro/contas-financeiras","/financeiro/formas-pagamento","/financeiro/dados-bancarios","/login"].includes(req.url.split('?')[0])) return next();
                     res.setHeader("Content-Type","text/html");
                     res.end(await vite.transformIndexHtml(req.url,'<div id="root"></div><script type="module" src="/layout-fixture.js"></script>'));
                 });
@@ -62,9 +62,9 @@ async function withLayout(run, options = {}) {
 
 test("Sidebar organiza seis dominios compartilhados pela faixa compacta", () => withLayout(async page => {
     const nav = page.getByRole("navigation");
-    const domains = ["Início","Cadastros","Estoque","Vendas","Financeiro","Administração"];
-    assert.deepEqual(await nav.getByRole("list",{name:"Áreas do sistema"}).getByRole("button").allTextContents(),domains);
-    for (const domain of domains) assert.equal(await nav.getByRole("button",{name:`${domain} (ícone)`,exact:true}).count(),1);
+    const domains = ["Visão geral","Cadastros","Estoque","Vendas","Financeiro","Configurações"];
+    assert.deepEqual(await nav.getByRole("list",{name:"Áreas do sistema"}).locator("a,button").allTextContents(),domains);
+    for (const domain of domains) assert.equal(await nav.getByLabel(`${domain} (ícone)`,{exact:true}).count(),1);
     assert.equal(await nav.getByRole("link",{name:"Vender",exact:true}).getByTestId("AddShoppingCartRoundedIcon").count(),1);
     assert.equal(await nav.getByRole("link",{name:"Vender (ícone)",exact:true}).getAttribute("href"),"/pdv");
     assert.equal(await nav.getByRole("region").count(),0);
@@ -73,12 +73,10 @@ test("Sidebar organiza seis dominios compartilhados pela faixa compacta", () => 
     const active = nav.getByRole("link",{name:"Clientes",exact:true});
     assert.equal(await active.getAttribute("aria-current"),"page");
     assert.equal(await nav.getByRole("button",{name:/Novo Cliente/}).count(),0);
-    await nav.getByRole("button",{name:"Administração",exact:true}).click();
-    assert.deepEqual(await nav.getByRole("region").getByRole("link").allTextContents(),["Empresas","Usuários"]);
     await nav.getByRole("button",{name:"Vendas",exact:true}).click();
     assert.equal(await nav.getByRole("link",{name:"PDV",exact:true}).getAttribute("href"),"/pdv");
     await nav.getByRole("button",{name:"Financeiro",exact:true}).click();
-    assert.deepEqual(await nav.getByRole("region").getByRole("link").allTextContents(),["Caixas","Contas financeiras","Contas a Pagar","Contas a Receber","Recebimentos de cartão","Formas de Pagamento","Dados Bancários"]);
+    assert.deepEqual(await nav.getByRole("region").getByRole("link").allTextContents(),["Caixas","Contas e saldos","Contas a Pagar","Contas a Receber","Recebimentos de cartão"]);
     assert.equal(await nav.getByRole("link",{name:"Caixas",exact:true}).getAttribute("href"),"/financeiro/caixas");
     assert.equal(new URL(page.url()).pathname,"/clientes");
 }));
@@ -86,8 +84,7 @@ test("Sidebar organiza seis dominios compartilhados pela faixa compacta", () => 
 test("Novos labels preservam URLs e titulos da topbar", () => withLayout(async page => {
     for (const [label,path,title,domain] of [
         ["Central de Vendas","/vendas","Central de Vendas","Vendas"], ["Recebimentos de cartão","/financeiro/recebiveis","Recebimentos de cartão","Financeiro"],
-        ["Contas financeiras","/financeiro/contas-financeiras","Contas e saldos","Financeiro"], ["Formas de Pagamento","/financeiro/formas-pagamento","Formas de Pagamento","Financeiro"],
-        ["Dados Bancários","/financeiro/dados-bancarios","Dados Bancários","Financeiro"],
+        ["Contas e saldos","/financeiro/contas-financeiras","Contas e saldos","Financeiro"],
     ]) {
         await page.getByRole("navigation").getByRole("button",{name:domain,exact:true}).click();
         const link = page.getByRole("navigation").getByRole("link",{name:label,exact:true});
@@ -113,6 +110,76 @@ async function mockCatalogs(page) {
     });
 }
 
+test("Visão geral abre Dashboard diretamente em desktop e mobile", () => withLayout(async page => {
+    await mockCatalogs(page);
+    for (const width of [1440,390]) {
+        await page.setViewportSize({width,height:844});
+        await page.goto(`${url}/clientes?real`);
+        const nav = page.getByRole("navigation");
+        const overview = nav.getByRole("link",{name:width < 600 ? "Visão geral (ícone)" : "Visão geral",exact:true});
+        assert.equal(await overview.getAttribute("href"),"/dashboard");
+        await overview.focus();
+        await page.keyboard.press("Enter");
+        await page.getByRole("heading",{name:/Maria Silva/}).waitFor();
+        assert.equal(new URL(page.url()).pathname,"/dashboard");
+        assert.equal(await nav.getByRole("region").count(),0);
+    }
+}));
+
+test("Central compacta preserva destinos, teclado e acesso no rodape sem consultas", () => withLayout(async page => {
+    const requests = [];
+    page.on("request",request => { if (["xhr","fetch"].includes(request.resourceType())) requests.push(request.url()); });
+    for (const [width,height] of [[1440,900],[1366,768],[1024,768],[390,844],[320,568],[1024,320],[390,320]]) {
+        await page.setViewportSize({width,height});
+        await page.goto(`${url}/configuracoes?real`);
+        const main = page.getByRole("main");
+        await main.getByRole("heading",{name:"Configurações",exact:true}).waitFor();
+        assert.deepEqual(await main.getByRole("heading",{level:2}).allTextContents(),["Empresa","Usuários e acesso","Financeiro"]);
+        const links = main.getByRole("link");
+        assert.deepEqual(await links.evaluateAll(items => items.map(item => item.getAttribute("href"))),[
+            "/empresa","/usuarios","/financeiro/formas-pagamento","/financeiro/dados-bancarios",
+        ]);
+        for (const link of await links.all()) {
+            await link.focus();
+            await expect(link).toBeFocused();
+            const bounds = await link.boundingBox();
+            assert.ok(bounds.y >= -1 && bounds.y + bounds.height <= height + 1,`Link fora da janela em ${width}x${height}`);
+        }
+        const config = page.getByRole("navigation").getByRole("link",{name:width < 600 ? "Configurações (ícone)" : "Configurações",exact:true});
+        await config.scrollIntoViewIfNeeded();
+        await expect(config).toHaveAttribute("aria-current","true");
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true);
+        if (height >= 568) {
+            const bounds = await config.boundingBox();
+            assert.ok(bounds.y > height - 90,"Configurações deve ficar no rodapé");
+        }
+        if (process.env.NOVEXA_NAV_SCREENSHOTS) await page.screenshot({path:`node_modules/.vite-layout-tests/configuracoes-${width}-${height}.png`,fullPage:true});
+    }
+    assert.deepEqual(requests,[],"A central não deve carregar cadastros");
+}));
+
+test("Rotas administrativas diretas mantem Configuracoes ativa, retorno e historico", () => withLayout(async page => {
+    await mockCatalogs(page);
+    for (const [path,title] of [["/empresa","Empresas"],["/usuarios","Usuários"],["/financeiro/formas-pagamento","Formas de pagamento"],["/financeiro/dados-bancarios","Dados bancários"]]) {
+        await page.goto(`${url}${path}?real&origem=atalho`);
+        await page.getByRole("main").getByRole("heading",{name:title,exact:true}).waitFor();
+        const config = page.getByRole("navigation").getByRole("link",{name:"Configurações",exact:true});
+        await expect(config).toHaveAttribute("aria-current","true");
+        const back = page.getByRole("link",{name:"Voltar às configurações",exact:true});
+        assert.equal(await back.getAttribute("href"),"/configuracoes");
+        assert.equal(new URL(page.url()).searchParams.get("origem"),"atalho");
+        await back.click();
+        await page.getByRole("main").getByRole("heading",{name:"Configurações",exact:true}).waitFor();
+        await page.goBack();
+        await page.getByRole("main").getByRole("heading",{name:title,exact:true}).waitFor();
+        assert.equal(new URL(page.url()).searchParams.get("origem"),"atalho");
+        await config.click();
+        await page.getByRole("main").locator(`a[href="${path}"]`).click();
+        await page.getByRole("main").getByRole("heading",{name:title,exact:true}).waitFor();
+        assert.equal(new URL(page.url()).pathname,path);
+    }
+}));
+
 test("Vender abre o PDV real na rota protegida e sem duplicar layout", () => withLayout(async page => {
     await mockCatalogs(page);
     await page.goto(`${url}/clientes?real`);
@@ -127,13 +194,14 @@ test("Vender abre o PDV real na rota protegida e sem duplicar layout", () => wit
 
 test("Produtos e Estoque preservam abas contextuais reais", () => withLayout(async page => {
     await mockCatalogs(page);
-    await page.goto(`${url}/produtos?real`);
+    await page.goto(`${url}/produtos?real&origem=atalho`);
     const products = page.getByRole("tablist",{name:"Cadastros de produtos"});
     await products.waitFor();
     assert.deepEqual(await products.getByRole("tab").allTextContents(),["Produtos","Fornecedores"]);
     await products.getByRole("tab",{name:"Fornecedores",exact:true}).click();
     await expect(products.getByRole("tab",{name:"Fornecedores",exact:true})).toHaveAttribute("aria-selected","true");
     assert.equal(new URL(page.url()).searchParams.get("aba"),"fornecedores");
+    assert.equal(new URL(page.url()).searchParams.get("origem"),"atalho");
     await page.getByRole("button",{name:"Cadastros",exact:true}).click();
     assert.equal(await page.getByRole("link",{name:"Fornecedores",exact:true}).getAttribute("aria-current"),"page");
     await page.getByRole("link",{name:"Produtos",exact:true}).click();
@@ -141,25 +209,26 @@ test("Produtos e Estoque preservam abas contextuais reais", () => withLayout(asy
     await page.getByRole("button",{name:"Cadastros",exact:true}).click();
     await page.getByRole("link",{name:"Fornecedores",exact:true}).click();
     await expect(products.getByRole("tab",{name:"Fornecedores",exact:true})).toHaveAttribute("aria-selected","true");
-    await page.goto(`${url}/estoque?real`);
+    await page.goto(`${url}/estoque?real&origem=atalho`);
     const stock = page.getByRole("tablist",{name:"Área de estoque"});
     await stock.waitFor();
-    assert.deepEqual(await stock.getByRole("tab").allTextContents(),["Saldo","Entradas"]);
-    await stock.getByRole("tab",{name:"Entradas",exact:true}).click();
+    assert.deepEqual(await stock.getByRole("tab").allTextContents(),["Saldo","Entradas de mercadoria"]);
+    await stock.getByRole("tab",{name:"Entradas de mercadoria",exact:true}).click();
     await page.getByRole("button",{name:"Entrada manual",exact:true}).waitFor();
-    assert.equal(await stock.getByRole("tab",{name:"Entradas",exact:true}).getAttribute("aria-selected"),"true");
+    assert.equal(await stock.getByRole("tab",{name:"Entradas de mercadoria",exact:true}).getAttribute("aria-selected"),"true");
     assert.equal(new URL(page.url()).searchParams.get("aba"),"entradas");
+    assert.equal(new URL(page.url()).searchParams.get("origem"),"atalho");
     await page.getByRole("navigation").getByRole("button",{name:"Estoque",exact:true}).click();
     assert.equal(await page.getByRole("link",{name:"Entradas de mercadoria",exact:true}).getAttribute("aria-current"),"page");
-    await page.getByRole("link",{name:"Estoque",exact:true}).click();
+    await page.getByRole("link",{name:"Saldo",exact:true}).click();
     await expect(stock.getByRole("tab",{name:"Saldo",exact:true})).toHaveAttribute("aria-selected","true");
     await page.getByRole("navigation").getByRole("button",{name:"Estoque",exact:true}).click();
     await page.getByRole("link",{name:"Entradas de mercadoria",exact:true}).click();
-    await expect(stock.getByRole("tab",{name:"Entradas",exact:true})).toHaveAttribute("aria-selected","true");
+    await expect(stock.getByRole("tab",{name:"Entradas de mercadoria",exact:true})).toHaveAttribute("aria-selected","true");
 }));
 
 test("Cabecalhos de pagina e atalhos usam a nomenclatura da navegacao", async () => {
-    for (const [file,title] of [["Financeiro/Recebiveis","Recebimentos de cartão"],["Financeiro/ContasFinanceiras","Contas e saldos"],["Financeiro/FormasPagamento","Formas de Pagamento"],["Vendas/CentralVendas","Central de Vendas"]]) {
+    for (const [file,title] of [["Financeiro/Recebiveis","Recebimentos de cartão"],["Financeiro/ContasFinanceiras","Contas e saldos"],["Financeiro/FormasPagamento","Formas de pagamento"],["Vendas/CentralVendas","Central de Vendas"]]) {
         const source = await readFile(new URL(`../src/pages/${file}.tsx`,import.meta.url),"utf8");
         assert.ok(source.includes(`titulo="${title}"`));
     }
@@ -181,6 +250,7 @@ test("Sidebar preserva navegacao, expansao e foco de teclado", () => withLayout(
     await page.keyboard.press("ArrowLeft");
     assert.equal(await domain.evaluate(el => el === document.activeElement),true);
     await page.keyboard.press("ArrowRight");
+    await expect(products).toBeFocused();
     await page.keyboard.press("Enter");
     await page.getByRole("heading",{name:"Conteudo /produtos"}).waitFor();
     await domain.click();
@@ -197,15 +267,19 @@ test("Sidebar preserva navegacao, expansao e foco de teclado", () => withLayout(
     await page.getByRole("heading",{name:"Contas a Pagar",exact:true}).waitFor();
 }));
 
-for (const perfil of ["GERENTE","OPERADOR","USUARIO"]) test(`Sidebar e rota preservam restricao de Usuarios para ${perfil}`, () => withLayout(async page => {
-    await page.getByRole("button",{name:"Administração",exact:true}).click();
-    assert.equal(await page.getByRole("navigation").getByRole("link",{name:"Usu\u00e1rios",exact:true}).count(),0);
-    assert.equal(await page.getByRole("link",{name:"Empresas",exact:true}).count(),1);
+for (const perfil of ["ADMIN","GERENTE","OPERADOR","USUARIO"]) test(`Central e rota preservam restricao de Usuarios para ${perfil}`, () => withLayout(async page => {
+    await mockCatalogs(page);
+    await page.goto(`${url}/configuracoes?real`);
+    const central = page.getByRole("main");
+    await central.getByRole("heading",{name:"Configurações",exact:true}).waitFor();
+    assert.equal(await central.getByRole("link",{name:/Usuários/}).count(),perfil === "ADMIN" ? 1 : 0);
+    assert.equal(await central.getByRole("region",{name:"Usuários e acesso",exact:true}).count(),perfil === "ADMIN" ? 1 : 0);
+    assert.equal(await central.getByRole("link",{name:/Empresas/}).count(),1);
     await page.getByRole("button",{name:"Cadastros",exact:true}).click();
     assert.equal(await page.getByRole("navigation").getByRole("link",{name:"Clientes",exact:true}).count(),1);
-    await mockCatalogs(page);
     await page.goto(`${url}/usuarios?real`);
-    await page.waitForURL(`${url}/dashboard`);
+    if (perfil === "ADMIN") await page.getByRole("main").getByRole("heading",{name:"Usuários",exact:true}).waitFor();
+    else await page.waitForURL(`${url}/dashboard`);
 }, {perfil}));
 
 test("Sidebar mostra tooltip somente quando os labels estao ocultos", () => withLayout(async page => {
@@ -221,7 +295,7 @@ test("Faixa de icones preserva alvos e acesso aos dominios em telas baixas", () 
     for (const width of [1024,390]) {
         await page.setViewportSize({width,height:320});
         const rail = page.getByLabel("Áreas compactas",{exact:true});
-        const admin = rail.getByRole("button",{name:"Administração (ícone)",exact:true});
+        const admin = rail.getByRole("link",{name:"Configurações (ícone)",exact:true});
         await rail.hover();
         await page.mouse.wheel(0,600);
         await expect.poll(() => rail.evaluate(element => element.scrollTop),{timeout:1500}).toBeGreaterThan(0);
@@ -229,10 +303,10 @@ test("Faixa de icones preserva alvos e acesso aos dominios em telas baixas", () 
         assert.ok(sizes.every(height => height >= 44),`compact targets shrank at ${width}px: ${sizes}`);
         const bounds = await admin.boundingBox();
         assert.ok(bounds.y >= 8 && bounds.y + bounds.height <= 312);
-        await admin.click();
-        await page.getByRole("region",{name:"Funções de Administração"}).waitFor();
-        await page.keyboard.press("Escape");
-        assert.equal(await admin.evaluate(element => element === document.activeElement),true);
+        await admin.focus();
+        await page.keyboard.press("Enter");
+        await page.waitForURL(`${url}/configuracoes`);
+        await expect(admin).toHaveAttribute("aria-current","true");
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true);
     }
 }));
@@ -269,7 +343,7 @@ test("Dashboard usa identidade real, atalhos funcionais e não transborda nos br
     }
     await page.getByRole("link",{name:/Entrada de mercadoria/}).click();
     await page.waitForURL(`${url}/estoque?aba=entradas`);
-    assert.equal(await page.getByRole("tab",{name:"Entradas",exact:true}).getAttribute("aria-selected"),"true");
+    assert.equal(await page.getByRole("tab",{name:"Entradas de mercadoria",exact:true}).getAttribute("aria-selected"),"true");
 }, {usuario:"Maria Silva",empresa:"Loja Novexa"}));
 
 test("AppHeader preserva logo e nomes longos com ellipsis e tooltip condicional", () => withLayout(async page => {
@@ -328,7 +402,7 @@ test("Menu flutuante sobrepoe conteudo sem deslocamento e fecha ao clicar fora",
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true);
         assert.equal(await nav.evaluate(el => getComputedStyle(el).borderRadius),"12px");
         assert.equal(await nav.evaluate(el => [...el.children].every(child => getComputedStyle(child).boxShadow === "none")),true);
-        assert.equal(await nav.getByRole("link",{name:"Dados Bancários",exact:true}).isVisible(),true);
+        assert.equal(await nav.getByRole("link",{name:"Recebimentos de cartão",exact:true}).isVisible(),true);
         if (process.env.NOVEXA_NAV_SCREENSHOTS) await page.screenshot({path:`node_modules/.vite-layout-tests/navigation-open-${width}.png`});
         await page.mouse.click(width-20,72);
         assert.equal(await nav.getByRole("region").count(),0);

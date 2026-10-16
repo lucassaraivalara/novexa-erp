@@ -7,7 +7,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -19,16 +21,19 @@ public class MovimentacaoEstoqueService {
     private final ProdutoRepository produtoRepository;
     private final UsuarioRepository usuarioRepository;
     private final EmpresaRepository empresaRepository;
+    private final EntradaMercadoriaRepository entradaRepository;
 
     public MovimentacaoEstoqueService(
             MovimentacaoEstoqueRepository movimentacaoRepository,
             ProdutoRepository produtoRepository,
             UsuarioRepository usuarioRepository,
-            EmpresaRepository empresaRepository) {
+            EmpresaRepository empresaRepository,
+            EntradaMercadoriaRepository entradaRepository) {
         this.movimentacaoRepository = movimentacaoRepository;
         this.produtoRepository = produtoRepository;
         this.usuarioRepository = usuarioRepository;
         this.empresaRepository = empresaRepository;
+        this.entradaRepository = entradaRepository;
     }
 
     @Transactional
@@ -219,6 +224,18 @@ public class MovimentacaoEstoqueService {
         return movimentacaoRepository.listarPagina(empresaId, produtoId, tipo, origem,
                 dataInicial == null ? null : dataInicial.atStartOfDay(),
                 dataFinal == null ? null : dataFinal.plusDays(1).atStartOfDay(), pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, Long> buscarEntradasOrigem(Long empresaId, Long produtoId, List<Long> ids) {
+        var entradasPorMovimento = new HashMap<Long, Long>();
+        if (!ids.isEmpty()) entradaRepository.buscarVinculosMovimentacoes(empresaId, produtoId, ids).forEach(vinculo -> {
+            if (vinculo.getMovimentacaoEstoqueId() != null)
+                entradasPorMovimento.put(vinculo.getMovimentacaoEstoqueId(), vinculo.getEntradaId());
+            if (vinculo.getMovimentacaoCancelamentoId() != null)
+                entradasPorMovimento.put(vinculo.getMovimentacaoCancelamentoId(), vinculo.getEntradaId());
+        });
+        return entradasPorMovimento;
     }
 
     public List<MovimentacaoEstoqueEntity> buscarPorProduto(Long empresaId, Long produtoId) {

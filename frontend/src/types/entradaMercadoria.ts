@@ -1,5 +1,20 @@
 import type { Fornecedor } from "./fornecedor";
 import type { Produto } from "./produto";
+import type { ContaPagar } from "./contaPagar";
+
+export type ObrigacaoEntrada = {
+    entradaId: number;
+    origem: "GERADA" | "PREEXISTENTE" | null;
+    conta: ContaPagar | null;
+    usuarioVinculoId: number | null;
+    dataVinculo: string | null;
+    podeGerar: boolean;
+    podeVincular: boolean;
+    podeDesvincular: boolean;
+    podeCancelarEntrada: boolean;
+    motivoBloqueioCancelamento: string | null;
+};
+export type GerarObrigacaoEntrada = { chaveRequisicao: string; descricao: string; valor: number; dataVencimento: string };
 
 export type StatusEntradaMercadoria = "RASCUNHO" | "CONFIRMADA" | "CANCELADA";
 export type OrigemEntradaMercadoria = "MANUAL" | "XML";

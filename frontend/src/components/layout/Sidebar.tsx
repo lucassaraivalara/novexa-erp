@@ -5,8 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Button, ClickAwayListener, Divider, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Stack, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
 import { itemMenuAtivo, menuPrincipal, obterCaminhoDaRota, rotaPdv, type AreaMenu } from "../../routes/navigation";
-import { podeGerenciarUsuarios } from "../../utils/auth/perfis";
-import { obterSessao } from "../../utils/auth/sessao";
 import { layoutTokens } from "./layoutTokens";
 
 const estiloItem = {
@@ -25,7 +23,7 @@ export default function Sidebar() {
     const [selecao, setSelecao] = useState<{ key: string; id: string | null }>({ key: location.key, id: null });
     const acionadorRef = useRef<HTMLButtonElement | null>(null);
     const painelRef = useRef<HTMLDivElement | null>(null);
-    const areas = menuPrincipal.map(area => ({ ...area, filhos: area.filhos.filter(item => item.id !== "usuarios" || podeGerenciarUsuarios(obterSessao()?.perfil)) }));
+    const areas = menuPrincipal;
     const aberta = selecao.key === location.key ? areas.find(area => area.id === selecao.id) : undefined;
     const fechar = useCallback((restaurarFoco = true) => {
         setSelecao({ key: location.key, id: null });
@@ -65,6 +63,13 @@ export default function Sidebar() {
                     <Divider flexItem sx={{ borderColor: "#28364A", my: 1 }} />
                     {areas.map(area => {
                         const ativo = aberta?.id === area.id || itemMenuAtivo(area, location.pathname, location.search);
+                        if (area.destinoDireto) return <Tooltip key={area.id} title={area.titulo} placement="right">
+                            <IconButton component={Link} to={area.destinoDireto} aria-label={`${area.titulo} (ícone)`}
+                                aria-current={ativo ? "true" : undefined} onClick={() => fechar(false)}
+                                sx={{ mt: area.rodape ? "auto" : undefined, width: 40, height: 44, borderRadius: "6px",
+                                    color: ativo ? "#91E0C1" : "#C7D2E2", bgcolor: ativo ? "#223E3D" : "transparent",
+                                    "&:hover": { bgcolor: "#25354A" }, "&.Mui-focusVisible": { outline: "2px solid #4FCAA4", outlineOffset: -2 } }}>{area.icone}</IconButton>
+                        </Tooltip>;
                         return <Tooltip key={area.id} title={area.titulo} placement="right"><IconButton aria-label={`${area.titulo} (ícone)`}
                             aria-expanded={aberta?.id === area.id} aria-controls={aberta?.id === area.id ? "funcoes-area" : undefined}
                             onClick={event => abrir(area, event.currentTarget)} onKeyDown={event => {
@@ -81,13 +86,18 @@ export default function Sidebar() {
                     </Box>
                     <Box sx={{ px: 1.25, pb: 1 }}><Button component={Link} to={obterCaminhoDaRota(rotaPdv)} fullWidth startIcon={rotaPdv.icone} variant="contained" disableElevation
                         sx={{ justifyContent: "flex-start", height: 44, borderRadius: "6px", fontSize: 14 }}>Vender</Button></Box>
-                    <List aria-label="Áreas do sistema" sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: 1.25, pt: 1.5 }}>
-                        {areas.map(area => <ListItemButton component="button" type="button" key={area.id} aria-label={area.titulo}
+                    <List aria-label="Áreas do sistema" sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: 1.25, pt: 1.5, display: "flex", flexDirection: "column" }}>
+                        {areas.map(area => area.destinoDireto ? <ListItemButton component={Link} to={area.destinoDireto} key={area.id} aria-label={area.titulo}
+                            selected={itemMenuAtivo(area, location.pathname, location.search)}
+                            aria-current={itemMenuAtivo(area, location.pathname, location.search) ? "true" : undefined}
+                            onClick={() => fechar(false)} sx={{ ...estiloItem, flex: "0 0 auto", width: "100%", mb: 0.5, mt: area.rodape ? "auto" : undefined }}>
+                            <ListItemIcon>{area.icone}</ListItemIcon><ListItemText primary={area.titulo} />
+                        </ListItemButton> : <ListItemButton component="button" type="button" key={area.id} aria-label={area.titulo}
                             selected={aberta?.id === area.id || itemMenuAtivo(area, location.pathname, location.search)}
                             aria-expanded={aberta?.id === area.id} aria-controls={aberta?.id === area.id ? "funcoes-area" : undefined}
                             onClick={event => abrir(area, event.currentTarget)} onKeyDown={event => {
                                 if (event.key === "ArrowRight") { event.preventDefault(); abrir(area, event.currentTarget, true); }
-                            }} sx={{ ...estiloItem, width: "100%", mb: 0.5 }}>
+                            }} sx={{ ...estiloItem, flex: "0 0 auto", width: "100%", mb: 0.5 }}>
                             <ListItemIcon>{area.icone}</ListItemIcon><ListItemText primary={area.titulo} />
                             <ChevronRightRoundedIcon sx={{ fontSize: 16, opacity: 0.5 }} />
                         </ListItemButton>)}
@@ -101,7 +111,6 @@ export default function Sidebar() {
                     </Stack>
                     <List sx={{ overflowY: "auto", minHeight: 0, p: 1.25 }}>
                         {aberta.filhos.map(item => <Box key={item.id} component="li" sx={{ listStyle: "none" }}>
-                            {item.id === "formas-pagamento" && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5, mb: 0.5, px: 1.5 }}>Configurações de pagamento</Typography>}
                             <ListItemButton component={Link} to={obterCaminhoDaRota(item.rota)} onClick={() => fechar(false)}
                                 selected={itemMenuAtivo(item, location.pathname, location.search)} aria-current={itemMenuAtivo(item, location.pathname, location.search) ? "page" : undefined}
                                 sx={{ ...estiloItem, mb: 0.5 }}>

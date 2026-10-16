@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ContaPagarRepository extends JpaRepository<ContaPagarEntity, Long> {
+    @EntityGraph(attributePaths = {"fornecedor", "entradaMercadoria"})
+    Optional<ContaPagarEntity> findByIdAndEmpresaId(Long id, Long empresaId);
     interface Total {
         java.math.BigDecimal getTotal();
         long getQuantidade();
@@ -22,6 +24,7 @@ public interface ContaPagarRepository extends JpaRepository<ContaPagarEntity, Lo
 
     @Query("select distinct c.categoria from ContaPagarEntity c where c.empresa.id = :empresaId and c.categoria is not null order by c.categoria")
     List<String> categorias(Long empresaId);
+    @EntityGraph(attributePaths = {"fornecedor", "entradaMercadoria"})
     @org.springframework.data.jpa.repository.Query("""
         select c from ContaPagarEntity c left join c.fornecedor f where c.empresa.id = :empresaId
          and (:status is null or c.status = :status) and (:fornecedor is null or f.id = :fornecedor)
@@ -35,7 +38,7 @@ public interface ContaPagarRepository extends JpaRepository<ContaPagarEntity, Lo
     org.springframework.data.domain.Page<ContaPagarEntity> listarPagina(Long empresaId, String busca, br.com.novexa.erp.entity.StatusContaPagar status, Long fornecedor, String categoria, java.time.LocalDate vencimentoDe, java.time.LocalDate vencimentoAte, java.time.LocalDate emissaoDe, java.time.LocalDate emissaoAte,
             org.springframework.data.domain.Pageable pageable);
 
-    @EntityGraph(attributePaths = "fornecedor")
+    @EntityGraph(attributePaths = {"fornecedor", "entradaMercadoria"})
     List<ContaPagarEntity> findByEmpresaIdOrderByDataVencimentoAscIdAsc(Long empresaId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -41,7 +41,7 @@
 - Faturamento captura condicoes imutaveis no Pagamento; Recebivel copia o snapshot, nunca consulta a configuracao atual para recalcular historico. Taxa percentual monetaria = round(bruto * percentual / 100, 2, HALF_UP); taxas previstas = percentual monetario + fixa; liquido = bruto - taxas. Liquido <=0 rejeita a venda com 409 e rollback integral.
 - Data prevista = data do faturamento (Pagamento.dataHora / Recebivel.dataVenda) + prazo em dias corridos, sem dias uteis. Novas vendas sem condicoes explicitas usam zero, inclusive prazo zero; registros anteriores mantem datas/valores e novos snapshots NULL.
 - Liquidacao total credita exclusivamente o liquido previsto historico; cancelamento reverte exatamente o valor do movimento original. Sem credito do bruto, recalculo, fallback de destino, liquidacao parcial ou nova arquitetura de estorno.
-- V31 aditiva, sem UPDATE/backfill, conserva V1..V30 e FKs tenant-safe. ADMIN/GERENTE, idempotencia, UNIQUE financeiro e ordem dos locks do 5B permanecem. Parcelamento real, antecipacao, adquirentes, conciliacao e frontend de taxas ainda nao implementados.
+- V31 aditiva, sem UPDATE/backfill, conserva V1..V30 e FKs tenant-safe. ADMIN/GERENTE, idempotencia, UNIQUE financeiro e ordem dos locks do 5B permanecem. O formulário de configuração já possui taxas e prazo de cartão. Parcelamento real, antecipacao, adquirentes e conciliacao permanecem fora do escopo.
 
 ## Liquidacao de cartao - Bloco 5B
 
@@ -54,7 +54,7 @@
 - PENDENTE -> LIQUIDADO em uma transacao: movimento unico, credito, status e auditoria. Retry LIQUIDADO retorna o mesmo resultado, sem novo saldo/movimento. UNIQUE(recebivel_id), FK composta por empresa e CHECK de origem ENTRADA protegem o banco. CANCELADO nao liquida (409).
 - Cancelar Venda liquidada reverte saldo, marca a entrada original estornada com auditoria e muda o recebivel para CANCELADO, preservando auditoria de liquidacao. Nunca apagar ou criar movimento compensatorio. Saldo insuficiente bloqueia tudo com rollback; retry do cancelamento nao repete debito. Estorno individual pelo endpoint generico continua bloqueado por origem.
 - Auditoria de liquidacao no Recebivel copia valor/data/usuario do movimento original; vinculo persistido apenas em MovimentacaoFinanceira -> Recebivel. ID do movimento no DTO e derivado da consulta, inclusive apos cancelamento, sem FK circular. Auditoria de cancelamento preserva data/usuario da primeira execucao.
-- Frontend de destino/regularizacao foi integrado no MVP 01; campos de taxa/prazo do 5C ainda exigem integracao frontend. Nao contornar pelo endpoint de liquidacao.
+- Frontend de destino/regularizacao foi integrado no MVP 01; campos de taxa/prazo do 5C também estão no formulário de configuração existente. Nao contornar pelo endpoint de liquidacao.
 
 ## Recebiveis de cartao - Bloco 5A
 

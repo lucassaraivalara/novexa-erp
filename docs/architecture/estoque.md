@@ -533,6 +533,12 @@ Não transformar a página de Estoque em um dashboard cheio de cards.
 
 ## 17. Histórico
 
+Na Etapa 6 da branch `feat/central-configuracoes`, sobre `24f3f33`, `GET /estoque/movimentacoes/produto/{produtoId}` mantém os parâmetros, a ordenação e o envelope paginado existentes. Cada item acrescenta `entradaMercadoriaId: Long | null`, preenchido exclusivamente quando `movimentacaoEstoqueId` ou `movimentacaoCancelamentoId` de um item de Entrada coincide com o movimento consultado. A consulta filtra empresa do JWT, empresa da Entrada e produto, buscando os vínculos em lote para os IDs da página; não há consulta por linha nem interpretação do motivo ou dedução pelo valor de `origem`. Sem associação persistida, o campo é nulo e a apresentação anterior permanece.
+
+O frontend oferece “Abrir entrada de origem #ID (nova aba)” para `/estoque?aba=entradas&entradaId=ID`, inclusive quando o vínculo corresponde à reversão de uma Entrada cancelada. Reutiliza o detalhe e a autorização existentes; a consulta de estoque permanece aberta com seus filtros e paginação. Apenas leitura, sem mudança de saldo, custo, confirmação, cancelamento ou criação de movimento; nenhuma migration necessária.
+
+Consolidação sobre `1e12040`: corrigida a dependência de mapper no service, mantendo o mapeamento no controller e a busca em lote em método somente leitura. Teste HTTP de confirmação/reversão verifica os vínculos reais, ausência de associação mesmo com motivo semelhante, isolamento por empresa/produto, uma chamada de busca para os IDs da página, filtros/paginação e ausência de efeitos de leitura em saldo/custo/movimentos. Passou em H2 e PostgreSQL com V37/Hibernate validate. Dois cenários Playwright com HTTP real passaram em 1440px/390px, incluindo teclado, nova aba, Entrada cancelada, ausência de link no movimento avulso e preservação da consulta. Testes relacionados, build, lint e diff check aprovados; resultados conjuntos das Etapas 5 e 6 e pendências gerais que mantêm CONTRACT READY pendente em [CURRENT_STATE.md](CURRENT_STATE.md).
+
 O histórico deve permitir entender:
 
 > quem alterou;

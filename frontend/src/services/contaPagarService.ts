@@ -4,6 +4,8 @@ import type { PaginaResponse } from "../types/paginacao";
 import type { ContaPagar, ContaPagarInput, PagamentoContaPagarInput } from "../types/contaPagar";
 
 const base = "/financeiro/contas-pagar";
+export const buscarContaPagar = async (id: number, signal?: AbortSignal) =>
+    (await api.get<ContaPagar>(`${base}/${id}`, { signal })).data;
 
 export type FiltrosContaPagar = {
     page?: number; size?: number; sort?: string; busca?: string; status?: string;

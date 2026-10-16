@@ -112,7 +112,7 @@ export default function Empresa() {
         <Stack spacing={2.5}>
             <PageHeader
                 titulo="Empresas"
-                descricao="Gerencie os dados cadastrais e fiscais das empresas."
+                descricao="Consulte e mantenha os dados cadastrais e fiscais das empresas."
                 acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} disabled={abrindo !== null} onClick={() => setEditor({ empresa: null, aba: 0 })}>Nova empresa</Button>}
             />
 

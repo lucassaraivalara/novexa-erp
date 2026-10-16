@@ -24,6 +24,7 @@ export type MovimentacaoEstoque = {
     dataHora: string;
     usuarioId: number;
     nomeUsuario: string;
+    entradaMercadoriaId?: number | null;
 };
 
 export async function listarProdutosEstoque(params: FiltrosProduto = {}, signal?: AbortSignal) {

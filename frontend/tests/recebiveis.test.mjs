@@ -14,11 +14,12 @@ const fixture = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { CssBaseline, ThemeProvider } from '@mui/material';
+import { BrowserRouter } from 'react-router-dom';
 import theme from '/src/theme/theme.ts';
 import Recebiveis from '/src/pages/Financeiro/Recebiveis.tsx';
 createRoot(document.getElementById('root')).render(
     React.createElement(ThemeProvider, { theme }, React.createElement(React.Fragment, null,
-        React.createElement(CssBaseline), React.createElement(Recebiveis)))
+        React.createElement(CssBaseline), React.createElement(BrowserRouter, null, React.createElement(Recebiveis))))
 );
 `;
 
@@ -151,13 +152,46 @@ async function comTela(callback, options = {}) {
         await page.addInitScript((perfil) => localStorage.setItem("novexa-auth", JSON.stringify({
             token: "token-e2e", perfil, empresa: { id: 1 },
         })), options.perfil ?? "ADMIN");
-        await page.goto(url);
-        await page.getByRole("table").waitFor();
+        await page.goto(`${url}${options.query ?? ""}`);
+        if (options.semTabela) await page.getByRole("heading", { name: "Recebimentos de cartão", exact: true }).waitFor();
+        else await page.getByRole("table").waitFor();
         await callback(page, estado);
     } finally {
         await page.close();
     }
 }
+
+test("vendaId da URL filtra no backend, oferece venda de origem e preserva outros filtros ao limpar", () => comTela(async (page, estado) => {
+    assert.equal(await page.getByLabel("Venda", { exact: true }).inputValue(), "123");
+    assert.ok(estado.requests.every(r => r.method !== "GET" || r.url.searchParams.get("vendaId") === "123"));
+    assert.equal(await page.getByRole("row").filter({ hasText: "#124" }).count(), 0);
+    const venda = page.getByRole("link", { name: "Ver venda #123", exact: true });
+    assert.equal(await venda.getAttribute("href"), "/vendas?vendaId=123");
+    assert.equal(await venda.getAttribute("target"), "_blank");
+    await page.getByLabel("Tipo", { exact: true }).click();
+    await page.getByRole("option", { name: "Crédito", exact: true }).click();
+    const respostaPendente = page.waitForResponse(r => {
+        const u = new URL(r.url());
+        return u.pathname === "/financeiro/recebiveis" && !u.searchParams.has("vendaId") && u.searchParams.get("tipo") === "CREDITO";
+    });
+    await page.getByRole("button", { name: "Limpar venda", exact: true }).click();
+    const resposta = await respostaPendente;
+    assert.equal(resposta.status(), 200);
+    assert.equal(new URL(page.url()).searchParams.get("origem"), "central");
+}, { query: "?vendaId=123&origem=central" }));
+
+test("vendaId inválido não consulta lista sem contexto e permite remover somente esse parâmetro", async () => {
+    for (const id of ["0", "-1", "abc", "1.5", "9007199254740992"]) await comTela(async (page, estado) => {
+        await page.getByText("Informe um número de venda inteiro e positivo.", { exact: true }).waitFor();
+        assert.equal(estado.requests.length, 0);
+        assert.equal(await page.getByRole("link", { name: /Ver venda/ }).count(), 0);
+        const resposta = page.waitForResponse(r => new URL(r.url()).pathname === "/financeiro/recebiveis");
+        await page.getByRole("button", { name: "Limpar venda", exact: true }).click();
+        await resposta;
+        assert.equal(new URL(page.url()).searchParams.get("origem"), "central");
+        assert.equal(new URL(page.url()).searchParams.has("vendaId"), false);
+    }, { query: `?vendaId=${id}&origem=central`, semTabela: true });
+});
 
 test("service envia paginação, filtros suportados e POST de liquidação sem body", async () => {
     const adapterAnterior = api.defaults.adapter;

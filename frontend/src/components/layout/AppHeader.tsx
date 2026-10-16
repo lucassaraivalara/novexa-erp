@@ -1,8 +1,9 @@
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import { AppBar, Avatar, Box, Divider, IconButton, Toolbar, Tooltip, Typography } from "@mui/material";
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { obterTituloDaPagina } from "../../routes/navigation";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ehRotaConfiguracao, obterTituloDaPagina } from "../../routes/navigation";
 import { obterSessao, removerSessao } from "../../utils/auth/sessao";
 import { layoutTokens } from "./layoutTokens";
 
@@ -53,6 +54,11 @@ function AppHeader() {
                     px: layoutTokens.header.paddingX,
                 }}
             >
+                {ehRotaConfiguracao(location.pathname) && location.pathname !== "/configuracoes" &&
+                    <Tooltip title="Voltar às configurações">
+                        <IconButton component={Link} to="/configuracoes" aria-label="Voltar às configurações" size="small"
+                            sx={{ width: 36, height: 36, color: "text.secondary" }}><ArrowBackRoundedIcon fontSize="small" /></IconButton>
+                    </Tooltip>}
                 {noDashboard ? <Box sx={{ display: "flex", flexGrow: 1, minWidth: 0, flexDirection: "column", justifyContent: "center" }}>
                     <Typography variant="h6" component="h1" noWrap sx={{ fontSize: { xs: 14, sm: 19 }, fontWeight: 700, lineHeight: 1.25, color: "text.primary" }}>
                         {saudacao}, {nomeUsuario}! 👋

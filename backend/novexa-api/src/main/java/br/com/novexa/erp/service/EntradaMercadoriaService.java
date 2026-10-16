@@ -29,12 +29,14 @@ public class EntradaMercadoriaService {
     private final MovimentacaoEstoqueRepository movimentos;
     private final MovimentacaoEstoqueService estoque;
     private final EntityManager em;
+    private final EntradaContaPagarService obrigacoes;
 
     public EntradaMercadoriaService(EntradaMercadoriaRepository entradas, FornecedorRepository fornecedores,
             ProdutoRepository produtos, MovimentacaoEstoqueRepository movimentos, MovimentacaoEstoqueService estoque,
-            EntityManager em) {
+            EntityManager em, EntradaContaPagarService obrigacoes) {
         this.entradas = entradas; this.fornecedores = fornecedores; this.produtos = produtos;
         this.movimentos = movimentos; this.estoque = estoque; this.em = em;
+        this.obrigacoes = obrigacoes;
     }
 
     public EntradaMercadoriaResponseDTO criar(EntradaMercadoriaRequestDTO pedido, UsuarioAutenticado usuario) {
@@ -105,9 +107,10 @@ public class EntradaMercadoriaService {
     }
 
     public EntradaMercadoriaResponseDTO cancelar(Long id, UsuarioAutenticado usuario) {
-        var entrada = bloquear(id, usuario.empresaId());
+        var entrada = obrigacoes.bloquear(id, usuario.empresaId(), null);
         if (entrada.getStatus() == StatusEntradaMercadoria.CANCELADA) return detalhe(entrada);
         if (entrada.getStatus() != StatusEntradaMercadoria.CONFIRMADA) throw conflito("Somente entradas confirmadas podem ser canceladas.");
+        obrigacoes.cancelarObrigacao(entrada);
         bloquearProdutos(entrada, usuario.empresaId());
         for (var item : entrada.getItens()) {
             if (item.getMovimentacaoEstoqueId() == null || item.getMovimentacaoCancelamentoId() != null)

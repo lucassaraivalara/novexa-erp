@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField, Typography } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -11,9 +12,9 @@ import PageFilters from "../../components/ui/PageFilters";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import StatusChip from "../../components/ui/StatusChip";
 import FornecedorAutocomplete, { type FornecedorOpcao } from "../../components/fornecedores/FornecedorAutocomplete";
-import { buscarEntradaPorId, cancelarEntrada, listarEntradas } from "../../services/entradaMercadoriaService";
+import { buscarEntradaPorId, cancelarEntrada, consultarObrigacaoEntrada, listarEntradas } from "../../services/entradaMercadoriaService";
 import { obterMensagemDaApi } from "../../services/produtoService";
-import type { EntradaMercadoria, StatusEntradaMercadoria } from "../../types/entradaMercadoria";
+import type { EntradaMercadoria, ObrigacaoEntrada, StatusEntradaMercadoria } from "../../types/entradaMercadoria";
 import EntradaMercadoriaForm from "./EntradaMercadoriaForm";
 import EntradaXmlImportacao from "./EntradaXmlImportacao";
 
@@ -21,6 +22,10 @@ const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 const data = (valor: string) => new Intl.DateTimeFormat("pt-BR").format(new Date(`${valor}T12:00:00`));
 
 export default function EntradasMercadoria() {
+    const [parametros, setParametros] = useSearchParams();
+    const entradaIdParametro = parametros.get("entradaId");
+    const [erroOrigem, setErroOrigem] = useState("");
+    const [tentativaOrigem, setTentativaOrigem] = useState(0);
     const [linhas, setLinhas] = useState<EntradaMercadoria[]>([]);
     const [total, setTotal] = useState(0);
     const [pagina, setPagina] = useState(0);
@@ -39,7 +44,39 @@ export default function EntradasMercadoria() {
     const [formulario, setFormulario] = useState<{ entrada: EntradaMercadoria | null } | null>(null);
     const [importandoXml, setImportandoXml] = useState(false);
     const [cancelamento, setCancelamento] = useState<EntradaMercadoria | null>(null);
+    const [obrigacaoCancelamento, setObrigacaoCancelamento] = useState<ObrigacaoEntrada | null>(null);
+    const [consultandoCancelamento, setConsultandoCancelamento] = useState(false);
     const atualizar = () => setRevisao(n => n + 1);
+
+    useEffect(() => {
+        if (entradaIdParametro === null) return;
+        const controller = new AbortController();
+        if (!/^[1-9]\d*$/.test(entradaIdParametro) || !Number.isSafeInteger(Number(entradaIdParametro))) {
+            const timer = setTimeout(() => setErroOrigem("Informe uma entrada válida para abrir o detalhe."), 0);
+            return () => clearTimeout(timer);
+        }
+        buscarEntradaPorId(Number(entradaIdParametro), controller.signal).then(entrada => {
+            if (!controller.signal.aborted) { setFormulario({ entrada }); setErroOrigem(""); }
+        }).catch(e => { if (!controller.signal.aborted) setErroOrigem(obterMensagemDaApi(e, "Não foi possível abrir a entrada de origem.")); });
+        return () => controller.abort();
+    }, [entradaIdParametro, tentativaOrigem]);
+
+    useEffect(() => {
+        if (!cancelamento) return;
+        const controller = new AbortController();
+        consultarObrigacaoEntrada(cancelamento.id, controller.signal).then(r => {
+            if (!controller.signal.aborted) setObrigacaoCancelamento(r);
+        }).catch(e => { if (!controller.signal.aborted) setErro(obterMensagemDaApi(e, "Não foi possível verificar o cancelamento.")); })
+            .finally(() => { if (!controller.signal.aborted) setConsultandoCancelamento(false); });
+        return () => controller.abort();
+    }, [cancelamento]);
+
+    function fecharFormulario() {
+        setFormulario(null); setErroOrigem(""); atualizar();
+        if (parametros.has("entradaId")) {
+            const novos = new URLSearchParams(parametros); novos.delete("entradaId"); setParametros(novos, { replace: true });
+        }
+    }
 
     useEffect(() => {
         const controller = new AbortController();
@@ -83,15 +120,18 @@ export default function EntradasMercadoria() {
     const acoes: AcaoTabela<EntradaMercadoria>[] = [
         { rotulo: "Visualizar entrada", icone: <VisibilityOutlinedIcon />, onClick: e => void abrir(e), desabilitado: () => ocupado },
         { rotulo: "Editar entrada", icone: <EditOutlinedIcon />, onClick: e => void abrir(e), desabilitado: e => ocupado || e.status !== "RASCUNHO" },
-        { rotulo: "Cancelar entrada", icone: <BlockOutlinedIcon />, cor: "error", onClick: setCancelamento, desabilitado: e => ocupado || e.status !== "CONFIRMADA" },
+        { rotulo: "Cancelar entrada", icone: <BlockOutlinedIcon />, cor: "error", onClick: e => {
+            setErro(""); setObrigacaoCancelamento(null); setConsultandoCancelamento(true); setCancelamento(e);
+        }, desabilitado: e => ocupado || e.status !== "CONFIRMADA" },
     ];
     return <PageContainer>
-        <PageHeader titulo="Entradas de mercadoria" descricao="Registre e acompanhe o recebimento de mercadorias."
+        <PageHeader titulo="Entradas de mercadoria" descricao="Registre recebimentos com fornecedor e itens. O estoque é atualizado ao confirmar a entrada."
             acoesSecundarias={<Button variant="outlined" startIcon={<UploadFileOutlinedIcon />} disabled={ocupado}
                 onClick={() => { setSucesso(""); setImportandoXml(true); }}>Importar XML</Button>}
             acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} disabled={ocupado}
                 onClick={() => { setSucesso(""); setFormulario({ entrada: null }); }}>Entrada manual</Button>} />
         {erro && <Alert severity="error" onClose={() => setErro("")}>{erro}</Alert>}
+        {erroOrigem && <Alert severity="error" onClose={fecharFormulario} action={<Button color="inherit" onClick={() => setTentativaOrigem(n => n + 1)}>Tentar novamente</Button>}>{erroOrigem}</Alert>}
         {sucesso && <Alert severity="success" onClose={() => setSucesso("")}>{sucesso}</Alert>}
         <PageFilters busca={{ valor: termo, placeholder: "Buscar por nota ou fornecedor…", onChange: v => { setPagina(0); setTermo(v); } }}>
             <TextField label="Status" select size="small" value={status} sx={{ minWidth: 140 }}
@@ -110,7 +150,7 @@ export default function EntradasMercadoria() {
                 setOrdem(o => ({ campo, direcao: o.campo === campo && o.direcao === "asc" ? "desc" : "asc" })); } }}
             paginacao={{ pagina, linhasPorPagina: size, total, onPageChange: setPagina,
                 onRowsPerPageChange: valor => { setPagina(0); setSize(valor); }, opcoesLinhasPorPagina: [10, 25, 50] }} />
-        {formulario && <EntradaMercadoriaForm entrada={formulario.entrada} onFechar={() => { setFormulario(null); atualizar(); }}
+        {formulario && <EntradaMercadoriaForm entrada={formulario.entrada} onFechar={fecharFormulario}
             onAtualizar={atualizar} onConcluido={e => { setFormulario(null); atualizar();
                 setSucesso(e.status === "CONFIRMADA" ? "Entrada confirmada. Estoque atualizado." : e.status === "CANCELADA" ? "Entrada já cancelada." : "Rascunho salvo."); }} />}
         {importandoXml && <EntradaXmlImportacao onFechar={() => { setImportandoXml(false); atualizar(); }} onAtualizar={atualizar}
@@ -120,10 +160,14 @@ export default function EntradasMercadoria() {
             <DialogTitle id="entrada-cancelamento-titulo">Cancelar esta entrada?</DialogTitle>
             <DialogContent>
                 <Typography>O estoque dos produtos será revertido e a entrada permanecerá no histórico.</Typography>
-                {erro && <Alert severity="error" sx={{ mt: 2 }}>{erro}</Alert>}
+                {consultandoCancelamento && <Typography variant="body2">Verificando obrigação financeira…</Typography>}
+                {obrigacaoCancelamento?.motivoBloqueioCancelamento && <Alert severity="warning" sx={{ mt: 2 }}>{obrigacaoCancelamento.motivoBloqueioCancelamento}</Alert>}
+                {obrigacaoCancelamento?.conta && obrigacaoCancelamento.podeCancelarEntrada && <Alert severity="info" sx={{ mt: 2 }}>A conta gerada aberta será cancelada junto com a entrada, sem movimentar saldo.</Alert>}
+                {erro && <Alert severity="error" sx={{ mt: 2 }} action={<Button color="inherit" disabled={consultandoCancelamento || ocupado}
+                    onClick={() => { setErro(""); setConsultandoCancelamento(true); setObrigacaoCancelamento(null); setCancelamento(e => e ? { ...e } : null); }}>Consultar novamente</Button>}>{erro}</Alert>}
             </DialogContent>
             <DialogActions><Button disabled={ocupado} onClick={() => setCancelamento(null)}>Voltar</Button>
-                <Button color="error" variant="contained" disabled={ocupado} onClick={() => void cancelar()}>Cancelar entrada</Button></DialogActions>
+                <Button color="error" variant="contained" disabled={ocupado || consultandoCancelamento || !obrigacaoCancelamento?.podeCancelarEntrada} onClick={() => void cancelar()}>Cancelar entrada</Button></DialogActions>
         </Dialog>
     </PageContainer>;
 }

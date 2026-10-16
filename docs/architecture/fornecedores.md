@@ -1,6 +1,6 @@
 # Fornecedor: cadastro backend
 
-Fornecedor e dominio proprio, por empresa, com Entity/DTO/Mapper/Service/Repository existentes evoluidos. Uma unica API de criacao atende cadastro rapido e completo. Futuramente o frontend pode abrir um modal dentro de Produto, Conta a Pagar, Compra ou Entrada, criar e selecionar o objeto retornado sem sair da operacao. Nenhuma dessas integracoes novas foi implementada aqui.
+Fornecedor e dominio proprio, por empresa, com Entity/DTO/Mapper/Service/Repository existentes evoluidos. Uma unica API de criacao atende cadastro rapido e completo. O frontend já possui a aba Fornecedores de Produtos e cadastro rápido em Entradas de mercadoria manual/XML, selecionando o objeto retornado sem sair da operação. Consultas contextuais e seus limites estão em [entradas-mercadoria.md](entradas-mercadoria.md).
 
 ## Contrato
 
@@ -45,4 +45,4 @@ Indice unico parcial por empresa e documento normalizado no banco impede duplici
 
 tipoPessoa e dataAtualizacao legados permanecem null ate atualizacao explicita; dataCadastro, endereco e documentos historicos nao sao reescritos pela migration. Novos registros recebem dataCadastro/dataAtualizacao, e edicoes/inativacao atualizam dataAtualizacao. DELETE nao apaga dados nem referencias historicas. Empresa e imutavel na atualizacao JPA; todas as consultas e alteracoes operacionais usam tenant.
 
-Ainda nao implementados: ProdutoFornecedor, fornecedor principal, Ordem de Compra, Cotacao, Entrada de Mercadoria, historico/tabela de precos e modulo Compras no frontend. Nenhum novo efeito financeiro.
+Ainda nao implementados: ProdutoFornecedor, fornecedor principal, Ordem de Compra, Cotacao, historico/tabela de precos e modulo Compras no frontend. Nenhum novo efeito financeiro.
