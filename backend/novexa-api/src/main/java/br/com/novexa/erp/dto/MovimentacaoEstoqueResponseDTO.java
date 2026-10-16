@@ -20,6 +20,7 @@ public class MovimentacaoEstoqueResponseDTO {
     private LocalDateTime dataHora;
     private Long usuarioId;
     private String nomeUsuario;
+    private Long entradaMercadoriaId;
 
     public MovimentacaoEstoqueResponseDTO() {
     }
@@ -118,5 +119,13 @@ public class MovimentacaoEstoqueResponseDTO {
 
     public void setNomeUsuario(String nomeUsuario) {
         this.nomeUsuario = nomeUsuario;
+    }
+
+    public Long getEntradaMercadoriaId() {
+        return entradaMercadoriaId;
+    }
+
+    public void setEntradaMercadoriaId(Long entradaMercadoriaId) {
+        this.entradaMercadoriaId = entradaMercadoriaId;
     }
 }

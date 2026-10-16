@@ -107,8 +107,8 @@ public class MovimentacaoEstoqueController {
             @RequestParam(defaultValue = "25") int size,
             @RequestParam(defaultValue = "dataHora,desc") String sort,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return br.com.novexa.erp.dto.PaginaResponseDTO.de(service.listarPagina(usuario.empresaId(), produtoId,
-                tipo, origem, dataInicial, dataFinal, page, size, sort), mapper::toResponse);
+        return service.listarPagina(usuario.empresaId(), produtoId,
+                tipo, origem, dataInicial, dataFinal, page, size, sort);
     }
     private BigDecimal quantidadePositiva(BigDecimal quantidade) {
         if (quantidade.signum() <= 0)

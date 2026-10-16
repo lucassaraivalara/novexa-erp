@@ -1,12 +1,16 @@
 package br.com.novexa.erp.service;
 
+import br.com.novexa.erp.dto.MovimentacaoEstoqueResponseDTO;
+import br.com.novexa.erp.dto.PaginaResponseDTO;
 import br.com.novexa.erp.entity.*;
 import br.com.novexa.erp.exception.*;
+import br.com.novexa.erp.mapper.MovimentacaoEstoqueMapper;
 import br.com.novexa.erp.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -19,16 +23,22 @@ public class MovimentacaoEstoqueService {
     private final ProdutoRepository produtoRepository;
     private final UsuarioRepository usuarioRepository;
     private final EmpresaRepository empresaRepository;
+    private final EntradaMercadoriaRepository entradaRepository;
+    private final MovimentacaoEstoqueMapper mapper;
 
     public MovimentacaoEstoqueService(
             MovimentacaoEstoqueRepository movimentacaoRepository,
             ProdutoRepository produtoRepository,
             UsuarioRepository usuarioRepository,
-            EmpresaRepository empresaRepository) {
+            EmpresaRepository empresaRepository,
+            EntradaMercadoriaRepository entradaRepository,
+            MovimentacaoEstoqueMapper mapper) {
         this.movimentacaoRepository = movimentacaoRepository;
         this.produtoRepository = produtoRepository;
         this.usuarioRepository = usuarioRepository;
         this.empresaRepository = empresaRepository;
+        this.entradaRepository = entradaRepository;
+        this.mapper = mapper;
     }
 
     @Transactional
@@ -207,7 +217,7 @@ public class MovimentacaoEstoqueService {
     }
 
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<MovimentacaoEstoqueEntity> listarPagina(Long empresaId, Long produtoId,
+    public PaginaResponseDTO<MovimentacaoEstoqueResponseDTO> listarPagina(Long empresaId, Long produtoId,
             TipoMovimentacaoEstoque tipo, OrigemMovimentacaoEstoque origem, java.time.LocalDate dataInicial,
             java.time.LocalDate dataFinal, int page, int size, String sort) {
         var pageable = br.com.novexa.erp.util.Paginacao.criar(page, size, sort,
@@ -216,9 +226,22 @@ public class MovimentacaoEstoqueService {
             throw br.com.novexa.erp.util.Paginacao.invalida("Periodo invalido.");
         produtoRepository.findByIdAndEmpresaId(produtoId, empresaId)
                 .orElseThrow(() -> new ProdutoNotFoundException("Produto nao encontrado."));
-        return movimentacaoRepository.listarPagina(empresaId, produtoId, tipo, origem,
+        var resultado = movimentacaoRepository.listarPagina(empresaId, produtoId, tipo, origem,
                 dataInicial == null ? null : dataInicial.atStartOfDay(),
                 dataFinal == null ? null : dataFinal.plusDays(1).atStartOfDay(), pageable);
+        var ids = resultado.getContent().stream().map(MovimentacaoEstoqueEntity::getId).toList();
+        var entradasPorMovimento = new HashMap<Long, Long>();
+        if (!ids.isEmpty()) entradaRepository.buscarVinculosMovimentacoes(empresaId, produtoId, ids).forEach(vinculo -> {
+            if (vinculo.getMovimentacaoEstoqueId() != null)
+                entradasPorMovimento.put(vinculo.getMovimentacaoEstoqueId(), vinculo.getEntradaId());
+            if (vinculo.getMovimentacaoCancelamentoId() != null)
+                entradasPorMovimento.put(vinculo.getMovimentacaoCancelamentoId(), vinculo.getEntradaId());
+        });
+        return PaginaResponseDTO.de(resultado, movimento -> {
+            var resposta = mapper.toResponse(movimento);
+            resposta.setEntradaMercadoriaId(entradasPorMovimento.get(movimento.getId()));
+            return resposta;
+        });
     }
 
     public List<MovimentacaoEstoqueEntity> buscarPorProduto(Long empresaId, Long produtoId) {

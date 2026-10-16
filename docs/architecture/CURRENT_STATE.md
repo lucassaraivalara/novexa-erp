@@ -10,6 +10,12 @@ Dados Bancários  cadastros de Banco, Agência e Conta Bancária via services ex
 Financeiro ..... fundação parcial; Contas a Pagar MVP operacional
 Dashboard ...... placeholder
 
+## Etapa 6 — Histórico de estoque e Entrada de origem (2026-10-15)
+
+Implementado na branch `feat/central-configuracoes`, sobre `24f3f33`: o histórico paginado de estoque acrescenta `entradaMercadoriaId`, nulo quando não há vínculo persistido. A origem é obtida somente pelos IDs de confirmação/reversão guardados nos itens da Entrada, com filtro de empresa e produto e uma consulta em lote para os movimentos da página. Não interpreta motivo ou enum de origem para deduzir documento; não modifica saldo, custo ou movimentos. Contrato em [estoque.md](estoque.md#17-histórico).
+
+O histórico oferece link discreto para `/estoque?aba=entradas&entradaId=...` em nova aba, reutilizando o detalhe existente e preservando filtros, página e modal da consulta original. Entradas canceladas continuam consultáveis pelos movimentos vinculados. Sem nova rota, migration, alteração de permissões ou mudança em PDV/Vendas/Caixa/Financeiro. Revisão de código/diff e `git diff --check` somente; testes, build, lint e homologação adiados por orientação explícita. Implementação ainda não validada em execução, sem CONTRACT READY para esta extensão.
+
 ## Etapa 5 — Entrada e Conta a Pagar explícitas (2026-10-15)
 
 Implementação restrita à branch `feat/central-configuracoes`, sobre `daf77eb`: Entrada confirmada pode gerar uma Conta a Pagar aberta com valor financeiro informado separadamente, ou vincular uma conta preexistente aberta/paga. Não há geração por confirmação/XML nem pagamento, baixa ou estorno automático. Vínculo único, tenant-safe, distingue GERADA/PREEXISTENTE; conta gerada não é desvinculada nem cancelada diretamente pelo financeiro. Cancelar a Entrada cancela sua conta gerada aberta na mesma transação do estoque; conta preexistente exige desvinculação, e pagamento efetivo bloqueia cancelamento/desvinculação até tratamento financeiro explícito. Sem vínculo, as regras de Entrada permanecem.

@@ -533,6 +533,10 @@ Não transformar a página de Estoque em um dashboard cheio de cards.
 
 ## 17. Histórico
 
+Na Etapa 6 da branch `feat/central-configuracoes`, sobre `24f3f33`, `GET /estoque/movimentacoes/produto/{produtoId}` mantém os parâmetros, a ordenação e o envelope paginado existentes. Cada item acrescenta `entradaMercadoriaId: Long | null`, preenchido exclusivamente quando `movimentacaoEstoqueId` ou `movimentacaoCancelamentoId` de um item de Entrada coincide com o movimento consultado. A consulta filtra empresa do JWT, empresa da Entrada e produto, buscando os vínculos em lote para os IDs da página; não há consulta por linha nem interpretação do motivo ou dedução pelo valor de `origem`. Sem associação persistida, o campo é nulo e a apresentação anterior permanece.
+
+O frontend oferece “Abrir entrada de origem #ID (nova aba)” para `/estoque?aba=entradas&entradaId=ID`, inclusive quando o vínculo corresponde à reversão de uma Entrada cancelada. Reutiliza o detalhe e a autorização existentes; a consulta de estoque permanece aberta com seus filtros e paginação. Apenas leitura, sem mudança de saldo, custo, confirmação, cancelamento ou criação de movimento; nenhuma migration necessária. Testes backend/frontend, build, lint e homologação pendentes por orientação explícita; esta extensão não está CONTRACT READY.
+
 O histórico deve permitir entender:
 
 > quem alterou;

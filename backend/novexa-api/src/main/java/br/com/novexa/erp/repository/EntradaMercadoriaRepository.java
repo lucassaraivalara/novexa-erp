@@ -6,10 +6,26 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface EntradaMercadoriaRepository extends JpaRepository<EntradaMercadoriaEntity, Long> {
+    interface VinculoMovimentacao {
+        Long getEntradaId();
+        Long getMovimentacaoEstoqueId();
+        Long getMovimentacaoCancelamentoId();
+    }
+
+    @Query("""
+        select i.entrada.id as entradaId, i.movimentacaoEstoqueId as movimentacaoEstoqueId,
+               i.movimentacaoCancelamentoId as movimentacaoCancelamentoId
+        from ItemEntradaMercadoriaEntity i
+        where i.empresa.id = :empresaId and i.entrada.empresa.id = :empresaId and i.produto.id = :produtoId
+          and (i.movimentacaoEstoqueId in :movimentoIds or i.movimentacaoCancelamentoId in :movimentoIds)
+        """)
+    List<VinculoMovimentacao> buscarVinculosMovimentacoes(Long empresaId, Long produtoId, List<Long> movimentoIds);
+
     Optional<EntradaMercadoriaEntity> findByIdAndEmpresaId(Long id, Long empresaId);
     boolean existsByEmpresaIdAndChaveAcessoNfe(Long empresaId, String chaveAcessoNfe);
     Optional<EntradaMercadoriaEntity> findByContaPagarIdAndEmpresaId(Long contaPagarId, Long empresaId);

@@ -15,6 +15,8 @@ Dominio unico `EntradaMercadoriaEntity -> ItemEntradaMercadoriaEntity`, implemen
 
 Nao existe DELETE. Tenant/usuario/origem/status/totais/movimentos/auditoria nao sao definidos pelo request. Autorizacao segue as movimentacoes de estoque atuais: usuario autenticado, ativo e da empresa ativa; nao foi criado perfil ou regra financeira nova. Referencia inexistente ou de outro tenant retorna 404, dados invalidos 400 e conflito de estado/duplicidade/saldo 409. Erro inesperado usa o tratamento global sem detalhes internos.
 
+Na Etapa 6 da branch `feat/central-configuracoes`, o histórico de estoque passa a abrir este detalhe por `entradaMercadoriaId`, obtido dos vínculos persistidos de confirmação/reversão dos itens, inclusive para Entrada cancelada. O acesso em nova aba usa `/estoque?aba=entradas&entradaId=...` e preserva a consulta original. Contrato e limites em [estoque.md](estoque.md#17-histórico); validação em execução pendente por orientação explícita.
+
 ## Request unico de criacao/edicao
 
 ```json
