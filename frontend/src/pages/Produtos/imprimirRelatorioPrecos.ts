@@ -33,7 +33,7 @@ export async function imprimirRelatorioPrecos(
         if (atual?.token !== token || atual?.empresa?.id !== empresa.id) {
             throw new Error("A sessão mudou. Abra novamente o relatório na empresa atual.");
         }
-        if (janela.closed) throw new Error("A janela de impressão foi fechada.");
+        if (!janela || janela.closed) throw new Error("A janela de impressão foi fechada.");
     }
 
     try {
