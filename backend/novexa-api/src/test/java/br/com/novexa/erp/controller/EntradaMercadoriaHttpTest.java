@@ -40,7 +40,7 @@ class EntradaMercadoriaHttpTest {
     @Autowired UsuarioRepository usuarios;
     @Autowired FornecedorRepository fornecedores;
     @Autowired ProdutoRepository produtos;
-    @Autowired EntradaMercadoriaRepository entradas;
+    @MockitoSpyBean EntradaMercadoriaRepository entradas;
     @Autowired MovimentacaoEstoqueRepository movimentos;
     @Autowired ContaFinanceiraRepository contasFinanceirasTeste;
     @Autowired JwtService jwt;
@@ -112,6 +112,47 @@ class EntradaMercadoriaHttpTest {
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("descricao", "Compra registrada",
                         "fornecedorId", fornecedor.getId(), "valor", "65.25", "dataVencimento", "2026-12-10"))))
                 .andExpect(status().isCreated()));
+    }
+
+    @Test void historicoRastreiaConfirmacaoEReversaoSomentePorVinculoPersistidoEmLote() throws Exception {
+        long entradaId = confirmarNovaEntrada();
+        var confirmada = json.readTree(mvc.perform(get("/estoque/entradas/" + entradaId).header("Authorization", authorization))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        long originalId = confirmada.path("itens").get(0).path("movimentacaoEstoqueId").asLong();
+        mvc.perform(get("/estoque/movimentacoes/produto/" + produto.getId()).header("Authorization", authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].entradaMercadoriaId").value(entradaId));
+        long manualId = id(mvc.perform(post("/estoque/movimentacoes/entrada").header("Authorization", authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("produtoId", produto.getId(),
+                        "quantidade", 1, "motivo", "Entrada de mercadoria " + entradaId)))).andExpect(status().isCreated()));
+        operacao(entradaId, "cancelar").andExpect(status().isOk());
+        var cancelada = json.readTree(mvc.perform(get("/estoque/entradas/" + entradaId).header("Authorization", authorization))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        long reversaoId = cancelada.path("itens").get(0).path("movimentacaoCancelamentoId").asLong();
+        long quantidadeMovimentos = movimentos.count();
+        var custo = produtos.findById(produto.getId()).orElseThrow().getPrecoCusto();
+        clearInvocations(entradas);
+        mvc.perform(get("/estoque/movimentacoes/produto/" + produto.getId()).header("Authorization", authorization)
+                .param("sort", "id,asc").param("size", "25"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(3))
+                .andExpect(jsonPath("$.items[0].id").value(originalId)).andExpect(jsonPath("$.items[0].entradaMercadoriaId").value(entradaId))
+                .andExpect(jsonPath("$.items[1].id").value(manualId)).andExpect(jsonPath("$.items[1].entradaMercadoriaId").isEmpty())
+                .andExpect(jsonPath("$.items[2].id").value(reversaoId)).andExpect(jsonPath("$.items[2].entradaMercadoriaId").value(entradaId));
+        verify(entradas, times(1)).buscarVinculosMovimentacoes(empresa.getId(), produto.getId(), List.of(originalId, manualId, reversaoId));
+        mvc.perform(get("/estoque/movimentacoes/produto/" + produto.getId()).header("Authorization", authorization)
+                .param("sort", "id,asc").param("size", "1").param("page", "1"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(3)).andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.items[0].id").value(manualId)).andExpect(jsonPath("$.items[0].entradaMercadoriaId").isEmpty());
+        mvc.perform(get("/estoque/movimentacoes/produto/" + produto.getId()).header("Authorization", authorization)
+                .param("origem", "CANCELAMENTO"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(1))
+                .andExpect(jsonPath("$.items[0].entradaMercadoriaId").value(entradaId));
+        mvc.perform(get("/estoque/movimentacoes/produto/" + produto.getId()).header("Authorization", authorizationB))
+                .andExpect(status().isNotFound());
+        assertThat(entradas.buscarVinculosMovimentacoes(outra.getId(), produto.getId(), List.of(originalId, reversaoId))).isEmpty();
+        assertThat(entradas.buscarVinculosMovimentacoes(empresa.getId(), produto2.getId(), List.of(originalId, reversaoId))).isEmpty();
+        assertThat(movimentos.count()).isEqualTo(quantidadeMovimentos);
+        assertThat(saldo(produto)).isEqualByComparingTo("11");
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getPrecoCusto()).isEqualByComparingTo(custo);
     }
 
     @Test void obrigacaoExplicitaTemValorSeparadoERepeticaoNaoDuplicaNemMovimentaSaldo() throws Exception {

@@ -27,9 +27,9 @@ async function post(rota, data) {
     expect(resposta.ok(), `${rota}: ${await resposta.text()}`).toBeTruthy();
     return resposta.json();
 }
-async function entradaConfirmada() {
+async function entradaConfirmada(produtoEntrada = produto) {
     const entrada = await post("/estoque/entradas", { fornecedorId: fornecedor.id, numeroNota: `E5-${Date.now()}`, dataEntrada: "2026-10-15",
-        itens: [{ produtoId: produto.id, quantidade: 2, valorUnitario: 3.5 }] });
+        itens: [{ produtoId: produtoEntrada.id, quantidade: 2, valorUnitario: 3.5 }] });
     return post(`/estoque/entradas/${entrada.id}/confirmar`);
 }
 async function semOverflow(page) {
@@ -116,3 +116,43 @@ test("vínculo preexistente, desvinculação e conta paga usam os contratos reai
     const saldo = await (await api.get("/financeiro/contas-financeiras")).json();
     expect(saldo.find(c => c.id === financeira.id).saldoAtual).toBe(88);
 });
+
+for (const width of [1440, 390]) {
+    test(`histórico abre a Entrada persistida em nova aba e conserva a consulta — ${width}px`, async ({ page, context }, testInfo) => {
+        await page.setViewportSize({ width, height: 844 });
+        const item = await post("/produtos", { nome: `Rastreio ${Date.now()}`, unidadeMedida: "UN", precoCusto: 2, precoVenda: 10, controlaEstoque: true, ativo: true });
+        const entrada = await entradaConfirmada(item);
+        const manual = await post("/estoque/movimentacoes/entrada", { produtoId: item.id, quantidade: 1, motivo: `Entrada de mercadoria ${entrada.id}` });
+        await post(`/estoque/entradas/${entrada.id}/cancelar`);
+        const consulta = `/estoque/movimentacoes/produto/${item.id}?sort=id,asc`;
+        const movimentos = await (await api.get(consulta)).json();
+        expect(movimentos.items.map(m => m.entradaMercadoriaId)).toEqual([entrada.id, null, entrada.id]);
+        expect(movimentos.items[1].id).toBe(manual.id);
+        await page.goto("/estoque?aba=saldo&contexto=etapa6");
+        const busca = page.getByPlaceholder("Pesquisar por produto ou código…");
+        await busca.fill(item.nome);
+        await page.getByRole("row").filter({ hasText: item.nome }).getByRole("button", { name: "Consultar histórico", exact: true }).click();
+        const historico = page.getByRole("dialog", { name: `Histórico de movimentações · ${item.nome}`, exact: true });
+        const links = historico.getByRole("link", { name: `Abrir entrada de origem #${entrada.id} (nova aba)`, exact: true });
+        await expect(links).toHaveCount(2);
+        await historico.getByRole("combobox", { name: "Origem", exact: true }).click();
+        await page.getByRole("option", { name: "CANCELAMENTO", exact: true }).click();
+        await expect(links).toHaveCount(1);
+        await links.first().focus(); await expect(links.first()).toBeFocused();
+        const popupPromise = context.waitForEvent("page");
+        await page.keyboard.press("Enter");
+        const popup = await popupPromise; await popup.setViewportSize({ width, height: 844 });
+        await expect(popup.getByRole("dialog", { name: `Entrada de mercadoria #${entrada.id}`, exact: true })).toBeVisible();
+        await expect(popup).toHaveURL(new RegExp(`/estoque\\?aba=entradas&entradaId=${entrada.id}$`));
+        await expect(popup.getByText("CANCELADA", { exact: true }).first()).toBeVisible();
+        await semOverflow(popup); await popup.screenshot({ path: testInfo.outputPath("entrada-origem.png"), fullPage: true });
+        await popup.close();
+        await expect(historico).toBeVisible();
+        await expect(historico.getByRole("combobox", { name: "Origem", exact: true })).toContainText("CANCELAMENTO");
+        await expect(historico.getByText(/1[–-]1 (de|of) 1/)).toBeVisible();
+        expect(new URL(page.url()).search).toBe("?aba=saldo&contexto=etapa6");
+        await semOverflow(page); await page.screenshot({ path: testInfo.outputPath("historico.png"), fullPage: true });
+        await historico.getByRole("button", { name: "Fechar", exact: true }).click();
+        await expect(busca).toHaveValue(item.nome);
+    });
+}

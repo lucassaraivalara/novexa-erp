@@ -107,8 +107,15 @@ public class MovimentacaoEstoqueController {
             @RequestParam(defaultValue = "25") int size,
             @RequestParam(defaultValue = "dataHora,desc") String sort,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return service.listarPagina(usuario.empresaId(), produtoId,
+        var resultado = service.listarPagina(usuario.empresaId(), produtoId,
                 tipo, origem, dataInicial, dataFinal, page, size, sort);
+        var ids = resultado.getContent().stream().map(movimento -> movimento.getId()).toList();
+        var entradas = service.buscarEntradasOrigem(usuario.empresaId(), produtoId, ids);
+        return br.com.novexa.erp.dto.PaginaResponseDTO.de(resultado, movimento -> {
+            var resposta = mapper.toResponse(movimento);
+            resposta.setEntradaMercadoriaId(entradas.get(movimento.getId()));
+            return resposta;
+        });
     }
     private BigDecimal quantidadePositiva(BigDecimal quantidade) {
         if (quantidade.signum() <= 0)
