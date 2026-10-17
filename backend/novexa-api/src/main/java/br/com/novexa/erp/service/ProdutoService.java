@@ -26,29 +26,74 @@ public class ProdutoService {
     private final ProdutoRepository produtoRepository;
     private final EmpresaService empresaService;
     private final ArquivoStorageService arquivoStorageService;
+    private final br.com.novexa.erp.repository.FornecedorRepository fornecedorRepository;
+
+    private final br.com.novexa.erp.repository.CategoriaProdutoRepository categorias;
+    private final br.com.novexa.erp.repository.SubcategoriaProdutoRepository subcategorias;
+    private final br.com.novexa.erp.repository.MarcaRepository marcas;
 
     public ProdutoService(
             ProdutoRepository produtoRepository,
             EmpresaService empresaService,
-            ArquivoStorageService arquivoStorageService
+            ArquivoStorageService arquivoStorageService,
+            br.com.novexa.erp.repository.FornecedorRepository fornecedorRepository,
+            br.com.novexa.erp.repository.CategoriaProdutoRepository categorias,
+            br.com.novexa.erp.repository.SubcategoriaProdutoRepository subcategorias,
+            br.com.novexa.erp.repository.MarcaRepository marcas
     ) {
         this.produtoRepository = produtoRepository;
         this.empresaService = empresaService;
         this.arquivoStorageService = arquivoStorageService;
+        this.fornecedorRepository = fornecedorRepository;
+        this.categorias = categorias; this.subcategorias = subcategorias; this.marcas = marcas;
     }
 
     @Transactional
     public ProdutoEntity salvar(ProdutoEntity produto, Long empresaId) {
+        return salvar(produto, empresaId, null);
+    }
+
+    @Transactional
+    public ProdutoEntity salvar(ProdutoEntity produto, Long empresaId, Long fornecedorId) {
+        return salvar(produto, empresaId, fornecedorId, null);
+    }
+
+    @Transactional
+    public ProdutoEntity salvar(ProdutoEntity produto, Long empresaId, Long fornecedorId, br.com.novexa.erp.dto.ProdutoRequestDTO classificacao) {
         produto.setEmpresa(buscarEmpresa(empresaId));
+        aplicarClassificacao(produto, empresaId, classificacao);
+        produto.setFornecedorPrincipal(buscarFornecedor(fornecedorId, empresaId));
         prepararDados(produto, null);
         validarCodigosDuplicados(produto, empresaId, null);
 
         return produtoRepository.save(produto);
     }
 
+    @Transactional
+    public void salvarImportacao(List<ProdutoEntity> produtos, Long empresaId) {
+        var empresa=buscarEmpresa(empresaId);
+        for(var produto:produtos) { produto.setEmpresa(empresa); prepararDados(produto,null); }
+        produtoRepository.saveAllAndFlush(produtos);
+    }
+
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<ProdutoEntity> listarPagina(Long empresaId, String busca,
             String campoBusca, String situacao, String situacaoEstoque, int page, int size, String sort) {
+        return listarPagina(empresaId, busca, campoBusca, situacao, situacaoEstoque, page, size, sort, null, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ProdutoEntity> listarPagina(Long empresaId, String busca,
+            String campoBusca, String situacao, String situacaoEstoque, int page, int size, String sort,
+            Long categoriaId, Long subcategoriaId, Long marcaId) {
+        // A subcategoria isolada é um filtro válido, sem exigir seleção redundante da categoria.
+        if (categoriaId != null) buscarCategoria(categoriaId, empresaId);
+        if (marcaId != null) buscarMarca(marcaId, empresaId);
+        if (subcategoriaId != null) {
+            var sub = buscarSubcategoria(subcategoriaId, empresaId);
+            if (categoriaId != null && !categoriaId.equals(sub.getCategoria().getId()))
+                throw new ProdutoInvalidoException("A subcategoria não pertence à categoria selecionada.");
+        }
         var pageable = br.com.novexa.erp.util.Paginacao.criar(page, size, sort,
                 java.util.Set.of("id", "codigoInterno", "nome", "precoVenda", "estoqueAtual", "estoqueMinimo", "ativo"),
                 org.springframework.data.domain.Sort.Direction.ASC);
@@ -60,7 +105,7 @@ public class ProdutoService {
             throw br.com.novexa.erp.util.Paginacao.invalida("Situacao de estoque invalida.");
         Boolean ativo = "ativos".equals(situacao) ? Boolean.TRUE : "inativos".equals(situacao) ? Boolean.FALSE : null;
         return produtoRepository.listarPagina(empresaId, ativo,
-                busca == null ? "" : busca.trim(), campoBusca, situacaoEstoque, pageable);
+                busca == null ? "" : busca.trim(), campoBusca, situacaoEstoque, categoriaId, subcategoriaId, marcaId, pageable);
     }
 
     public List<ProdutoEntity> listar(Long empresaId) {
@@ -142,10 +187,24 @@ public class ProdutoService {
             Long id,
             ProdutoEntity dadosNovos,
             Long empresaId) {
+        return atualizar(id, dadosNovos, empresaId, null, false);
+    }
 
+    @Transactional
+    public ProdutoEntity atualizar(Long id, ProdutoEntity dadosNovos, Long empresaId,
+                                  Long fornecedorId, boolean fornecedorInformado) {
+
+        return atualizar(id, dadosNovos, empresaId, fornecedorId, fornecedorInformado, null);
+    }
+
+    @Transactional
+    public ProdutoEntity atualizar(Long id, ProdutoEntity dadosNovos, Long empresaId,
+                                  Long fornecedorId, boolean fornecedorInformado, br.com.novexa.erp.dto.ProdutoRequestDTO classificacao) {
         ProdutoEntity produtoExistente = buscarPorId(id, empresaId);
+        aplicarClassificacao(produtoExistente, empresaId, classificacao);
         prepararDados(dadosNovos, produtoExistente);
         validarCodigosDuplicados(dadosNovos, empresaId, id);
+        if (fornecedorInformado) produtoExistente.setFornecedorPrincipal(buscarFornecedor(fornecedorId, empresaId));
 
         produtoExistente.setCodigoInterno(dadosNovos.getCodigoInterno());
         produtoExistente.setCodigoBarras(dadosNovos.getCodigoBarras());
@@ -168,8 +227,48 @@ public class ProdutoService {
         produtoRepository.save(produto);
     }
 
+    private void aplicarClassificacao(ProdutoEntity produto, Long empresaId, br.com.novexa.erp.dto.ProdutoRequestDTO dados) {
+        if (dados == null) return;
+        if (dados.isNcmInformado()) produto.setNcm(dados.getNcm());
+        if (dados.isCestInformado()) produto.setCest(dados.getCest());
+        var categoria = dados.isCategoriaInformada() ? buscarCategoria(dados.getCategoriaId(), empresaId) : produto.getCategoria();
+        var subcategoria = dados.isSubcategoriaInformada() ? buscarSubcategoria(dados.getSubcategoriaId(), empresaId) : produto.getSubcategoria();
+        var marca = dados.isMarcaInformada() ? buscarMarca(dados.getMarcaId(), empresaId) : produto.getMarca();
+        if (subcategoria != null && (categoria == null || !categoria.getId().equals(subcategoria.getCategoria().getId())))
+            throw new ProdutoInvalidoException("A subcategoria deve pertencer à categoria selecionada. Remova ou selecione outra subcategoria.");
+        produto.setCategoria(categoria); produto.setSubcategoria(subcategoria); produto.setMarca(marca);
+    }
+
+    private br.com.novexa.erp.entity.CategoriaProdutoEntity buscarCategoria(Long id, Long empresaId) {
+        if (id == null) return null;
+        return categorias.findByIdAndEmpresaId(id, empresaId).orElseThrow(() ->
+            new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND,
+                "Categoria não encontrada para a empresa informada."));
+    }
+
+    private br.com.novexa.erp.entity.SubcategoriaProdutoEntity buscarSubcategoria(Long id, Long empresaId) {
+        if (id == null) return null;
+        return subcategorias.findByIdAndEmpresaId(id, empresaId).orElseThrow(() ->
+            new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND,
+                "Subcategoria não encontrada para a empresa informada."));
+    }
+
+    private br.com.novexa.erp.entity.MarcaEntity buscarMarca(Long id, Long empresaId) {
+        if (id == null) return null;
+        return marcas.findByIdAndEmpresaId(id, empresaId).orElseThrow(() ->
+            new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND,
+                "Marca não encontrada para a empresa informada."));
+    }
+
     private EmpresaEntity buscarEmpresa(Long empresaId) {
         return empresaService.buscarPorId(empresaId);
+    }
+
+    private br.com.novexa.erp.entity.FornecedorEntity buscarFornecedor(Long id, Long empresaId) {
+        if (id == null) return null;
+        return fornecedorRepository.findByIdAndEmpresaId(id, empresaId).orElseThrow(() ->
+            new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND,
+                "Fornecedor não encontrado para a empresa informada."));
     }
 
     private void prepararDados(ProdutoEntity produto, ProdutoEntity produtoExistente) {

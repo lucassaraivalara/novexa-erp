@@ -1,3 +1,5 @@
+import ClassificacaoProdutoCampos from "./ClassificacaoProdutoCampos";
+import { type ClassificacaoProduto } from "./classificacaoProdutoUtils";
 import {useRef, useState, type ChangeEvent, type FormEvent} from "react";
 import {
     Alert,
@@ -13,6 +15,7 @@ import {
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import type {Produto, ProdutoInput} from "../../types/produto";
 import {cadastrarProduto, obterMensagemDaApi} from "../../services/produtoService";
+import FornecedorAutocomplete, { type FornecedorOpcao } from "../../components/fornecedores/FornecedorAutocomplete";
 
 type ProdutoFormProps = {
     aberto: boolean;
@@ -128,6 +131,8 @@ function ProdutoForm({
         } : criarEstadoFormulario(produto)
     );
     const [salvandoRapido, setSalvandoRapido] = useState(false);
+    const [fornecedor, setFornecedor] = useState<FornecedorOpcao | null>(produto?.fornecedor ?? null);
+    const [classificacao, setClassificacao] = useState<ClassificacaoProduto>({ categoria: produto?.categoria ?? null, subcategoria: produto?.subcategoria ?? null, marca: produto?.marca ?? null });
     const [erroRapido, setErroRapido] = useState("");
     const ocupado = useRef(false);
     const salvando = salvandoExterno || salvandoRapido;
@@ -260,6 +265,7 @@ function ProdutoForm({
         }
 
         return {
+            ...(!rapido ? { fornecedorId: fornecedor?.id ?? null, categoriaId: classificacao.categoria?.id ?? null, subcategoriaId: classificacao.subcategoria?.id ?? null, marcaId: classificacao.marca?.id ?? null } : {}),
             codigoInterno:
                 formulario.codigoInterno.trim() || null,
             codigoBarras:
@@ -434,6 +440,13 @@ function ProdutoForm({
                                         },
                                     }}
                                 />
+
+                                {!rapido && <ClassificacaoProdutoCampos valor={classificacao} onChange={setClassificacao} disabled={salvando} />}
+                                {!rapido && <FornecedorAutocomplete value={fornecedor} onChange={setFornecedor}
+                                    label="Fornecedor principal" disabled={salvando} mostrarErroConsulta
+                                    helperText={produto?.fornecedor?.id === fornecedor?.id && produto?.fornecedor?.ativo === false
+                                        ? "Fornecedor inativo. O vínculo atual pode ser mantido ou removido."
+                                        : "Opcional. Pesquise um fornecedor cadastrado ou limpe para remover o vínculo."} />}
 
                                 {!rapido && <TextField
                                     label="Descrição"

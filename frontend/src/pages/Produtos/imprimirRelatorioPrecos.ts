@@ -74,6 +74,8 @@ export async function imprimirRelatorioPrecos(
             th, td { border-bottom: 1px solid #ccd3da; padding: 7px; text-align: left; overflow-wrap: anywhere; }
             th { background: #edf3f1; }
             th:first-child { width: 30%; }
+            th:last-child { width: 19%; }
+            td:first-child { white-space: pre-line; }
             th:nth-child(4), th:nth-child(5), td:nth-child(4), td:nth-child(5) { text-align: right; }
             thead { display: table-header-group; }
             tr { break-inside: avoid; }
@@ -104,15 +106,16 @@ export async function imprimirRelatorioPrecos(
         const tabela = documento.createElement("table");
         documento.body.append(tabela);
         const cabecalho = texto("tr", "", texto("thead", "", tabela));
-        for (const titulo of ["Produto", "Código interno / SKU", "Unidade", "Preço de venda", "Custo", "Situação"]) {
+        for (const titulo of ["Produto", "Código interno / SKU", "Unidade", "Preço de venda", "Custo", "Situação", "Fornecedor principal"]) {
             const coluna = texto("th", titulo, cabecalho);
             coluna.setAttribute("scope", "col");
         }
         const corpo = texto("tbody", "", tabela);
         for (const produto of produtos) {
             const linha = texto("tr", "", corpo);
-            for (const valor of [produto.nome, produto.codigoInterno ?? "—", produto.unidadeMedida,
-                moeda.format(produto.precoVenda), moeda.format(produto.precoCusto), produto.ativo ? "Ativo" : "Inativo"]) {
+            for (const valor of [`${produto.nome}\nCategoria: ${produto.categoria?.nome ?? "—"}\nSubcategoria: ${produto.subcategoria?.nome ?? "—"}\nMarca: ${produto.marca?.nome ?? "—"}`, produto.codigoInterno ?? "—", produto.unidadeMedida,
+                moeda.format(produto.precoVenda), moeda.format(produto.precoCusto), produto.ativo ? "Ativo" : "Inativo",
+                produto.fornecedor?.razaoSocial ?? "—"]) {
                 texto("td", valor, linha);
             }
         }

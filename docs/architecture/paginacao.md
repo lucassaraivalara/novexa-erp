@@ -13,6 +13,9 @@ Implementacao na branch `feat/contas-pagar-integracao-backend`, sobre `4d84785`,
 | `/vendas` | status, dataInicial, dataFinal, clienteId | id, dataHora, total, status | dataHora,desc; id,desc |
 | `/clientes` | situacao, busca, campoBusca | id, nome, nomeFantasia, cpfCnpj, cidadeUf, telefone, ativo | nome,asc; id,asc |
 | `/produtos` | busca, campoBusca, situacao, situacaoEstoque | id, codigoInterno, nome, precoVenda, estoqueAtual, estoqueMinimo, ativo | nome,asc; id,asc |
+| `/produtos/categorias` | termo (nome), ativo | id, nome, ativo | nome,asc; id,asc |
+| `/produtos/subcategorias` | termo (nome), ativo, categoriaId | id, nome, ativo | nome,asc; id,asc |
+| `/produtos/marcas` | termo (nome), ativo | id, nome, ativo | nome,asc; id,asc |
 | `/fornecedores` | termo, ativo | id, razaoSocial, nomeFantasia, cpfCnpj, ativo, dataCadastro, dataAtualizacao | razaoSocial,asc; id,asc |
 | `/estoque/entradas` | termo (nota/fornecedor), status, origem, fornecedorId, dataInicial, dataFinal (dataEntrada) | id, dataEntrada, dataEmissao, numeroNota, status, origem, valorTotal, dataCadastro | dataEntrada,desc; id,desc |
 | `/financeiro/contas-pagar` | busca, status, fornecedor (ID), categoria, vencimentoDe, vencimentoAte, emissaoDe, emissaoAte | id, dataVencimento, dataEmissao, valor, status, categoria | dataVencimento,asc; id,asc |
@@ -20,7 +23,7 @@ Implementacao na branch `feat/contas-pagar-integracao-backend`, sobre `4d84785`,
 | `/estoque/movimentacoes/produto/{produtoId}` | tipo, origem, dataInicial, dataFinal | id, dataHora, tipo, origem, quantidade | dataHora,desc; id,desc |
 | `/financeiro/transferencias` | contaOrigemId, contaDestinoId, status, dataInicial, dataFinal | id, dataMovimento, valor, status | dataMovimento,desc; id,desc |
 
-Cliente: campoBusca aceita id, nome, nomeFantasia, cpfCnpj, cidadeUf e telefone. Produto: nome, codigoInterno e codigoBarras. Campo definido restringe a busca a ele; ausente faz busca geral. Situacao aceita ativos/inativos/todos. SituacaoEstoque aceita baixo/zerado/normal/semControle, aplicada antes do count. Contas a Pagar pesquisa descricao, documento, razao social do fornecedor e categoria. Busca ignora caixa, sem normalizacao de acentos ou pg_trgm.
+Cliente: campoBusca aceita id, nome, nomeFantasia, cpfCnpj, cidadeUf e telefone. Produto: nome, codigoInterno e codigoBarras. Campo definido restringe a busca a ele; ausente faz busca geral. Situacao aceita ativos/inativos/todos. SituacaoEstoque aceita baixo/zerado/normal/semControle, aplicada antes do count. Produtos também aceita categoriaId, subcategoriaId e marcaId opcionais, combinados antes da paginação/count e validados pela empresa do JWT; filtro de subcategoria isolado é aceito. Contas a Pagar pesquisa descricao, documento, razao social do fornecedor e categoria. Busca ignora caixa, sem normalizacao de acentos ou pg_trgm.
 
 Cliente usa CASE por campo/direcao no ORDER BY por causa de cidadeUf, derivado da colecao de enderecos. Ordena cidade/UF principal, com fallback ao primeiro endereco; id,asc desempata. Vendas nao possui ORDER BY fixo na consulta paginada.
 
@@ -70,3 +73,7 @@ PaginacaoHttpTest/PaginacaoPostgresTest verificam paginas 0/1, totais, filtros c
 Resultado: 10 casos H2 e 10 PostgreSQL aprovados; regressao HTTP aprovada em Vendas (4 listagem e 95 Venda), Clientes (2 HTTP e 17 isolamento), Produtos (25 isolamento), Contas a Pagar (9), Movimentacoes Financeiras (14 ContaFinanceira), Estoque (17) e Transferencias (29). Frontend: 84 testes, seis casos Playwright e build aprovados; lint direcionado aprovado.
 
 Suite backend final: 687 casos, 0 falhas, 38 erros de contexto, 22 ignorados (inclui testes PostgreSQL condicionais, executados separadamente). VendaServiceTest tem 23 erros por ConfirmacaoPagamentoPixService ausente no contexto; EstoqueConcorrenciaTest tem 15 por ArquivoStorageService ausente. Esses contextos e o trabalho PIX foram preservados. Lint global: cinco erros anteriores e tres avisos fora das telas de paginacao. Nao declarar suite completa verde nem pronto para push enquanto PIX estiver pendente de consolidacao.
+
+## Prévia de importação de Produtos
+
+O catálogo GET /produtos mantém filtros/count/paginação reais. A prévia administrativa é um lote limitado a 2.000 linhas, com contagens calculadas no backend e paginação local da tabela já carregada; não substitui a consulta do catálogo nem importa somente a página visível. Confirmar usa todas as linhas válidas persistidas, independente da página de prévia aberta. Contrato em [produtos.md](produtos.md).

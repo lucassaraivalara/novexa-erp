@@ -1,3 +1,5 @@
+import ClassificacaoProdutoCampos from "./ClassificacaoProdutoCampos";
+import { semClassificacao, filtrosClassificacao, descricaoClassificacao } from "./classificacaoProdutoUtils";
 import { useEffect, useRef, useState } from "react";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import {
@@ -20,6 +22,7 @@ export default function RelatorioPrecosDialog({ onFechar }: { onFechar: () => vo
     const empresaId = obterEmpresaAtiva()?.id;
     const [busca, setBusca] = useState("");
     const [campoBusca, setCampoBusca] = useState("nome");
+    const [classificacao, setClassificacao] = useState(semClassificacao);
     const [situacao, setSituacao] = useState("ativos");
     const [pagina, setPagina] = useState(0);
     const [tamanho, setTamanho] = useState(25);
@@ -37,7 +40,7 @@ export default function RelatorioPrecosDialog({ onFechar }: { onFechar: () => vo
         const timer = setTimeout(() => {
             if (!empresaId) { setErro("Entre novamente para consultar os produtos."); setCarregando(false); return; }
             setCarregando(true);
-            listarProdutosPaginado({ busca, campoBusca: busca.trim() ? campoBusca : undefined, situacao, page: pagina, size: tamanho,
+            listarProdutosPaginado({ ...filtrosClassificacao(classificacao), busca, campoBusca: busca.trim() ? campoBusca : undefined, situacao, page: pagina, size: tamanho,
                 sort: `${ordenacao.campo},${ordenacao.direcao}` }, controller.signal)
                 .then(resposta => {
                     if (controller.signal.aborted) return;
@@ -50,7 +53,7 @@ export default function RelatorioPrecosDialog({ onFechar }: { onFechar: () => vo
                 .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
         }, busca.trim() ? 350 : 0);
         return () => { clearTimeout(timer); controller.abort(); };
-    }, [empresaId, busca, campoBusca, situacao, pagina, tamanho, ordenacao, revisao]);
+    }, [empresaId, busca, campoBusca, situacao, pagina, tamanho, ordenacao, revisao, classificacao]);
 
     useEffect(() => () => impressao.current?.abort(), [empresaId]);
 
@@ -66,8 +69,8 @@ export default function RelatorioPrecosDialog({ onFechar }: { onFechar: () => vo
             + ` · Situação: ${situacao === "ativos" ? "Ativos" : situacao === "inativos" ? "Inativos" : "Todas"}`
             + ` · Ordem: ${nomesOrdenacao[ordenacao.campo]} (${ordenacao.direcao === "asc" ? "crescente" : "decrescente"})`;
         try {
-            await imprimirRelatorioPrecos({ busca, campoBusca: busca.trim() ? campoBusca : undefined, situacao,
-                sort: `${ordenacao.campo},${ordenacao.direcao}` }, descricao, controller.signal, setProgresso);
+            await imprimirRelatorioPrecos({ ...filtrosClassificacao(classificacao), busca, campoBusca: busca.trim() ? campoBusca : undefined, situacao,
+                sort: `${ordenacao.campo},${ordenacao.direcao}` }, `${descricao} · ${descricaoClassificacao(classificacao)}`, controller.signal, setProgresso);
         } catch (e) {
             if (!controller.signal.aborted) setErro(obterMensagemDaApi(e,
                 e instanceof Error ? e.message : "Não foi possível preparar a impressão."));
@@ -78,13 +81,14 @@ export default function RelatorioPrecosDialog({ onFechar }: { onFechar: () => vo
     }
 
     const colunas: Coluna<Produto>[] = [
-        { campo: "nome", cabecalho: "Produto", ordenavel: true },
+        { campo: "nome", cabecalho: "Produto", ordenavel: true, render: (_, p) => <Stack><span>{p.nome}</span><Typography variant="caption" color="text.secondary">{descricaoClassificacao({ categoria: p.categoria ?? null, subcategoria: p.subcategoria ?? null, marca: p.marca ?? null })}</Typography></Stack> },
         { campo: "codigoInterno", cabecalho: "Código interno / SKU", ordenavel: true, render: v => String(v ?? "—") },
         { campo: "unidadeMedida", cabecalho: "Unidade" },
         { campo: "precoVenda", cabecalho: "Preço de venda", ordenavel: true, alinhar: "right", render: v => moeda.format(Number(v)) },
         { campo: "precoCusto", cabecalho: "Custo", alinhar: "right", render: v => moeda.format(Number(v)) },
         { campo: "ativo", cabecalho: "Situação", ordenavel: true,
             render: v => <Chip size="small" label={v ? "Ativo" : "Inativo"} color={v ? "success" : "default"} variant="outlined" /> },
+        { campo: "fornecedor", cabecalho: "Fornecedor principal", render: (_, p) => p.fornecedor?.razaoSocial ?? "—" },
     ];
 
     return (
@@ -117,8 +121,9 @@ export default function RelatorioPrecosDialog({ onFechar }: { onFechar: () => vo
                             </Select>
                         </FormControl>
                     </PageFilters>
+                    <ClassificacaoProdutoCampos valor={classificacao} disabled={!!progresso} onChange={valor => { setClassificacao(valor); setPagina(0); }} />
                     {progresso && <Alert severity="info" role="status">{progresso} Os filtros usados na impressão são os do início da consulta.</Alert>}
-                    <AppTable colunas={colunas} linhas={produtos} carregando={carregando} compacta minWidth={820}
+                    <AppTable colunas={colunas} linhas={produtos} carregando={carregando} compacta minWidth={1020}
                         obterChaveLinha={p => p.id} ordenacaoRemota
                         vazio={{ titulo: "Nenhum produto encontrado", descricao: "Ajuste o nome, código interno ou situação." }}
                         ordenacao={{ ...ordenacao, onSort: campo => {

@@ -134,10 +134,10 @@ test("Central compacta preserva destinos, teclado e acesso no rodape sem consult
         await page.goto(`${url}/configuracoes?real`);
         const main = page.getByRole("main");
         await main.getByRole("heading",{name:"Configurações",exact:true}).waitFor();
-        assert.deepEqual(await main.getByRole("heading",{level:2}).allTextContents(),["Empresa","Usuários e acesso","Financeiro"]);
+        assert.deepEqual(await main.getByRole("heading",{level:2}).allTextContents(),["Empresa","Usuários e acesso","Financeiro","Produtos"]);
         const links = main.getByRole("link");
         assert.deepEqual(await links.evaluateAll(items => items.map(item => item.getAttribute("href"))),[
-            "/empresa","/usuarios","/financeiro/formas-pagamento","/financeiro/dados-bancarios",
+            "/empresa","/usuarios","/financeiro/formas-pagamento","/financeiro/dados-bancarios","/configuracoes/categorias-produtos","/configuracoes/marcas-produtos",
         ]);
         for (const link of await links.all()) {
             await link.focus();

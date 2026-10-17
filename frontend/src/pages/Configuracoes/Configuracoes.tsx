@@ -3,6 +3,8 @@ import PeopleAltRoundedIcon from "@mui/icons-material/PeopleAltRounded";
 import PaymentsRoundedIcon from "@mui/icons-material/PaymentsRounded";
 import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
+import SellRoundedIcon from "@mui/icons-material/SellRounded";
 import { Box, List, ListItemButton, ListItemIcon, ListItemText, Paper, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import PageContainer from "../../components/layout/PageContainer";
@@ -21,6 +23,10 @@ export default function Configuracoes() {
         { id: "financeiro", titulo: "Financeiro", links: [
             { titulo: "Formas de pagamento", descricao: "Configure as formas de pagamento da empresa.", caminho: "/financeiro/formas-pagamento", icone: <PaymentsRoundedIcon /> },
             { titulo: "Dados bancários", descricao: "Organize bancos, agências e contas bancárias.", caminho: "/financeiro/dados-bancarios", icone: <AccountBalanceRoundedIcon /> },
+        ] },
+        { id: "produtos", titulo: "Produtos", links: [
+            { titulo: "Categorias e subcategorias", descricao: "Mantenha os grupos e subgrupos de produtos da empresa.", caminho: "/configuracoes/categorias-produtos", icone: <CategoryRoundedIcon /> },
+            { titulo: "Marcas", descricao: "Mantenha os nomes e a situação das marcas da empresa.", caminho: "/configuracoes/marcas-produtos", icone: <SellRoundedIcon /> },
         ] },
     ].filter(secao => secao.links.length > 0);
 

@@ -1,3 +1,7 @@
+import ImportacaoProdutosDialog from "./ImportacaoProdutosDialog";
+import { obterSessao } from "../../utils/auth/sessao";
+import ClassificacaoProdutoCampos from "./ClassificacaoProdutoCampos";
+import { semClassificacao, filtrosClassificacao, descricaoClassificacao } from "./classificacaoProdutoUtils";
 import { useEffect, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
@@ -38,6 +42,7 @@ function Produtos() {
     const [produtos, setProdutos] = useState<Produto[]>([]);
     const [erroCarregamento, setErroCarregamento] = useState("");
     const [formularioAberto, setFormularioAberto] = useState(false);
+    const [importacaoAberta, setImportacaoAberta] = useState(false);
     const [relatorioAberto, setRelatorioAberto] = useState(false);
     const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null);
     const [carregandoProduto, setCarregandoProduto] = useState(false);
@@ -46,6 +51,7 @@ function Produtos() {
     const [produtoParaExcluir, setProdutoParaExcluir] = useState<Produto | null>(null);
     const [excluindo, setExcluindo] = useState(false);
     const [notificacao, setNotificacao] = useState<Notificacao | null>(null);
+    const [classificacao, setClassificacao] = useState(semClassificacao);
     const [situacao, setSituacao] = useState("ativas");
     const [campoBusca, setCampoBusca] = useState<CampoBuscaProduto | null>(null);
     const [termoLocal, setTermoLocal] = useState("");
@@ -63,7 +69,7 @@ function Produtos() {
         if (!empresaId) return;
         const timer = setTimeout(() => {
             setCarregando(true);
-            listarProdutosPaginado({ busca: termoLocal, campoBusca: campoBusca ?? undefined,
+            listarProdutosPaginado({ ...filtrosClassificacao(classificacao), busca: termoLocal, campoBusca: campoBusca ?? undefined,
                 situacao: situacao === "ativas" ? "ativos" : situacao === "inativas" ? "inativos" : "todos",
                 page: pagina, size: porPagina, sort: `${ordenacao.campo},${ordenacao.direcao}` }, controller.signal)
                 .then(resposta => {
@@ -75,7 +81,7 @@ function Produtos() {
                 .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
         }, termoLocal.trim() ? 350 : 0);
         return () => { clearTimeout(timer); controller.abort(); };
-    }, [empresaId, termoLocal, campoBusca, situacao, pagina, porPagina, ordenacao, revisao]);
+    }, [empresaId, termoLocal, campoBusca, situacao, pagina, porPagina, ordenacao, revisao, classificacao]);
 
     function selecionarCampoBusca(campo: string) {
         if (!(campo in camposBusca)) return;
@@ -180,6 +186,10 @@ function Produtos() {
         <Stack sx={{ gap: 0.125, minWidth: 0 }}>
             <Typography sx={{ fontSize: "0.875rem", fontWeight: 650 }}>{linha.nome}</Typography>
             {linha.descricao && <Typography color="text.secondary" noWrap sx={{ fontSize: "0.75rem" }}>{linha.descricao}</Typography>}
+            <Typography color="text.secondary" variant="caption" sx={{ overflowWrap: "anywhere" }}>{descricaoClassificacao({ categoria: linha.categoria ?? null, subcategoria: linha.subcategoria ?? null, marca: linha.marca ?? null })}</Typography>
+            <Typography color="text.secondary" noWrap title={linha.fornecedor?.razaoSocial ?? undefined} sx={{ fontSize: "0.75rem" }}>
+                Fornecedor: {linha.fornecedor?.razaoSocial ?? "Não informado"}{linha.fornecedor?.ativo === false ? " (inativo)" : ""}
+            </Typography>
         </Stack>
     );
 
@@ -219,7 +229,10 @@ function Produtos() {
                 titulo="Produtos"
                 descricao="Cadastre e mantenha os dados dos produtos. Registre o recebimento de mercadorias em Estoque."
                 acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={abrirCadastro}>Novo produto</Button>}
-                acoesSecundarias={<Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={() => setRelatorioAberto(true)}>Relatório de preços</Button>}
+                acoesSecundarias={<Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
+                    {obterSessao()?.perfil === "ADMIN" && <Button variant="outlined" onClick={() => setImportacaoAberta(true)}>Importar Produtos</Button>}
+                    <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={() => setRelatorioAberto(true)}>Relatório de preços</Button>
+                </Stack>}
             />
 
             {erroCarregamento && (
@@ -254,6 +267,7 @@ function Produtos() {
                         </Select>
                     </FormControl>
                 </PageFilters>
+                <ClassificacaoProdutoCampos valor={classificacao} onChange={valor => { setClassificacao(valor); setPagina(0); }} />
 
                 <AppTable
                     colunas={colunas}
@@ -287,13 +301,14 @@ function Produtos() {
                 />
             </Stack>
 
+            {importacaoAberta && <ImportacaoProdutosDialog key={empresaId} onFechar={() => setImportacaoAberta(false)} onImportada={recarregar} />}
             {relatorioAberto && <RelatorioPrecosDialog key={empresaId} onFechar={() => setRelatorioAberto(false)} />}
 
             <ProdutoForm
                 aberto={formularioAberto}
                 produto={produtoEmEdicao}
                 carregandoProduto={carregandoProduto}
-                key={produtoEmEdicao?.id ?? `novo-${formularioAberto}`}
+                key={produtoEmEdicao ? `${produtoEmEdicao.id}-${carregandoProduto ? "carregando" : "pronto"}` : `novo-${formularioAberto}`}
                 salvando={salvando}
                 erroExterno={erroFormulario}
                 onFechar={fecharFormulario}

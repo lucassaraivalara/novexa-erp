@@ -137,6 +137,17 @@ async function abrir(estado, largura = 1440, rota = "/__entrada") {
         if (u.pathname === "/fornecedores" && req.method() === "POST") {
             estado.nomeNovo = corpo.razaoSocial; return responder(201, { ...fornecedor, ...corpo, id: 77 });
         }
+        if (["/produtos/categorias", "/produtos/subcategorias", "/produtos/marcas"].includes(u.pathname)) {
+            const categoria = { id: 31, nome: "Categoria teste", ativo: true };
+            const cadastros = {
+                "/produtos/categorias": [categoria],
+                "/produtos/subcategorias": [{ id: 32, nome: "Subcategoria teste", ativo: true, categoria }],
+                "/produtos/marcas": [{ id: 33, nome: "Marca teste", ativo: true }],
+            };
+            const items = cadastros[u.pathname].filter(item => item.nome.toLowerCase().includes((u.searchParams.get("termo") ?? "").toLowerCase())
+                && (!item.categoria || item.categoria.id === Number(u.searchParams.get("categoriaId"))));
+            return responder(200, { items, page: 0, size: 25, totalItems: items.length, totalPages: items.length ? 1 : 0 });
+        }
         if (u.pathname === "/produtos/buscar") return responder(200, [produto]);
         if (u.pathname === "/produtos" && req.method() === "POST") {
             if (estado.atrasarProduto) await new Promise(r => setTimeout(r, 500));
@@ -816,11 +827,16 @@ test("Produto completo: API anterior, campos e callback de criacao permanecem", 
         await form.getByLabel("Preço de custo").fill("4");
         await form.getByLabel("Preço de venda").fill("8");
         await form.getByLabel("Estoque mínimo").fill("2,500");
+        for (const [campo, nome] of [["Categoria", "Categoria teste"], ["Subcategoria", "Subcategoria teste"], ["Marca", "Marca teste"]]) {
+            await form.getByRole("combobox", { name: campo, exact: true }).fill(nome);
+            await page.getByRole("option", { name: nome, exact: true }).click();
+        }
         await form.getByRole("button", { name: "Cadastrar produto", exact: true }).click();
         await page.waitForFunction(() => window.__produtoSalvo?.id === 2000);
         assert.equal(postsProduto(estado)[0].corpo.codigoInterno, "COD1");
         assert.equal(postsProduto(estado)[0].corpo.descricao, "Descricao completa");
         assert.equal(postsProduto(estado)[0].corpo.estoqueMinimo, 2.5);
+        assert.deepEqual([postsProduto(estado)[0].corpo.categoriaId, postsProduto(estado)[0].corpo.subcategoriaId, postsProduto(estado)[0].corpo.marcaId], [31, 32, 33]);
         assert.deepEqual(await page.evaluate(() => [window.__argsProduto.imagem, window.__argsProduto.remover]), [null, false]);
     } finally { await page.close(); }
 });

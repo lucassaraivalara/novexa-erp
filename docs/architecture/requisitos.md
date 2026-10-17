@@ -49,6 +49,12 @@ O sistema deverá permitir:
 * Alteração de produtos;
 * Consulta de produtos;
 * Controle de informações como nome, código e preço.
+* Importação administrativa XLS/XLSX/CSV com prévia, confirmação explícita e relatório por linha. Cria somente novos produtos, rejeita código/EAN existente e reenvio confirmado não duplica o lote. NCM/CEST são metadados opcionais, sem efeito fiscal; não importa saldo atual. Contrato e limites em [produtos.md](produtos.md).
+* Fornecedor principal opcional do mesmo tenant, selecionável no cadastro completo e visível na consulta/relatório. Ausência em edição preserva o vínculo; remoção explícita é permitida. A FK impede excluir fisicamente um fornecedor vinculado, preservando a inativação existente. Sem efeitos operacionais automáticos; contrato em [fornecedores.md](fornecedores.md#fornecedor-principal-do-produto).
+
+Categorias e subcategorias são cadastros administrativos de dois níveis, pertencentes à empresa do JWT, com nome e situação ativa. Nomes são únicos por empresa em cada cadastro, desconsiderando caixa e espaços nas extremidades; a subcategoria exige categoria da mesma empresa. Exclusão de categoria com subcategorias é bloqueada, sem cascata; inativação é independente. Produto pode informar categoria e subcategoria opcionais da mesma empresa; subcategoria exige a categoria correspondente. Edição omissa preserva vínculos e null remove explicitamente. Contratos atuais em [arquitetura.md](arquitetura.md#categorias-e-subcategorias-de-produtos).
+
+Marcas seguem o mesmo padrão de manutenção por empresa, com nome obrigatório, situação e unicidade sem diferenciar maiúsculas/minúsculas. Produto vinculado, mesmo inativo, impede exclusão; inativação da marca preserva o vínculo. Marca é opcional no formulário completo e na API de Produto, com validação da empresa do JWT; o cadastro rápido permanece simples. Contrato em [arquitetura.md](arquitetura.md#marcas-de-produtos).
 
 ---
 

@@ -5,6 +5,7 @@ import type { PaginaResponse } from "../types/paginacao";
 
 export type FiltrosProduto = {
     busca?: string; campoBusca?: string; situacao?: string; situacaoEstoque?: string;
+    categoriaId?: number; subcategoriaId?: number; marcaId?: number;
     page?: number; size?: number; sort?: string;
 };
 export async function listarProdutosPaginado(params: FiltrosProduto, signal?: AbortSignal) {

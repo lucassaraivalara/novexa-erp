@@ -1,0 +1,81 @@
+package br.com.novexa.erp.controller;
+
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.flywaydb.core.Flyway;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.Map;
+import java.util.UUID;
+import static org.assertj.core.api.Assertions.*;
+
+@EnabledIfSystemProperty(named = "novexa.test.produto-classificacao.jdbc-url", matches = "jdbc:postgresql:.*")
+class ProdutoClassificacaoPostgresTest extends ProdutoClassificacaoHttpTest {
+    @Autowired JdbcTemplate jdbc;
+    private static final String SCHEMA = "teste_produto_classificacao_" + UUID.randomUUID().toString().replace("-", "");
+    private static final String URL = System.getProperty("novexa.test.produto-classificacao.jdbc-url");
+    private static final String USER = System.getProperty("novexa.test.produto-classificacao.jdbc-user", "novexa_test");
+
+    @DynamicPropertySource static void postgres(DynamicPropertyRegistry p) {
+        p.add("spring.datasource.url", () -> URL + "?currentSchema=" + SCHEMA);
+        p.add("spring.datasource.username", () -> USER); p.add("spring.datasource.password", () -> "");
+        p.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+        p.add("spring.jpa.hibernate.ddl-auto", () -> "validate"); p.add("spring.flyway.enabled", () -> "true");
+        p.add("spring.flyway.default-schema", () -> SCHEMA); p.add("spring.flyway.schemas", () -> SCHEMA);
+    }
+
+    @Test void migrationProtegeTenantEExclusaoFisicaSemCascade() throws Exception {
+        assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where version='41' and success", Integer.class)).isEqualTo(1);
+        long produtoId = criar(tokenA, Map.of("fornecedorId", fornecedorA, "ativo", false));
+        sqlRejeitado("update produtos set fornecedor_principal_id=? where id=?", fornecedorB, produtoId);
+        sqlRejeitado("delete from fornecedores where id=?", fornecedorA);
+        long classificado = criar(tokenA, Map.of("categoriaId", categoriaA, "subcategoriaId", subA, "marcaId", marcaA));
+        sqlRejeitado("update produtos set categoria_id=? where id=?", categoriaB, classificado);
+        sqlRejeitado("update produtos set subcategoria_id=? where id=?", subB, classificado);
+        sqlRejeitado("update produtos set marca_id=? where id=?", marcaB, classificado);
+        sqlRejeitado("update produtos set categoria_id=? where id=?", categoriaA2, classificado);
+        sqlRejeitado("delete from subcategorias_produtos where id=?", subA);
+        sqlRejeitado("delete from marcas where id=?", marcaA);
+        sqlRejeitado("update subcategorias_produtos set categoria_id=? where id=?", categoriaA2, subA);
+        assertThat(jdbc.queryForObject("select fornecedor_principal_id from produtos where id=?", Long.class, produtoId)).isEqualTo(fornecedorA);
+    }
+
+    @Test void upgradeDaV40PreservaProdutoPreExistenteSemInferirClassificacao() throws Exception {
+        String schemaUpgrade = "teste_upgrade_classificacao_" + UUID.randomUUID().toString().replace("-", "");
+        try {
+            Flyway.configure().dataSource(URL, USER, "").defaultSchema(schemaUpgrade).schemas(schemaUpgrade).target("40").load().migrate();
+            try (var c = DriverManager.getConnection(URL + "?currentSchema=" + schemaUpgrade, USER, ""); var s = c.createStatement()) {
+                s.executeUpdate("insert into empresas(id,razao_social,ativo) values (900001,'Legada',true)");
+                s.executeUpdate("insert into produtos(id,empresa_id,nome,unidade_medida,preco_venda,preco_custo,estoque_atual,data_cadastro) values (900001,900001,'Produto legado','UN',10,3,5,current_timestamp)");
+            }
+            Flyway.configure().dataSource(URL, USER, "").defaultSchema(schemaUpgrade).schemas(schemaUpgrade).load().migrate();
+            try (var c = DriverManager.getConnection(URL + "?currentSchema=" + schemaUpgrade, USER, ""); var s = c.createStatement(); var r = s.executeQuery("select nome,preco_venda,preco_custo,estoque_atual,fornecedor_principal_id,categoria_id,subcategoria_id,marca_id from produtos where id=900001")) {
+                assertThat(r.next()).isTrue(); assertThat(r.getString("nome")).isEqualTo("Produto legado");
+                assertThat(r.getBigDecimal("preco_venda")).isEqualByComparingTo("10");
+                assertThat(r.getBigDecimal("preco_custo")).isEqualByComparingTo("3");
+                assertThat(r.getBigDecimal("estoque_atual")).isEqualByComparingTo("5");
+                assertThat(r.getObject("fornecedor_principal_id")).isNull();
+                assertThat(r.getObject("categoria_id")).isNull(); assertThat(r.getObject("subcategoria_id")).isNull(); assertThat(r.getObject("marca_id")).isNull();
+            }
+        } finally {
+            try (var c = DriverManager.getConnection(URL, USER, ""); var s = c.createStatement()) { s.execute("DROP SCHEMA IF EXISTS " + schemaUpgrade + " CASCADE"); }
+        }
+    }
+
+    private void sqlRejeitado(String sql, Object... parametros) throws Exception {
+        var c = DataSourceUtils.getConnection(jdbc.getDataSource()); var savepoint = c.setSavepoint();
+        try (var ps = c.prepareStatement(sql)) {
+            for (int i = 0; i < parametros.length; i++) ps.setObject(i + 1, parametros[i]);
+            assertThatThrownBy(ps::executeUpdate).isInstanceOf(SQLException.class)
+                .satisfies(e -> assertThat(((SQLException)e).getSQLState()).isEqualTo("23503"));
+        } finally { c.rollback(savepoint); c.releaseSavepoint(savepoint); }
+    }
+    @AfterAll static void removerSchemaDescartavel() throws Exception {
+        try (var c = DriverManager.getConnection(URL, USER, ""); var s = c.createStatement()) { s.execute("DROP SCHEMA IF EXISTS " + SCHEMA + " CASCADE"); }
+    }
+}

@@ -45,4 +45,16 @@ Indice unico parcial por empresa e documento normalizado no banco impede duplici
 
 tipoPessoa e dataAtualizacao legados permanecem null ate atualizacao explicita; dataCadastro, endereco e documentos historicos nao sao reescritos pela migration. Novos registros recebem dataCadastro/dataAtualizacao, e edicoes/inativacao atualizam dataAtualizacao. DELETE nao apaga dados nem referencias historicas. Empresa e imutavel na atualizacao JPA; todas as consultas e alteracoes operacionais usam tenant.
 
-Ainda nao implementados: ProdutoFornecedor, fornecedor principal, Ordem de Compra, Cotacao, historico/tabela de precos e modulo Compras no frontend. Nenhum novo efeito financeiro.
+## Fornecedor principal do Produto
+
+Implementação local na `main`, sobre `4e71b92`: a V40 aditiva acrescenta `produtos.fornecedor_principal_id` opcional e FK composta com `empresa_id` para `fornecedores(id,empresa_id)`, reutilizando a unicidade da V17. Cada produto possui no máximo um fornecedor principal; um fornecedor pode atender vários produtos. Não há tabela intermediária, inferência pelos dados existentes ou preenchimento automático. Produtos anteriores permanecem sem fornecedor, com preços, custos e saldos preservados.
+
+`POST /produtos` e `PUT /produtos/{id}` aceitam `fornecedorId` positivo, opcional. Na criação, ausência/null significa sem fornecedor. Na edição, ausência preserva o vínculo, ID válido substitui e `null` explícito remove. O service consulta o fornecedor pela empresa do JWT e rejeita outra empresa/inexistente com 404; ID inválido retorna 400. O contrato de Produto acrescenta `fornecedor: null | {id,razaoSocial,nomeFantasia,ativo}`; não expõe Entity ou dados de outra empresa. A associação é obtida junto da consulta de Produtos, sem consulta HTTP ou fetch adicional por linha, preservando filtros, paginação e ordenação.
+
+O formulário completo de Produto reutiliza o lookup remoto existente de fornecedores ativos. Vínculo a fornecedor posteriormente inativado continua identificado, editável e removível; não se criou restrição de situação no backend para essa associação. Consulta de Produtos mostra o fornecedor e o relatório de preços inclui sua identificação na tela e na impressão de todas as páginas filtradas. Cadastro rápido de Produto mantém seus campos e fluxo anteriores.
+
+**Exclusão e inativação são distintas:** `DELETE /fornecedores/{id}` continua apenas inativando, inclusive com produtos vinculados, preservando seu contrato e referências. Não existe endpoint de exclusão física. A FK da V40 impede exclusão física enquanto qualquer produto, ativo ou inativo, o referenciar; não há cascata nem remoção automática de vínculos.
+
+V40/Flyway/Hibernate validate, atualização V39→V40 com produto pré-existente, tenant e exclusão física validados em PostgreSQL descartável. Resultados em [CURRENT_STATE.md](CURRENT_STATE.md). Não há efeito em Compras, Entradas, Estoque ou Financeiro.
+
+Ainda não implementados: múltiplos fornecedores por produto, Ordem de Compra, Cotação, histórico/tabela de preços e módulo Compras no frontend. Nenhum novo efeito financeiro.

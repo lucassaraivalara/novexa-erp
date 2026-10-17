@@ -12,6 +12,10 @@ const produtos = Array.from({ length: 205 }, (_, i) => ({
     codigoInterno: `SKU-${String(i + 1).padStart(3, "0")}`, unidadeMedida: "UN",
     precoVenda: i + 10.5, precoCusto: i + 3.25, ativo: i < 201,
     codigoBarras: null, descricao: null, estoqueAtual: 0, estoqueMinimo: 0, controlaEstoque: true,
+    categoria: i % 2 === 0 ? { id: 10, nome: "Bebidas", ativo: true } : null,
+    subcategoria: i % 2 === 0 ? { id: 20, nome: "Sucos", ativo: true, categoria: { id: 10, nome: "Bebidas", ativo: true } } : null,
+    marca: i % 2 === 0 ? { id: 30, nome: "Marca teste", ativo: true } : null,
+    fornecedor: i % 2 === 0 ? { id: i + 1000, razaoSocial: `Fornecedor ${String(i + 1).padStart(3, "0")}`, nomeFantasia: null, ativo: true } : null,
 }));
 
 before(async () => {
@@ -36,12 +40,17 @@ async function abrir(estado = {}, sessao = { perfil: "USUARIO", empresa: { id: 1
         const request = route.request();
         if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
         const u = new URL(request.url());
+        if (["/produtos/categorias", "/produtos/subcategorias", "/produtos/marcas"].includes(u.pathname)) {
+            const campo = u.pathname.endsWith("subcategorias") ? "subcategoria" : u.pathname.endsWith("categorias") ? "categoria" : "marca";
+            return route.fulfill({ json: { items: [produtos[0][campo]], page: 0, size: 25, totalItems: 1, totalPages: 1 }, headers: cors });
+        }
         if (u.pathname !== "/produtos") return route.fulfill({ json: [], headers: cors });
         const q = Object.fromEntries(u.searchParams);
         estado.chamadas.push({ ...q, metodo: request.method(), token: request.headers().authorization });
         assert.equal(request.method(), "GET");
         const empresa = Number(request.headers().authorization?.split("-").at(-1)) || 1;
         let items = produtos.map(p => ({ ...p, empresaId: empresa }));
+        for (const campo of ["categoria", "subcategoria", "marca"]) if (q[`${campo}Id`]) items = items.filter(p => p[campo]?.id === Number(q[`${campo}Id`]));
         if (q.situacao !== "todos") items = items.filter(p => p.ativo === (q.situacao === "ativos"));
         if (q.busca?.trim()) items = items.filter(p => String(p[q.campoBusca ?? "nome"]).toLowerCase().includes(q.busca.trim().toLowerCase()));
         const [campo = "nome", direcao = "asc"] = (q.sort ?? "nome,asc").split(",");
@@ -58,7 +67,7 @@ async function abrir(estado = {}, sessao = { perfil: "USUARIO", empresa: { id: 1
     await page.goto(`${url}/produtos?origem=consulta`);
     if (sessao) {
         await page.getByRole("button", { name: "Relatório de preços", exact: true }).click();
-        await page.getByRole("dialog").getByRole("cell", { name: "Produto 001", exact: true }).waitFor();
+        await page.getByRole("dialog").getByText("Produto 001", { exact: true }).waitFor();
     }
     return { page, context, dialog: page.getByRole("dialog") };
 }
@@ -74,7 +83,7 @@ test("abertura, filtros, ordenação e paginação consultam o servidor e preser
     try {
         await expect(dialog.getByText("1–25 de 201", { exact: true })).toBeVisible();
         await dialog.getByRole("button", { name: "Próxima página" }).click();
-        await expect(dialog.getByRole("cell", { name: "Produto 026", exact: true })).toBeVisible();
+        await expect(dialog.getByText("Produto 026", { exact: true })).toBeVisible();
         assert.equal(estado.chamadas.at(-1).page, "1");
         await dialog.getByRole("columnheader", { name: "Preço de venda" }).click();
         await expect.poll(() => estado.chamadas.at(-1).sort).toBe("precoVenda,asc");
@@ -87,7 +96,7 @@ test("abertura, filtros, ordenação e paginação consultam o servidor e preser
         await dialog.getByRole("combobox", { name: "Pesquisar em" }).click();
         await page.getByRole("option", { name: "Código interno / SKU", exact: true }).click();
         await dialog.getByRole("textbox").fill("SKU-020");
-        await expect(dialog.getByRole("cell", { name: "Produto 020", exact: true })).toBeVisible();
+        await expect(dialog.getByText("Produto 020", { exact: true })).toBeVisible();
         assert.equal(estado.chamadas.at(-1).campoBusca, "codigoInterno");
         await dialog.getByRole("textbox").fill("");
         await dialog.getByRole("combobox", { name: "Situação", exact: true }).click();
@@ -105,7 +114,7 @@ test("abertura, filtros, ordenação e paginação consultam o servidor e preser
     } finally { await context.close(); }
 });
 
-test("impressão aguarda todas as páginas, mantém seis campos e usa janela separada", async () => {
+test("impressão aguarda todas as páginas, inclui fornecedor principal e usa janela separada", async () => {
     let liberar;
     const pendente = new Promise(resolve => { liberar = resolve; });
     const estado = { responderImpressao: async (resposta, q) => { if (q.page === "1") await pendente; return resposta; } };
@@ -120,7 +129,14 @@ test("impressão aguarda todas as páginas, mantém seis campos e usa janela sep
         await expect(imprimir).toBeVisible();
         await expect(popup.locator("tbody tr")).toHaveCount(201);
         assert.deepEqual(estado.chamadas.filter(q => q.size === "100").map(q => q.page), ["0", "1", "2"]);
-        assert.deepEqual(await popup.getByRole("columnheader").allTextContents(), ["Produto", "Código interno / SKU", "Unidade", "Preço de venda", "Custo", "Situação"]);
+        assert.deepEqual(await popup.getByRole("columnheader").allTextContents(), ["Produto", "Código interno / SKU", "Unidade", "Preço de venda", "Custo", "Situação", "Fornecedor principal"]);
+        await expect(popup.locator("tbody tr").first().locator("td").last()).toHaveText("Fornecedor 001");
+        await expect(popup.locator("tbody tr").nth(1).locator("td").last()).toHaveText("—");
+        await expect(popup.locator("tbody tr").last().locator("td").last()).toHaveText("Fornecedor 201");
+        await expect(popup.locator("tbody tr").first()).toContainText("Categoria: Bebidas");
+        await expect(popup.locator("tbody tr").first()).toContainText("Subcategoria: Sucos");
+        await expect(popup.locator("tbody tr").first()).toContainText("Marca: Marca teste");
+        await expect(popup.locator("tbody tr").nth(1)).toContainText("Categoria: —");
         await expect(popup.locator("tbody tr").first()).toContainText("SKU-001");
         await expect(popup.locator("tbody tr").first()).toContainText("R$ 3,25");
         assert.equal(await popup.evaluate(() => window.opener), null);
@@ -215,4 +231,23 @@ test("desktop, notebook, mobile e janela baixa preservam rolagem interna, açõe
             await expect(page.getByRole("button", { name: "Relatório de preços", exact: true })).toBeFocused();
         } finally { await context.close(); }
     }
+});
+
+test("classificação filtra todas as páginas da impressão mantendo a paginação real", async () => {
+    const estado = {}; const { page, context, dialog } = await abrir(estado);
+    try {
+        for (const [campo, nome] of [["Categoria", "Bebidas"], ["Subcategoria", "Sucos"], ["Marca", "Marca teste"]]) {
+            await dialog.getByRole("combobox", { name: campo, exact: true }).fill(nome);
+            await page.getByRole("option", { name: nome, exact: true }).click();
+        }
+        await expect(dialog.getByText("1–25 de 101", { exact: true })).toBeVisible();
+        const popup = await preparar(page);
+        await expect(popup.getByRole("button", { name: "Imprimir / Salvar como PDF" })).toBeVisible();
+        await expect(popup.locator("tbody tr")).toHaveCount(101);
+        const chamadas = estado.chamadas.filter(c => c.size === "100");
+        assert.deepEqual(chamadas.map(c => c.page), ["0", "1"]);
+        assert.ok(chamadas.every(c => c.categoriaId === "10" && c.subcategoriaId === "20" && c.marcaId === "30"));
+        await expect(popup.locator("tbody tr").last()).toContainText("Produto 201");
+        await expect(popup.locator("tbody tr").last()).toContainText("Marca: Marca teste");
+    } finally { await context.close(); }
 });

@@ -46,7 +46,7 @@ public class ProdutoController {
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
         ProdutoEntity produto = produtoMapper.toEntity(request);
-        ProdutoEntity produtoSalvo = produtoService.salvar(produto, usuario.empresaId());
+        ProdutoEntity produtoSalvo = produtoService.salvar(produto, usuario.empresaId(), request.getFornecedorId(), request);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -59,12 +59,15 @@ public class ProdutoController {
             @RequestParam(required = false) String campoBusca,
             @RequestParam(required = false) String situacao,
             @RequestParam(required = false) String situacaoEstoque,
+            @RequestParam(required = false) Long categoriaId,
+            @RequestParam(required = false) Long subcategoriaId,
+            @RequestParam(required = false) Long marcaId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size,
             @RequestParam(defaultValue = "nome,asc") String sort,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
         return br.com.novexa.erp.dto.PaginaResponseDTO.de(produtoService.listarPagina(usuario.empresaId(),
-                busca, campoBusca, situacao, situacaoEstoque, page, size, sort), produtoMapper::toResponse);
+                busca, campoBusca, situacao, situacaoEstoque, page, size, sort, categoriaId, subcategoriaId, marcaId), produtoMapper::toResponse);
     }
 
     @GetMapping("/buscar")
@@ -99,7 +102,7 @@ public class ProdutoController {
         ProdutoEntity produtoAtualizado = produtoService.atualizar(
                 id,
                 dadosNovos,
-                usuario.empresaId()
+                usuario.empresaId(), request.getFornecedorId(), request.isFornecedorInformado(), request
         );
 
         return ResponseEntity.ok(produtoMapper.toResponse(produtoAtualizado));
@@ -129,5 +132,16 @@ public class ProdutoController {
 
         produtoService.inativar(id, usuario.empresaId());
         return ResponseEntity.noContent().build();
+    }
+
+    @org.springframework.web.bind.annotation.ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<String> conflitoFornecedor(org.springframework.dao.DataIntegrityViolationException erro) {
+        for (Throwable causa = erro; causa != null; causa = causa.getCause()) {
+            if (causa instanceof org.hibernate.exception.ConstraintViolationException restricao
+                    && java.util.Set.of("fk_produto_fornecedor_empresa", "fk_produto_categoria_empresa", "fk_produto_subcategoria_empresa", "fk_produto_marca_empresa", "ck_produto_subcategoria_categoria").contains(restricao.getConstraintName())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Cadastro indisponível ou vínculo inválido. Atualize a consulta e tente novamente.");
+            }
+        }
+        throw erro;
     }
 }

@@ -29,7 +29,12 @@ public class ProdutoMapper {
         ProdutoResponseDTO response = new ProdutoResponseDTO();
 
         response.setId(produto.getId());
+        response.setNcm(produto.getNcm()); response.setCest(produto.getCest());
         response.setEmpresaId(produto.getEmpresa().getId());
+        response.setFornecedor(br.com.novexa.erp.dto.FornecedorProdutoResponseDTO.de(produto.getFornecedorPrincipal()));
+        response.setCategoria(produto.getCategoria() == null ? null : br.com.novexa.erp.dto.CategoriaProdutoResponseDTO.de(produto.getCategoria()));
+        response.setSubcategoria(produto.getSubcategoria() == null ? null : br.com.novexa.erp.dto.SubcategoriaProdutoResponseDTO.de(produto.getSubcategoria()));
+        response.setMarca(produto.getMarca() == null ? null : br.com.novexa.erp.dto.MarcaResponseDTO.de(produto.getMarca()));
         response.setCodigoInterno(produto.getCodigoInterno());
         response.setCodigoBarras(produto.getCodigoBarras());
         response.setNome(produto.getNome());
@@ -52,6 +57,7 @@ public class ProdutoMapper {
         produto.setCodigoInterno(request.getCodigoInterno());
         produto.setCodigoBarras(request.getCodigoBarras());
         produto.setNome(request.getNome());
+        produto.setNcm(request.getNcm()); produto.setCest(request.getCest());
         produto.setDescricao(request.getDescricao());
         produto.setUnidadeMedida(request.getUnidadeMedida());
         produto.setPrecoCusto(request.getPrecoCusto());

@@ -1,6 +1,10 @@
+import type { CategoriaProduto, SubcategoriaProduto } from "./categoriaProduto";
+import type { Marca } from "./marca";
 export type Produto = {
     id: number;
     empresaId: number;
+    ncm?: string | null;
+    cest?: string | null;
     codigoInterno: string | null;
     codigoBarras: string | null;
     nome: string;
@@ -15,9 +19,19 @@ export type Produto = {
     imagemUrl: string | null;
     ativo: boolean;
     dataCadastro: string;
+    categoria?: CategoriaProduto | null;
+    subcategoria?: SubcategoriaProduto | null;
+    marca?: Marca | null;
+    fornecedor?: { id: number; razaoSocial: string; nomeFantasia: string | null; ativo: boolean } | null;
 };
 
 export type ProdutoInput = {
+    categoriaId?: number | null;
+    subcategoriaId?: number | null;
+    marcaId?: number | null;
+    fornecedorId?: number | null;
+    ncm?: string | null;
+    cest?: string | null;
     codigoInterno: string | null;
     codigoBarras: string | null;
     nome: string;

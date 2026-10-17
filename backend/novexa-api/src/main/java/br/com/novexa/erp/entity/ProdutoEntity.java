@@ -39,6 +39,16 @@ public class ProdutoEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(length = 8)
+    private String ncm;
+    @Column(length = 7)
+    private String cest;
+    public String getNcm() { return ncm; }
+    public void setNcm(String ncm) { this.ncm = ncm; }
+    public String getCest() { return cest; }
+    public void setCest(String cest) { this.cest = cest; }
+
+
     @ManyToOne(optional = false)
     @JoinColumn(
             name = "empresa_id",
@@ -46,6 +56,31 @@ public class ProdutoEntity {
             foreignKey = @ForeignKey(name = "fk_produto_empresa")
     )
     private EmpresaEntity empresa;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
+    @JoinColumn(name = "marca_id")
+    private MarcaEntity marca;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
+    @JoinColumn(name = "fornecedor_principal_id")
+    private FornecedorEntity fornecedorPrincipal;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
+    @JoinColumn(name = "categoria_id")
+    private CategoriaProdutoEntity categoria;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
+    @JoinColumn(name = "subcategoria_id")
+    private SubcategoriaProdutoEntity subcategoria;
+
+    public CategoriaProdutoEntity getCategoria() { return categoria; }
+    public void setCategoria(CategoriaProdutoEntity categoria) { this.categoria = categoria; }
+    public SubcategoriaProdutoEntity getSubcategoria() { return subcategoria; }
+    public void setSubcategoria(SubcategoriaProdutoEntity subcategoria) { this.subcategoria = subcategoria; }
 
     @Column(name = "codigo_interno", length = 60)
     private String codigoInterno;
@@ -131,6 +166,14 @@ public class ProdutoEntity {
     public void setEmpresa(EmpresaEntity empresa) {
         this.empresa = empresa;
     }
+
+    public MarcaEntity getMarca() { return marca; }
+
+    public void setMarca(MarcaEntity marca) { this.marca = marca; }
+
+    public FornecedorEntity getFornecedorPrincipal() { return fornecedorPrincipal; }
+
+    public void setFornecedorPrincipal(FornecedorEntity fornecedorPrincipal) { this.fornecedorPrincipal = fornecedorPrincipal; }
 
     public String getCodigoInterno() {
         return codigoInterno;

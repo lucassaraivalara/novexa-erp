@@ -28,6 +28,8 @@ import ContasFinanceiras from "../pages/Financeiro/ContasFinanceiras";
 import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
 import Recebiveis from "../pages/Financeiro/Recebiveis";
 import Configuracoes from "../pages/Configuracoes/Configuracoes";
+import CategoriasProdutos from "../pages/Produtos/CategoriasProdutos";
+import Marcas from "../pages/Produtos/Marcas";
 
 export type RotaInterna = {
     caminho: string;
@@ -46,6 +48,18 @@ export const rotaPdv: RotaInterna = {
 };
 
 export const rotasInternas: RotaInterna[] = [
+    {
+        caminho: "configuracoes/marcas-produtos",
+        titulo: "Marcas",
+        icone: <Inventory2RoundedIcon />,
+        elemento: <Marcas />,
+    },
+    {
+        caminho: "configuracoes/categorias-produtos",
+        titulo: "Categorias de produtos",
+        icone: <Inventory2RoundedIcon />,
+        elemento: <CategoriasProdutos />,
+    },
     {
         caminho: "configuracoes",
         titulo: "Configurações",
@@ -198,7 +212,7 @@ export const menuPrincipal: AreaMenu[] = [
 ];
 
 export function ehRotaConfiguracao(pathname: string): boolean {
-    return ["/configuracoes", "/empresa", "/usuarios", "/financeiro/formas-pagamento", "/financeiro/dados-bancarios"].includes(pathname);
+    return ["/configuracoes", "/configuracoes/categorias-produtos", "/configuracoes/marcas-produtos", "/empresa", "/usuarios", "/financeiro/formas-pagamento", "/financeiro/dados-bancarios"].includes(pathname);
 }
 
 export function itemMenuAtivo(item: ItemMenu, pathname: string, search = ""): boolean {
