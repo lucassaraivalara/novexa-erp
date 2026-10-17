@@ -21,6 +21,7 @@ public class JwtService {
     public static final String CLAIM_USUARIO_ID = "usuarioId";
     public static final String CLAIM_EMPRESA_ID = "empresaId";
     public static final String CLAIM_PERFIL = "perfil";
+    public static final String CLAIM_VERSAO = "versaoToken";
 
     private final SecretKey chaveAssinatura;
     private final long expirationMs;
@@ -53,9 +54,10 @@ public class JwtService {
 
         return gerarToken(
                 usuario.getId(),
-                usuario.getCpf(),
+                usuario.getCpf().replaceAll("\\D", ""),
                 usuario.getEmpresa().getId(),
-                usuario.getPerfil()
+                usuario.getPerfil(),
+                usuario.getVersaoToken()
         );
     }
 
@@ -64,6 +66,10 @@ public class JwtService {
             String cpf,
             Long empresaId,
             PerfilUsuario perfil) {
+        return gerarToken(usuarioId, cpf, empresaId, perfil, 0);
+    }
+
+    private String gerarToken(Long usuarioId, String cpf, Long empresaId, PerfilUsuario perfil, long versao) {
 
         if (usuarioId == null || cpf == null || cpf.isBlank() || empresaId == null || perfil == null) {
             throw new IllegalArgumentException("Usuário, CPF, empresa e perfil são obrigatórios para gerar o JWT.");
@@ -71,15 +77,16 @@ public class JwtService {
 
         Date agora = new Date();
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .claim(CLAIM_USUARIO_ID, usuarioId)
                 .claim(CLAIM_CPF, cpf)
                 .claim(CLAIM_EMPRESA_ID, empresaId)
                 .claim(CLAIM_PERFIL, perfil.name())
                 .issuedAt(agora)
                 .expiration(new Date(agora.getTime() + expirationMs))
-                .signWith(chaveAssinatura)
-                .compact();
+                .signWith(chaveAssinatura);
+        if (versao != 0) builder.claim(CLAIM_VERSAO, versao);
+        return builder.compact();
     }
 
     public Claims extrairClaims(String token) {

@@ -47,7 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // O parser existente verifica assinatura e expiração antes de disponibilizar as claims.
                 Claims claims = jwtService.extrairClaims(authorization.substring(7).trim());
                 UsuarioAutenticado principal = criarPrincipal(claims);
-                validarVinculoAtual(principal);
+                validarVinculoAtual(principal, claims);
                 var authentication = UsernamePasswordAuthenticationToken.authenticated(
                         principal, null, List.of(new SimpleGrantedAuthority("ROLE_" + principal.perfil().name())));
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -80,10 +80,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         return new UsuarioAutenticado(usuarioId, cpf, empresaId, PerfilUsuario.valueOf(perfil));
     }
-    private void validarVinculoAtual(UsuarioAutenticado principal) {
+    private void validarVinculoAtual(UsuarioAutenticado principal, Claims claims) {
         var usuario = usuarios.findByIdAndEmpresaId(principal.usuarioId(), principal.empresaId())
                 .orElseThrow(() -> new BadCredentialsException("Vinculo de usuario invalido."));
-        if (Boolean.FALSE.equals(usuario.getAtivo()) || usuario.getEmpresa() == null
+        Number versao = claims.get(JwtService.CLAIM_VERSAO, Number.class);
+        if (usuario.getVersaoToken() != (versao == null ? 0 : versao.longValue())
+                || Boolean.FALSE.equals(usuario.getAtivo()) || usuario.getEmpresa() == null
                 || Boolean.FALSE.equals(usuario.getEmpresa().getAtivo())
                 || usuario.getPerfil() != principal.perfil())
             throw new BadCredentialsException("Usuario, empresa ou perfil indisponivel.");

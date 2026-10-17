@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
     Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
-    Divider, Drawer, FormControlLabel, IconButton, MenuItem, Stack, Switch,
+    Divider, Drawer, FormControlLabel, IconButton, InputAdornment, MenuItem, Stack, Switch,
     TextField, Typography,
 } from "@mui/material";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import { obterSessao } from "../../utils/auth/sessao";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import FormActions from "../../components/ui/FormActions";
 import { mensagemUsuario, redefinirSenhaUsuario, salvarUsuario } from "../../services/usuarioService";
@@ -23,11 +26,16 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
     const [form, setForm] = useState<UsuarioInput>({
         nomeUsuario: usuario?.nomeUsuario ?? "",
         cpf: usuario?.cpf ?? "",
+        login: usuario?.login ?? usuario?.cpf ?? "",
         email: usuario?.email ?? "",
-        perfil: usuario?.perfil === "USUARIO" ? "OPERADOR" : usuario?.perfil ?? "OPERADOR",
+        perfil: usuario?.perfil === "USUARIO" ? "OPERADOR" : usuario?.perfil === "GERENTE" ? "GESTOR" : usuario?.perfil ?? "OPERADOR",
         ativo: usuario?.ativo !== false,
         senha: "",
     });
+    const [mostrarSenha, setMostrarSenha] = useState(false);
+    const [confirmarInativacao, setConfirmarInativacao] = useState(false);
+    const proprio = usuario?.id === obterSessao()?.id;
+    const preservado = usuario?.cpf.replace(/\D/g, "") === "02360684663" && usuario?.perfil === "ADMIN";
     const [salvando, setSalvando] = useState(false);
     const [alterado, setAlterado] = useState(false);
     const [confirmarSaida, setConfirmarSaida] = useState(false);
@@ -60,8 +68,8 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
         else onFechar();
     }
 
-    async function enviar(evento: FormEvent<HTMLFormElement>) {
-        evento.preventDefault();
+    async function enviar(evento?: FormEvent<HTMLFormElement>, confirmado = false) {
+        evento?.preventDefault();
         if (salvando) return;
         if (!redefinindoSenha && !form.nomeUsuario.trim()) {
             setErroNome(true);
@@ -79,17 +87,20 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
             senhaRef.current?.focus();
             return;
         }
+        if (!redefinindoSenha && usuario && usuario.ativo !== false && !form.ativo && !confirmado) { setConfirmarInativacao(true); return; }
+        setConfirmarInativacao(false);
         setSalvando(true);
         setErro("");
         try {
             const salvo = redefinindoSenha
-                ? await redefinirSenhaUsuario(usuario!.id, { senha: form.senha!.trim() })
+                ? await redefinirSenhaUsuario(usuario!.id, { senha: form.senha! })
                 : await salvarUsuario({
                     ...form,
                     nomeUsuario: form.nomeUsuario.trim(),
                     cpf,
                     email: form.email.trim(),
-                    senha: undefined,
+                    login: form.login.trim(),
+                    senha: usuario ? undefined : form.senha,
                 }, usuario?.id);
             onSalvo(salvo);
         } catch (e) {
@@ -122,41 +133,47 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
                             <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>Dados</Typography>
                             <Divider />
                             <TextField inputRef={nomeRef} label="Nome" name="nomeUsuario" autoComplete="name" required fullWidth value={form.nomeUsuario} onChange={(e) => atualizar("nomeUsuario", e.target.value)} error={erroNome} helperText={erroNome ? "Informe o nome do usuário." : undefined} slotProps={{ htmlInput: { maxLength: 150 } }} />
-                            <TextField inputRef={cpfRef} label="CPF" name="cpf" autoComplete="off" inputMode="numeric" required fullWidth value={form.cpf} onChange={(e) => atualizar("cpf", e.target.value)} error={erroCpf} helperText={erroCpf ? "Informe um CPF com 11 dígitos." : undefined} slotProps={{ htmlInput: { maxLength: 14 } }} />
+                            <TextField inputRef={cpfRef} label="CPF" name="cpf" disabled={preservado} autoComplete="off" inputMode="numeric" required fullWidth value={form.cpf} onChange={(e) => atualizar("cpf", e.target.value)} error={erroCpf} helperText={erroCpf ? "Informe um CPF com 11 dígitos." : undefined} slotProps={{ htmlInput: { maxLength: 14 } }} />
+                            <TextField label="Login" name="login" required fullWidth autoComplete="off" value={form.login} onChange={(e) => atualizar("login", e.target.value)} helperText="Identificação interna. O acesso continua sendo feito pelo CPF." slotProps={{ htmlInput: { maxLength: 255 } }} />
                             <TextField label="E-mail" name="email" type="email" autoComplete="email" spellCheck={false} required fullWidth value={form.email} onChange={(e) => atualizar("email", e.target.value)} />
-                            {!usuario && <TextField inputRef={senhaRef} label="Senha" name="senha" type="password" autoComplete="new-password" required fullWidth value={form.senha} onChange={(e) => atualizar("senha", e.target.value)} error={erroSenha} helperText={erroSenha ? "Informe a senha." : undefined} />}
+                            {!usuario && <TextField inputRef={senhaRef} label="Senha" name="senha" type={mostrarSenha ? "text" : "password"} slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"} onClick={() => setMostrarSenha(v => !v)} edge="end">{mostrarSenha ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment> } }} autoComplete="new-password" required fullWidth value={form.senha} onChange={(e) => atualizar("senha", e.target.value)} error={erroSenha} helperText={erroSenha ? "Informe a senha." : undefined} />}
                         </Stack>}
                         {redefinindoSenha && <Stack spacing={2}>
                             <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>Nova senha</Typography>
                             <Divider />
-                            <TextField inputRef={senhaRef} label="Nova senha" name="senha" type="password" autoComplete="new-password" required fullWidth value={form.senha} onChange={(e) => atualizar("senha", e.target.value)} error={erroSenha} helperText={erroSenha ? "Informe a nova senha." : "Esta ação altera somente a senha do usuário."} />
+                            <TextField inputRef={senhaRef} label="Nova senha" name="senha" type={mostrarSenha ? "text" : "password"} slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"} onClick={() => setMostrarSenha(v => !v)} edge="end">{mostrarSenha ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment> } }} autoComplete="new-password" required fullWidth value={form.senha} onChange={(e) => atualizar("senha", e.target.value)} error={erroSenha} helperText={erroSenha ? "Informe a nova senha." : "As sessões anteriores serão encerradas. Entre novamente com a nova senha."} />
                         </Stack>}
                         {!redefinindoSenha && <Stack spacing={2}>
                             <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>Acesso</Typography>
                             <Divider />
-                            <TextField select label="Perfil" name="perfil" required fullWidth value={form.perfil} onChange={(e) => atualizar("perfil", e.target.value as UsuarioInput["perfil"])}>
+                            <TextField select disabled={preservado} label="Perfil" name="perfil" required fullWidth value={form.perfil} onChange={(e) => atualizar("perfil", e.target.value as UsuarioInput["perfil"])}>
                                 <MenuItem value="ADMIN">Administrador</MenuItem>
-                                <MenuItem value="GERENTE">Gerente</MenuItem>
+                                <MenuItem value="GESTOR">Gestor</MenuItem>
                                 <MenuItem value="OPERADOR">Operador</MenuItem>
                             </TextField>
                             <Box sx={{ borderLeft: "3px solid", borderColor: "primary.main", pl: 2, py: 0.5 }}>
                                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                    {form.perfil === "ADMIN" ? "Administrador" : form.perfil === "GERENTE" ? "Gerente" : "Operador"}
+                                    {form.perfil === "ADMIN" ? "Administrador" : form.perfil === "GESTOR" ? "Gestor" : "Operador"}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
                                     {form.perfil === "ADMIN"
                                         ? "Gerencia usuários e pode cancelar vendas, movimentar e fechar caixas."
-                                        : form.perfil === "GERENTE"
+                                        : form.perfil === "GESTOR"
                                             ? "Pode cancelar vendas, registrar sangrias e suprimentos e fechar caixas."
                                             : "Pode vender, abrir caixa e fechar a própria sessão. Ações gerenciais exigem outro perfil."}
                                 </Typography>
                             </Box>
-                            <FormControlLabel control={<Switch checked={form.ativo} onChange={(e) => atualizar("ativo", e.target.checked)} />} label="Usuário ativo" />
+                            <FormControlLabel control={<Switch disabled={proprio || preservado} checked={form.ativo} onChange={(e) => atualizar("ativo", e.target.checked)} />} label="Usuário ativo" />
                         </Stack>}
                     </Stack>
                     <FormActions onCancelar={fechar} tipoSalvar="submit" salvando={salvando} sx={{ mt: 0, px: 3, py: 2, bgcolor: "background.paper" }} />
                 </Box>
             </Drawer>
+            <Dialog open={confirmarInativacao} onClose={() => setConfirmarInativacao(false)} aria-labelledby="inativar-edicao-titulo">
+                <DialogTitle id="inativar-edicao-titulo">Inativar usuário?</DialogTitle>
+                <DialogContent>O acesso será bloqueado e as sessões anteriores serão encerradas.</DialogContent>
+                <DialogActions><Button onClick={() => setConfirmarInativacao(false)}>Voltar</Button><Button color="error" onClick={() => void enviar(undefined, true)}>Inativar e salvar</Button></DialogActions>
+            </Dialog>
             <Dialog open={confirmarSaida} onClose={() => setConfirmarSaida(false)} aria-labelledby="descartar-usuario-titulo">
                 <DialogTitle id="descartar-usuario-titulo">Descartar alterações?</DialogTitle>
                 <DialogContent>Os dados preenchidos serão perdidos.</DialogContent>

@@ -19,6 +19,12 @@ test("gerente executa ações gerenciais sem gerenciar usuários", () => {
     assert.equal(podeFecharSessao("GERENTE", 1, 2), true);
 });
 
+test("gestor reutiliza acesso gerencial sem administrar usuários", () => {
+    assert.equal(podeGerenciarUsuarios("GESTOR"), false);
+    assert.equal(podeExecutarAcaoGerencial("GESTOR"), true);
+    assert.equal(podeFecharSessao("GESTOR", 1, 2), true);
+});
+
 for (const perfil of ["OPERADOR", "USUARIO"]) {
     test(`${perfil} fecha apenas a própria sessão e não executa ações gerenciais`, () => {
         assert.equal(podeGerenciarUsuarios(perfil), false);

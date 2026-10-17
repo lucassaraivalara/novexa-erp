@@ -8,6 +8,9 @@ public class UsuarioRequestDTO {
     @NotBlank @Size(max = 255) private String nomeUsuario;
     @NotBlank @Size(max = 18)
     private String cpf;
+    @Size(max = 255) private String login;
+    public String getLogin() { return login; }
+    public void setLogin(String login) { this.login = login; }
     @Email @Size(max = 255)
     private String email;
     @Size(max = 30) private String telefone;

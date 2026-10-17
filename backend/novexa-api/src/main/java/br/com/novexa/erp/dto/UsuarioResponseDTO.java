@@ -7,6 +7,9 @@ public class UsuarioResponseDTO {
     private Long id;
     private String nomeUsuario;
     private String cpf;
+    private String login;
+    public String getLogin() { return login; }
+    public void setLogin(String login) { this.login = login; }
     private String email;
     private String telefone;
     private PerfilUsuario perfil;

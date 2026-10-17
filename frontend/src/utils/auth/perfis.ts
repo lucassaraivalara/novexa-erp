@@ -5,7 +5,7 @@ export function podeGerenciarUsuarios(perfil?: PerfilUsuario): boolean {
 }
 
 export function podeExecutarAcaoGerencial(perfil?: PerfilUsuario): boolean {
-    return perfil === "ADMIN" || perfil === "GERENTE";
+    return perfil === "ADMIN" || perfil === "GERENTE" || perfil === "GESTOR";
 }
 
 export function podeFecharSessao(perfil: PerfilUsuario | undefined, usuarioId: number | undefined, aberturaId: number): boolean {

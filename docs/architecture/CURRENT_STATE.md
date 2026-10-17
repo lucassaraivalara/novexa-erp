@@ -1,5 +1,19 @@
 Empresa ........ funcional
 
+## Gestão de usuários MVP — validação para publicação (2026-10-17)
+
+Implementação na `main`, baseada em `8b9d068`, validada localmente; publicação e implantação ainda pendentes. Corrigido o cadastro que removia a senha do POST. Listagem com busca remota por nome/CPF/login/e-mail, situação, paginação real e ordenação; cadastro, edição, ativação/inativação com confirmação e redefinição de senha. Somente GET `/usuarios/pagina` e o campo cadastral `login` foram acrescentados aos contratos administrativos existentes. Detalhes em [arquitetura.md](arquitetura.md#usuários) e [frontend.md](frontend.md).
+
+Somente ADMIN administra usuários da empresa do JWT. Login/e-mail são únicos por empresa; CPF globalmente único preservado por orientação explícita enquanto o login usar CPF/senha. Auto-inativação, perda do último ADMIN ativo e alterações destrutivas do ADMIN preservado são bloqueadas. Exclusão legada continua lógica, sem nova ação de exclusão na interface. Gestor reutiliza GERENTE; OPERADOR e legado USUARIO preservados. Senhas usam BCrypt e não são retornadas. V43 aditiva cria login, versão de token e índices; senha/situação/perfil/CPF alterados invalidam tokens anteriores, inclusive após reativação. Migrations V1–V42 intactas.
+
+Retomada: 139 testes H2/unitários de usuários/autenticação e 30 PostgreSQL aprovados. Flyway V43, Hibernate validate, preservação do ADMIN e rollback por e-mail legado duplicado verificados em schemas descartáveis. JAR iniciou integralmente com perfil `prod` contra PostgreSQL local descartável: readiness HTTP 200 e `/usuarios/pagina` sem token HTTP 401. 44 testes frontend relacionados aprovados, incluindo reativação, confirmação de inativação pelo formulário, lista vazia e foco por Tab. Revisão visual em 1440×900, 1366×600, 390×844 e 390×480, com HTTP simulado; não equivale a smoke de produção. Builds backend/frontend, lint e diff check aprovados; lint mantém dois avisos preexistentes do React Hook Form e build frontend mantém aviso de bundle grande.
+
+Inspeção de produção exclusivamente somente leitura confirmou `postgres/public`, V42 aplicada, um usuário e um ADMIN ativo na única empresa com usuários, sem inativos nem duplicidades de CPF/e-mail. ADMIN preservado e empresa ativos, com hash existente; coluna login ainda ausente, como esperado antes da V43, cujo backfill usa o CPF globalmente único. VM no baseline `8b9d068`, container ativo e readiness HTTP 200. Nenhum usuário criado, alterado, inativado ou removido em produção nesta verificação.
+
+Implantação depende de backup verificável e sessão ADMIN renovada para smoke: arquivo anterior não localizado, Supabase sem backup agendado no plano atual. Exportação para um novo arquivo fora do Git bloqueada pela revisão automática por exigir autorização específica do destino; nenhum dump criado. Nenhum deploy novo ou smoke de produção concluído. Gerenciamento de Acessos por menu/ação e perfis avançados não existem e permanecem pendência, sem novas chamadas da interface a esse módulo.
+
+Histórico separado: última suíte frontend geral com 425/425 aprovações e backend geral com 1.384 aprovados, 564 condicionais ignorados e dez erros preexistentes de `PaginacaoHttpTest.preparar` (fixture de Venda sem `valor_prazo`). Não repetidas nesta retomada; nenhuma correção fora de Usuários. CONTRACT READY global continua pendente, sem alterar os critérios do workflow. Alterações locais anteriores de paginação, AGENTS, lockfile e referências preservadas.
+
 ## Carga inicial operacional e retirada da interface (2026-10-17)
 
 Removidos botao/dialogo, endpoints, DTOs, Entity, repositories, leitores, services e testes exclusivos da importacao permanente. Categorias/Subcategorias, Marcas, fornecedor principal, NCM/CEST e cadastro/relatorio de Produtos preservados. V42 aplicada intacta; importacoes_produtos permanece como legado sem uso e sem registros, sem migration destrutiva. Detalhes em [produtos.md](produtos.md).

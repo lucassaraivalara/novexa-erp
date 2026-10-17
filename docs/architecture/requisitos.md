@@ -28,6 +28,8 @@ O sistema deverá permitir:
 
 Na fase operacional atual, `ADMIN` gerencia usuários; `GERENTE` e `ADMIN` cancelam vendas, registram sangria/suprimento e podem fechar caixas de outros operadores. `OPERADOR` abre caixa e fecha a própria sessão. `USUARIO` permanece como valor legado equivalente a operador. A matriz granular de permissões continua futura.
 
+Gestão MVP: busca paginada por nome/CPF/login/e-mail, filtro ativo/inativo, cadastro, edição, alteração de situação e redefinição de senha. A interface chama o perfil gerencial de Gestor (`GESTOR` aceito como alias do papel `GERENTE` existente). Somente ADMIN administra usuários da própria empresa. Auto-inativação, remoção lógica da própria conta, perda do último ADMIN ativo e alteração destrutiva do ADMIN preservado são bloqueadas; senhas usam BCrypt e a mudança de senha/situação invalida sessões anteriores. Login e e-mail são únicos na empresa. A unicidade global do CPF permanece obrigatória nesta entrega, preservando o login atual por CPF/senha. Gerenciamento de Acessos com permissões por menu/ação permanece fora do MVP entregue. Contrato e migration em [arquitetura.md](arquitetura.md#usuários).
+
 ---
 
 ## 2.2 Módulo de Clientes

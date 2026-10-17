@@ -13,6 +13,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
+import br.com.novexa.erp.dto.PaginaResponseDTO;
+import br.com.novexa.erp.dto.UsuarioResponseDTO;
+import br.com.novexa.erp.mapper.UsuarioMapper;
+import br.com.novexa.erp.util.Paginacao;
+import org.springframework.data.domain.Sort;
 
 @Service
 @org.springframework.transaction.annotation.Transactional
@@ -34,7 +42,10 @@ public class UsuarioService {
 
     public UsuarioEntity salvar(UsuarioEntity usuario, Long empresaId) {
         usuario.setEmpresa(buscarEmpresaObrigatoria(empresaId));
+        usuarioRepository.bloquearAdministracao(empresaId);
         prepararCadastro(usuario);
+        if (usuario.getLogin() == null || usuario.getLogin().isBlank()) usuario.setLogin(usuario.getCpf());
+        validarIdentificadores(usuario, empresaId, -1L);
 
         if (usuarioRepository.existsByCpf(usuario.getCpf())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ja existe um usuario com este CPF.");
@@ -57,6 +68,19 @@ public class UsuarioService {
         return usuarioRepository.findAllByEmpresaId(empresaId);
     }
 
+    public PaginaResponseDTO<UsuarioResponseDTO> listarPagina(Long empresaId, String termo, Boolean ativo,
+            int page, int size, String sort, UsuarioMapper mapper) {
+        String texto = termo == null ? "" : termo.trim().toLowerCase(Locale.ROOT);
+        String documento = texto.matches("[0-9.\\- ]+") ? normalizarCpf(texto) : texto;
+        return PaginaResponseDTO.de(usuarioRepository.listarPagina(empresaId, padrao(texto), padrao(documento), ativo,
+                Paginacao.criar(page, size, sort, Set.of("id", "nomeUsuario", "cpf", "login", "email", "perfil", "ativo"),
+                        Sort.Direction.ASC)), mapper::toResponse);
+    }
+
+    private String padrao(String texto) {
+        return "%" + texto.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+    }
+
     public UsuarioEntity buscarPorId(Long id, Long empresaId) {
         return usuarioRepository.findByIdAndEmpresaId(id, empresaId)
                 .orElseThrow(() -> new UsuarioNotFoundException("Usuário não encontrado."));
@@ -68,19 +92,28 @@ public class UsuarioService {
             Long empresaId) {
 
         prepararCadastro(dadosNovos);
-
+        usuarioRepository.bloquearAdministracao(empresaId);
         UsuarioEntity usuarioExistente = buscarPorId(id, empresaId);
+        if (dadosNovos.getLogin() == null) dadosNovos.setLogin(usuarioExistente.getLogin());
+        if (dadosNovos.getLogin() == null) dadosNovos.setLogin(dadosNovos.getCpf());
+        validarIdentificadores(dadosNovos, empresaId, id);
+        validarProtecao(usuarioExistente, dadosNovos.getAtivo(), dadosNovos.getPerfil(), dadosNovos.getCpf());
 
         if (usuarioRepository.existsByCpfAndIdNot(dadosNovos.getCpf(), id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ja existe outro usuario com este CPF.");
         }
 
         usuarioExistente.setNomeUsuario(dadosNovos.getNomeUsuario());
+        usuarioExistente.setLogin(dadosNovos.getLogin());
+        boolean mudouAcesso = !Objects.equals(usuarioExistente.getCpf(), dadosNovos.getCpf())
+                || (dadosNovos.getAtivo() != null && !Objects.equals(usuarioExistente.getAtivo(), dadosNovos.getAtivo()))
+                || (dadosNovos.getPerfil() != null && usuarioExistente.getPerfil() != dadosNovos.getPerfil());
         usuarioExistente.setCpf(dadosNovos.getCpf());
         usuarioExistente.setEmail(dadosNovos.getEmail());
         usuarioExistente.setTelefone(dadosNovos.getTelefone());
         if (dadosNovos.getSenha() != null && !dadosNovos.getSenha().isBlank()) {
             usuarioExistente.setSenha(criptografarSenha(dadosNovos.getSenha()));
+            mudouAcesso = true;
         }
         if (dadosNovos.getPerfil() != null) {
             usuarioExistente.setPerfil(dadosNovos.getPerfil());
@@ -89,6 +122,7 @@ public class UsuarioService {
             usuarioExistente.setAtivo(dadosNovos.getAtivo());
         }
 
+        if (mudouAcesso) usuarioExistente.invalidarTokens();
         return usuarioRepository.save(usuarioExistente);
     }
 
@@ -97,26 +131,25 @@ public class UsuarioService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe a situação do usuário.");
         }
 
+        usuarioRepository.bloquearAdministracao(autenticado.empresaId());
         UsuarioEntity usuario = buscarPorId(id, autenticado.empresaId());
 
         if (Boolean.FALSE.equals(ativo) && usuario.getId().equals(autenticado.usuarioId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Você não pode inativar o próprio usuário conectado.");
         }
 
+        validarProtecao(usuario, ativo, null, usuario.getCpf());
+        if (!Objects.equals(usuario.getAtivo(), ativo)) usuario.invalidarTokens();
         usuario.setAtivo(ativo);
         return usuarioRepository.save(usuario);
     }
 
     public UsuarioEntity redefinirSenha(Long id, String senha, Long empresaId) {
+        usuarioRepository.bloquearAdministracao(empresaId);
         UsuarioEntity usuario = buscarPorId(id, empresaId);
         usuario.setSenha(criptografarSenha(senha));
+        usuario.invalidarTokens();
         return usuarioRepository.save(usuario);
-    }
-
-    public void excluir(Long id, Long empresaId) {
-        UsuarioEntity usuario = buscarPorId(id, empresaId);
-        usuario.setAtivo(false);
-        usuarioRepository.save(usuario);
     }
 
     // O controller chama este método; o repository não é acessado diretamente pela web.
@@ -178,6 +211,30 @@ public class UsuarioService {
         if (cpf.length() != 11) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe um CPF valido.");
         usuario.setCpf(br.com.novexa.erp.util.DocumentoUtils.normalizarEValidarCpfCnpj(cpf));
         usuario.setNomeUsuario(usuario.getNomeUsuario().trim());
+        if (usuario.getLogin() != null) {
+            usuario.setLogin(usuario.getLogin().trim().toLowerCase(Locale.ROOT));
+            if (usuario.getLogin().isBlank())
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe o login do usuário.");
+        }
+        if (usuario.getEmail() != null) usuario.setEmail(usuario.getEmail().trim().toLowerCase(Locale.ROOT));
+    }
+
+    private void validarIdentificadores(UsuarioEntity usuario, Long empresaId, Long id) {
+        if (usuarioRepository.loginEmUso(empresaId, id, usuario.getLogin()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Já existe um usuário com este login nesta empresa.");
+        if (usuario.getEmail() != null && !usuario.getEmail().isBlank()
+                && usuarioRepository.emailEmUso(empresaId, id, usuario.getEmail()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Já existe um usuário com este e-mail nesta empresa.");
+    }
+
+    private void validarProtecao(UsuarioEntity usuario, Boolean ativo, PerfilUsuario perfil, String cpf) {
+        boolean retiraAdmin = Boolean.FALSE.equals(ativo) || (perfil != null && perfil != PerfilUsuario.ADMIN);
+        if (usuario.getPerfil() == PerfilUsuario.ADMIN && "02360684663".equals(normalizarCpf(usuario.getCpf()))
+                && (retiraAdmin || !normalizarCpf(usuario.getCpf()).equals(normalizarCpf(cpf))))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "O administrador preservado não pode ser inativado, removido ou rebaixado.");
+        if (usuario.getPerfil() == PerfilUsuario.ADMIN && !Boolean.FALSE.equals(usuario.getAtivo()) && retiraAdmin
+                && usuarioRepository.countByEmpresaIdAndPerfilAndAtivoTrue(usuario.getEmpresa().getId(), PerfilUsuario.ADMIN) <= 1)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A empresa deve manter pelo menos um ADMIN ativo.");
     }
 
     private boolean senhaConfere(String senhaInformada, String senhaCriptografada) {

@@ -181,6 +181,19 @@ class UsuarioServiceTest {
         return usuario;
     }
 
+    @Test
+    void naoInativaOuRemoveUltimoAdministradorMesmoPorOutroAtor() {
+        var ultimo = criarUsuario(passwordEncoder.encode("senha123"), true);
+        ultimo.setCpf("52998224725"); ultimo.setPerfil(PerfilUsuario.ADMIN);
+        when(usuarioRepository.findByIdAndEmpresaId(1L, 1L)).thenReturn(Optional.of(ultimo));
+        when(usuarioRepository.countByEmpresaIdAndPerfilAndAtivoTrue(1L, PerfilUsuario.ADMIN)).thenReturn(1L);
+        var ator = new br.com.novexa.erp.security.UsuarioAutenticado(2L, "11144477735", 1L, PerfilUsuario.ADMIN);
+        assertThatThrownBy(() -> usuarioService.alterarSituacao(1L, false, ator))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("pelo menos um ADMIN ativo");
+        assertThat(ultimo.getAtivo()).isTrue();
+    }
+
     private EmpresaEntity criarEmpresa(boolean ativa) {
         EmpresaEntity empresa = new EmpresaEntity();
         empresa.setId(1L);

@@ -19,7 +19,7 @@ import java.util.List;
 public class UsuarioController {
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
     public org.springframework.http.ResponseEntity<String> conflitoDeCadastro() {
-        return org.springframework.http.ResponseEntity.status(409).body("CPF ja cadastrado ou dados de usuario invalidos.");
+        return org.springframework.http.ResponseEntity.status(409).body("CPF, login ou e-mail já cadastrado. Confira os dados do usuário.");
     }
 
     private final UsuarioService usuarioService;
@@ -83,6 +83,15 @@ public class UsuarioController {
     // =========================================================
 
     // GET /usuarios/{id}
+    @GetMapping("/pagina")
+    public br.com.novexa.erp.dto.PaginaResponseDTO<UsuarioResponseDTO> listarPagina(
+            @AuthenticationPrincipal UsuarioAutenticado autenticado,
+            @RequestParam(required = false) String termo, @RequestParam(required = false) Boolean ativo,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "nomeUsuario,asc") String sort) {
+        return usuarioService.listarPagina(autenticado.empresaId(), termo, ativo, page, size, sort, usuarioMapper);
+    }
+
     @GetMapping("/{id}")
     public UsuarioResponseDTO buscarPorId(
             @PathVariable Long id,

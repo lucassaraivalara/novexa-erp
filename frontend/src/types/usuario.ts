@@ -1,11 +1,12 @@
 import type { EmpresaAtiva } from "./auth";
 
-export type PerfilUsuario = "ADMIN" | "GERENTE" | "OPERADOR" | "USUARIO";
+export type PerfilUsuario = "ADMIN" | "GESTOR" | "GERENTE" | "OPERADOR" | "USUARIO";
 
 export type Usuario = {
     id: number;
     nomeUsuario: string;
     cpf: string;
+    login?: string;
     email: string;
     perfil: PerfilUsuario;
     ativo: boolean | null;
@@ -15,6 +16,7 @@ export type Usuario = {
 export type UsuarioInput = {
     nomeUsuario: string;
     cpf: string;
+    login: string;
     email: string;
     perfil: PerfilUsuario;
     ativo: boolean;

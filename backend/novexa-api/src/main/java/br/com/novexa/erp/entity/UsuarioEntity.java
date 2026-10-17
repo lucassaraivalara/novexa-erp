@@ -21,6 +21,17 @@ public class UsuarioEntity {
 
     private String nomeUsuario;
 
+    private String login;
+
+    @jakarta.persistence.Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("0")
+    private long versaoToken;
+
+    public String getLogin() { return login; }
+    public void setLogin(String login) { this.login = login; }
+    public long getVersaoToken() { return versaoToken; }
+    public void invalidarTokens() { versaoToken++; }
+
     private String cpf;
 
     private String email;

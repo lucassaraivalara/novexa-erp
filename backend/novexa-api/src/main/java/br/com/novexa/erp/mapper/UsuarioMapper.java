@@ -29,6 +29,7 @@ public class UsuarioMapper {
 
         // Copia os dados do DTO para a Entity.
         usuario.setNomeUsuario(request.getNomeUsuario());
+        usuario.setLogin(request.getLogin());
         usuario.setCpf(request.getCpf());
         usuario.setEmail(request.getEmail());
         usuario.setTelefone(request.getTelefone());
@@ -54,6 +55,7 @@ public class UsuarioMapper {
         // Copia os dados da Entity para o ResponseDTO.
         response.setId(usuario.getId());
         response.setNomeUsuario(usuario.getNomeUsuario());
+        response.setLogin(usuario.getLogin());
         response.setCpf(usuario.getCpf());
         response.setEmail(usuario.getEmail());
         response.setTelefone(usuario.getTelefone());

@@ -245,7 +245,9 @@ submits ficam bloqueados.
 
 ## Cadastro complexo
 
-Usuários usa drawer lateral na própria lista, com seções Dados e Acesso. Mantém `form onSubmit`, ações Salvar/Cancelar e confirmação antes de descartar alterações. A seção Acesso descreve os perfis atuais sem controles de permissões granulares.
+Usuários usa drawer lateral na própria lista, com seções Dados e Acesso. Mantém `form onSubmit`, ações Salvar/Cancelar e confirmação antes de descartar alterações. Cadastro envia a senha inicial sem removê-la do payload ou aparar seus espaços; edição normal não envia senha, e redefinição usa somente PATCH de senha. Nome, CPF, login, e-mail, senha inicial, perfil e situação reutilizam os campos MUI; senha permite mostrar/ocultar. Login é identificação interna, com orientação explícita de que o acesso continua pelo CPF. Gestor reutiliza o papel GERENTE; sem controles granulares.
+
+Busca por nome/CPF/login/e-mail, filtro de situação, ordenação e paginação usam GET `/usuarios/pagina`, com debounce de 350 ms e cancelamento de respostas antigas. Salvar ou alterar situação recarrega a página remota com os filtros mantidos. Conflitos preservam o formulário; sessão expirada e falta de permissão possuem mensagens próprias; falha de consulta oferece retry e não é apresentada como lista vazia. A inativação exige confirmação tanto na lista quanto no formulário. A situação fica bloqueada para a conta conectada e para o ADMIN preservado; este também tem CPF/perfil protegidos no formulário. O backend mantém a validação de último ADMIN e dos demais bloqueios. Retorno a Configurações e restrição de rota para ADMIN permanecem. Drawer com corpo rolável e rodapé acessível em desktop, notebook, mobile e janela baixa; referência Olist usada para hierarquia e ações, sem adicionar campos corporativos ou alterar o shell navy/verde.
 
 Cliente, Produto e Empresa continuam usando dialogs maiores, abas ou seções.
 Eles não são reduzidos ao padrão compacto, mas preservam `form onSubmit`,

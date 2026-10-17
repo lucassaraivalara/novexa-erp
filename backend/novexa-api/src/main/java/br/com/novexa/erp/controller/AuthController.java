@@ -39,12 +39,7 @@ public class AuthController {
         );
 
         LoginResponseDTO response = usuarioMapper.toLoginResponse(usuario);
-        response.setToken(jwtService.gerarToken(
-                usuario.getId(),
-                usuario.getCpf().replaceAll("\\D", ""),
-                usuario.getEmpresa().getId(),
-                usuario.getPerfil()
-        ));
+        response.setToken(jwtService.gerarToken(usuario));
         response.setTipo("Bearer");
         return response;
     }
