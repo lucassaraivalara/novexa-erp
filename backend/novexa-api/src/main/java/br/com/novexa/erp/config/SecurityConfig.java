@@ -43,7 +43,6 @@ public class SecurityConfig {
                                 "/actuator/health/readiness").permitAll()
                         .requestMatchers(HttpMethod.POST, "/financeiro/formas-pagamento", "/financeiro/formas-pagamento/**").denyAll()
                         .requestMatchers(HttpMethod.PUT, "/financeiro/formas-pagamento", "/financeiro/formas-pagamento/**").denyAll()
-                        .requestMatchers("/produtos/importacoes", "/produtos/importacoes/**").hasRole("ADMIN")
                         .requestMatchers("/usuarios", "/usuarios/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/empresas", "/empresas/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/empresas", "/empresas/**").hasRole("ADMIN")

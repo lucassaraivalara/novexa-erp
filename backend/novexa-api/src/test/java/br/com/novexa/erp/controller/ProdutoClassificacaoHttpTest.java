@@ -9,6 +9,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class ProdutoClassificacaoHttpTest extends ProdutoFornecedorHttpTest {
     long categoriaA, categoriaA2, subA, subA2, marcaA, categoriaB, subB, marcaB;
+    @Test void preservaNcmCestNoCadastroNormalSemImportacao() throws Exception {
+        long id = criar(tokenA, Map.of("ncm", "12345678", "cest", "1234567"));
+        mvc.perform(get("/produtos/" + id).header("Authorization", tokenA)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.ncm").value("12345678")).andExpect(jsonPath("$.cest").value("1234567"));
+        mvc.perform(put("/produtos/" + id).header("Authorization", tokenA).contentType(MediaType.APPLICATION_JSON)
+            .content(json.writeValueAsBytes(dados(Map.of("nome", "Editado")))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.ncm").value("12345678"))
+            .andExpect(jsonPath("$.cest").value("1234567"));
+    }
     @BeforeEach void classificacoes() throws Exception {
         categoriaA = cadastro(tokenA, "categorias", Map.of("nome", "Categoria A"));
         categoriaA2 = cadastro(tokenA, "categorias", Map.of("nome", "Categoria A2"));

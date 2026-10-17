@@ -69,13 +69,6 @@ public class ProdutoService {
         return produtoRepository.save(produto);
     }
 
-    @Transactional
-    public void salvarImportacao(List<ProdutoEntity> produtos, Long empresaId) {
-        var empresa=buscarEmpresa(empresaId);
-        for(var produto:produtos) { produto.setEmpresa(empresa); prepararDados(produto,null); }
-        produtoRepository.saveAllAndFlush(produtos);
-    }
-
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<ProdutoEntity> listarPagina(Long empresaId, String busca,
             String campoBusca, String situacao, String situacaoEstoque, int page, int size, String sort) {

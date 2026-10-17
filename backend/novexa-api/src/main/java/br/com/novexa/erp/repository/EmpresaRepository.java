@@ -16,10 +16,6 @@ public interface EmpresaRepository extends JpaRepository<EmpresaEntity, Long> {
     org.springframework.data.domain.Page<EmpresaEntity> listarPagina(Long empresaId, String termo,
             String documento, Boolean ativo, org.springframework.data.domain.Pageable pageable);
 
-    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
-    @Query("select e from EmpresaEntity e where e.id=:id")
-    java.util.Optional<EmpresaEntity> buscarParaImportacao(Long id);
-
     // Verifica se já existe uma empresa com o CNPJ informado.
     boolean existsByCnpj(String cnpj);
 

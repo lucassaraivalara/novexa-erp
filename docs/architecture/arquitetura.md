@@ -87,6 +87,6 @@ V41 adiciona categoria_id e subcategoria_id opcionais a produtos e reutiliza mar
 
 POST/PUT /produtos recebe categoriaId, subcategoriaId e marcaId opcionais e positivos. IDs são resolvidos pela empresa do JWT; referência indisponível/de outra empresa retorna 404, relação incompatível retorna 400. PUT preserva cada campo omitido; null remove. Trocar categoria sem informar a remoção/troca da subcategoria incompatível é rejeitado, preservando o vínculo omitido. Respostas retornam categoria e marca {id,nome,ativo}, e subcategoria {id,nome,ativo,categoria}, ou null. GET /produtos acrescenta os três filtros opcionais ao contrato paginado existente. Leituras carregam vínculos em lote via EntityGraph; nenhuma consulta financeira ou de estoque é criada.
 
-## Importação administrativa de Produtos
+## Metadados de Produtos e legado V42
 
-ProdutoPlanilhaReader/ProdutoXlsReader → ImportacaoProdutoService → ProdutoService salvam novos produtos somente após prévia e confirmação. V42 adiciona NCM/CEST opcionais e importacoes_produtos, com unicidade empresa/hash, locks e confirmação transacional. Resolução de classificação/fornecedor e duplicidade usa consultas em lote com empresa do JWT; namespace /produtos/importacoes é restrito a ADMIN. Sem dependência de estoque, Entrada ou financeiro. Contrato em [produtos.md](produtos.md).
+NCM/CEST opcionais permanecem no cadastro e nos contratos normais de Produto. A V42 aplicada permanece imutável; `importacoes_produtos` fica como estrutura legada, sem Entity, repository, endpoints ou uso pela aplicação. A carga inicial é procedimento operacional separado, sem API.

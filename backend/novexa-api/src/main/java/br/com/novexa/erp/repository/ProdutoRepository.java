@@ -13,10 +13,6 @@ import jakarta.persistence.LockModeType;
 
 public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
 
-    interface CodigosImportacao { String getCodigoInterno(); String getCodigoBarras(); }
-    @Query("select p.codigoInterno as codigoInterno, p.codigoBarras as codigoBarras from ProdutoEntity p where p.empresa.id=:empresaId and (p.codigoInterno in :codigos or p.codigoBarras in :eans)")
-    List<CodigosImportacao> buscarCodigosImportacao(Long empresaId, java.util.Collection<String> codigos, java.util.Collection<String> eans);
-
     boolean existsByMarcaIdAndEmpresaId(Long marcaId, Long empresaId);
 
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"fornecedorPrincipal", "categoria", "subcategoria.categoria", "marca"})

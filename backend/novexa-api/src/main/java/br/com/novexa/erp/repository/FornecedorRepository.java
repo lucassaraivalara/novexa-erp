@@ -12,8 +12,6 @@ import java.util.Optional;
 
 public interface FornecedorRepository extends JpaRepository<FornecedorEntity, Long> {
 
-    @Query("select f from FornecedorEntity f where f.empresa.id=:empresaId and (lower(f.razaoSocial) in :nomes or lower(f.nomeFantasia) in :nomes)")
-    List<FornecedorEntity> buscarNomesImportacao(Long empresaId, java.util.Collection<String> nomes);
 
     List<FornecedorEntity> findAllByEmpresaIdOrderByRazaoSocialAsc(Long empresaId);
 

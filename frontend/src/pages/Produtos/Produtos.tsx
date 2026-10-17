@@ -1,5 +1,3 @@
-import ImportacaoProdutosDialog from "./ImportacaoProdutosDialog";
-import { obterSessao } from "../../utils/auth/sessao";
 import ClassificacaoProdutoCampos from "./ClassificacaoProdutoCampos";
 import { semClassificacao, filtrosClassificacao, descricaoClassificacao } from "./classificacaoProdutoUtils";
 import { useEffect, useState } from "react";
@@ -42,7 +40,6 @@ function Produtos() {
     const [produtos, setProdutos] = useState<Produto[]>([]);
     const [erroCarregamento, setErroCarregamento] = useState("");
     const [formularioAberto, setFormularioAberto] = useState(false);
-    const [importacaoAberta, setImportacaoAberta] = useState(false);
     const [relatorioAberto, setRelatorioAberto] = useState(false);
     const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null);
     const [carregandoProduto, setCarregandoProduto] = useState(false);
@@ -230,7 +227,6 @@ function Produtos() {
                 descricao="Cadastre e mantenha os dados dos produtos. Registre o recebimento de mercadorias em Estoque."
                 acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={abrirCadastro}>Novo produto</Button>}
                 acoesSecundarias={<Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
-                    {obterSessao()?.perfil === "ADMIN" && <Button variant="outlined" onClick={() => setImportacaoAberta(true)}>Importar Produtos</Button>}
                     <Button variant="outlined" startIcon={<PrintOutlinedIcon />} onClick={() => setRelatorioAberto(true)}>Relatório de preços</Button>
                 </Stack>}
             />
@@ -301,7 +297,6 @@ function Produtos() {
                 />
             </Stack>
 
-            {importacaoAberta && <ImportacaoProdutosDialog key={empresaId} onFechar={() => setImportacaoAberta(false)} onImportada={recarregar} />}
             {relatorioAberto && <RelatorioPrecosDialog key={empresaId} onFechar={() => setRelatorioAberto(false)} />}
 
             <ProdutoForm

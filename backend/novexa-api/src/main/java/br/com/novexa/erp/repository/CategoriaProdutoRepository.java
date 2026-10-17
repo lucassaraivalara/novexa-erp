@@ -7,8 +7,6 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface CategoriaProdutoRepository extends JpaRepository<CategoriaProdutoEntity, Long> {
-    @Query("select c from CategoriaProdutoEntity c where c.empresa.id=:empresaId and lower(c.nome) in :nomes")
-    java.util.List<CategoriaProdutoEntity> buscarNomesImportacao(Long empresaId, java.util.Collection<String> nomes);
 
     Optional<CategoriaProdutoEntity> findByIdAndEmpresaId(Long id, Long empresaId);
     boolean existsByEmpresaIdAndNomeIgnoreCaseAndIdNot(Long empresaId, String nome, Long id);
