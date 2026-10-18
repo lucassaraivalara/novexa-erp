@@ -32,23 +32,30 @@ export default function Sidebar() {
     const [fixado, setFixado] = useState(() => localStorage.getItem("novexa-menu-fixed") !== "false");
     const [hovered, setHovered] = useState(false);
     const [selecao, setSelecao] = useState<{ key: string; id: string | null }>({ key: location.key, id: null });
+    const faixaRef = useRef<HTMLDivElement | null>(null);
     const acionadorRef = useRef<HTMLButtonElement | null>(null);
     const painelRef = useRef<HTMLDivElement | null>(null);
     const areas = menuPrincipal;
     const aberta = selecao.key === location.key ? areas.find(area => area.id === selecao.id) : undefined;
     const fechar = useCallback((restaurarFoco = true) => {
         setSelecao({ key: location.key, id: null });
-        if (restaurarFoco) acionadorRef.current?.focus();
-    }, [location.key]);
+        setHovered(false);
+        if (restaurarFoco) {
+            const nome = acionadorRef.current?.getAttribute("aria-label")?.replace(" (ícone)", "");
+            const compacto = Array.from(faixaRef.current?.querySelectorAll<HTMLElement>("a,button") ?? [])
+                .find(item => item.getAttribute("aria-label") === `${nome} (ícone)`);
+            (fixado ? acionadorRef.current : compacto)?.focus();
+        }
+    }, [location.key, fixado]);
 
     useEffect(() => {
-        if (!aberta) return;
+        if (!aberta && (fixado || !hovered)) return;
         const escape = (event: KeyboardEvent) => {
             if (event.key === "Escape") { event.preventDefault(); fechar(); }
         };
         window.addEventListener("keydown", escape);
         return () => window.removeEventListener("keydown", escape);
-    }, [aberta, fechar]);
+    }, [aberta, fixado, hovered, fechar]);
 
     function abrir(area: AreaMenu, acionador: HTMLButtonElement, focarPainel = false) {
         acionadorRef.current = acionador;
@@ -57,17 +64,19 @@ export default function Sidebar() {
     }
 
     const menuAberto = mobile || fixado || hovered || Boolean(aberta);
-    return <Box sx={{ width: mobile ? layoutTokens.sidebar.largura : (menuAberto ? layoutTokens.sidebar.largura : layoutTokens.sidebar.faixaIcones), flexShrink: 0, transition: "width 160ms ease" }}>
+    // Somente a preferência fixada reserva a coluna; hover e submenus são sobrepostos.
+    return <Box sx={{ width: mobile || fixado ? layoutTokens.sidebar.largura : layoutTokens.sidebar.faixaIcones + 16, flexShrink: 0,
+        transition: "width 160ms ease", "@media (prefers-reduced-motion: reduce)": { transition: "none" } }}>
         <ClickAwayListener onClickAway={() => fechar(false)}>
             <Box component="nav" aria-label="Menu principal" sx={{
                 position: "fixed", zIndex: theme.zIndex.drawer, left: 8, top: 8,
                 height: "calc(100dvh - 16px)", display: "flex", overflow: "hidden",
                 width: mobile ? aberta ? "min(320px, calc(100vw - 16px))" : layoutTokens.sidebar.faixaIcones
-                    : layoutTokens.sidebar.faixaIcones + layoutTokens.sidebar.colunaPrincipal + (aberta ? layoutTokens.sidebar.colunaSecundaria : 0),
+                    : layoutTokens.sidebar.faixaIcones + (menuAberto ? layoutTokens.sidebar.colunaPrincipal : 0) + (aberta ? layoutTokens.sidebar.colunaSecundaria : 0),
                 bgcolor: dark ? d.sidebar : "background.paper", border: `1px solid ${dark ? d.border : "#DCE3E9"}`, borderRadius: "12px",
                 boxShadow: dark ? d.shadow : "0 8px 28px rgba(16,27,43,.12)",
             }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => { if (!fixado) { setHovered(false); fechar(false); } }}>
-                <Stack aria-label="Áreas compactas" sx={{ width: layoutTokens.sidebar.faixaIcones, flexShrink: 0, bgcolor: dark ? d.rail : "#111B2B", color: "#D9E3EF", alignItems: "center", py: 2, gap: 0.75,
+                <Stack ref={faixaRef} aria-label="Áreas compactas" sx={{ width: layoutTokens.sidebar.faixaIcones, flexShrink: 0, bgcolor: dark ? d.rail : "#111B2B", color: "#D9E3EF", alignItems: "center", py: 2, gap: 0.75,
                     overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none", "& > *": { flexShrink: 0 } }}>
                     <Box sx={{ height: 64, display: "flex", alignItems: "flex-start", color: "#4FCAA4" }}><StorefrontRoundedIcon sx={{ fontSize: 26 }} /></Box>
                     <Tooltip title="Vender" placement="right"><IconButton component={Link} to={obterCaminhoDaRota(rotaPdv)} aria-label="Vender (ícone)"
@@ -122,9 +131,19 @@ export default function Sidebar() {
                             <ToggleButton value="light" aria-label="Tema claro" sx={{ px: 1, py: .4, textTransform: "none", fontSize: 12 }}>claro</ToggleButton>
                             <ToggleButton value="dark" aria-label="Tema escuro" sx={{ px: 1, py: .4, textTransform: "none", fontSize: 12 }}>escuro</ToggleButton>
                         </ToggleButtonGroup>
-                        <Stack direction="row" sx={{ px: 1, alignItems: "center", justifyContent: "space-between" }}>
+                        <Stack component="label" direction="row" sx={{ px: 1, minHeight: 44, alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
                             <Typography variant="body2">Fixar menu</Typography>
-                            <Switch size="small" checked={fixado} onChange={event => { setFixado(event.target.checked); localStorage.setItem("novexa-menu-fixed", String(event.target.checked)); }} slotProps={{ input: { "aria-label": "Fixar menu" } }} />
+                            <Switch size="small" checked={fixado} onChange={event => {
+                                const proximo = event.target.checked;
+                                setFixado(proximo);
+                                localStorage.setItem("novexa-menu-fixed", String(proximo));
+                                if (!proximo) {
+                                    fechar(false);
+                                    faixaRef.current?.querySelector<HTMLAnchorElement>("a")?.focus();
+                                }
+                            }} slotProps={{ input: { "aria-label": "Fixar menu" } }} sx={{
+                                "& .MuiSwitch-switchBase.Mui-focusVisible": { outline: "2px solid", outlineColor: dark ? d.teal : "primary.main", outlineOffset: 2 },
+                            }} />
                         </Stack>
                     </Stack>
                 </Stack>}
