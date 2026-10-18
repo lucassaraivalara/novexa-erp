@@ -26,6 +26,7 @@ import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { layoutTokens } from "../layout/layoutTokens";
 import { visualTokens } from "../../theme/theme";
+import { darkTokens } from "../../theme/darkTokens";
 import EmptyState from "./EmptyState";
 import LoadingState from "./LoadingState";
 import type { SxProps } from "@mui/system";
@@ -254,7 +255,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                         py: 0.75,
                                         fontWeight: 600,
                                         color: "text.secondary",
-                                        backgroundColor: layoutTokens.table.headerBg,
+                                        backgroundColor: theme => theme.palette.mode === "dark" ? darkTokens.tableHead : layoutTokens.table.headerBg,
                                         textTransform: "none",
                                         letterSpacing: 0,
                                         fontSize: "13px",
@@ -321,7 +322,7 @@ export default function AppTable<T extends Record<string, unknown>>({
                                         py: 0.75,
                                         fontWeight: 600,
                                         color: "text.secondary",
-                                        backgroundColor: layoutTokens.table.headerBg,
+                                        backgroundColor: theme => theme.palette.mode === "dark" ? darkTokens.tableHead : layoutTokens.table.headerBg,
                                         textTransform: "none",
                                         letterSpacing: 0,
                                         fontSize: "13px",
@@ -400,7 +401,8 @@ export default function AppTable<T extends Record<string, unknown>>({
                                                     fontSize: layoutTokens.typography.body,
                                                     ...visualTokens.numeric,
                                                     lineHeight: 1.4,
-                                                    borderBottom: `1px solid ${layoutTokens.table.borderColor}`,
+                                                    borderBottom: 1,
+                                                    borderColor: "divider",
                                                     whiteSpace: "nowrap",
                                                     overflow: "hidden",
                                                     textOverflow: "ellipsis",

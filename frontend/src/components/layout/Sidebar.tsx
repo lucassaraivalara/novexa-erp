@@ -7,8 +7,9 @@ import { Link, useLocation } from "react-router-dom";
 import { itemMenuAtivo, menuPrincipal, obterCaminhoDaRota, rotaPdv, type AreaMenu } from "../../routes/navigation";
 import { layoutTokens } from "./layoutTokens";
 import { useThemeMode, type ThemeChoice } from "../../theme/ThemeModeContext";
+import { darkTokens as d } from "../../theme/darkTokens";
 
-const estiloItem = {
+const estiloItemClaro = {
     minHeight: 44, px: 1.5, gap: 1, borderRadius: "6px", color: "text.secondary",
     "&.Mui-selected": { bgcolor: "#DDF2E9", color: "#075E4B", "&:hover": { bgcolor: "#D2EBDF" } },
     "&:hover": { bgcolor: "#F0F5F3" },
@@ -20,6 +21,12 @@ const estiloItem = {
 export default function Sidebar() {
     const location = useLocation();
     const theme = useTheme();
+    const dark = theme.palette.mode === "dark";
+    const estiloItem = { ...estiloItemClaro, ...(dark ? {
+        "&.Mui-selected": { bgcolor: d.selected, color: d.teal, "&:hover": { bgcolor: d.selectedHover } },
+        "&:hover": { bgcolor: d.hover },
+        "&.Mui-focusVisible": { outline: `2px solid ${d.teal}`, outlineOffset: -2 },
+    } : {}) };
     const mobile = useMediaQuery(theme.breakpoints.down("sm"));
     const { choice, setChoice } = useThemeMode();
     const [fixado, setFixado] = useState(() => localStorage.getItem("novexa-menu-fixed") !== "false");
@@ -57,10 +64,10 @@ export default function Sidebar() {
                 height: "calc(100dvh - 16px)", display: "flex", overflow: "hidden",
                 width: mobile ? aberta ? "min(320px, calc(100vw - 16px))" : layoutTokens.sidebar.faixaIcones
                     : layoutTokens.sidebar.faixaIcones + layoutTokens.sidebar.colunaPrincipal + (aberta ? layoutTokens.sidebar.colunaSecundaria : 0),
-                bgcolor: "background.paper", border: "1px solid #DCE3E9", borderRadius: "12px",
-                boxShadow: "0 8px 28px rgba(16,27,43,.12)",
+                bgcolor: dark ? d.sidebar : "background.paper", border: `1px solid ${dark ? d.border : "#DCE3E9"}`, borderRadius: "12px",
+                boxShadow: dark ? d.shadow : "0 8px 28px rgba(16,27,43,.12)",
             }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => { if (!fixado) { setHovered(false); fechar(false); } }}>
-                <Stack aria-label="Áreas compactas" sx={{ width: layoutTokens.sidebar.faixaIcones, flexShrink: 0, bgcolor: "#111B2B", color: "#D9E3EF", alignItems: "center", py: 2, gap: 0.75,
+                <Stack aria-label="Áreas compactas" sx={{ width: layoutTokens.sidebar.faixaIcones, flexShrink: 0, bgcolor: dark ? d.rail : "#111B2B", color: "#D9E3EF", alignItems: "center", py: 2, gap: 0.75,
                     overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none", "& > *": { flexShrink: 0 } }}>
                     <Box sx={{ height: 64, display: "flex", alignItems: "flex-start", color: "#4FCAA4" }}><StorefrontRoundedIcon sx={{ fontSize: 26 }} /></Box>
                     <Tooltip title="Vender" placement="right"><IconButton component={Link} to={obterCaminhoDaRota(rotaPdv)} aria-label="Vender (ícone)"
@@ -84,9 +91,9 @@ export default function Sidebar() {
                                 "&.Mui-focusVisible": { outline: "2px solid #4FCAA4", outlineOffset: -2 } }}>{area.icone}</IconButton></Tooltip>;
                     })}
                 </Stack>
-                {!mobile && menuAberto && <Stack sx={{ width: layoutTokens.sidebar.colunaPrincipal, flexShrink: 0, borderRight: aberta ? "1px solid #E3E8ED" : undefined }}>
+                {!mobile && menuAberto && <Stack sx={{ width: layoutTokens.sidebar.colunaPrincipal, flexShrink: 0, borderRight: aberta ? `1px solid ${dark ? d.border : "#E3E8ED"}` : undefined }}>
                     <Box sx={{ height: 96, px: 2.5, pt: 2.5, flexShrink: 0 }}>
-                        <Typography sx={{ fontSize: 22, fontWeight: 800, color: "#0E7C66" }}>NOVEXA</Typography>
+                        <Typography sx={{ fontSize: 22, fontWeight: 800, color: dark ? d.teal : "#0E7C66" }}>NOVEXA</Typography>
                         <Typography variant="caption" color="text.secondary">Gestão</Typography>
                     </Box>
                     <Box sx={{ px: 1.25, pb: 1 }}><Button component={Link} to={obterCaminhoDaRota(rotaPdv)} fullWidth startIcon={rotaPdv.icone} variant="contained" disableElevation
@@ -123,7 +130,7 @@ export default function Sidebar() {
                 </Stack>}
                 {aberta && <Stack ref={painelRef} id="funcoes-area" role="region" aria-label={`Funções de ${aberta.titulo}`} sx={{ minWidth: 0, flex: 1 }}
                     onKeyDown={event => { if (event.key === "ArrowLeft") { event.preventDefault(); fechar(); } }}>
-                    <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", height: 72, px: 2, borderBottom: "1px solid #E3E8ED", flexShrink: 0 }}>
+                    <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", height: 72, px: 2, borderBottom: `1px solid ${dark ? d.border : "#E3E8ED"}`, flexShrink: 0 }}>
                         <Typography component="h2" sx={{ fontSize: 16, fontWeight: 700 }}>{aberta.titulo}</Typography>
                         <Tooltip title="Fechar funções"><IconButton aria-label="Fechar funções" size="small" onClick={() => fechar()}><CloseRoundedIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>
                     </Stack>

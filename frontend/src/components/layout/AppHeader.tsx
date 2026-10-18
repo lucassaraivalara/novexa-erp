@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ehRotaConfiguracao, obterTituloDaPagina } from "../../routes/navigation";
 import { obterSessao, removerSessao } from "../../utils/auth/sessao";
 import { layoutTokens } from "./layoutTokens";
+import { darkTokens } from "../../theme/darkTokens";
 
 function AppHeader() {
     const location = useLocation();
@@ -42,7 +43,7 @@ function AppHeader() {
                 borderColor: "divider",
                 borderRadius: noDashboard ? "8px" : 0,
                 boxShadow: "none",
-                backgroundColor: "background.paper",
+                backgroundColor: theme => theme.palette.mode === "dark" ? darkTokens.header : theme.palette.background.paper,
                 m: noDashboard ? { xs: 1, md: 1.25 } : 0,
                 width: noDashboard ? "auto" : undefined,
             }}
@@ -115,7 +116,7 @@ function AppHeader() {
                             height: 32,
                             fontSize: "0.75rem",
                             fontWeight: 600,
-                            color: "primary.dark",
+                            color: theme => theme.palette.mode === "dark" ? theme.palette.primary.main : theme.palette.primary.dark,
                             backgroundColor: "primary.light",
                             border: "1px solid",
                             borderColor: "divider",

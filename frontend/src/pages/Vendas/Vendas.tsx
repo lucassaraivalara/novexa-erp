@@ -16,7 +16,7 @@ import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell,
-    TableHead, TableRow, TextField, Tooltip, Typography } from "@mui/material";
+    TableHead, TableRow, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { pesquisarProdutos, obterMensagemDaApi } from "../../services/produtoService";
 import { useRemoteSearch } from "../../hooks/useRemoteSearch";
 import ClienteAutocomplete from "../../components/clientes/ClienteAutocomplete";
@@ -30,6 +30,7 @@ import ValorMonetarioPDV from "./ValorMonetarioPDV";
 import SessaoCaixaPDVDialog from "./SessaoCaixaPDVDialog";
 import VendaFinalizacaoDialog, { type EstadoFinalizacao } from "./VendaFinalizacaoDialog";
 import PdvActionButton from "./PdvActionButton";
+import { pdvTokens } from "../../theme/darkTokens";
 
 type Opcional = "desconto" | "cliente" | "entrega" | "observacoes" | null;
 const avisoCodigoAmbiguo = "Código corresponde a mais de um produto. Selecione o item na lista.";
@@ -61,6 +62,8 @@ const tipoConfigParaLegado: Record<ConfiguracaoFormaPagamento["tipo"], FormaPaga
 };
 
 export default function Vendas() {
+    const theme = useTheme();
+    const cores = pdvTokens[theme.palette.mode];
     const navigate = useNavigate();
     const sessao = obterSessao();
     const empresaId = sessao?.empresa.id;
@@ -373,7 +376,7 @@ export default function Vendas() {
         return () => window.removeEventListener("keydown", atalhos);
     });
 
-    const comandos = <Box role="group" aria-label="Comandos do PDV" sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(3, minmax(0, 1fr))", sm: "repeat(5, minmax(0, 1fr))", lg: "repeat(9, minmax(0, 1fr))" }, gap: 0.75, p: 1, bgcolor: "#E2E8F0", borderBottom: 1, borderColor: "#CBD5E1", flexShrink: 0 }}>
+    const comandos = <Box role="group" aria-label="Comandos do PDV" sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(3, minmax(0, 1fr))", sm: "repeat(5, minmax(0, 1fr))", lg: "repeat(9, minmax(0, 1fr))" }, gap: 0.75, p: 1, bgcolor: cores.commands, borderBottom: 1, borderColor: cores.border, flexShrink: 0 }}>
         <PdvActionButton compacto categoria="consulta" icone={<SearchIcon />} atalho="F5" disabled={bloqueado} onClick={focarBusca}>Produto</PdvActionButton>
         <PdvActionButton compacto categoria="alteracao" icone={<EditRoundedIcon />} atalho="F3" disabled={bloqueado || !rascunho.itens.length} onClick={focarQuantidade}>Quantidade</PdvActionButton>
         <PdvActionButton compacto categoria="alteracao" icone={<PercentRoundedIcon />} atalho="F7" disabled={bloqueado} onClick={() => setOpcional("desconto")}>Desconto</PdvActionButton>
@@ -385,7 +388,7 @@ export default function Vendas() {
         <PdvActionButton compacto categoria="cancelamento" icone={<CloseRoundedIcon />} atalho="F6" disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Cancelar venda</PdvActionButton>
     </Box>;
 
-    return <Box sx={{ height: { xs: "auto", md: "100dvh" }, minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "#E9EEF3" }}>
+    return <Box sx={{ height: { xs: "auto", md: "100dvh" }, minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: cores.canvas }}>
         <SessaoCaixaPDVDialog resolvida={sessaoCaixaResolvida} onResolvida={definirSessaoCaixa} />
         <Dialog open={limpezaAberta} onClose={fecharLimpeza} aria-labelledby="pdv-limpar-titulo">
             <DialogTitle id="pdv-limpar-titulo">Limpar esta venda?</DialogTitle>
@@ -402,16 +405,16 @@ export default function Vendas() {
             mensagemErro={finalizacao.mensagemErro}
             onVoltar={fecharFinalizacao}
             onTentarNovamente={finalizacao.podeTentarNovamente ? () => void finalizar() : undefined} />}
-        <Stack component="header" direction="row" aria-label="Topo operacional" sx={{ minHeight: 48, bgcolor: "#202C3A", color: "#FFFFFF", px: 1.5, py: 0.75, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
+        <Stack component="header" direction="row" aria-label="Topo operacional" sx={{ minHeight: 48, bgcolor: cores.header, color: cores.headerText, px: 1.5, py: 0.75, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
             <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", minWidth: 0, flexWrap: "wrap" }}>
-                <PointOfSaleRoundedIcon sx={{ color: "#4ADE80", fontSize: 24 }} />
-                <Typography component="h1" sx={{ fontSize: 16, fontWeight: 800 }}>Novexa <Box component="span" sx={{ color: "#AAB8C8", fontWeight: 500 }}> / Vender</Box></Typography>
-                <Typography variant="caption" sx={{ color: "#D4DDE7", overflowWrap: "anywhere" }}>{sessao?.empresa.nomeFantasia || sessao?.empresa.razaoSocial} · {sessao?.nomeUsuario}
+                <PointOfSaleRoundedIcon sx={{ color: cores.accent, fontSize: 24 }} />
+                <Typography component="h1" sx={{ fontSize: 16, fontWeight: 800 }}>Novexa <Box component="span" sx={{ color: cores.headerMuted, fontWeight: 500 }}> / Vender</Box></Typography>
+                <Typography variant="caption" sx={{ color: cores.operator, overflowWrap: "anywhere" }}>{sessao?.empresa.nomeFantasia || sessao?.empresa.razaoSocial} · {sessao?.nomeUsuario}
                     {rascunho.sessaoCaixaId !== null && ` · Sessão #${rascunho.sessaoCaixaId}`}</Typography>
             </Stack>
             <Stack direction="row" spacing={1}>
-                <Button size="small" color="inherit" sx={{ fontSize: 12, color: "#FCA5A5", "&.Mui-disabled": { color: "#8997A7" } }} startIcon={<DeleteOutlineRoundedIcon />} disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Limpar venda</Button>
-                <Button component={Link} to="/dashboard" color="inherit" size="small" sx={{ fontSize: 12, color: "#FCA5A5" }} startIcon={<ArrowBackRoundedIcon />} disabled={salvando}>Voltar ao ERP</Button>
+                <Button size="small" color="inherit" sx={{ fontSize: 12, color: cores.exit, "&.Mui-disabled": { color: cores.disabled } }} startIcon={<DeleteOutlineRoundedIcon />} disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Limpar venda</Button>
+                <Button component={Link} to="/dashboard" color="inherit" size="small" sx={{ fontSize: 12, color: cores.exit }} startIcon={<ArrowBackRoundedIcon />} disabled={salvando}>Voltar ao ERP</Button>
             </Stack>
         </Stack>
         {comandos}
@@ -420,8 +423,8 @@ export default function Vendas() {
         {rascunho.pendente && !salvando && !erro && <Alert severity="info">Finalização pendente de confirmação. F2 retoma sem duplicar a venda.</Alert>}
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) 320px", xl: "minmax(0, 1fr) 360px" }, gap: 1, p: 1, flex: 1, minHeight: 0, minWidth: 0 }}>
             <Stack spacing={1} sx={{ minHeight: 0, minWidth: 0, display: { xs: "contents", md: "flex" } }}>
-                <Box role="group" aria-label="Inclusão de produto" sx={{ order: { xs: 0 }, bgcolor: "background.paper", p: 1.25, border: 1, borderColor: "#CBD5E1" }}>
-                    <Typography variant="caption" sx={{ display: "block", color: "#0E7C66", fontWeight: 800, mb: 1 }}>INCLUSÃO DE PRODUTO</Typography>
+                <Box role="group" aria-label="Inclusão de produto" sx={{ order: { xs: 0 }, bgcolor: "background.paper", p: 1.25, border: 1, borderColor: cores.border }}>
+                    <Typography variant="caption" sx={{ display: "block", color: cores.title, fontWeight: 800, mb: 1 }}>INCLUSÃO DE PRODUTO</Typography>
                     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr) 100px", sm: "minmax(0, 1fr) 110px 100px 90px" }, gap: 1, alignItems: "start" }}>
                     <Box sx={{ position: "relative", minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
                     <TextField fullWidth size="small" autoFocus inputRef={buscaRef} disabled={!sessaoCaixaResolvida || salvando} value={busca}
@@ -448,7 +451,7 @@ export default function Vendas() {
                                 void adicionarPorCodigo();
                             }
                         }} />
-                    {listaAberta && !!resultados.length && !bloqueado && <Box id="pdv-resultados" role="listbox" sx={{ position: "absolute", zIndex: 10, top: "100%", width: "100%", maxHeight: 280, overflowY: "auto", bgcolor: "background.paper", border: 1, borderColor: "divider", boxShadow: "0 8px 20px #202C3A20" }}>
+                    {listaAberta && !!resultados.length && !bloqueado && <Box id="pdv-resultados" role="listbox" sx={{ position: "absolute", zIndex: 10, top: "100%", width: "100%", maxHeight: 280, overflowY: "auto", bgcolor: "background.paper", border: 1, borderColor: "divider", boxShadow: cores.shadow }}>
                         {resultados.map((p, i) => <Box key={p.id} id={"pdv-opcao-" + i} role="option" aria-selected={i === indice}
                             onMouseDown={e => e.preventDefault()} onClick={() => adicionar(p)} sx={{ p: 1, cursor: "pointer", bgcolor: i === indice ? "action.selected" : undefined, display: "flex", justifyContent: "space-between" }}>
                             <span>{p.nome} <Typography component="span" variant="caption" color="text.secondary">{p.codigoBarras || p.codigoInterno} · {p.unidadeMedida}</Typography></span>
@@ -477,28 +480,28 @@ export default function Vendas() {
                     <TextField size="small" label="Unitário" value={produtoExibido ? moeda(Math.round(produtoExibido.precoVenda * 100)) : ""}
                         slotProps={{ input: { readOnly: true }, htmlInput: { "aria-label": "Unitário do item selecionado" } }} />
                     <Button variant="contained" startIcon={<AddRoundedIcon />} disabled={bloqueado || !busca.trim()} onMouseDown={e => e.preventDefault()} onClick={() => void adicionarPorCodigo()}
-                        sx={{ height: 44, px: 1, fontSize: 12, bgcolor: "#2563EB", "&:hover": { bgcolor: "#1D4ED8" } }}>Adicionar</Button>
+                        sx={{ height: 44, px: 1, fontSize: 12, bgcolor: cores.blue, color: pdvTokens.light.headerText, "&:hover": { bgcolor: cores.blueHover } }}>Adicionar</Button>
                     </Box>
                 </Box>
                 {erroCatalogo && <Alert severity="error" action={<Button onClick={() => { refresh(); focarBusca(); }}>Recarregar</Button>}>{erroCatalogo}</Alert>}
-                <Box sx={{ flex: 1, order: { xs: 3 }, minHeight: 120, maxHeight: { xs: 260, md: "none" }, overflow: "auto", border: 1, borderColor: "#CBD5E1", bgcolor: "#F1F4F7", backgroundImage: "linear-gradient(#E2E8F0 1px, transparent 1px)", backgroundSize: "100% 40px" }}>
+                <Box sx={{ flex: 1, order: { xs: 3 }, minHeight: 120, maxHeight: { xs: 260, md: "none" }, overflow: "auto", border: 1, borderColor: cores.border, bgcolor: cores.rows, backgroundImage: theme.palette.mode === "dark" ? "none" : "linear-gradient(#E2E8F0 1px, transparent 1px)", backgroundSize: "100% 40px" }}>
                     <Table stickyHeader size="small" aria-label="Itens da venda" sx={{ minWidth: { xs: 0, sm: 560 }, display: { xs: "block", sm: "table" },
                         "& td, & th": { py: 0.5, px: 1, height: { xs: "auto", sm: 40 }, fontVariantNumeric: "tabular-nums" },
-                        "& th": { bgcolor: "#DEE6ED", color: "#475569", fontSize: 11, fontWeight: 800 },
-                        "& tbody tr": { bgcolor: "#FFFFFF", "&:nth-of-type(even)": { bgcolor: "#F8FAFC" } },
-                        "& tr.Mui-selected": { bgcolor: "#EFF6FF", "&:hover": { bgcolor: "#DBEAFE" }, "& td:first-of-type": { boxShadow: "inset 3px 0 #2563EB" } },
-                        "& td": { display: { xs: "block", sm: "table-cell" }, borderBottom: { xs: 0, sm: "1px solid" }, borderColor: "divider", minWidth: 0 },
+                        "& th": { bgcolor: cores.tableHead, color: cores.tableHeadText, fontSize: 11, fontWeight: 800 },
+                        "& tbody tr": { bgcolor: cores.row, "&:nth-of-type(even)": { bgcolor: cores.alternate } },
+                        "& tr.Mui-selected": { bgcolor: cores.selected, "&:hover": { bgcolor: cores.selectedHover }, "& td:first-of-type": { boxShadow: `inset 3px 0 ${cores.blue}` } },
+                        "& td": { display: { xs: "block", sm: "table-cell" }, borderBottom: { xs: 0, sm: theme.palette.mode === "dark" ? `1px solid ${cores.border}` : "1px solid" }, borderColor: "divider", minWidth: 0 },
                         "& input": { p: "5px 6px", fontSize: 14, fontWeight: 700 } }}>
                         <TableHead sx={{ display: { xs: "none", sm: "table-header-group" } }}><TableRow><TableCell>Produto</TableCell><TableCell width={150}>Quantidade</TableCell><TableCell align="right">Unitário</TableCell><TableCell align="right">Subtotal</TableCell><TableCell width={42} /></TableRow></TableHead>
                         <TableBody sx={{ display: { xs: "block", sm: "table-row-group" } }}>{rascunho.itens.map((item, i) => <TableRow key={item.produto.id} selected={selecionado === item.produto.id} onClick={() => setSelecionado(item.produto.id)}
                             sx={{ display: { xs: "grid", sm: "table-row" }, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", py: { xs: 1, sm: 0 },
-                                borderBottom: { xs: 1, sm: 0 }, borderColor: "divider" }}>
+                                borderBottom: { xs: theme.palette.mode === "dark" ? `1px solid ${cores.border}` : 1, sm: 0 }, borderColor: "divider" }}>
                             <TableCell sx={{ gridColumn: { xs: "1 / -1", sm: "auto" }, overflowWrap: "anywhere", fontWeight: 600 }}><Typography component="span" variant="caption" color="text.secondary" sx={{ mr: 1 }}>{String(i + 1).padStart(2, "0")}</Typography>{item.produto.nome}</TableCell>
                             <TableCell sx={{ gridRow: { xs: 3, sm: "auto" }, gridColumn: { xs: 1, sm: "auto" } }}>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" }, mb: 0.5 }}>Quantidade</Typography>
                                 <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                                 <Tooltip title="Diminuir quantidade"><span><IconButton tabIndex={-1} aria-label={"Diminuir uma unidade: " + item.produto.nome} size="small" disabled={bloqueado || (decimal(item.quantidade, 3) ?? 0) <= 1000}
-                                    sx={{ width: 26, height: 28, borderRadius: "4px", bgcolor: "#FEE2E2", color: "#DC2626" }} onClick={e => { e.stopPropagation(); ajustarQuantidade(item.produto.id, -1); }}><RemoveRoundedIcon sx={{ fontSize: 16 }} /></IconButton></span></Tooltip>
+                                    sx={{ width: 26, height: 28, borderRadius: "4px", bgcolor: cores.removeSurface, color: cores.remove }} onClick={e => { e.stopPropagation(); ajustarQuantidade(item.produto.id, -1); }}><RemoveRoundedIcon sx={{ fontSize: 16 }} /></IconButton></span></Tooltip>
                                 <TextField fullWidth size="small" sx={{ "& .MuiInputBase-root": { minHeight: { xs: 44, sm: 0 } } }} value={item.quantidade} disabled={bloqueado}
                                 inputRef={(el: HTMLInputElement | null) => { quantidadesRef.current[item.produto.id] = el; }}
                                 slotProps={{ htmlInput: { "aria-label": "Quantidade de " + item.produto.nome, inputMode: "decimal" } }}
@@ -513,7 +516,7 @@ export default function Vendas() {
                                 }}
                                 onChange={e => alterar({ itens: rascunho.itens.map(x => x === item ? { ...x, quantidade: e.target.value } : x) })} />
                                 <Tooltip title="Aumentar quantidade"><span><IconButton tabIndex={-1} aria-label={"Aumentar uma unidade: " + item.produto.nome} size="small" disabled={bloqueado || decimal(item.quantidade, 3) === null}
-                                    sx={{ width: 26, height: 28, borderRadius: "4px", bgcolor: "#DCFCE7", color: "#16A34A" }} onClick={e => { e.stopPropagation(); ajustarQuantidade(item.produto.id, 1); }}><AddRoundedIcon sx={{ fontSize: 16 }} /></IconButton></span></Tooltip>
+                                    sx={{ width: 26, height: 28, borderRadius: "4px", bgcolor: cores.addSurface, color: cores.add }} onClick={e => { e.stopPropagation(); ajustarQuantidade(item.produto.id, 1); }}><AddRoundedIcon sx={{ fontSize: 16 }} /></IconButton></span></Tooltip>
                                 </Stack></TableCell>
                             <TableCell align="right" sx={{ gridRow: { xs: 2, sm: "auto" }, gridColumn: { xs: 1, sm: "auto" }, textAlign: { xs: "left", sm: "right" } }}>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" } }}>Unitário</Typography>
@@ -527,19 +530,19 @@ export default function Vendas() {
                                     onClick={e => { e.stopPropagation(); remover(item.produto.id); }}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip></TableCell>
                         </TableRow>)}</TableBody>
                     </Table>
-                    {!rascunho.itens.length && <Box sx={{ py: 2, px: 1, textAlign: "center", color: "text.secondary", bgcolor: "#F1F4F7" }}><Typography variant="body2">Leia o primeiro produto para começar</Typography></Box>}
+                    {!rascunho.itens.length && <Box sx={{ py: 2, px: 1, textAlign: "center", color: "text.secondary", bgcolor: cores.rows }}><Typography variant="body2">Leia o primeiro produto para começar</Typography></Box>}
                 </Box>
-                <Box sx={{ order: { xs: 4 }, px: 1.5, py: 1, bgcolor: "#DEE6ED", borderLeft: "3px solid #0E7C66", minWidth: 0 }}>
+                <Box sx={{ order: { xs: 4 }, px: 1.5, py: 1, bgcolor: cores.tableHead, borderLeft: `3px solid ${cores.title}`, minWidth: 0 }}>
                     <Stack direction="row" sx={{ justifyContent: "space-between", gap: 1 }}><Typography variant="body2" sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>{itemAtual?.produto.nome ?? "Venda em andamento"}</Typography>
                         <Typography variant="body2" sx={{ fontWeight: 800, flexShrink: 0 }}>{itemAtual && subtotalItem(itemAtual) !== null ? moeda(subtotalItem(itemAtual)!) : ""}</Typography></Stack>
                     <Typography variant="caption" color="text.secondary">{itemAtual ? `${itemAtual.produto.codigoInterno || itemAtual.produto.codigoBarras || ""} · ${itemAtual.produto.unidadeMedida} · ` : ""}{rascunho.itens.length} itens · Enter adicionar · Esc fechar opção</Typography>
                 </Box>
             </Stack>
-            <Stack component="aside" aria-label="Resumo e pagamento" spacing={1} sx={{ bgcolor: "background.paper", border: 1, borderColor: "#CBD5E1", p: 1.5, overflow: { xs: "visible", md: "hidden" }, minHeight: 0, minWidth: 0, display: { xs: "contents", md: "flex" } }}>
+            <Stack component="aside" aria-label="Resumo e pagamento" spacing={1} sx={{ bgcolor: "background.paper", border: 1, borderColor: cores.border, p: 1.5, overflow: { xs: "visible", md: "hidden" }, minHeight: 0, minWidth: 0, display: { xs: "contents", md: "flex" } }}>
                 <Stack spacing={0.75} sx={{ flexShrink: 0, order: { xs: 1, md: 0 } }}>
                 <Typography variant="overline">Resumo da venda · {rascunho.itens.length} itens</Typography>
                 <Stack direction="row" sx={{ alignItems: "center", gap: 1, py: 0.75, borderBottom: 1, borderColor: "divider" }}>
-                    <PersonOutlineRoundedIcon sx={{ color: "#7C3AED", fontSize: 20 }} />
+                    <PersonOutlineRoundedIcon sx={{ color: cores.purple, fontSize: 20 }} />
                     <Typography variant="body2" sx={{ flex: 1, overflowWrap: "anywhere" }}>{rascunho.cliente ? `Cliente: ${rascunho.cliente.nome}` : "Cliente não informado"}</Typography>
                     <Tooltip title="Selecionar cliente · F8"><IconButton aria-label="Selecionar cliente" size="small" disabled={bloqueado} onClick={() => setOpcional("cliente")}><EditRoundedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
                 </Stack>
@@ -650,7 +653,7 @@ export default function Vendas() {
                 </Stack>
                 </Box>
                 <Stack spacing={1.5} sx={{ flexShrink: 0, order: { xs: 6, md: 0 }, position: { xs: "sticky", md: "static" }, bottom: 0, zIndex: 2, bgcolor: "background.paper", p: { xs: 1, md: 0 }, borderTop: 1, borderColor: "divider" }}>
-                <Box sx={{ py: 1, borderBottom: 1, borderColor: "divider" }}><Typography variant="body2" color="text.secondary">Total da venda</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 40, lineHeight: 1.25, fontWeight: 800, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", color: "#14532D" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
+                <Box sx={{ py: 1, borderBottom: 1, borderColor: "divider" }}><Typography variant="body2" color="text.secondary">Total da venda</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 40, lineHeight: 1.25, fontWeight: 800, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", color: cores.total }}>{moeda(Math.max(0, t.total))}</Typography></Box>
                 {!carregandoConfig && !erroConfig && t.restante !== 0 && <Alert severity={t.restante > 0 ? "warning" : "error"} icon={false} sx={{ py: 0.75, border: 1, borderColor: t.restante > 0 ? "warning.main" : "error.main", "& .MuiAlert-message": { width: "100%" } }}>
                     <Stack direction="row" sx={{ justifyContent: "space-between", fontWeight: 700 }}><span>{t.restante > 0 ? "Falta distribuir" : "Valor excedente"}</span><Typography aria-label={t.restante > 0 ? "Falta distribuir" : "Valor excedente"} sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.abs(t.restante))}</Typography></Stack>
                     <Typography variant="caption" sx={{ display: "block" }}>{t.restante > 0 ? "Distribua o restante para liberar o Pagar." : "Reduza o valor aplicado em uma forma de pagamento."}</Typography>

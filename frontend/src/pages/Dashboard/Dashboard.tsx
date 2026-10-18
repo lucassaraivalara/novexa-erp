@@ -104,14 +104,14 @@ export default function Dashboard() {
                         <Chip size="small" color={resumo.sessoesCaixaAbertas.length ? "success" : "default"}
                             label={resumo.sessoesCaixaAbertas.length ? "Caixa aberto" : "Caixa fechado"} />
                     </SectionHeading>
-                    {resumo.sessoesCaixaAbertas.length === 0 ? <Stack direction={{ xs: "column", sm: "row" }} sx={{ minHeight: 112, alignItems: { xs: "stretch", sm: "center" }, justifyContent: "space-between", gap: 1.5, p: 1.5, borderRadius: 2, bgcolor: "#F2F6F8" }}>
+                    {resumo.sessoesCaixaAbertas.length === 0 ? <Stack direction={{ xs: "column", sm: "row" }} sx={{ minHeight: 112, alignItems: { xs: "stretch", sm: "center" }, justifyContent: "space-between", gap: 1.5, p: 1.5, borderRadius: 2, bgcolor: theme => theme.palette.mode === "dark" ? theme.palette.action.hover : "#F2F6F8" }}>
                         <Box>
                             <Typography sx={{ fontSize: 17, fontWeight: 700 }}>Nenhum caixa aberto no momento.</Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Abra um caixa para iniciar as vendas.</Typography>
                         </Box>
                         <Button size="small" variant="outlined" component={Link} to="/financeiro/caixas" sx={{ alignSelf: { xs: "flex-start", sm: "center" }, flexShrink: 0 }}>Abrir caixa</Button>
                     </Stack> : <>
-                        <Box sx={{ display: "grid", gap: 1, p: 1.5, borderRadius: 2, bgcolor: "#EAF7F3" }}>
+                        <Box sx={{ display: "grid", gap: 1, p: 1.5, borderRadius: 2, bgcolor: theme => theme.palette.mode === "dark" ? theme.palette.success.light : "#EAF7F3" }}>
                             {resumo.sessoesCaixaAbertas.map(sessao => <Stack key={sessao.sessaoId} direction="row" sx={{ justifyContent: "space-between", alignItems: "center", gap: 1, py: 0.25 }}>
                                 <Box sx={{ minWidth: 0 }}>
                                     <Typography sx={{ fontSize: 15, fontWeight: 700 }} noWrap>{sessao.descricaoCaixa}</Typography>
@@ -177,7 +177,7 @@ export default function Dashboard() {
                 <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 1.75 }, minWidth: 0 }}>
                     <SectionHeading icone={<WarehouseRoundedIcon />} titulo="Alertas operacionais" />
                     {resumo.quantidadeProdutosEstoqueBaixo > 0 ? <ButtonBase component={Link} to="/estoque" aria-label={`${resumo.quantidadeProdutosEstoqueBaixo} produtos abaixo do mínimo. Revisar estoque.`} sx={{ width: "100%", textAlign: "left", borderRadius: 2 }}>
-                        <Paper variant="outlined" sx={{ display: "flex", width: "100%", alignItems: "center", gap: 1.25, p: 1.25, bgcolor: "#FFF7E9", borderColor: "#F4E4C8", boxShadow: "none" }}>
+                        <Paper variant="outlined" sx={{ display: "flex", width: "100%", alignItems: "center", gap: 1.25, p: 1.25, bgcolor: theme => theme.palette.mode === "dark" ? theme.palette.warning.light : "#FFF7E9", borderColor: theme => theme.palette.mode === "dark" ? theme.palette.divider : "#F4E4C8", boxShadow: "none" }}>
                             <ToneIcon tom="amber"><WarehouseRoundedIcon /></ToneIcon>
                             <Box sx={{ minWidth: 0 }}>
                                 <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{resumo.quantidadeProdutosEstoqueBaixo} produtos abaixo do mínimo</Typography>
@@ -201,7 +201,8 @@ function ToneIcon({ tom, children }: { tom: Tone; children: ReactNode }) {
         amber: { color: "#D97706", background: "#FFF2DD" },
         teal: { color: "#0E7C66", background: "#E6F4F0" },
     };
-    return <Box sx={{ display: "grid", width: 34, height: 34, flexShrink: 0, placeItems: "center", borderRadius: 1.5, color: colors[tom].color, bgcolor: colors[tom].background, "& svg": { fontSize: 20 } }}>{children}</Box>;
+    const semantic = { green: "success", blue: "info", amber: "warning", teal: "primary" } as const;
+    return <Box sx={{ display: "grid", width: 34, height: 34, flexShrink: 0, placeItems: "center", borderRadius: 1.5, color: theme => theme.palette.mode === "dark" ? theme.palette[semantic[tom]].main : colors[tom].color, bgcolor: theme => theme.palette.mode === "dark" ? theme.palette[semantic[tom]].light : colors[tom].background, "& svg": { fontSize: 20 } }}>{children}</Box>;
 }
 
 function MetricCard({ titulo, valor, detalhe, icone, tom }: { titulo: string; valor: ReactNode; detalhe: string; icone: ReactNode; tom: Tone }) {
@@ -210,7 +211,7 @@ function MetricCard({ titulo, valor, detalhe, icone, tom }: { titulo: string; va
             <ToneIcon tom={tom}>{icone}</ToneIcon>
             <Typography noWrap sx={{ minWidth: 0, fontSize: 12, fontWeight: 600, color: "text.secondary" }}>{titulo}</Typography>
         </Stack>
-        <Typography noWrap sx={{ mt: "auto", fontSize: { xs: 19, md: 21 }, lineHeight: 1.15, fontWeight: 750, color: "#18283D", fontVariantNumeric: "tabular-nums" }}>{valor}</Typography>
+        <Typography noWrap sx={{ mt: "auto", fontSize: { xs: 19, md: 21 }, lineHeight: 1.15, fontWeight: 750, color: theme => theme.palette.mode === "dark" ? theme.palette.text.primary : "#18283D", fontVariantNumeric: "tabular-nums" }}>{valor}</Typography>
         <Typography noWrap variant="caption" color="text.secondary" sx={{ fontSize: 10.5 }}>{detalhe}</Typography>
     </Paper>;
 }
@@ -218,8 +219,8 @@ function MetricCard({ titulo, valor, detalhe, icone, tom }: { titulo: string; va
 function SectionHeading({ icone, titulo, children }: { icone: ReactNode; titulo: string; children?: ReactNode }) {
     return <Stack direction="row" sx={{ minWidth: 0, alignItems: "center", justifyContent: "space-between", gap: 1, mb: 1.25 }}>
         <Stack direction="row" spacing={0.75} sx={{ minWidth: 0, alignItems: "center" }}>
-            <Box sx={{ display: "grid", color: "#21344E", "& svg": { fontSize: 20 } }}>{icone}</Box>
-            <Typography noWrap sx={{ fontSize: 16, fontWeight: 700, color: "#17283F" }}>{titulo}</Typography>
+            <Box sx={{ display: "grid", color: theme => theme.palette.mode === "dark" ? theme.palette.text.secondary : "#21344E", "& svg": { fontSize: 20 } }}>{icone}</Box>
+            <Typography noWrap sx={{ fontSize: 16, fontWeight: 700, color: theme => theme.palette.mode === "dark" ? theme.palette.text.primary : "#17283F" }}>{titulo}</Typography>
         </Stack>
         {children}
     </Stack>;
