@@ -3,7 +3,7 @@ import { alpha, Box, Button, Tooltip, type ButtonProps } from "@mui/material";
 
 const cores = {
     confirmacao: "#16A34A", cancelamento: "#DC2626", alteracao: "#F59E0B",
-    consulta: "#2563EB", auxiliar: "#64748B",
+    consulta: "#2563EB", opcional: "#7C3AED", auxiliar: "#64748B",
 };
 
 type Props = Omit<ButtonProps, "color" | "startIcon" | "children"> & {

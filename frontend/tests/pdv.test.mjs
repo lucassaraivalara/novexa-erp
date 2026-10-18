@@ -108,6 +108,11 @@ test("scanner usa somente código exato entre resultados remotos; nunca nome par
     assert.equal(encontrarProdutoPorCodigo([{ ...produto, ativo: false }], "7890001"), undefined);
     assert.equal(encontrarProdutoPorCodigo([produto], ""), undefined);
 });
+test("codigo compartilhado entre EAN e codigo interno exige selecao", () => {
+    const outro = { ...produto, id: 2, codigoBarras: "7890002", codigoInterno: "7890001" };
+    assert.equal(encontrarProdutoPorCodigo([produto, outro], "7890001"), undefined);
+});
+
 test("setas navegam pela lista sem ultrapassar seus limites", () => {
     assert.equal(moverIndiceProduto(0, 3, "PROXIMO"), 1);
     assert.equal(moverIndiceProduto(1, 3, "PROXIMO"), 2);

@@ -298,6 +298,46 @@ test("scanner Enter imediato seleciona quantidade; digitar substitui valor e Ent
     }
 });
 
+test("digitacao e leitor como teclado adicionam por Enter sem gravar antes da finalizacao", async () => {
+    for (const leitor of [false, true]) {
+        const { page, estado, busca } = await abrir();
+        try {
+            await esperarFoco(page, busca);
+            if (leitor) await page.keyboard.type("7890001", { delay: 5 });
+            else await busca.fill("7890001");
+            await page.keyboard.press("Enter");
+            await conferirQuantidade(page, "Produto remoto", "1");
+            await page.keyboard.press("Enter"); await esperarFoco(page, busca);
+            await busca.pressSequentially("7890001", { delay: 5 }); await busca.press("Enter");
+            await conferirQuantidade(page, "Produto remoto", "2");
+            assert.equal(estado.requests.some(r => r.method !== "GET"), false, "Carrinho nao grava venda, estoque ou financeiro");
+            await page.getByRole("button", { name: "Pagar · F2" }).click();
+            await page.getByRole("heading", { name: "Venda concluída" }).waitFor();
+            const escritas = estado.requests.filter(r => r.method !== "GET");
+            assert.equal(escritas.length, 1);
+            assert.equal(escritas[0].path, "/vendas");
+            assert.equal(JSON.parse(escritas[0].body).itens[0].quantidade, 2);
+        } finally { await page.close(); }
+    }
+});
+
+test("codigo ambiguo exibe selecao tanto no leitor imediato quanto apos debounce", async () => {
+    for (const aguardarLista of [false, true]) {
+        const { page, estado, busca } = await abrir();
+        try {
+            estado.produtos = [produto(), { ...produto("Outro produto", "7890001"), id: 2, codigoBarras: "7890002" }];
+            await busca.fill("7890001");
+            if (aguardarLista) await page.getByRole("option").first().waitFor();
+            await busca.press("Enter");
+            await page.getByText("Código corresponde a mais de um produto. Selecione o item na lista.", { exact: true }).waitFor();
+            assert.equal(await page.getByRole("table").getByRole("row").count(), 1);
+            await page.getByRole("option").filter({ hasText: "Outro produto" }).click();
+            await conferirQuantidade(page, "Outro produto", "1");
+            assert.equal(estado.requests.some(r => r.method !== "GET"), false);
+        } finally { await page.close(); }
+    }
+});
+
 test("render adiado preserva foco e selecao ao criar e incrementar item; Enter e Esc voltam a busca", async () => {
     const { page, busca } = await abrir({ adiarRender: true });
     try {
@@ -605,6 +645,36 @@ test("frente de caixa mantem busca, itens, total e comandos visiveis em desktop 
         await page.screenshot({ path: "node_modules/.vite-pdv-buscas-tests/pdv-console-lista-1366.png" });
     } finally { await page.close(); }
 });
+test("total e pagar permanecem acessiveis em notebook e mobile baixo ao rolar a venda", async () => {
+    const { page, busca, estado } = await abrir();
+    try {
+        await busca.fill("7890001"); await busca.press("Enter");
+        await conferirQuantidade(page, "Produto remoto", "1");
+        for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 600 }, { width: 390, height: 844 }, { width: 390, height: 480 }]) {
+            await page.setViewportSize(viewport);
+            for (const extremo of [0, 10000]) {
+                await page.evaluate(y => window.scrollTo(0, y), extremo);
+                assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+                for (const el of [page.getByLabel("Total da venda", { exact: true }), page.getByRole("button", { name: "Pagar · F2", exact: true })]) {
+                    const caixa = await el.boundingBox();
+                    assert.ok(caixa && caixa.y >= 0 && caixa.y + caixa.height <= viewport.height, `Total e Pagar visiveis em ${viewport.width}x${viewport.height}`);
+                }
+            }
+            await page.keyboard.press("F5"); await esperarFoco(page, busca);
+            await page.waitForFunction(() => {
+                const campo = document.activeElement.getBoundingClientRect();
+                return campo.y >= 0 && campo.bottom <= innerHeight;
+            });
+            const campo = await busca.boundingBox();
+            const total = await page.getByLabel("Total da venda", { exact: true }).boundingBox();
+            assert.ok(campo && campo.y >= 0 && campo.y + campo.height <= viewport.height);
+            assert.ok(viewport.width >= 900 || campo.y + campo.height < total.y, "Rodape nao deve cobrir busca focada");
+            await page.screenshot({ path: `node_modules/.vite-pdv-buscas-tests/pdv-responsivo-${viewport.width}x${viewport.height}.png` });
+        }
+        assert.equal(estado.requests.some(r => r.method !== "GET"), false);
+    } finally { await page.close(); }
+});
+
 test("controles de quantidade e inclusao em linha reutilizam o item selecionado sem editar preco ou enviar venda", async () => {
     const { page, busca, estado } = await abrir();
     try {

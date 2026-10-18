@@ -1,5 +1,15 @@
 Empresa ........ funcional
 
+## PDV — código de barras e comandos visuais (2026-10-18)
+
+Revisão na `main`, sobre `d601504`: EAN/código interno digitado ou enviado por leitor como teclado com Enter já incluía o produto diretamente no rascunho, com foco automático e ajuste de quantidade. Preservados atalhos, sessão própria de Caixa, rascunho, pagamentos e finalização idempotente. Corrigida somente a escolha arbitrária quando o mesmo texto identifica EAN de um produto e código interno de outro: o PDV apresenta seleção explícita; código exato único continua direto. Nenhum contrato/backend/migration alterado.
+
+Faixa existente reorganizada por responsabilidade e cores, com texto/ícone/atalho; opcionais em roxo, busca/Adicionar em azul e saída/cancelamento em vermelho. Total e Pagar juntos no rodapé do painel, aderente durante rolagem mobile; retorno à busca por F5 mantém o campo visível em janela baixa. Carregamento, ambiguidade e ausência de resultados possuem feedback acessível. Detalhes em [frontend.md](frontend.md#pdv---comandos-operacionais).
+
+Validação local: 97 testes de `pdv.test.mjs` e `pdv-buscas.test.mjs` aprovados, build frontend e lint aprovados (dois avisos preexistentes de React Hook Form e aviso de bundle), diff check aprovado. Testes de regressão reproduziram a ambiguidade e a perda de visibilidade em 390×480 antes dos ajustes; os casos corrigidos passaram. Pagamento/finalização e ausência de gravação antes do POST de venda verificados com HTTP simulado, sem comprovar integração financeira real. Conferência visual local em 1440×900, 1024×600, 390×844 e 390×480; contraste dos textos dos botões conferido conforme tamanho/peso. Referência Olist consultada em `/pdv` e imagens locais, sem copiar módulos ou acrescentar campos. Backend não alterado; testes backend e suíte geral não repetidos nesta tarefa.
+
+Produção somente leitura: login com preenchimento existente do navegador; produto com EAN existente conferido em Produtos. A sessão autenticada não possuía Caixa próprio aberto, impedindo testar a inclusão real no PDV. Não aberto Caixa, criado usuário, confirmado pedido ou alterado cadastro/estoque/financeiro. Teste com leitor físico e inclusão com produto real permanecem pendentes de sessão operacional já aberta; nenhum deploy autorizado ou executado nesta tarefa. Skill `novexa-ui-consistency` não encontrada no caminho indicado nem no catálogo local; componentes existentes preservados.
+
 ## Gestão de usuários MVP — validação para publicação (2026-10-17)
 
 Implementação na `main`, baseada em `8b9d068`, validada localmente; publicação e implantação ainda pendentes. Corrigido o cadastro que removia a senha do POST. Listagem com busca remota por nome/CPF/login/e-mail, situação, paginação real e ordenação; cadastro, edição, ativação/inativação com confirmação e redefinição de senha. Somente GET `/usuarios/pagina` e o campo cadastral `login` foram acrescentados aos contratos administrativos existentes. Detalhes em [arquitetura.md](arquitetura.md#usuários) e [frontend.md](frontend.md).

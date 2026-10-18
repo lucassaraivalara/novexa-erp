@@ -32,6 +32,7 @@ import VendaFinalizacaoDialog, { type EstadoFinalizacao } from "./VendaFinalizac
 import PdvActionButton from "./PdvActionButton";
 
 type Opcional = "desconto" | "cliente" | "entrega" | "observacoes" | null;
+const avisoCodigoAmbiguo = "Código corresponde a mais de um produto. Selecione o item na lista.";
 type Finalizacao = {
     estado: EstadoFinalizacao;
     quantidadeItens: number;
@@ -133,11 +134,19 @@ export default function Vendas() {
         setResultados([]); setBuscaConcluida(false); setErroCatalogo(""); setAvisoBusca(""); setIndice(0); setTerm(termo);
     }
 
+    function exibirCodigoAmbiguo(lista: Produto[], termo: string) {
+        if (lista.filter(p => encontrarProdutoPorCodigo([p], termo)).length < 2) return false;
+        setResultados(lista); setBuscaConcluida(true); setListaAberta(true); setIndice(0);
+        setAvisoBusca(avisoCodigoAmbiguo); setErroCatalogo("");
+        return true;
+    }
+
     async function adicionarPorCodigo() {
         const termo = busca.trim();
         if (bloqueado || scannerRef.current) return;
         if (!termo) { setAvisoBusca("Digite nome, código interno ou código de barras."); return; }
         cancel();
+        if (avisoBusca !== avisoCodigoAmbiguo && exibirCodigoAmbiguo(resultados, termo)) return;
         const encontrado = encontrarProdutoPorCodigo(resultados, termo);
         if (encontrado) { adicionar(encontrado); return; }
         if (listaAberta && resultados[indice]) { adicionar(resultados[indice]); return; }
@@ -147,6 +156,7 @@ export default function Vendas() {
         try {
             const lista = await pesquisarProdutos(termo, controller.signal);
             if (controller.signal.aborted) return;
+            if (exibirCodigoAmbiguo(lista, termo)) return;
             const produto = encontrarProdutoPorCodigo(lista, termo);
             if (produto) adicionar(produto);
             else { setResultados(lista); setBuscaConcluida(true); setListaAberta(true); setIndice(0); setErroCatalogo(""); }
@@ -190,7 +200,10 @@ export default function Vendas() {
         opcionalRef.current?.focus();
     }, [opcional, empresaId]);
 
-    function focarBusca() { requestAnimationFrame(() => buscaRef.current?.focus()); }
+    function focarBusca() { requestAnimationFrame(() => {
+        buscaRef.current?.focus();
+        buscaRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
+    }); }
     function focarQuantidade() {
         const id = selecionado ?? rascunho.itens.at(-1)?.produto.id;
         if (id === undefined) return;
@@ -361,15 +374,15 @@ export default function Vendas() {
     });
 
     const comandos = <Box role="group" aria-label="Comandos do PDV" sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(3, minmax(0, 1fr))", sm: "repeat(5, minmax(0, 1fr))", lg: "repeat(9, minmax(0, 1fr))" }, gap: 0.75, p: 1, bgcolor: "#E2E8F0", borderBottom: 1, borderColor: "#CBD5E1", flexShrink: 0 }}>
+        <PdvActionButton compacto categoria="consulta" icone={<SearchIcon />} atalho="F5" disabled={bloqueado} onClick={focarBusca}>Produto</PdvActionButton>
+        <PdvActionButton compacto categoria="alteracao" icone={<EditRoundedIcon />} atalho="F3" disabled={bloqueado || !rascunho.itens.length} onClick={focarQuantidade}>Quantidade</PdvActionButton>
+        <PdvActionButton compacto categoria="alteracao" icone={<PercentRoundedIcon />} atalho="F7" disabled={bloqueado} onClick={() => setOpcional("desconto")}>Desconto</PdvActionButton>
+        <PdvActionButton compacto categoria="opcional" icone={<PersonOutlineRoundedIcon />} atalho="F8" aria-label="F8 Cliente" disabled={bloqueado} onClick={() => setOpcional("cliente")}>Cliente</PdvActionButton>
+        <PdvActionButton compacto categoria="opcional" icone={<NotesRoundedIcon />} atalho="F9" aria-label="F9 Observações" disabled={bloqueado} onClick={() => setOpcional("observacoes")}>Observações</PdvActionButton>
+        <PdvActionButton compacto categoria="opcional" icone={<LocalShippingOutlinedIcon />} disabled={bloqueado} onClick={() => setOpcional("entrega")}>Entrega</PdvActionButton>
         <PdvActionButton compacto categoria="confirmacao" icone={<ShoppingCartCheckoutRoundedIcon />} atalho="F2" aria-label="Finalizar venda · F2" disabled={pagarDesabilitado} onClick={() => void finalizar()}>Finalizar</PdvActionButton>
         <PdvActionButton compacto categoria="cancelamento" icone={<DeleteOutlineRoundedIcon />} atalho="F4" disabled={bloqueado || !rascunho.itens.length} onClick={() => { const id = itemAtual?.produto.id; if (id) remover(id); }}>Cancelar item</PdvActionButton>
         <PdvActionButton compacto categoria="cancelamento" icone={<CloseRoundedIcon />} atalho="F6" disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Cancelar venda</PdvActionButton>
-        <PdvActionButton compacto categoria="alteracao" icone={<EditRoundedIcon />} atalho="F3" disabled={bloqueado || !rascunho.itens.length} onClick={focarQuantidade}>Quantidade</PdvActionButton>
-        <PdvActionButton compacto categoria="alteracao" icone={<PercentRoundedIcon />} atalho="F7" disabled={bloqueado} onClick={() => setOpcional("desconto")}>Desconto</PdvActionButton>
-        <PdvActionButton compacto categoria="consulta" icone={<SearchIcon />} atalho="F5" disabled={bloqueado} onClick={focarBusca}>Produto</PdvActionButton>
-        <PdvActionButton compacto categoria="consulta" icone={<PersonOutlineRoundedIcon />} atalho="F8" aria-label="F8 Cliente" disabled={bloqueado} onClick={() => setOpcional("cliente")}>Cliente</PdvActionButton>
-        <PdvActionButton compacto categoria="auxiliar" icone={<NotesRoundedIcon />} atalho="F9" aria-label="F9 Observações" disabled={bloqueado} onClick={() => setOpcional("observacoes")}>Observações</PdvActionButton>
-        <PdvActionButton compacto categoria="auxiliar" icone={<LocalShippingOutlinedIcon />} disabled={bloqueado} onClick={() => setOpcional("entrega")}>Entrega</PdvActionButton>
     </Box>;
 
     return <Box sx={{ height: { xs: "auto", md: "100dvh" }, minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "#E9EEF3" }}>
@@ -397,8 +410,8 @@ export default function Vendas() {
                     {rascunho.sessaoCaixaId !== null && ` · Sessão #${rascunho.sessaoCaixaId}`}</Typography>
             </Stack>
             <Stack direction="row" spacing={1}>
-                <Button size="small" color="inherit" sx={{ fontSize: 12, "&.Mui-disabled": { color: "#8997A7" } }} startIcon={<DeleteOutlineRoundedIcon />} disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Limpar venda</Button>
-                <Button component={Link} to="/dashboard" color="inherit" size="small" sx={{ fontSize: 12 }} startIcon={<ArrowBackRoundedIcon />} disabled={salvando}>Voltar ao ERP</Button>
+                <Button size="small" color="inherit" sx={{ fontSize: 12, color: "#FCA5A5", "&.Mui-disabled": { color: "#8997A7" } }} startIcon={<DeleteOutlineRoundedIcon />} disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Limpar venda</Button>
+                <Button component={Link} to="/dashboard" color="inherit" size="small" sx={{ fontSize: 12, color: "#FCA5A5" }} startIcon={<ArrowBackRoundedIcon />} disabled={salvando}>Voltar ao ERP</Button>
             </Stack>
         </Stack>
         {comandos}
@@ -422,7 +435,7 @@ export default function Vendas() {
                                 edge="end" size="small" aria-label="Abrir lista de produtos" aria-expanded={listaAberta}
                                 onMouseDown={e => e.preventDefault()} onClick={() => { setListaAberta(aberta => !aberta); setIndice(0); focarBusca(); }}>
                                 <ArrowDropDownIcon /></IconButton></Tooltip></InputAdornment>,
-                        }, htmlInput: { role: "combobox", "aria-expanded": listaAberta && resultados.length > 0, "aria-controls": "pdv-resultados",
+                        }, formHelperText: { "aria-live": "polite" }, htmlInput: { role: "combobox", "aria-busy": carregando, "aria-expanded": listaAberta && resultados.length > 0, "aria-controls": "pdv-resultados",
                             "aria-activedescendant": resultados.length ? "pdv-opcao-" + Math.min(indice, resultados.length - 1) : undefined, autoComplete: "off" } }}
                         onKeyDown={e => {
                             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -444,7 +457,7 @@ export default function Vendas() {
                     </Box>}
                     {listaAberta && busca.trim() && buscaConcluida && !carregando && !resultados.length && !erroCatalogo && !bloqueado &&
                         <Box sx={{ position: "absolute", zIndex: 10, top: "100%", width: "100%", bgcolor: "background.paper", border: 1, borderColor: "divider", p: 1 }}>
-                            <Typography variant="body2" color="text.secondary">Nenhum produto encontrado para esta busca.</Typography>
+                            <Typography role="status" variant="body2" color="text.secondary">Nenhum produto encontrado para esta busca.</Typography>
                         </Box>}
                     </Box>
                     <Tooltip describeChild title={emInclusao ? "Inclusão de uma unidade; ajuste a quantidade no item adicionado" : itemAtual ? "Quantidade do item selecionado na lista" : "Adicione um item para ajustar sua quantidade"}>
@@ -464,7 +477,7 @@ export default function Vendas() {
                     <TextField size="small" label="Unitário" value={produtoExibido ? moeda(Math.round(produtoExibido.precoVenda * 100)) : ""}
                         slotProps={{ input: { readOnly: true }, htmlInput: { "aria-label": "Unitário do item selecionado" } }} />
                     <Button variant="contained" startIcon={<AddRoundedIcon />} disabled={bloqueado || !busca.trim()} onMouseDown={e => e.preventDefault()} onClick={() => void adicionarPorCodigo()}
-                        sx={{ height: 40, px: 1, fontSize: 12, bgcolor: "#0E7C66" }}>Adicionar</Button>
+                        sx={{ height: 44, px: 1, fontSize: 12, bgcolor: "#2563EB", "&:hover": { bgcolor: "#1D4ED8" } }}>Adicionar</Button>
                     </Box>
                 </Box>
                 {erroCatalogo && <Alert severity="error" action={<Button onClick={() => { refresh(); focarBusca(); }}>Recarregar</Button>}>{erroCatalogo}</Alert>}
@@ -526,13 +539,12 @@ export default function Vendas() {
                 <Stack spacing={0.75} sx={{ flexShrink: 0, order: { xs: 1, md: 0 } }}>
                 <Typography variant="overline">Resumo da venda · {rascunho.itens.length} itens</Typography>
                 <Stack direction="row" sx={{ alignItems: "center", gap: 1, py: 0.75, borderBottom: 1, borderColor: "divider" }}>
-                    <PersonOutlineRoundedIcon sx={{ color: "#2563EB", fontSize: 20 }} />
+                    <PersonOutlineRoundedIcon sx={{ color: "#7C3AED", fontSize: 20 }} />
                     <Typography variant="body2" sx={{ flex: 1, overflowWrap: "anywhere" }}>{rascunho.cliente ? `Cliente: ${rascunho.cliente.nome}` : "Cliente não informado"}</Typography>
                     <Tooltip title="Selecionar cliente · F8"><IconButton aria-label="Selecionar cliente" size="small" disabled={bloqueado} onClick={() => setOpcional("cliente")}><EditRoundedIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Subtotal</span><span>{moeda(t.subtotal)}</span></Stack>
                 {!!t.desconto && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Desconto</span><span>− {moeda(t.desconto)}</span></Stack>}
-                <Box sx={{ py: 1, borderTop: 1, borderBottom: 1, borderColor: "divider" }}><Typography variant="body2" color="text.secondary">Total da venda</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 40, lineHeight: 1.25, fontWeight: 800, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", color: "#14532D" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
                 </Stack>
                 <Box role="region" aria-label="Pagamentos da venda" sx={{ order: { xs: 5, md: 0 }, minHeight: 0, flex: { md: 1 }, overflowY: { xs: "visible", md: "auto" } }}>
                 <Stack spacing={1.5}>
@@ -637,7 +649,8 @@ export default function Vendas() {
                 )}
                 </Stack>
                 </Box>
-                <Stack spacing={1.5} sx={{ flexShrink: 0, order: { xs: 2, md: 0 } }}>
+                <Stack spacing={1.5} sx={{ flexShrink: 0, order: { xs: 6, md: 0 }, position: { xs: "sticky", md: "static" }, bottom: 0, zIndex: 2, bgcolor: "background.paper", p: { xs: 1, md: 0 }, borderTop: 1, borderColor: "divider" }}>
+                <Box sx={{ py: 1, borderBottom: 1, borderColor: "divider" }}><Typography variant="body2" color="text.secondary">Total da venda</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 40, lineHeight: 1.25, fontWeight: 800, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", color: "#14532D" }}>{moeda(Math.max(0, t.total))}</Typography></Box>
                 {!carregandoConfig && !erroConfig && t.restante !== 0 && <Alert severity={t.restante > 0 ? "warning" : "error"} icon={false} sx={{ py: 0.75, border: 1, borderColor: t.restante > 0 ? "warning.main" : "error.main", "& .MuiAlert-message": { width: "100%" } }}>
                     <Stack direction="row" sx={{ justifyContent: "space-between", fontWeight: 700 }}><span>{t.restante > 0 ? "Falta distribuir" : "Valor excedente"}</span><Typography aria-label={t.restante > 0 ? "Falta distribuir" : "Valor excedente"} sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.abs(t.restante))}</Typography></Stack>
                     <Typography variant="caption" sx={{ display: "block" }}>{t.restante > 0 ? "Distribua o restante para liberar o Pagar." : "Reduza o valor aplicado em uma forma de pagamento."}</Typography>
