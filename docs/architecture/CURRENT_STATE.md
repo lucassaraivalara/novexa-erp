@@ -1,5 +1,11 @@
 Empresa ........ funcional
 
+## Empresas — consulta sem busca no PostgreSQL (2026-10-18)
+
+Correção validada sobre `d2d146b`: `EmpresaRepository.listarPagina` tipa `termo` e `documento` como texto, evitando `lower(bytea)`/SQLState `42883` quando a busca ausente, vazia ou branca vira `null`. O erro anterior foi confirmado no log HTTP de produção, GET `/empresas/pagina` com status 500. Contrato, filtros, ordenação, paginação, permissões e empresa exclusiva do JWT preservados; nenhum DTO, frontend funcional, migration ou dado de produção alterado. Detalhes em [paginacao.md](paginacao.md#empresas--correção-isolada-da-listagem-2026-10-18).
+
+Validação para publicação: 92 testes backend de Empresas aprovados, incluindo 27 em PostgreSQL descartável com Flyway V1–V43 e Hibernate validate; 17 testes frontend relacionados aprovados, com HTTP simulado. Builds backend/frontend, lint e diff check aprovados. Permanecem os dois avisos preexistentes de React Hook Form e o aviso de bundle grande; suíte geral não repetida, sem ampliar o escopo para as falhas históricas de fixture de Vendas. Deploy e smoke de produção são conferidos separadamente na entrega.
+
 ## PDV — código de barras e comandos visuais (2026-10-18)
 
 Revisão na `main`, sobre `d601504`: EAN/código interno digitado ou enviado por leitor como teclado com Enter já incluía o produto diretamente no rascunho, com foco automático e ajuste de quantidade. Preservados atalhos, sessão própria de Caixa, rascunho, pagamentos e finalização idempotente. Corrigida somente a escolha arbitrária quando o mesmo texto identifica EAN de um produto e código interno de outro: o PDV apresenta seleção explícita; código exato único continua direto. Nenhum contrato/backend/migration alterado.

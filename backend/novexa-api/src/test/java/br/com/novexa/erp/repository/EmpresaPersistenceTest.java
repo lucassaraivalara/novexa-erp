@@ -36,6 +36,14 @@ class EmpresaPersistenceTest {
         e.getInscricoesSt().add(i);
     }
 
+    @Test void paginaSemEmpresasRetornaEnvelopeVazio() {
+        assertThat(repository.count()).isZero();
+        var pagina = service.listarPagina(1L, null, null, 0, 10, "razaoSocial,asc");
+        assertThat(pagina.getContent()).isEmpty();
+        assertThat(pagina.getTotalElements()).isZero();
+        assertThat(pagina.getTotalPages()).isZero();
+    }
+
     @Test void gravaReabreAtualizaERemoveFilhosSemDuplicarUf() {
         var original = empresa(); inscricao(original, "MG", "00123"); inscricao(original, "RJ", "00456");
         var id = service.salvar(original).getId();

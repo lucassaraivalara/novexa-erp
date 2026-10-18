@@ -7,6 +7,7 @@ import br.com.novexa.erp.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -114,6 +115,52 @@ class EmpresaLeituraIsolamentoTest {
                     .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(1));
         mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization).param("ativo", "false"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(0));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"   ", "Empresa A", "  Empresa A  "})
+    void paginaBuscaOpcionalPreservaEmpresaDoJwt(String termo) throws Exception {
+        var request = get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization);
+        if (termo != null) request.param("termo", termo);
+        mvc.perform(request).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(empresaA.getId()))
+                .andExpect(jsonPath("$.page").value(0)).andExpect(jsonPath("$.size").value(25))
+                .andExpect(jsonPath("$.totalItems").value(1));
+    }
+
+    @org.junit.jupiter.api.Test
+    void paginaRetornaVazioSemResultadosEFiltraInativas() throws Exception {
+        mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization)
+                        .param("termo", "inexistente"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty())
+                .andExpect(jsonPath("$.totalItems").value(0)).andExpect(jsonPath("$.totalPages").value(0));
+        empresaB.setAtivo(false); empresas.saveAndFlush(empresaB);
+        mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization)
+                        .param("ativo", "false").param("empresaId", empresaB.getId().toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty());
+    }
+
+    @org.junit.jupiter.api.Test
+    void paginaAceitaCamposCadastraisOpcionaisNulos() throws Exception {
+        empresaA.setCadastro(null); empresaA.setNomeFantasia(null);
+        empresaA.setEmail(null); empresaA.setTelefone(null); empresaA.setEndereco(null);
+        empresas.saveAndFlush(empresaA);
+        mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(empresaA.getId()))
+                .andExpect(jsonPath("$.items[0].nomeFantasia").isEmpty())
+                .andExpect(jsonPath("$.items[0].email").isEmpty());
+    }
+
+    @org.junit.jupiter.api.Test
+    void perfilSemPermissaoDeManutencaoPodeConsultarMasNaoAlterarEmpresa() throws Exception {
+        mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/empresas/" + empresaA.getId())
+                        .header(HttpHeaders.AUTHORIZATION, authorization)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
     }
 
     @ParameterizedTest
