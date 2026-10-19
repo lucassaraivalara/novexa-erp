@@ -190,6 +190,8 @@ public class ContaFinanceiraService {
 
     private ContaBancariaEntity validarVinculo(ContaFinanceiraEntity atual, TipoContaFinanceira tipo,
             Long bancariaId, Long empresaId) {
+        if (atual != null && atual.getTipo() == TipoContaFinanceira.COFRE && tipo != TipoContaFinanceira.COFRE && contas.possuiVinculoCofre(atual.getId()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Conta vinculada a recolhimentos deve permanecer do tipo COFRE.");
         if ((tipo == TipoContaFinanceira.CAIXA || tipo == TipoContaFinanceira.ADQUIRENTE)
                 && (atual == null || atual.getTipo() != tipo))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tipo legado indisponível para novos usos.");

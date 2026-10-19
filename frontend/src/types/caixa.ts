@@ -97,6 +97,7 @@ export type MovimentacaoCaixa = {
 
 export type MovimentacaoCaixaInput = {
     chaveRequisicao: string;
+    cofre?: import("../services/cofreService").EntregaCofre;
     tipo: "SUPRIMENTO" | "SANGRIA";
     valor: number;
     observacao?: string | null;
@@ -112,6 +113,7 @@ export type ConferenciaFechamentoInput = {
 };
 
 export type FechamentoCaixaInput = {
+    cofre?: import("../services/cofreService").EntregaCofre;
     saldoFinal: number;
     conferencia?: ConferenciaFechamentoInput;
 };

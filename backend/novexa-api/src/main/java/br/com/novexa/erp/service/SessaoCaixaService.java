@@ -14,6 +14,7 @@ import java.util.*;
 @Service
 @Transactional(readOnly = true)
 public class SessaoCaixaService {
+    private final CofreService cofre;
     private final CaixaRepository caixas;
     private final SessaoCaixaRepository sessoes;
     private final UsuarioRepository usuarios;
@@ -23,7 +24,8 @@ public class SessaoCaixaService {
 
     public SessaoCaixaService(CaixaRepository caixas, SessaoCaixaRepository sessoes, UsuarioRepository usuarios,
             CaixaOperacionalService operacional, ConferenciaFechamentoCaixaRepository conferencias,
-            FormaPagamentoRepository formas) {
+            FormaPagamentoRepository formas, CofreService cofre) {
+        this.cofre = cofre;
         this.caixas = caixas;
         this.sessoes = sessoes;
         this.usuarios = usuarios;
@@ -80,6 +82,7 @@ public class SessaoCaixaService {
                     || !Objects.equals(sessao.getObservacaoFechamento(), observacao)
                     || !mesmosInformados(salvas, informados))
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Sessão de Caixa já fechada com outros dados.");
+            cofre.fechamento(sessao, usuario, pedido.cofre());
             return resposta(sessao, salvas);
         }
         List<ConferenciaFechamentoCaixaEntity> linhas = List.of();
@@ -104,6 +107,7 @@ public class SessaoCaixaService {
         sessao.fechar(usuario, saldoFinal, modalidade, observacao);
         sessoes.saveAndFlush(sessao);
         conferencias.saveAllAndFlush(linhas);
+        cofre.fechamento(sessao, usuario, pedido.cofre());
         return resposta(sessao, linhas);
     }
 

@@ -1,5 +1,11 @@
 Empresa ........ funcional
 
+## Dinheiro em cofre — 2026-10-19
+
+Implementado vínculo auditável entre sessão, destinação/recolhimento e Conta Financeira COFRE (V45), sem segunda fonte de saldo. Fechamento sozinho não credita cofre; entrega explícita gera um movimento vinculado e repetição não reaplica saldo. Sangria sem destino mantém comportamento anterior. Troco mantido fica na sessão de origem; devolução confirmada debita cofre e registra suprimento na sessão aberta. Painel em Contas e saldos reúne saldo, pendências, histórico e extrato existente. Detalhes/limitações em [financeiro.md](financeiro.md#dinheiro-em-cofre--v45).
+
+Validação técnica: compilação backend, build frontend, lint sem erros (dois avisos preexistentes), Flyway V1–V45 e Hibernate validate em PostgreSQL descartável, startup/readiness local 200/UP. Backup pré-V45 do schema public criado e restaurado localmente, confirmando baseline V44. Testes funcionais e movimentações reais não executados por orientação do usuário; homologação manual do cliente e CONTRACT READY permanecem pendentes. Não há estorno próprio de recolhimento confirmado; histórico legado exige conferência para evitar recolher novamente valores já lançados manualmente.
+
 ## MEI, CEP, sessão e confirmação de estoque — 2026-10-19
 
 Implementados: MEI nos contratos e cadastro de Empresas; consulta autenticada de CEP pelo backend/ViaCEP com edição manual; renovação JWT por atividade com padrão de uma hora e limite absoluto de oito horas; autorização empresarial e confirmação explícita para venda com estoque insuficiente, auditada no movimento existente. Opção empresarial inicia desativada; nenhuma empresa ou produto foi configurado manualmente nesta entrega. Regras e contratos em [frontend.md](frontend.md) e [estoque.md](estoque.md).

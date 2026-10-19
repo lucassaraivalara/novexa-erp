@@ -18,6 +18,7 @@ import ContaFinanceiraDrawer from "./ContaFinanceiraDrawer";
 import MovimentacaoFinanceiraDrawer from "./MovimentacaoFinanceiraDrawer";
 import ExtratoFinanceiroDrawer from "./ExtratoFinanceiroDrawer";
 import TransferenciaFinanceiraDrawer from "./TransferenciaFinanceiraDrawer";
+import CofrePainel from "./CofrePainel";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -160,6 +161,7 @@ export default function ContasFinanceiras() {
         </Box>
         <PageFilters busca={{ placeholder: "Buscar por nome ou tipo", valor: busca,
             onChange: (valor) => { setBusca(valor); setPagina(0); } }} />
+        <CofrePainel versao={tentativa} onAlterado={atualizar} />
         <AppTable colunas={colunas} linhas={contas} ordenacaoRemota
             ordenacao={{ ...ordenacao, onSort: (campo) => {
                 setPagina(0); setOrdenacao((atual) => ({ campo, direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc" }));

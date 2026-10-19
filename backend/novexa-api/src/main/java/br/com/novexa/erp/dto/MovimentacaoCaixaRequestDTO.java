@@ -8,4 +8,8 @@ import java.util.UUID;
 public record MovimentacaoCaixaRequestDTO(@NotNull UUID chaveRequisicao,
         @NotNull TipoMovimentacaoCaixa tipo,
         @NotNull @DecimalMin("0.01") @Digits(integer = 12, fraction = 2) BigDecimal valor,
-        @Size(max = 500) String observacao) { }
+        @Size(max = 500) String observacao, @jakarta.validation.Valid EntregaCofreDTO cofre) {
+    public MovimentacaoCaixaRequestDTO(UUID chaveRequisicao, TipoMovimentacaoCaixa tipo, BigDecimal valor, String observacao) {
+        this(chaveRequisicao,tipo,valor,observacao,null);
+    }
+}

@@ -351,6 +351,18 @@ As respostas incluem nomes/IDs das contas, valor, data, observação, status, ch
 
 Na tela Contas Financeiras, a ação Transferir pré-seleciona a origem da linha; o drawer lista somente contas ativas funcionais, exclui a origem dos destinos e mostra seu saldo. Mantém o UUID durante a tentativa e retries, bloqueia controles durante processamento e recarrega contas após sucesso. O extrato mostra transferência enviada/recebida com contraparte; sua ação de estorno confirma a transferência inteira e recarrega o histórico e os saldos do backend.
 
+## Dinheiro em cofre — V45
+
+Contas e saldos mantém a Conta Financeira `COFRE` como fonte única de saldo e movimentos. O painel separa saldo/entradas/saídas, destinações pendentes, recolhimentos e devoluções para troco; depósitos usam a transferência existente COFRE → BANCO. Não há receita ou venda nova nesses deslocamentos.
+
+O fechamento aceita opcionalmente `cofre: {contaCofreId, valor, valorTroco, responsavel, observacao, confirmarEntrega}`. Valores são não negativos e recolhimento mais troco devem somar o dinheiro contado (`saldoFinal`). Sem esse objeto, o fechamento preserva seu comportamento; sessão fechada com dinheiro e sem destinação aparece pendente. Troco mantido fica identificado na sessão e não abre nem abastece outra sessão automaticamente. Recolhimento planejado só credita o cofre após confirmação explícita. Sangria comum não credita cofre; sangria com destino COFRE aceita o mesmo objeto, com valor igual ao da retirada e troco zero.
+
+V45 cria `recolhimentos_cofre`, vinculando empresa/sessão, conta, movimentos físico/financeiro, operador, responsável e confirmação auditada, com FKs compostas por empresa. Um fechamento tem uma destinação; UUID e locks serializam repetição. A origem financeira é `MOVIMENTO_COFRE`. Confirmação repetida reutiliza o registro. Não há estorno genérico dessa origem; correção de entrega confirmada exige tratamento próprio futuro, sem apagar histórico.
+
+Contratos autenticados: `GET /financeiro/cofre/resumo`, `/pendencias`, `/recolhimentos` e `/contas/{id}/movimentos`; listas paginadas de 20 registros. `POST /financeiro/cofre/sessoes/{id}/recolhimento` registra destinação de sessão fechada; `/recolhimentos/{id}/confirmar` exige `{confirmarEntrega:true}`; `/devolucoes` recebe UUID, sessão aberta e entrega confirmada, debitando cofre e registrando suprimento atomicamente. Operador destina/confirma somente sua sessão; ADMIN/GERENTE gerenciam sangria/devolução e sessões da empresa, mantendo os perfis atuais.
+
+Nenhum histórico é recalculado. Sessões antigas sem vínculo podem aparecer pendentes mesmo se o dinheiro já foi registrado manualmente: conferir antes de confirmar para evitar duplicidade. Homologação funcional do cliente permanece pendente; a validação desta entrega é técnica.
+
 ## Limites da evolução — FUTURO
 
 - Depois das fundações: demais destinos, MovimentacaoBancaria, Recebíveis e Contas a Receber. A integração backend da baixa de Contas a Pagar com Conta Financeira já existe; falta adaptar o frontend. A baixa não gera efeito na Conta Bancária cadastral. MovimentacaoCaixa mínima de dinheiro já está implementada no bloco operacional. Cada fluxo exige tarefa própria; pagamento misto operacional também depende de regras explícitas, embora o modelo 1:N já o permita.

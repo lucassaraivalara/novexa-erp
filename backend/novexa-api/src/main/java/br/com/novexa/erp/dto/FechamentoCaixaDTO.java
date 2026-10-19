@@ -7,7 +7,8 @@ import java.util.List;
 
 public record FechamentoCaixaDTO(
         @NotNull @DecimalMin("0.00") @Digits(integer = 17, fraction = 2) BigDecimal saldoFinal,
-        @Valid Conferencia conferencia) {
+        @Valid Conferencia conferencia, @Valid EntregaCofreDTO cofre) {
+    public FechamentoCaixaDTO(BigDecimal saldoFinal, Conferencia conferencia) { this(saldoFinal, conferencia, null); }
     public FechamentoCaixaDTO(BigDecimal saldoFinal) { this(saldoFinal, null); }
 
     public record Conferencia(@NotNull List<@NotNull @Valid Forma> formas,

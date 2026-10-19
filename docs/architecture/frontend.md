@@ -1,5 +1,9 @@
 # Frontend — padrões de cadastros, buscas e formulários
 
+## Dinheiro em cofre (2026-10-19)
+
+Contas e saldos inclui painel compacto com saldo COFRE, entradas/saídas confirmadas, pendências por sessão, histórico de recolhimentos/troco e extrato paginado com depósitos/contrapartes. A conta permanece na listagem existente. Fechamento e sangria oferecem destinação opcional, responsável, observação e confirmação explícita; fechar sem informar destino não credita cofre. Devolução para troco usa sessão aberta e confirmação gerencial. Nenhuma conta ou sessão é criada automaticamente. Regras e contratos em [financeiro.md](financeiro.md#dinheiro-em-cofre--v45). A validação funcional em produção será realizada pelo cliente, sem movimentações reais pelo agente.
+
 ## Empresas, CEP e sessão operacional (2026-10-19)
 
 Regime Tributário oferece MEI na criação, edição e listagem, sem inferir regras ou valores fiscais. O formulário administrativo também oferece a autorização empresarial de venda com estoque insuficiente, desativada por padrão; o PDV exige confirmação explícita conforme [estoque.md](estoque.md).

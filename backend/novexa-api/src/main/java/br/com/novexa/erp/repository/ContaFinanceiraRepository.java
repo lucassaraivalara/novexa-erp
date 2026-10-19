@@ -24,6 +24,8 @@ public interface ContaFinanceiraRepository extends JpaRepository<ContaFinanceira
     List<br.com.novexa.erp.dto.ContaFinanceiraResumoDTO> resumir(Long empresaId);
     @Query("select count(c) > 0 from ContaFinanceiraEntity c where c.contaBancaria.id = :bancariaId and (:idIgnorado is null or c.id <> :idIgnorado)")
     boolean existeVinculoBancario(Long bancariaId, Long idIgnorado);
+    @Query("select count(r)>0 from RecolhimentoCofreEntity r where r.conta.id=:id")
+    boolean possuiVinculoCofre(Long id);
     boolean existsByIdAndEmpresaId(Long id, Long empresaId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

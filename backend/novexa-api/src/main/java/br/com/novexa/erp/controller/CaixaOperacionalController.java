@@ -14,7 +14,10 @@ import java.util.List;
 @RequestMapping("/financeiro/caixas/sessoes")
 public class CaixaOperacionalController {
     private final CaixaOperacionalService service;
-    public CaixaOperacionalController(CaixaOperacionalService service) { this.service = service; }
+    private final br.com.novexa.erp.service.CofreService cofre;
+    public CaixaOperacionalController(CaixaOperacionalService service, br.com.novexa.erp.service.CofreService cofre) {
+        this.service = service; this.cofre = cofre;
+    }
 
     @GetMapping("/abertas")
     public List<SessaoCaixaAbertaDTO> abertas(@AuthenticationPrincipal UsuarioAutenticado usuario) {
@@ -41,7 +44,7 @@ public class CaixaOperacionalController {
     @PostMapping("/{sessaoId}/movimentacoes")
     public MovimentacaoCaixaResponseDTO movimentar(@PathVariable Long sessaoId,
             @Valid @RequestBody MovimentacaoCaixaRequestDTO pedido, @AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return service.movimentar(sessaoId, pedido, usuario);
+        return pedido.cofre() == null ? service.movimentar(sessaoId, pedido, usuario) : cofre.sangria(sessaoId, pedido, usuario);
     }
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<String> erro(ResponseStatusException e) {

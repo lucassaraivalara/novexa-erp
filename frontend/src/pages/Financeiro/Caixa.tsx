@@ -10,7 +10,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import {
-    Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer,
+    Alert, Box, Button, Checkbox, FormControlLabel, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer,
     FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tab, Tabs, TextField, Typography,
 } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
@@ -22,6 +22,8 @@ import {
     mensagemCaixa,
 } from "../../services/caixaService";
 import { listarVendasSessao } from "../../services/vendaService";
+import EntregaCofreCampos from "./EntregaCofreCampos";
+import { novaEntregaCofre, lerEntregaCofre } from "./cofreFormulario";
 import type {
     CaixaCompleta, CaixaResumo, ResumoSessaoCaixa, SessaoCaixaAberta,
     SessaoCaixaHistorico, SessaoCaixaDetalhe,
@@ -55,6 +57,9 @@ export default function Caixa() {
     const usuarioAtual = obterSessao();
     const podeMovimentar = podeExecutarAcaoGerencial(usuarioAtual?.perfil);
     const [aba, setAba] = useState(0);
+    const [destinarAoCofre, setDestinarAoCofre] = useState(false);
+    const [entregaCofre, setEntregaCofre] = useState(novaEntregaCofre);
+    const [chaveMovimento, setChaveMovimento] = useState(chave);
     const [abertas, setAbertas] = useState<SessaoCaixaAberta[]>([]);
     const [sessaoId, setSessaoId] = useState<number | null>(null);
     const [resumo, setResumo] = useState<ResumoSessaoCaixa | null>(null);
@@ -162,7 +167,7 @@ export default function Caixa() {
             await recarregar();
             if (atualizarSessaoId !== null && atualizarSessaoId !== undefined) await carregarSessao(atualizarSessaoId);
         } catch (e) {
-            setErroModal(mensagemCaixa(e, mensagem));
+            setErroModal(e instanceof Error && !("isAxiosError" in e) ? e.message : mensagemCaixa(e, mensagem));
         } finally {
             setProcessando(false);
         }
@@ -180,7 +185,8 @@ export default function Caixa() {
         const valor = valorDecimal(saldo);
         if (sessaoId === null || modalMovimento === null || valor === null || valor === 0) { setErroModal("Informe um valor positivo válido."); return; }
         await executar(async () => {
-            await adicionarMovimentacao(sessaoId, { chaveRequisicao: chave(), tipo: modalMovimento, valor, observacao: observacao.trim() || null });
+            await adicionarMovimentacao(sessaoId, { chaveRequisicao: chaveMovimento, tipo: modalMovimento, valor, observacao: observacao.trim() || null,
+                ...(destinarAoCofre && modalMovimento === "SANGRIA" ? { cofre: lerEntregaCofre(entregaCofre, valor) } : {}) });
             setModalMovimento(null); setSaldo(""); setObservacao("");
         }, "Não foi possível registrar a movimentação.", sessaoId);
     }
@@ -197,7 +203,8 @@ export default function Caixa() {
         } : undefined;
         setProcessando(true); setErroModal("");
         try {
-            await fecharSessaoCaixa(sessaoAtual.caixaId, sessaoId, { saldoFinal: final, conferencia });
+            await fecharSessaoCaixa(sessaoAtual.caixaId, sessaoId, { saldoFinal: final, conferencia,
+                ...(destinarAoCofre ? { cofre: lerEntregaCofre(entregaCofre) } : {}) });
             setModalFechamento(false); setSaldo(""); setObservacaoFechamento(""); setValoresConferidos({});
             await recarregar();
         } catch (e) {
@@ -205,7 +212,7 @@ export default function Caixa() {
                 setErroModal(`${mensagemCaixa(e, "O resumo do Caixa mudou.")} Atualize o resumo e confira os valores novamente.`);
                 await carregarSessao(sessaoId).catch(() => {});
             } else {
-                setErroModal(mensagemCaixa(e, "Não foi possível fechar o Caixa."));
+                setErroModal(e instanceof Error && !("isAxiosError" in e) ? e.message : mensagemCaixa(e, "Não foi possível fechar o Caixa."));
             }
         } finally {
             setProcessando(false);
@@ -269,7 +276,7 @@ export default function Caixa() {
             acoesSecundarias={<Button variant="outlined" startIcon={<SettingsRoundedIcon />} onClick={() => setGerenciando(true)}>Cadastro de caixas</Button>} />
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void recarregar()}>Tentar novamente</Button>}>{erro}</Alert>}
         <Paper variant="outlined"><Tabs value={aba} onChange={(_, valor) => setAba(valor)} aria-label="Sessões do caixa físico" variant="scrollable" scrollButtons="auto" sx={{ minHeight: 44 }}><Tab id="caixa-atual-tab" aria-controls="caixa-atual-painel" label="Sessão aberta" sx={{ minHeight: 44, py: 1 }} /><Tab id="caixas-anteriores-tab" aria-controls="caixas-anteriores-painel" label="Histórico de sessões" sx={{ minHeight: 44, py: 1 }} /></Tabs></Paper>
-        {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} podeMovimentar={podeMovimentar} podeFechar={podeFecharSessao(usuarioAtual?.perfil, usuarioAtual?.id, resumo.operadorAbertura.id)} onSuprimento={() => { setErroModal(""); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setObservacaoFechamento(""); setValoresConferidos(Object.fromEntries((resumo?.totaisPorFormaPagamento ?? []).filter((forma) => forma.tipo !== "DINHEIRO").map((forma) => [forma.formaPagamentoId, valorEditavel(forma.total)]))); setModalFechamento(true); }} /></Box>)}
+        {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} podeMovimentar={podeMovimentar} podeFechar={podeFecharSessao(usuarioAtual?.perfil, usuarioAtual?.id, resumo.operadorAbertura.id)} onSuprimento={() => { setErroModal(""); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setObservacaoFechamento(""); setValoresConferidos(Object.fromEntries((resumo?.totaisPorFormaPagamento ?? []).filter((forma) => forma.tipo !== "DINHEIRO").map((forma) => [forma.formaPagamentoId, valorEditavel(forma.total)]))); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalFechamento(true); }} /></Box>)}
         {aba === 1 && <Box id="caixas-anteriores-painel" role="tabpanel" aria-labelledby="caixas-anteriores-tab"><AppTable colunas={[
             { campo: "descricaoCaixa", cabecalho: "Caixa", largura: 180 }, { campo: "dataHoraAbertura", cabecalho: "Abertura", largura: 170, render: (valor) => data(valor as string) },
             { campo: "dataHoraFechamento", cabecalho: "Fechamento", largura: 170, render: (valor) => data(valor as string | null) }, { campo: "operadorAbertura.nome", cabecalho: "Operador", largura: 180 },
@@ -288,7 +295,9 @@ export default function Caixa() {
         }} /></Box>}
 
         <Dialog open={modalAbertura} fullWidth maxWidth="xs" aria-labelledby="caixa-abertura-titulo" onClose={() => !processando && setModalAbertura(false)}><form onSubmit={abrir}><DialogTitle id="caixa-abertura-titulo">Abrir Caixa</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}>{erroModal && <Alert severity="error">{erroModal}</Alert>}<TextField select required name="caixaAbertura" autoComplete="off" label="Caixa" value={caixaAbertura} onChange={(e) => setCaixaAbertura(Number(e.target.value))} helperText={caixasAtivos.length === 0 ? "Nenhum Caixa ativo está disponível." : undefined}>{caixasAtivos.map((caixa) => <MenuItem key={caixa.id} value={caixa.id}>{caixa.descricao}</MenuItem>)}</TextField><TextField required name="saldoInicial" autoComplete="off" label="Saldo inicial (R$)" value={saldo} onChange={(e) => setSaldo(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} /></Stack></DialogContent><DialogActions><Button type="button" onClick={() => setModalAbertura(false)}>Cancelar</Button><Button type="submit" variant="contained" disabled={processando || caixasAtivos.length === 0}>{processando ? "Abrindo…" : "Abrir Caixa"}</Button></DialogActions></form></Dialog>
-        <Dialog open={modalMovimento !== null} fullWidth maxWidth="xs" aria-labelledby="caixa-movimento-titulo" onClose={() => !processando && setModalMovimento(null)}><form onSubmit={movimentar}><DialogTitle id="caixa-movimento-titulo">{modalMovimento === "SANGRIA" ? "Registrar Sangria" : "Registrar Suprimento"}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}>{erroModal && <Alert severity="error">{erroModal}</Alert>}<TextField required autoFocus name="valor" autoComplete="off" label="Valor (R$)" value={saldo} onChange={(e) => setSaldo(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} /><TextField name="observacao" autoComplete="off" label="Observação" value={observacao} onChange={(e) => setObservacao(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} /></Stack></DialogContent><DialogActions><Button type="button" onClick={() => setModalMovimento(null)}>Cancelar</Button><Button type="submit" variant="contained" disabled={processando}>{processando ? "Registrando…" : "Confirmar"}</Button></DialogActions></form></Dialog>
+        <Dialog open={modalMovimento !== null} fullWidth maxWidth="xs" aria-labelledby="caixa-movimento-titulo" onClose={() => !processando && setModalMovimento(null)}><form onSubmit={movimentar}><DialogTitle id="caixa-movimento-titulo">{modalMovimento === "SANGRIA" ? "Registrar Sangria" : "Registrar Suprimento"}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}>{erroModal && <Alert severity="error">{erroModal}</Alert>}<TextField required autoFocus name="valor" autoComplete="off" label="Valor (R$)" value={saldo} onChange={(e) => setSaldo(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />{modalMovimento === "SANGRIA" && <><FormControlLabel control={<Checkbox checked={destinarAoCofre} disabled={processando} onChange={e => setDestinarAoCofre(e.target.checked)} />} label="Destino desta sangria: COFRE" />
+                {destinarAoCofre && <EntregaCofreCampos value={entregaCofre} onChange={setEntregaCofre} disabled={processando} valorFixo={valorDecimal(saldo) ?? 0} />}</>}
+                <TextField name="observacao" autoComplete="off" label="Observação" value={observacao} onChange={(e) => setObservacao(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} /></Stack></DialogContent><DialogActions><Button type="button" onClick={() => setModalMovimento(null)}>Cancelar</Button><Button type="submit" variant="contained" disabled={processando}>{processando ? "Registrando…" : "Confirmar"}</Button></DialogActions></form></Dialog>
         <Dialog open={modalFechamento} fullWidth maxWidth="sm" aria-labelledby="caixa-fechamento-titulo" aria-describedby="caixa-fechamento-descricao" onClose={() => { if (!processando) { setObservacaoFechamento(""); setModalFechamento(false); } }}>
             <form onSubmit={fechar}>
                 <DialogTitle id="caixa-fechamento-titulo">Fechar Caixa</DialogTitle>
@@ -318,6 +327,11 @@ export default function Caixa() {
                                         : <Typography variant="body2" sx={{ fontWeight: 700 }}>Conferência sem diferença.</Typography>}
                             </Box>
                         </Box>
+                        <Divider />
+                        <FormControlLabel control={<Checkbox checked={destinarAoCofre} disabled={processando}
+                            onChange={e => setDestinarAoCofre(e.target.checked)} />} label="Informar envio ao cofre e troco mantido" />
+                        {destinarAoCofre ? <EntregaCofreCampos value={entregaCofre} onChange={setEntregaCofre} disabled={processando} />
+                            : <Typography variant="body2" color="text.secondary">O fechamento não credita o cofre. A destinação pode ser registrada depois em Contas e saldos.</Typography>}
                         {linhasConferencia.length > 0 && <Stack spacing={2} divider={<Divider flexItem />}>
                             {linhasConferencia.map((linha) => <Box key={linha.formaPagamentoId}>
                                 <Typography component="label" htmlFor={`input-forma-${linha.formaPagamentoId}`} variant="body2" sx={{ fontWeight: 700 }}>{linha.descricao}</Typography>
