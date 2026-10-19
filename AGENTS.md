@@ -2,6 +2,8 @@
 
 ## Sequência de trabalho obrigatória
 
+Esta sequência é automática para toda tarefa executada dentro do repositório `novexa-erp`. O agente deve ler este arquivo antes de executar qualquer comando de terminal, consultar arquivos, alterar código ou iniciar validações. O usuário não precisa repetir essa instrução em cada prompt.
+
 1. Leia este AGENTS.md.
 2. Consulte `docs/architecture/SYSTEM_CONTEXT.md` para localizar o contexto da tarefa.
 3. Leia somente os documentos relevantes ao escopo.
@@ -255,8 +257,12 @@ Quando assumir uma tarefa iniciada por outro agente:
 - preservar código funcional;
 - trabalhar somente no domínio da tarefa;
 - verificar trabalho existente antes de implementar;
-- múltiplos agentes trabalham em paralelo;
+- o agente principal trabalha na branch e no worktree atuais, sem criar outro por padrão;
 - ler docs/architecture/SYSTEM_CONTEXT.md seguir a sequência de trabalho obrigatória.
+
+O fluxo padrão deste projeto é trabalhar diretamente na `main`, no worktree principal, usando commit e push para publicar as alterações. Não criar branch, worktree, Pull Request ou merge para tarefas comuns. Só usar branch, worktree, Pull Request ou merge quando o usuário solicitar explicitamente. O push para `main` permanece permitido quando fizer parte da entrega autorizada.
+
+Quando a tarefa envolver frontend, telas, navegação, layout, filtros, tabelas, formulários ou responsividade, aplicar `Minimal Work` para limitar o escopo e, quando disponíveis no ambiente, usar `Impeccable` para orientar a construção visual e `Web Design Guidelines` para revisar acessibilidade, contraste, responsividade e consistência. Consultar também a skill local `.agents/skills/novexa-ui-consistency/SKILL.md` quando ela estiver disponível e as referências relevantes em `docs/references/olist/`. As referências visuais orientam decisões; não substituem os contratos e regras do Novexa.
 
 ## Arquitetura financeira obrigatória
 
@@ -272,9 +278,9 @@ O operador escolhe a forma de pagamento. O backend determina o fluxo conforme co
 
 Estas regras representam a arquitetura alvo; verificar o que já existe antes de implementar.
 
-## Trabalho com múltiplos agentes
+## Coordenação e ownership
 
-Antes de executar tarefas de desenvolvimento, consulte [agent-workflow.md](docs/architecture/agent-workflow.md), fonte oficial de coordenação dos agentes do Novexa ERP.
+Antes de executar tarefas de desenvolvimento, consulte [agent-workflow.md](docs/architecture/agent-workflow.md), fonte oficial de coordenação e ownership do Novexa ERP.
 
 O documento define papéis, ownership, Git/worktrees, CONTRACT READY, migrations, commits, validações, continuidade e integração.
 
@@ -285,7 +291,7 @@ O documento define papéis, ownership, Git/worktrees, CONTRACT READY, migrations
 - Consultar a documentação do domínio envolvido; seguir a sequência de trabalho obrigatória, ler também `docs/architecture/SYSTEM_CONTEXT.md`.
 - Tratar auditorias como evidências históricas e revalidar seus achados no código atual.
 - Cada tarefa deve delimitar objetivo, arquivos ou domínio, dependências e critério de conclusão.
-- Usar branch e worktree separados quando houver agentes trabalhando em paralelo.
+- Trabalhar diretamente na `main` e no worktree principal por padrão; só usar branch ou worktree separado com autorização explícita do usuário.
 - Não alterar simultaneamente arquivos compartilhados sem coordenação.
 - Centralizar a reserva de números e a integração de migrations em um responsável.
 - Rodar primeiro os testes relacionados; ampliar a validação conforme o impacto.
