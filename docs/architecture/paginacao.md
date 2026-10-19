@@ -64,6 +64,24 @@ Conferidos nas migrations e aplicados no PostgreSQL descartavel. Nenhum indice/m
 
 Nao houve evidencia de plano/volume que justificasse indice novo. LIKE '%termo%' nao aproveita B-tree comum apenas por adicionar indice de nome. Avaliar EXPLAIN ANALYZE com dados representativos antes de ampliar indices.
 
+## Busca vazia/nula — auditoria PostgreSQL (2026-10-17)
+
+Revisão sobre `main`/`8b9d068`, com correção local sem publicação. `EmpresaService.listarPagina` já normalizava busca ausente, vazia e branca para null. No PostgreSQL 18.6, a query de `EmpresaRepository.listarPagina` enviava os parâmetros sem tipo textual ao concat; o resultado era `lower(bytea)`, SQLSTATE `42883` e HTTP 500. Foram acrescentados casts HQL `as string` a `termo` e `documento`, preservando a normalização, o filtro exclusivo do ID da empresa do JWT, paginação, count, ordenação e situação. Nenhuma outra query precisou de alteração.
+
+| Listagens conferidas | Resultado no contrato exposto pelo service |
+|---|---|
+| Empresas | Falha reproduzida e corrigida na query; antes, seis casos da matriz PostgreSQL retornavam 500 |
+| Contas Financeiras e Contas a Receber | Casts textuais já existentes; mantidos e aprovados nos testes PostgreSQL |
+| Contas a Pagar, Clientes e Produtos | Service envia texto vazio não nulo; ausência de filtro aprovada sem mudança nas queries |
+| Fornecedores | Padrão textual não nulo para nome; documento opcional ancorado no LIKE de campo textual; aprovado sem mudança |
+| Entradas de mercadoria, Categorias, Subcategorias e Marcas | Service envia padrão textual não nulo; filtros e consultas aprovados sem mudança |
+
+Também revisadas estaticamente Vendas, Recebíveis, extrato/movimentos financeiros, histórico de estoque e Transferências: parâmetros de data já possuem cast e IDs/enums/booleanos são comparados a atributos tipados; não há a mesma busca textual nula sem tipo. As verificações de nome de Caixa/configuração de pagamento recebem texto obrigatório validado; Usuários e cadastros bancários não expõem essa busca paginada. Não foram modificados apenas por semelhança de sintaxe.
+
+`BuscaPaginadaHttpTest` e `BuscaPaginadaPostgresTest` exercitam as onze listagens com busca ausente, vazia, espaços, tabulação/quebra de linha e texto preenchido, mais paginação real/count, ordenação, situação e isolamento mesmo recebendo empresaId de outro tenant. Empresas também confere nome fantasia e documento mascarado. Antes da correção, H2 aprovou 67 casos e PostgreSQL aprovou 61/67, com as seis falhas exclusivamente em Empresas. Após o cast, 67 H2 e 67 PostgreSQL aprovados (134/134), com Flyway V1–V42 e Hibernate validate em schema descartável. Build backend aprovado. Frontend e contratos HTTP não foram alterados; build/lint frontend não se aplicam a esta correção interna.
+
+A suíte existente de Empresas (leitura, consolidação, isolamento de alterações, cadastro e persistência) aprovou mais 56 casos após o build: 190 aprovações finais nesta etapa. `git diff --check` aprovado. Suíte backend geral não repetida; os erros anteriores de fixture de Vendas não foram corrigidos nem considerados falhas desta matriz. Nenhum dado de produção foi consultado ou alterado.
+
 ## Empresas — correção isolada da listagem (2026-10-18)
 
 Correção validada sobre `d2d146b`: a query anterior de `EmpresaRepository.listarPagina` falha no PostgreSQL quando o service normaliza busca ausente/vazia/branca para `null`. Sem tipo textual no parâmetro de `concat/lower`, o driver envia `bytea`; o banco responde SQLState `42883`, `function lower(bytea) does not exist`. O cast `as string` foi preservado e validado; também tipa o parâmetro `documento`, derivado da mesma busca. Não há joins na consulta; o DTO de lista não inicializa inscrições lazy. Nome fantasia e dados cadastrais opcionais nulos continuam aceitos.
@@ -75,6 +93,54 @@ Evidência de produção somente leitura: GET `/empresas/pagina` retornou HTTP 5
 Regressão: contra a query publicada, teste HTTP em PostgreSQL descartável reproduziu 3 falhas (ausente/vazio/espaços) e 2 aprovações (busca preenchida). Com a correção, 92 testes backend de Empresas aprovados, incluindo 27 PostgreSQL, Flyway V1–V43 e Hibernate validate; transações de teste revertidas e schema UUID removido. Cobrem parâmetros ausentes, buscas, nulos permitidos, vazio, situação, paginação, ordenação, autenticação e isolamento. Frontend: 17 testes aprovados (7 de formulário, 5 novos da listagem e 5 existentes de paginação de Empresas), com HTTP simulado. Capturas claro/escuro/automático em 1440×900, 1024×640, 390×844 e 390×480 em `frontend/node_modules/.vite-empresa-listagem`, fora do Git. Os testes com HTTP simulado não comprovam integração frontend/API em produção; o smoke após deploy é conferido separadamente na entrega.
 
 Builds backend/frontend e lint aprovados; permanecem dois avisos preexistentes de React Hook Form nos formulários financeiros e o aviso de tamanho do bundle. Suíte geral não repetida; falhas históricas de fixture de Vendas não foram alteradas. Sem migration, SQL corretivo ou alteração de dados reais. A publicação inclui somente a correção de Empresas e seus testes/documentação; a auditoria ampla de buscas permanece separada.
+
+## Auditoria preventiva complementar de buscas (2026-10-18)
+
+Árvore local da `main` sobre `d2d146b`, incluindo a correção de Empresas já pendente. Revalidados repositories, respectivos services/controllers e os parâmetros enviados pelas telas. Nenhuma nova falha SQLState `42883` foi reproduzida; nenhuma query, service, DTO, componente ou migration foi alterado nesta auditoria. A correção anterior de Empresas e todas as demais alterações locais foram preservadas.
+
+### Backend: classificação e evidência
+
+| Locais auditados (repository + normalização no service) | Classificação quanto a texto opcional | Evidência atual |
+|---|---|---|
+| EmpresaRepository.listarPagina / EmpresaService | Risco confirmado na query publicada; corrigido localmente na tarefa anterior | Null de busca/documento com cast textual; matriz PostgreSQL aprovada |
+| ContaFinanceiraRepository.listarPagina, ContaReceberRepository.listarPagina | Seguro, sem alteração | Null permitido, casts textuais já existentes; PostgreSQL aprovado |
+| ClienteRepository.findAllPaginado, ProdutoRepository.listarPagina, ContaPagarRepository.listarPagina | Seguro pelo contrato do service | Busca ausente/vazia/branca chega como texto vazio não nulo; PostgreSQL aprovado |
+| FornecedorRepository.listarPagina/buscarPorTermo | Seguro pelo contrato do service | Padrão textual não nulo; documento opcional comparado a expressão textual; PostgreSQL aprovado com documento nulo |
+| EntradaMercadoriaRepository.listarPagina, CategoriaProdutoRepository.listar, SubcategoriaProdutoRepository.listar, MarcaRepository.listar | Seguro pelo contrato do service | Padrões `%...%` não nulos e escape de `!`, `%`, `_`; PostgreSQL aprovado |
+| UsuarioRepository.listarPagina / UsuarioService | Seguro, sem alteração | Nome/login/e-mail/CPF pesquisados com padrões não nulos; PostgreSQL aprovado |
+| ClienteRepository.buscarPorTermo, ProdutoRepository.buscarPorTermo | Seguro pelo contrato do service/controller | Vazio/branco não consulta o repository. Clientes aceita parâmetro ausente; Produtos exige `termo` e retorna 400 quando ausente; PostgreSQL aprovado |
+| VendaRepository, RecebivelRepository, MovimentacaoEstoqueRepository, MovimentacaoFinanceiraRepository, TransferenciaFinanceiraRepository | Seguro quanto ao padrão textual investigado; revisão estática | Filtros opcionais são IDs/enums/booleanos ligados a atributos tipados e datas com cast; não recebem busca textual opcional em `lower/concat` |
+| CaixaRepository, ConfiguracaoFormaPagamentoEmpresaRepository, FormaPagamentoRepository; verificações de duplicidade de Empresa/Categoria/Subcategoria/Marca | Seguro quanto ao padrão investigado; revisão estática | Nome/descrição obrigatórios validados antes da query; documento ligado a comparação textual; sem nova correção |
+| UsuarioRepository: login/e-mail e query nativa findByCpfNormalizado | Seguro quanto ao padrão investigado; revisão estática | Comparação com atributo/expressão textual; CPF de autenticação validado/normalizado e globalmente único, sem filtro opcional em lower do parâmetro |
+| BancoRepository, AgenciaRepository, ContaBancariaRepository | Seguro quanto ao padrão investigado; revisão estática | Listas sem busca textual opcional; filtros por IDs/enums/booleanos tipados e identidades obrigatórias. Nenhuma alteração |
+
+Não há ocorrência adicional classificada como risco confirmado nem risco potencial exposto sem decisão nesta matriz. A revisão estática das consultas sem texto opcional não equivale à execução de todos os seus filtros ou fluxos de escrita.
+
+### Frontend: envio e tratamento da consulta
+
+| Tela/arquivo | Parâmetros e normalização conferidos | Resultado |
+|---|---|---|
+| Empresa/Empresa.tsx | `termo: busca.trim() || undefined`, `ativo`, `page/size/sort` | Montagem omite termo; vazio, totais e retry existentes preservados |
+| Clientes/Clientes.tsx + clienteService.ts | `busca`, `campoBusca`, `situacao`, `page/size/sort`; texto encaminhado, normalizado no backend | Não exige omissão/trim adicional no frontend; catch e estado vazio existentes |
+| Produtos/Produtos.tsx + produtoService.ts | `busca`, `campoBusca`, `situacao`, IDs de classificação, `page/size/sort`; trim no backend | Consulta preserva paginação/ordenação remotas; erro e vazio existentes |
+| Produtos/Fornecedores.tsx | `termo.trim() || undefined`, `ativo`, `page/size/sort` | Ausência/vazio aceitos; catch/retry e totais existentes |
+| Usuarios/Usuarios.tsx + usuarioService.ts | `termo` encaminhado, `ativo`, `page/size/sort`; trim/lower/escape no backend | Montagem válida; restrição ADMIN, paginação e feedback existentes |
+| Financeiro/ContasFinanceiras.tsx | `termo.trim() || undefined`, `ativo`, `tipo`, `page/size/sort` | Query já corrigida; falha de resumo/lista não muda o universo de saldo |
+| Estoque/EntradasMercadoria.tsx | `termo.trim() || undefined`, status/origem/fornecedor/período, `page/size/sort` | IDs e datas opcionais omitidos; catch e totais existentes |
+| Estoque/Estoque.tsx + estoqueService.ts | Reutiliza `/produtos`, com `codigoEstoque` traduzido para `codigoInterno`; histórico usa IDs/enums/datas | Sem busca textual nula nova; filtros/paginação independentes preservados |
+| Vendas/CentralVendas.tsx + centralVendasUtils.ts | status/datas/clienteId omitidos quando vazios; cliente usa lookup remoto | Sem campo textual opcional na query de Vendas; catch e envelope existentes |
+| Financeiro/Caixa.tsx | Listas operacionais; situação e paginação do histórico locais, sem termo textual enviado | Sem request de busca nula; carregamento/erro/vazio existentes; não alterado |
+| Configuracoes/Configuracoes.tsx | Central sem consultas HTTP, busca ou paginação | Não há request inválido de busca na montagem |
+| Produtos/CategoriasProdutos.tsx, Produtos/Marcas.tsx | `termo`, `ativo`, categoriaId quando aplicável, `page/size/sort`; normalização no service/useRemoteSearch | Filtros remotos e feedback existentes, sem alteração |
+| Financeiro/FormasPagamento.tsx e DadosBancarios.tsx | Situação/listas/IDs; sem busca textual opcional na listagem | Default de situação no controller; inválido retorna 400; sem alteração |
+
+O cliente HTTP omite valores `undefined`/`null` em query params; não transforma isso na string literal `null`. `useRemoteSearch` normaliza por trim e cancela consultas obsoletas. Não foi necessário uniformizar as telas que deixam a normalização a cargo do backend: ambos os contratos existentes foram exercitados sem mudança de comportamento. Alertas HTTP e lista vazia foram conferidos no código e nos testes selecionados, não tratados como prova de integração de produção.
+
+### Validação desta auditoria
+
+`BuscaPaginadaHttpTest` ampliado, reaproveitando a fixture existente: 121 testes H2 + 121 PostgreSQL aprovados, sem falhas/erros/ignorados. Incluem onze listagens anteriores, `/usuarios/pagina` e os lookups `/clientes/buscar`, `/produtos/buscar`, `/fornecedores/buscar`; busca ausente/vazia/espaços/texto, sem resultado, filtros combinados, páginas 0/1, ordenação, 400/401, contagem e isolamento. Nenhuma chamada para produção. PostgreSQL local descartável, Flyway V1–V43 e Hibernate validate; transações revertidas e schema UUID removido.
+
+Frontend: 56 testes selecionados aprovados de consultas, services, filtros, paginação, vazio, erro/retry e respostas obsoletas, com HTTP simulado. Builds backend/frontend e lint aprovados; dois avisos preexistentes de React Hook Form nos formulários financeiros e aviso de tamanho do bundle permanecem. `git diff --check` aprovado. Nenhuma tela foi alterada, portanto não houve revisão visual adicional nem mudança de tema/layout; Impeccable/Web Design Guidelines não foram aplicados fora desse escopo visual. Suíte geral e fluxos de escrita não repetidos. Nenhum acesso ou alteração de dados de produção, migration nova, commit, push ou deploy.
 
 ## Validacao
 
