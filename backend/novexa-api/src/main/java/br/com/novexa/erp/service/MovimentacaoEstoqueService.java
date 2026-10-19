@@ -14,6 +14,19 @@ import java.util.Objects;
 
 @Service
 public class MovimentacaoEstoqueService {
+    @org.springframework.beans.factory.annotation.Autowired private ConsumoKitVendaRepository consumosKit;
+    public record OrigemKit(Long vendaId,Long produtoCompostoId) { }
+    @Transactional(readOnly=true)
+    public Map<Long,OrigemKit> buscarVendasKitOrigem(Long empresa,Long produto,List<Long> ids) {
+        Map<Long,OrigemKit> resultado=new HashMap<>();
+        if(ids.isEmpty())return resultado;
+        for(var linha:consumosKit.origens(empresa,produto,ids)) {
+            var origem=new OrigemKit((Long)linha[2],(Long)linha[3]);
+            if(ids.contains((Long)linha[0]))resultado.put((Long)linha[0],origem);
+            if(linha[1]!=null&&ids.contains((Long)linha[1]))resultado.put((Long)linha[1],origem);
+        }
+        return resultado;
+    }
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
@@ -167,6 +180,7 @@ public class MovimentacaoEstoqueService {
     }
 
     private void validarProdutoControlaEstoque(ProdutoEntity produto) {
+        if(produto.isComposto()) throw new ProdutoNaoControlaEstoqueException("Kit/Combo não recebe estoque físico. Movimente os componentes.");
         if (Boolean.FALSE.equals(produto.getControlaEstoque())) {
             throw new ProdutoNaoControlaEstoqueException(
                     "Produto não controla estoque. Movimentação não permitida."

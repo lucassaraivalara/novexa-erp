@@ -181,7 +181,7 @@ function Produtos() {
 
     const renderNome = (_: unknown, linha: Produto): React.ReactNode => (
         <Stack sx={{ gap: 0.125, minWidth: 0 }}>
-            <Typography sx={{ fontSize: "0.875rem", fontWeight: 650 }}>{linha.nome}</Typography>
+            <Typography sx={{ fontSize: "0.875rem", fontWeight: 650 }}>{linha.nome}{linha.composto ? " (Kit/Combo)" : ""}</Typography>
             {linha.descricao && <Typography color="text.secondary" noWrap sx={{ fontSize: "0.75rem" }}>{linha.descricao}</Typography>}
             <Typography color="text.secondary" variant="caption" sx={{ overflowWrap: "anywhere" }}>{descricaoClassificacao({ categoria: linha.categoria ?? null, subcategoria: linha.subcategoria ?? null, marca: linha.marca ?? null })}</Typography>
             <Typography color="text.secondary" noWrap title={linha.fornecedor?.razaoSocial ?? undefined} sx={{ fontSize: "0.75rem" }}>

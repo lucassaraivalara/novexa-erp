@@ -41,6 +41,7 @@ export type VendaResumo = {
     sessaoCaixaId: number | null;
 };
 export type ItemVenda = {
+    componentesConsumidos?: { produtoId: number; nome: string; unidade: string; quantidade: number; custoUnitario: number; composicaoId: number; movimentoId: number; reversaoId: number | null }[];
     id: number;
     produtoId: number;
     nomeProduto: string;

@@ -1,5 +1,11 @@
 Empresa ........ funcional
 
+## Kit/Combo — V46 (2026-10-19)
+
+Implementado ciclo de cadastro/edição versionada, consulta, busca por nome/código/EAN, disponibilidade/custo calculados pelos componentes, rascunho/quantidade, faturamento, consumo e movimentos individuais, financeiro único, cancelamento integral por consumo histórico, impressão e rastreabilidade. Tipo imutável, componentes físicos simples, fatores explícitos e FKs por empresa preservam integridade; não há estoque físico de kit, kits aninhados, depósitos ou devolução parcial. Composição alterada exige nova conferência no PDV. Histórico incompleto bloqueia cancelamento antes de qualquer reversão. Detalhes em [produtos.md](produtos.md#kitcombo--composição-operacional-v46).
+
+Validações locais: 372 testes backend aprovados e quatro ignorados herdados nos grupos H2/PostgreSQL/serviços; mais seis execuções focadas aprovadas em H2/PostgreSQL para proteção contra cancelamento parcial, faturamento de rascunho sem duplicação e capacidade autenticada da API. Grupos frontend relacionados aprovados (128 testes de cadastro/PDV/estoque/relatório, 58 regressões e 21 de conversão/impressão, com sobreposição entre grupos), além da proteção de compatibilidade durante publicação. HTTP simulado comprova interface; integração é comprovada separadamente pelo PostgreSQL descartável. Builds backend/frontend, lint sem erros (dois avisos preexistentes) e diff check. Backup pré-V46 do schema public V45 restaurado localmente, atualizado para V46 com Flyway/Hibernate validate e startup completo/readiness 200/UP; homologação manual com o cliente permanece pendente. Nenhuma operação financeira real executada em produção pelo agente.
+
 ## Dinheiro em cofre — 2026-10-19
 
 Implementado vínculo auditável entre sessão, destinação/recolhimento e Conta Financeira COFRE (V45), sem segunda fonte de saldo. Fechamento sozinho não credita cofre; entrega explícita gera um movimento vinculado e repetição não reaplica saldo. Sangria sem destino mantém comportamento anterior. Troco mantido fica na sessão de origem; devolução confirmada debita cofre e registra suprimento na sessão aberta. Painel em Contas e saldos reúne saldo, pendências, histórico e extrato existente. Detalhes/limitações em [financeiro.md](financeiro.md#dinheiro-em-cofre--v45).

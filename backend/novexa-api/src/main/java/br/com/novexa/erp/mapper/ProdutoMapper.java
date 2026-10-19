@@ -40,9 +40,10 @@ public class ProdutoMapper {
         response.setNome(produto.getNome());
         response.setDescricao(produto.getDescricao());
         response.setUnidadeMedida(produto.getUnidadeMedida());
-        response.setPrecoCusto(produto.getPrecoCusto());
+        response.setComposto(produto.isComposto()); response.setComposicaoVersao(produto.getComposicaoVersao());
+        response.setPrecoCusto(produto.getCustoCalculado());
         response.setPrecoVenda(produto.getPrecoVenda());
-        response.setEstoqueAtual(produto.getEstoqueAtual());
+        response.setEstoqueAtual(produto.getSaldoDisponivel());
         response.setEstoqueMinimo(produto.getEstoqueMinimo());
         response.setControlaEstoque(produto.getControlaEstoque());
         response.setImagemPath(produto.getImagemPath());

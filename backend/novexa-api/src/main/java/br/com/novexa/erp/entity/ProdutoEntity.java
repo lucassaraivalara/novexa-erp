@@ -35,6 +35,19 @@ import java.time.LocalDateTime;
 )
 public class ProdutoEntity {
 
+    @Column(nullable=false) private boolean composto;
+    @Column(nullable=false) private long composicaoVersao;
+    public boolean isComposto() { return composto; }
+    public void setComposto(boolean valor) { composto=valor; }
+    public long getComposicaoVersao() { return composicaoVersao; }
+    public void setComposicaoVersao(long valor) { composicaoVersao=valor; }
+    @org.hibernate.annotations.Formula("case when composto then coalesce((select min(case when cp.ativo and cp.controla_estoque then floor(greatest(cp.estoque_atual,0)/(cc.quantidade*cc.fator)*1000)/1000 else 0 end) from componentes_produto cc join produtos cp on cp.id=cc.componente_id and cp.empresa_id=cc.empresa_id where cc.produto_id=id and cc.versao=composicao_versao),0) else estoque_atual end")
+    private BigDecimal saldoDisponivel;
+    @org.hibernate.annotations.Formula("case when composto then coalesce((select sum(cp.preco_custo*cc.quantidade*cc.fator) from componentes_produto cc join produtos cp on cp.id=cc.componente_id and cp.empresa_id=cc.empresa_id where cc.produto_id=id and cc.versao=composicao_versao),0) else preco_custo end")
+    private BigDecimal custoCalculado;
+    public BigDecimal getSaldoDisponivel() { return composto ? (saldoDisponivel==null?BigDecimal.ZERO:saldoDisponivel) : estoqueAtual; }
+    public BigDecimal getCustoCalculado() { return composto ? (custoCalculado==null?BigDecimal.ZERO:custoCalculado.setScale(2,java.math.RoundingMode.HALF_UP)) : precoCusto; }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

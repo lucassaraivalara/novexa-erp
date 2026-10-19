@@ -25,6 +25,8 @@ export type MovimentacaoEstoque = {
     usuarioId: number;
     nomeUsuario: string;
     entradaMercadoriaId?: number | null;
+    vendaId?: number | null;
+    produtoCompostoId?: number | null;
 };
 
 export async function listarProdutosEstoque(params: FiltrosProduto = {}, signal?: AbortSignal) {

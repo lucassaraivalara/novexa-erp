@@ -17,7 +17,7 @@ function ProdutoAutocomplete({ value, onChange, disabled }: {
     const [erro, setErro] = useState("");
     const buscar = useCallback((termo: string, signal: AbortSignal) => pesquisarProdutos(termo, signal), []);
     const { setTerm, loading } = useRemoteSearch<Produto>({ enabled: habilitado && !disabled, minLength: 2,
-        search: buscar, onResults: dados => { setOpcoes(dados); setErro(""); },
+        search: buscar, onResults: dados => { setOpcoes(dados.filter(p => !p.composto)); setErro(""); },
         onError: () => { setOpcoes([]); setErro("Não foi possível buscar produtos."); } });
     const visiveis: ProdutoEntrada[] = value && !opcoes.some(p => p.id === value.id) ? [value, ...opcoes] : opcoes;
     return <Autocomplete value={value} options={visiveis} disabled={disabled} loading={loading} filterOptions={lista => lista}

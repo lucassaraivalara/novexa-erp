@@ -28,6 +28,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/produtos")
 public class ProdutoController {
+    @GetMapping("/composicao/capacidade")
+    public java.util.Map<String,Boolean> capacidadeComposicao() { return java.util.Map.of("habilitado",true); }
+    @org.springframework.beans.factory.annotation.Autowired private br.com.novexa.erp.service.ComposicaoProdutoService composicoes;
+    @GetMapping("/{id}/composicoes")
+    public java.util.List<br.com.novexa.erp.service.ComposicaoProdutoService.Linha> composicoes(@PathVariable Long id,@AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return composicoes.historico(id,usuario.empresaId());
+    }
 
     private final ProdutoService produtoService;
     private final ProdutoMapper produtoMapper;
@@ -45,12 +52,13 @@ public class ProdutoController {
             @Valid @RequestBody ProdutoRequestDTO request,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
+        request.setUsuarioComposicaoId(usuario.usuarioId());
         ProdutoEntity produto = produtoMapper.toEntity(request);
         ProdutoEntity produtoSalvo = produtoService.salvar(produto, usuario.empresaId(), request.getFornecedorId(), request);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(produtoMapper.toResponse(produtoSalvo));
+                .body(resposta(produtoSalvo));
     }
 
     @GetMapping
@@ -66,8 +74,10 @@ public class ProdutoController {
             @RequestParam(defaultValue = "25") int size,
             @RequestParam(defaultValue = "nome,asc") String sort,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return br.com.novexa.erp.dto.PaginaResponseDTO.de(produtoService.listarPagina(usuario.empresaId(),
-                busca, campoBusca, situacao, situacaoEstoque, page, size, sort, categoriaId, subcategoriaId, marcaId), produtoMapper::toResponse);
+        var pagina=produtoService.listarPagina(usuario.empresaId(),
+                busca, campoBusca, situacao, situacaoEstoque, page, size, sort, categoriaId, subcategoriaId, marcaId);
+        var consulta=composicoes.consultas(usuario.empresaId(),pagina.getContent().stream().filter(ProdutoEntity::isComposto).map(ProdutoEntity::getId).toList());
+        return br.com.novexa.erp.dto.PaginaResponseDTO.de(pagina,p->resposta(p,consulta));
     }
 
     @GetMapping("/buscar")
@@ -75,10 +85,9 @@ public class ProdutoController {
             @AuthenticationPrincipal UsuarioAutenticado usuario,
             @RequestParam String termo) {
 
-        List<ProdutoResponseDTO> produtos = produtoService.buscarPorTermo(usuario.empresaId(), termo)
-                .stream()
-                .map(produtoMapper::toResponse)
-                .toList();
+        var encontrados=produtoService.buscarPorTermo(usuario.empresaId(),termo);
+        var consulta=composicoes.consultas(usuario.empresaId(),encontrados.stream().filter(ProdutoEntity::isComposto).map(ProdutoEntity::getId).toList());
+        var produtos=encontrados.stream().map(p->resposta(p,consulta)).toList();
 
         return ResponseEntity.ok(produtos);
     }
@@ -89,7 +98,7 @@ public class ProdutoController {
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
         ProdutoEntity produto = produtoService.buscarPorId(id, usuario.empresaId());
-        return ResponseEntity.ok(produtoMapper.toResponse(produto));
+        return ResponseEntity.ok(resposta(produto));
     }
 
     @PutMapping("/{id}")
@@ -98,6 +107,7 @@ public class ProdutoController {
             @Valid @RequestBody ProdutoRequestDTO request,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
+        request.setUsuarioComposicaoId(usuario.usuarioId());
         ProdutoEntity dadosNovos = produtoMapper.toEntity(request);
         ProdutoEntity produtoAtualizado = produtoService.atualizar(
                 id,
@@ -105,7 +115,7 @@ public class ProdutoController {
                 usuario.empresaId(), request.getFornecedorId(), request.isFornecedorInformado(), request
         );
 
-        return ResponseEntity.ok(produtoMapper.toResponse(produtoAtualizado));
+        return ResponseEntity.ok(resposta(produtoAtualizado));
     }
 
     @PostMapping(value = "/{id}/imagem", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -114,7 +124,7 @@ public class ProdutoController {
             @RequestPart("arquivo") MultipartFile arquivo,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
         ProdutoEntity produto = produtoService.salvarImagem(id, arquivo, usuario);
-        return ResponseEntity.ok(produtoMapper.toResponse(produto));
+        return ResponseEntity.ok(resposta(produto));
     }
 
     @DeleteMapping("/{id}/imagem")
@@ -122,7 +132,7 @@ public class ProdutoController {
             @PathVariable Long id,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
         ProdutoEntity produto = produtoService.removerImagem(id, usuario);
-        return ResponseEntity.ok(produtoMapper.toResponse(produto));
+        return ResponseEntity.ok(resposta(produto));
     }
 
     @DeleteMapping("/{id}")
@@ -132,6 +142,13 @@ public class ProdutoController {
 
         produtoService.inativar(id, usuario.empresaId());
         return ResponseEntity.noContent().build();
+    }
+
+    private ProdutoResponseDTO resposta(ProdutoEntity p) {
+        return resposta(p,composicoes.consultas(p.getEmpresa().getId(),p.isComposto()?List.of(p.getId()):List.of()));
+    }
+    private ProdutoResponseDTO resposta(ProdutoEntity p,java.util.Map<Long,List<ProdutoResponseDTO.Componente>> consulta) {
+        var dto=produtoMapper.toResponse(p);dto.setComponentes(consulta.getOrDefault(p.getId(),List.of()));return dto;
     }
 
     @org.springframework.web.bind.annotation.ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)

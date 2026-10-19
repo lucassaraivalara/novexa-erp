@@ -1,5 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdir } from "node:fs/promises";
 import { createServer } from "vite";
 import { chromium, expect } from "@playwright/test";
 
@@ -37,6 +38,9 @@ async function abrir(e, viewport = { width: 1440, height: 900 }) {
         const body = req.postData() ? JSON.parse(req.postData()) : null;
         e.chamadas.push({ path: u.pathname, metodo: req.method(), params: u.searchParams, body, auth: req.headers().authorization });
         const responder = (status, dados) => route.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(dados) });
+        if(u.pathname==="/produtos/composicao/capacidade")return responder(e.kitIndisponivel?404:200,{habilitado:!e.kitIndisponivel});
+        if (u.pathname === "/produtos/buscar") return responder(200, [produto]);
+        if (/\/produtos\/\d+\/composicoes$/.test(u.pathname)) return responder(200, e.composicoes ?? []);
         const tipo = u.pathname.match(/^\/produtos\/(categorias|subcategorias|marcas)$/)?.[1];
         if (tipo) {
             if (e.erroClassificacao) return responder(503, "Classificação indisponível");
@@ -71,6 +75,40 @@ const categorias = [{ id: 10, nome: "Bebidas", ativo: true }, { id: 11, nome: "A
 const subcategorias = [{ id: 20, nome: "Sucos", ativo: true, categoria: categorias[0] }, { id: 21, nome: "Massas", ativo: true, categoria: categorias[1] }];
 const marcas = [{ id: 30, nome: "Marca teste", ativo: true }];
 const gravacoes = e => e.chamadas.filter(c => ["POST", "PUT"].includes(c.metodo));
+
+test("Kit/Combo aguarda suporte da API sem bloquear cadastro simples",async()=>{
+    const e=novoEstado();e.kitIndisponivel=true;const p=await abrir(e);
+    try {
+        await p.getByRole("button",{name:"Novo produto",exact:true}).click();const d=p.getByRole("dialog");
+        await expect(d.getByRole("switch",{name:"Produto composto (Kit/Combo)"})).toBeDisabled();
+        await d.getByRole("textbox",{name:"Nome",exact:true}).fill("Produto simples");
+        await d.getByRole("textbox",{name:"Preço de venda",exact:true}).fill("10");
+        await d.getByRole("button",{name:"Cadastrar produto",exact:true}).click();await expect(d).toHaveCount(0);
+        assert.equal(gravacoes(e).at(-1).body.composto,false);assert.equal("componentes" in gravacoes(e).at(-1).body,false);
+    } finally {await p.close();}
+});
+
+test("Kit/Combo cadastra componentes, valida quantidade e preserva campos após erro", async () => {
+    const e=novoEstado(), p=await abrir(e, { width:390,height:650 });
+    try {
+        await p.getByRole("button",{name:"Novo produto",exact:true}).click();const d=p.getByRole("dialog");
+        await d.getByRole("textbox",{name:"Nome",exact:true}).fill("Kit teste");
+        await d.getByRole("textbox",{name:"Preço de venda",exact:true}).fill("10");
+        await d.getByRole("switch",{name:"Produto composto (Kit/Combo)"}).check();
+        const busca=d.getByRole("combobox",{name:"Adicionar componente por nome, código ou EAN"});
+        await busca.fill("Produto");await p.getByRole("option",{name:/Produto teste/}).click();
+        await d.getByRole("textbox",{name:"Quantidade",exact:true}).fill("0");
+        await d.getByRole("button",{name:"Cadastrar produto",exact:true}).click();
+        await expect(d.getByRole("alert")).toContainText("quantidade positiva");assert.equal(gravacoes(e).length,0);
+        await d.getByRole("textbox",{name:"Quantidade",exact:true}).fill("2");e.erroSalvar=true;
+        await mkdir("node_modules/kit-validacao",{recursive:true});await p.screenshot({path:"node_modules/kit-validacao/cadastro-390.png"});
+        await d.getByRole("button",{name:"Cadastrar produto",exact:true}).click();await expect(d.getByRole("alert")).toBeVisible();
+        await expect(d.getByRole("textbox",{name:"Nome",exact:true})).toHaveValue("Kit teste");
+        e.erroSalvar=false;await d.getByRole("button",{name:"Cadastrar produto",exact:true}).click();await expect(d).toHaveCount(0);
+        const body=gravacoes(e).at(-1).body;assert.equal(body.composto,true);assert.deepEqual(body.componentes,[{produtoId:10,quantidade:2,fator:1,unidade:"UN"}]);
+        assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    } finally {await p.close();}
+});
 
 test("consulta identifica fornecedor e edição troca ou remove somente o fornecedor principal", async () => {
     const e = novoEstado(), p = await abrir(e);

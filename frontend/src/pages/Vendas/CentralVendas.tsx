@@ -501,7 +501,10 @@ export default function CentralVendas() {
                         <TableHead><TableRow><TableCell>Produto</TableCell><TableCell align="right">Quantidade</TableCell>
                             <TableCell align="right">Unitário</TableCell><TableCell align="right">Subtotal</TableCell></TableRow></TableHead>
                         <TableBody>{detalhe.itens.map(item => <TableRow key={item.id}>
-                            <TableCell>{item.nomeProduto}</TableCell><TableCell align="right">{item.quantidade}</TableCell>
+                            <TableCell>{item.nomeProduto}{!!item.componentesConsumidos?.length && <Box component="details" sx={{ mt: 1 }}>
+                                <Typography component="summary" variant="body2" sx={{ cursor: "pointer" }}>Componentes consumidos (histórico)</Typography>
+                                {item.componentesConsumidos.map(c => <Typography key={c.movimentoId} variant="body2" color="text.secondary">{c.nome} · {c.quantidade} {c.unidade} · custo unitário {moedaVenda(c.custoUnitario)} · movimento #{c.movimentoId}{c.reversaoId ? ` · reversão #${c.reversaoId}` : ""}</Typography>)}
+                            </Box>}</TableCell><TableCell align="right">{item.quantidade}</TableCell>
                             <TableCell align="right">{moedaVenda(item.precoUnitario)}</TableCell>
                             <TableCell align="right">{moedaVenda(item.subtotal)}</TableCell>
                         </TableRow>)}</TableBody>

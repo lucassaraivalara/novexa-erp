@@ -27,9 +27,9 @@ public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
               and (:subcategoriaId is null or p.subcategoria.id = :subcategoriaId)
               and (:marcaId is null or p.marca.id = :marcaId)
               and (:estoque is null
-                or (:estoque = 'baixo' and p.controlaEstoque = true and p.estoqueAtual > 0 and p.estoqueAtual <= p.estoqueMinimo)
-                or (:estoque = 'zerado' and p.controlaEstoque = true and p.estoqueAtual = 0)
-                or (:estoque = 'normal' and p.controlaEstoque = true and p.estoqueAtual > p.estoqueMinimo)
+                or (:estoque = 'baixo' and p.controlaEstoque = true and p.saldoDisponivel > 0 and p.saldoDisponivel <= p.estoqueMinimo)
+                or (:estoque = 'zerado' and p.controlaEstoque = true and p.saldoDisponivel = 0)
+                or (:estoque = 'normal' and p.controlaEstoque = true and p.saldoDisponivel > p.estoqueMinimo)
                 or (:estoque = 'semControle' and p.controlaEstoque = false))
             """)
     org.springframework.data.domain.Page<ProdutoEntity> listarPagina(Long empresaId, Boolean ativo,
@@ -50,7 +50,7 @@ public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
             where produto.empresa.id = :empresaId
               and produto.ativo = true
               and produto.controlaEstoque = true
-              and produto.estoqueAtual <= produto.estoqueMinimo
+              and produto.saldoDisponivel <= produto.estoqueMinimo
             """)
     long contarEstoqueBaixo(@Param("empresaId") Long empresaId);
 

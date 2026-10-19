@@ -1,5 +1,9 @@
 FINANCEIRO NOVEXA
 
+## Venda de Kit/Combo
+
+Kit/Combo é um item comercial com consumo de componentes físicos (V46). Venda, pagamentos, Caixa, PIX, recebíveis e prazo seguem o fluxo financeiro existente uma única vez; componentes não geram receita ou pagamentos próprios. Cancelamento integral reverte os consumos históricos na mesma transação das reversões financeiras já existentes, com seus bloqueios preservados. Não existe baixa financeira ou estorno independente da composição.
+
 ## PIX - validacao operacional no faturamento
 
 PIX exige configuracaoFormaPagamentoId de configuracao ativa do tenant, com destino BANCO/CARTEIRA_DIGITAL ativo. Isso vale para pagamentos[] e para o payload singular legado; ausencia de configuracao/destino ou destino indisponivel retorna 409 antes de faturar. Historicos nao sao recalculados; confirmacao posterior continua usando o snapshot original, inclusive se o destino foi inativado depois da venda. O cadastro de configuracoes ja exige destino e permanece sem mudancas.

@@ -1,5 +1,11 @@
 # Estoque — Arquitetura e Regras de Negócio
 
+## Composição de Produtos — V46
+
+Kit/Combo não mantém saldo físico nem recebe entrada, saída ou ajuste avulso. Disponibilidade é o menor quociente entre saldo físico disponível de cada componente e seu consumo por kit, truncado a três casas; saldo negativo ou componente inativo/sem controle resulta em disponibilidade zero. Esse resultado é calculado na consulta, inclusive filtros e ordenação remotos; não há outra fonte persistida de saldo nem reserva no rascunho. O MVP tem estoque por empresa, sem depósitos.
+
+Faturamento bloqueia kit e componentes por ID crescente e valida quantidades agregadas, incluindo componentes compartilhados e itens avulsos. A configuração empresarial de estoque negativo e a confirmação explícita V44 continuam sendo exigidas; nenhum efeito parcial persiste em falha. Cada componente gera sua saída VENDA e um consumo auditável vinculado ao item/versão/custo. Cancelamento integral usa a saída original e registra sua reversão, sem consultar a composição atual para calcular reposição. Histórico de movimentos acrescenta `vendaId` e `produtoCompostoId` pelo vínculo persistido, consultado em lote, inclusive reversões; o link abre o detalhe existente da venda em nova aba.
+
 ## Exceção explícita de venda sem saldo — V44
 
 A empresa pode habilitar `permitirVendaEstoqueNegativo` no formulário de Empresas (ADMIN). O padrão é `false`, inclusive para empresas existentes. Fora do faturamento de Venda, a regra de saída sem saldo continua bloqueada.

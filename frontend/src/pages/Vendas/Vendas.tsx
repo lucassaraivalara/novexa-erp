@@ -481,7 +481,7 @@ export default function Vendas() {
                     {listaAberta && !!resultados.length && !bloqueado && <Box id="pdv-resultados" role="listbox" sx={{ position: "absolute", zIndex: 10, top: "100%", width: "100%", maxHeight: 280, overflowY: "auto", bgcolor: "background.paper", border: 1, borderColor: "divider", boxShadow: cores.shadow }}>
                         {resultados.map((p, i) => <Box key={p.id} id={"pdv-opcao-" + i} role="option" aria-selected={i === indice}
                             onMouseDown={e => e.preventDefault()} onClick={() => adicionar(p)} sx={{ p: 1, cursor: "pointer", bgcolor: i === indice ? "action.selected" : undefined, display: "flex", justifyContent: "space-between" }}>
-                            <span>{p.nome} <Typography component="span" variant="caption" color="text.secondary">{p.codigoBarras || p.codigoInterno} · {p.unidadeMedida}</Typography></span>
+                            <span>{p.nome} <Typography component="span" variant="caption" color="text.secondary">{p.composto ? "Kit/Combo - disponivel: " + p.estoqueAtual + " - " : ""}{p.codigoBarras || p.codigoInterno} · {p.unidadeMedida}</Typography></span>
                             <strong>{moeda(Math.round(p.precoVenda * 100))}</strong>
                         </Box>)}
                     </Box>}
@@ -523,7 +523,14 @@ export default function Vendas() {
                         <TableBody sx={{ display: { xs: "block", sm: "table-row-group" } }}>{rascunho.itens.map((item, i) => <TableRow key={item.produto.id} selected={selecionado === item.produto.id} onClick={() => setSelecionado(item.produto.id)}
                             sx={{ display: { xs: "grid", sm: "table-row" }, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", py: { xs: 1, sm: 0 },
                                 borderBottom: { xs: theme.palette.mode === "dark" ? `1px solid ${cores.border}` : 1, sm: 0 }, borderColor: "divider" }}>
-                            <TableCell sx={{ gridColumn: { xs: "1 / -1", sm: "auto" }, overflowWrap: "anywhere", fontWeight: 600 }}><Typography component="span" variant="caption" color="text.secondary" sx={{ mr: 1 }}>{String(i + 1).padStart(2, "0")}</Typography>{item.produto.nome}</TableCell>
+                            <TableCell sx={{ gridColumn: { xs: "1 / -1", sm: "auto" }, overflowWrap: "anywhere", fontWeight: 600 }}><Typography component="span" variant="caption" color="text.secondary" sx={{ mr: 1 }}>{String(i + 1).padStart(2, "0")}</Typography>{item.produto.nome}
+                                {item.produto.composto && <Box>
+                                    <Typography variant="caption" color="text.secondary">Kit/Combo · disponibilidade: {item.produto.estoqueAtual} {item.produto.unidadeMedida}</Typography>
+                                    <Box component="details"><Typography component="summary" variant="caption" sx={{ cursor: "pointer" }}>Consumo previsto dos componentes</Typography>
+                                        {item.produto.componentes?.map(c => <Typography key={c.produtoId} variant="caption" sx={{ display: "block" }} color="text.secondary">{c.nome}: {((decimal(item.quantidade, 3) ?? 0) / 1000 * c.quantidadePorKit).toLocaleString("pt-BR", { maximumFractionDigits: 3 })} {c.unidade} · disponível {c.estoqueAtual}</Typography>)}
+                                    </Box>
+                                </Box>}
+                            </TableCell>
                             <TableCell sx={{ gridRow: { xs: 3, sm: "auto" }, gridColumn: { xs: 1, sm: "auto" } }}>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" }, mb: 0.5 }}>Quantidade</Typography>
                                 <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>

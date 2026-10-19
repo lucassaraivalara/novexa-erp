@@ -140,7 +140,8 @@ export function criarPedido(r: RascunhoPDV, chave: string): VendaInput {
     if (t.restante !== 0) throw new Error("A soma dos pagamentos deve corresponder ao total da venda.");
     return { chaveRequisicao: chave,
         itens: r.itens.map(i => ({ produtoId: i.produto.id, quantidade: decimal(i.quantidade, 3)! / 1000,
-            precoUnitarioEsperado: i.produto.precoVenda })),
+            precoUnitarioEsperado: i.produto.precoVenda,
+            ...(i.produto.composto && i.produto.composicaoVersao ? { composicaoVersaoEsperada: i.produto.composicaoVersao } : {}) })),
         clienteId: r.cliente?.id ?? null, desconto: t.desconto! / 100, totalEsperado: t.total / 100,
         pagamentos: t.parcelas.filter(p => p.formaPagamento !== "A_PRAZO").map(p => ({ configuracaoFormaPagamentoId: p.configuracaoFormaPagamentoId!,
             valor: p.valorCentavos! / 100,

@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnabledIfSystemProperty(named = "novexa.test.admin.jdbc-url", matches = "jdbc:postgresql:.*")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @org.springframework.test.context.jdbc.Sql(statements = "SELECT 1")
-@Import({VendaService.class, MovimentacaoEstoqueService.class, PagamentoService.class, FormaPagamentoService.class,
+@Import({ComposicaoProdutoService.class,VendaService.class, MovimentacaoEstoqueService.class, PagamentoService.class, FormaPagamentoService.class,
         CaixaOperacionalService.class, ConfirmacaoPagamentoPixService.class, RecebivelService.class,
         ProdutoService.class, EmpresaService.class})
 class ComercialPostgresTest extends VendaServiceTest {

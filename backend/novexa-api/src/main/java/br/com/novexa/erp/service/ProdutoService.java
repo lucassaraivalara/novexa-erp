@@ -19,6 +19,7 @@ import java.util.Locale;
 
 @Service
 public class ProdutoService {
+    @org.springframework.beans.factory.annotation.Autowired private ComposicaoProdutoService composicoes;
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
     private static final long TAMANHO_MAXIMO_IMAGEM = 2L * 1024 * 1024;
@@ -66,7 +67,9 @@ public class ProdutoService {
         prepararDados(produto, null);
         validarCodigosDuplicados(produto, empresaId, null);
 
-        return produtoRepository.save(produto);
+        var salvo=produtoRepository.save(produto);
+        if (classificacao != null) composicoes.gravar(salvo, classificacao);
+        return salvo;
     }
 
     @Transactional(readOnly = true)
@@ -96,6 +99,8 @@ public class ProdutoService {
             throw br.com.novexa.erp.util.Paginacao.invalida("Situacao invalida.");
         if (situacaoEstoque != null && !java.util.Set.of("baixo", "zerado", "normal", "semControle").contains(situacaoEstoque))
             throw br.com.novexa.erp.util.Paginacao.invalida("Situacao de estoque invalida.");
+        if (pageable.getSort().stream().anyMatch(o -> o.getProperty().equals("estoqueAtual")))
+            pageable=org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(),pageable.getPageSize(),org.springframework.data.domain.Sort.by(pageable.getSort().stream().map(o -> new org.springframework.data.domain.Sort.Order(o.getDirection(),o.getProperty().equals("estoqueAtual")?"saldoDisponivel":o.getProperty())).toList()));
         Boolean ativo = "ativos".equals(situacao) ? Boolean.TRUE : "inativos".equals(situacao) ? Boolean.FALSE : null;
         return produtoRepository.listarPagina(empresaId, ativo,
                 busca == null ? "" : busca.trim(), campoBusca, situacaoEstoque, categoriaId, subcategoriaId, marcaId, pageable);
@@ -193,9 +198,14 @@ public class ProdutoService {
     @Transactional
     public ProdutoEntity atualizar(Long id, ProdutoEntity dadosNovos, Long empresaId,
                                   Long fornecedorId, boolean fornecedorInformado, br.com.novexa.erp.dto.ProdutoRequestDTO classificacao) {
+        if (classificacao != null && classificacao.getComponentes() != null) composicoes.bloquearEdicao(id, empresaId, classificacao.getComponentes());
+        else if (composicoes != null) composicoes.bloquearEdicao(id,empresaId,java.util.List.of());
         ProdutoEntity produtoExistente = buscarPorId(id, empresaId);
+        if (classificacao != null && classificacao.getComposto() != null && classificacao.getComposto() != produtoExistente.isComposto())
+            throw new ProdutoInvalidoException("O tipo simples/composto nao pode ser alterado; preserve o historico e cadastre outro produto.");
         aplicarClassificacao(produtoExistente, empresaId, classificacao);
         prepararDados(dadosNovos, produtoExistente);
+        if (composicoes != null) composicoes.validarAlteracaoFisica(produtoExistente,dadosNovos);
         validarCodigosDuplicados(dadosNovos, empresaId, id);
         if (fornecedorInformado) produtoExistente.setFornecedorPrincipal(buscarFornecedor(fornecedorId, empresaId));
 
@@ -210,6 +220,7 @@ public class ProdutoService {
         produtoExistente.setControlaEstoque(dadosNovos.getControlaEstoque());
         produtoExistente.setAtivo(dadosNovos.getAtivo());
 
+        if (classificacao != null) composicoes.gravar(produtoExistente, classificacao);
         return produtoRepository.save(produtoExistente);
     }
 

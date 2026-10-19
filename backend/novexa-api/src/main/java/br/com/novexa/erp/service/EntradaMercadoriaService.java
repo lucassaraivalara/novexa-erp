@@ -188,6 +188,7 @@ public class EntradaMercadoriaService {
         return f;
     }
     private void validarProduto(ProdutoEntity p) {
+        if (p.isComposto()) throw conflito("Entrada de mercadoria deve usar os componentes físicos, não o Kit/Combo.");
         if (!Boolean.TRUE.equals(p.getAtivo())) throw conflito("Produto inativo.");
         if (!Boolean.TRUE.equals(p.getControlaEstoque())) throw conflito("Produto nao controla estoque.");
     }

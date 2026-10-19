@@ -42,7 +42,7 @@ import static org.mockito.Mockito.doAnswer;
         "spring.jpa.hibernate.ddl-auto=create-drop"
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({MovimentacaoEstoqueService.class, ProdutoService.class, EmpresaService.class,
+@Import({ComposicaoProdutoService.class,MovimentacaoEstoqueService.class, ProdutoService.class, EmpresaService.class,
         EstoqueConcorrenciaTest.SqlConfig.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class EstoqueConcorrenciaTest {

@@ -113,7 +113,7 @@ export async function imprimirRelatorioPrecos(
         const corpo = texto("tbody", "", tabela);
         for (const produto of produtos) {
             const linha = texto("tr", "", corpo);
-            for (const valor of [`${produto.nome}\nCategoria: ${produto.categoria?.nome ?? "—"}\nSubcategoria: ${produto.subcategoria?.nome ?? "—"}\nMarca: ${produto.marca?.nome ?? "—"}`, produto.codigoInterno ?? "—", produto.unidadeMedida,
+            for (const valor of [`${produto.nome}${produto.composto ? " (Kit/Combo)" : ""}\nCategoria: ${produto.categoria?.nome ?? "—"}\nSubcategoria: ${produto.subcategoria?.nome ?? "—"}\nMarca: ${produto.marca?.nome ?? "—"}`, produto.codigoInterno ?? "—", produto.unidadeMedida,
                 moeda.format(produto.precoVenda), moeda.format(produto.precoCusto), produto.ativo ? "Ativo" : "Inativo",
                 produto.fornecedor?.razaoSocial ?? "—"]) {
                 texto("td", valor, linha);

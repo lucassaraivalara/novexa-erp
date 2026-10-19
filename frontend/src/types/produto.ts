@@ -1,6 +1,9 @@
 import type { CategoriaProduto, SubcategoriaProduto } from "./categoriaProduto";
 import type { Marca } from "./marca";
 export type Produto = {
+    composto?: boolean;
+    composicaoVersao?: number;
+    componentes?: { produtoId: number; nome: string; unidade: string; quantidadePorKit: number; estoqueAtual: number }[];
     id: number;
     empresaId: number;
     ncm?: string | null;
@@ -26,6 +29,8 @@ export type Produto = {
 };
 
 export type ProdutoInput = {
+    composto?: boolean;
+    componentes?: { produtoId: number; quantidade: number; fator: number; unidade: string }[];
     categoriaId?: number | null;
     subcategoriaId?: number | null;
     marcaId?: number | null;

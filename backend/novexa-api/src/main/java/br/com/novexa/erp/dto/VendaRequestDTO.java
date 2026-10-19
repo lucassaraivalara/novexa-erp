@@ -87,6 +87,13 @@ public record VendaRequestDTO(
     public record Item(
             @NotNull @Positive Long produtoId,
             @NotNull @DecimalMin("0.001") @Digits(integer = 9, fraction = 3) BigDecimal quantidade,
-            @NotNull @DecimalMin("0.00") @Digits(integer = 12, fraction = 2) BigDecimal precoUnitarioEsperado
-    ) { }
+            @NotNull @DecimalMin("0.00") @Digits(integer = 12, fraction = 2) BigDecimal precoUnitarioEsperado,
+            @Positive Long composicaoVersaoEsperada
+    ) {
+        public Item(Long produtoId,BigDecimal quantidade,BigDecimal precoUnitarioEsperado){this(produtoId,quantidade,precoUnitarioEsperado,null);}
+        @Override public String toString(){
+            return "Item[produtoId="+produtoId+", quantidade="+quantidade+", precoUnitarioEsperado="+precoUnitarioEsperado
+                +(composicaoVersaoEsperada==null?"":", composicaoVersaoEsperada="+composicaoVersaoEsperada)+"]";
+        }
+    }
 }

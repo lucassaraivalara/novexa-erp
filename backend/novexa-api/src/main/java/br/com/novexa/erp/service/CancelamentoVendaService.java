@@ -53,6 +53,8 @@ public class CancelamentoVendaService {
         List<MovimentacaoEstoqueEntity> originais = new ArrayList<>();
         Set<Long> idsMovimentos = new HashSet<>();
         for (var item : venda.getItens()) {
+            if(item.getComposicaoVersao()>0 && item.getComponentesConsumidos().isEmpty())
+                throw conflito("Histórico de consumo do Kit/Combo incompleto. Cancelamento integral bloqueado.");
             // Ausência de baixa significa item vendido sem controle: não inventar entrada.
             if (item.getMovimentacaoEstoqueId() == null) continue;
             var original = movimentos.findById(item.getMovimentacaoEstoqueId())
@@ -68,6 +70,17 @@ public class CancelamentoVendaService {
                 throw conflito("Saída original incompatível com o item da venda.");
             originais.add(original);
         }
+        var consumos = venda.getItens().stream().flatMap(i -> i.getComponentesConsumidos().stream()).toList();
+        for (var consumo : consumos) {
+            var original=movimentos.findById(consumo.movimentoId).orElseThrow(()->conflito("Consumo original do Kit/Combo nao encontrado."));
+            if(!Objects.equals(consumo.empresaId,autenticado.empresaId()) || !Objects.equals(consumo.vendaId,vendaId)
+                || !original.getEmpresa().getId().equals(autenticado.empresaId())
+                || !original.getProduto().getId().equals(consumo.componente.getId())
+                || original.getTipo()!=TipoMovimentacaoEstoque.SAIDA || original.getOrigem()!=OrigemMovimentacaoEstoque.VENDA
+                || original.getQuantidade().compareTo(consumo.quantidade)!=0 || consumo.reversaoId!=null
+                || !idsMovimentos.add(original.getId())) throw conflito("Consumo historico do Kit/Combo inconsistente; cancelamento integral bloqueado.");
+            originais.add(original);
+        }
         var idsProdutos = originais.stream().map(m -> m.getProduto().getId()).distinct().sorted().toList();
         if (!idsProdutos.isEmpty()) {
             var produtos = vendas.bloquearProdutos(autenticado.empresaId(), idsProdutos);
@@ -76,8 +89,9 @@ public class CancelamentoVendaService {
             produtos.forEach(em::refresh);
         }
         for (var original : originais) {
-            estoque.reverterSaidaVenda(original, operador.getId(),
+            var reversao=estoque.reverterSaidaVenda(original, operador.getId(),
                     "Cancelamento da venda " + venda.getId() + "; reversão da movimentação " + original.getId());
+            consumos.stream().filter(c -> c.movimentoId.equals(original.getId())).forEach(c -> c.reversaoId=reversao.getId());
         }
         var direitos = contasReceber.bloquearDaVenda(venda);
         direitos.forEach(em::refresh);

@@ -111,9 +111,12 @@ public class MovimentacaoEstoqueController {
                 tipo, origem, dataInicial, dataFinal, page, size, sort);
         var ids = resultado.getContent().stream().map(movimento -> movimento.getId()).toList();
         var entradas = service.buscarEntradasOrigem(usuario.empresaId(), produtoId, ids);
+        var kits = service.buscarVendasKitOrigem(usuario.empresaId(),produtoId,ids);
         return br.com.novexa.erp.dto.PaginaResponseDTO.de(resultado, movimento -> {
             var resposta = mapper.toResponse(movimento);
             resposta.setEntradaMercadoriaId(entradas.get(movimento.getId()));
+            var kit=kits.get(movimento.getId());
+            if(kit!=null){resposta.setVendaId(kit.vendaId());resposta.setProdutoCompostoId(kit.produtoCompostoId());}
             return resposta;
         });
     }

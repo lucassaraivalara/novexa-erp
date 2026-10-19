@@ -1,12 +1,16 @@
+import ComposicaoProdutoCampos from "./ComposicaoProdutoCampos";
+import { prepararComposicao, type LinhaComposicao } from "./composicaoProduto";
 import ClassificacaoProdutoCampos from "./ClassificacaoProdutoCampos";
 import { type ClassificacaoProduto } from "./classificacaoProdutoUtils";
-import {useRef, useState, type ChangeEvent, type FormEvent} from "react";
+import {useEffect, useRef, useState, type ChangeEvent, type FormEvent} from "react";
+import api from "../../services/api";
 import {
     Alert,
     Button,
     Box,
     CircularProgress,
     Divider,
+    FormControlLabel,
     Stack,
     Switch,
     TextField,
@@ -121,6 +125,16 @@ function ProdutoForm({
                          onSalvo,
                      }: ProdutoFormProps) {
     const rapido = modo === "rapido";
+    const [suportaKit, setSuportaKit] = useState(false);
+    useEffect(() => {
+        if (rapido) return;
+        const c=new AbortController();
+        api.get<{habilitado:boolean}>("/produtos/composicao/capacidade",{signal:c.signal})
+            .then(r=>{if(!c.signal.aborted)setSuportaKit(r.data.habilitado===true);}).catch(()=>{});
+        return ()=>c.abort();
+    },[rapido]);
+    const [composto, setComposto] = useState(!!produto?.composto);
+    const [componentes, setComponentes] = useState<LinhaComposicao[] | null>(produto?.composto ? null : []);
     const [formulario, setFormulario] = useState<EstadoFormulario>(() =>
         rapido ? {
             ...estadoInicial,
@@ -264,7 +278,11 @@ function ProdutoForm({
             return null;
         }
 
+        let composicao;
+        try { if (composto && componentes !== null) composicao=prepararComposicao(componentes); }
+        catch (e) { setErroRapido(e instanceof Error ? e.message : "Composicao invalida."); return null; }
         return {
+            ...(!rapido ? { composto, ...(composicao ? { componentes: composicao } : {}) } : {}),
             ...(!rapido ? { fornecedorId: fornecedor?.id ?? null, categoriaId: classificacao.categoria?.id ?? null, subcategoriaId: classificacao.subcategoria?.id ?? null, marcaId: classificacao.marca?.id ?? null } : {}),
             codigoInterno:
                 formulario.codigoInterno.trim() || null,
@@ -323,6 +341,10 @@ function ProdutoForm({
             onFechar={onFechar}
             onSubmit={enviar}
         >
+            {!rapido && <Stack spacing={1.5} sx={{ mb: 2 }}>
+                <FormControlLabel control={<Switch checked={composto} disabled={!!produto || salvando || !suportaKit} onChange={(_, v) => setComposto(v)} />} label="Produto composto (Kit/Combo)" />
+                {!suportaKit && !produto && <Typography variant="caption" color="text.secondary">Kit/Combo requer API atualizada e disponível. Reabra o formulário após a atualização.</Typography>}
+            </Stack>}
             {carregandoProduto ? (
                 <Box
                     sx={{
@@ -442,6 +464,7 @@ function ProdutoForm({
                                 />
 
                                 {!rapido && <ClassificacaoProdutoCampos valor={classificacao} onChange={setClassificacao} disabled={salvando} />}
+                                {!rapido && composto && <ComposicaoProdutoCampos produtoId={produto?.id} valor={componentes} onChange={setComponentes} disabled={salvando} />}
                                 {!rapido && <FornecedorAutocomplete value={fornecedor} onChange={setFornecedor}
                                     label="Fornecedor principal" disabled={salvando} mostrarErroConsulta
                                     helperText={produto?.fornecedor?.id === fornecedor?.id && produto?.fornecedor?.ativo === false
@@ -617,6 +640,7 @@ function ProdutoForm({
                             <TextField
                                 label="Preço de custo"
                                 name="precoCusto"
+                                disabled={composto}
                                 autoComplete="off"
                                 value={formulario.precoCusto}
                                 onChange={(e) =>
@@ -628,7 +652,7 @@ function ProdutoForm({
                                 error={Boolean(
                                     erros.precoCusto
                                 )}
-                                helperText={erros.precoCusto}
+                                helperText={composto ? "Calculado pelos componentes." : erros.precoCusto}
                                 slotProps={{
                                     input: {
                                         startAdornment: (
@@ -726,8 +750,9 @@ function ProdutoForm({
                                 </Box>
 
                                 <Switch
+                                    disabled={composto}
                                     checked={
-                                        formulario.controlaEstoque
+                                        composto || formulario.controlaEstoque
                                     }
                                     onChange={(e) =>
                                         alterarCampo(

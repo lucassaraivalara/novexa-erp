@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class VendaService {
+    @org.springframework.beans.factory.annotation.Autowired private ComposicaoProdutoService composicoes;
     private final VendaRepository vendas;
     private final ClienteRepository clientes;
     private final ItemVendaRepository itensVenda;
@@ -220,6 +221,8 @@ public class VendaService {
         BigDecimal subtotal = BigDecimal.ZERO;
         for (var item : pedido.itens()) {
             ProdutoEntity produto = produtosMap.get(item.produtoId());
+            if(item.composicaoVersaoEsperada()!=null && item.composicaoVersaoEsperada()!=produto.getComposicaoVersao())
+                throw conflito("Composição alterada. Remova e adicione o Kit/Combo novamente para conferir os componentes.");
             if (produto.getPrecoVenda().compareTo(item.precoUnitarioEsperado()) != 0) {
                 throw conflito("Preço alterado: " + produto.getNome() + ". Remova e adicione o item novamente.");
             }
@@ -267,9 +270,11 @@ public class VendaService {
     }
 
     private Map<Long, ProdutoEntity> bloquearProdutos(Long empresaId, List<Long> ids) {
-        Map<Long, ProdutoEntity> resultado = vendas.bloquearProdutos(empresaId, ids).stream()
+        var conjunto = new java.util.TreeSet<Long>(ids);
+        composicoes.atuais(empresaId, ids).forEach(c -> conjunto.add(c.componente.getId()));
+        Map<Long, ProdutoEntity> resultado = vendas.bloquearProdutos(empresaId, new java.util.ArrayList<>(conjunto)).stream()
                 .collect(Collectors.toMap(ProdutoEntity::getId, Function.identity()));
-        if (resultado.size() != ids.size()) throw conflito("Produto indisponível para esta empresa.");
+        if (resultado.size() != conjunto.size()) throw conflito("Produto indisponivel para esta empresa.");
         // Itens podem ter carregado o Produto antes do lock; reler o saldo agora evita usar esse snapshot.
         resultado.values().forEach(entityManager::refresh);
         return resultado;
@@ -289,6 +294,8 @@ public class VendaService {
         for (var item : venda.getItens()) {
             ProdutoEntity produto = produtosMap.get(item.getProduto().getId());
             if (produto == null || !Boolean.TRUE.equals(produto.getAtivo())) throw conflito("Produto indisponível.");
+            if(produto.isComposto() && item.getComposicaoVersao()!=produto.getComposicaoVersao())
+                throw conflito("Composição alterada. Remova e adicione o Kit/Combo novamente para conferir os componentes.");
             validarQuantidade(item.getQuantidade());
             if (item.getPrecoUnitario() == null || item.getPrecoUnitario().signum() < 0) throw conflito("Preço inválido.");
             BigDecimal valor = item.getQuantidade().multiply(item.getPrecoUnitario()).setScale(2, RoundingMode.HALF_UP);
@@ -302,11 +309,11 @@ public class VendaService {
         BigDecimal total = subtotal.subtract(desconto).setScale(2, RoundingMode.HALF_UP);
         if (subtotal.compareTo(venda.getSubtotal()) != 0 || total.compareTo(venda.getTotal()) != 0
                 || total.compareTo(pedido.totalEsperado()) != 0) throw conflito("O total mudou. Revise os itens antes de finalizar.");
-        var insuficientes = venda.getItens().stream().filter(i -> {
-            var produto = produtosMap.get(i.getProduto().getId());
-            return Boolean.TRUE.equals(produto.getControlaEstoque()) && produto.getEstoqueAtual().compareTo(i.getQuantidade()) < 0;
-        }).map(i -> new br.com.novexa.erp.exception.ConfirmacaoEstoqueException.Item(i.getProduto().getId(),
-                i.getProduto().getNome(), produtosMap.get(i.getProduto().getId()).getEstoqueAtual(), i.getQuantidade())).toList();
+        var necessidades = composicoes.necessidades(venda, produtosMap);
+        var insuficientes = necessidades.values().stream()
+            .filter(n -> n.produto().getEstoqueAtual().compareTo(n.quantidade()) < 0)
+            .map(n -> new br.com.novexa.erp.exception.ConfirmacaoEstoqueException.Item(n.produto().getId(),
+                n.produto().getNome(),n.produto().getEstoqueAtual(),n.quantidade())).toList();
         boolean permitido = Boolean.TRUE.equals(operador.getEmpresa().getPermitirVendaEstoqueNegativo());
         if (!insuficientes.isEmpty() && (!permitido || !Boolean.TRUE.equals(pedido.confirmarEstoqueInsuficiente())))
             throw new br.com.novexa.erp.exception.ConfirmacaoEstoqueException(permitido, insuficientes);
@@ -316,7 +323,9 @@ public class VendaService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         venda.vincularSessaoCaixa(caixaOperacional.resolverSessao(pedido.sessaoCaixaId(), autenticado.empresaId(), autenticado.usuarioId()));
         for (var item : venda.getItens()) {
-            if (Boolean.TRUE.equals(produtosMap.get(item.getProduto().getId()).getControlaEstoque())) {
+            if (item.getProduto().isComposto()) {
+                composicoes.consumir(item, autenticado.usuarioId(), Boolean.TRUE.equals(pedido.confirmarEstoqueInsuficiente()), estoque);
+            } else if (Boolean.TRUE.equals(produtosMap.get(item.getProduto().getId()).getControlaEstoque())) {
                 var movimento = estoque.movimentarSaidaVenda(autenticado.empresaId(), item.getProduto().getId(),
                         autenticado.usuarioId(), item.getQuantidade(), "Venda " + venda.getId(),
                         Boolean.TRUE.equals(pedido.confirmarEstoqueInsuficiente()));

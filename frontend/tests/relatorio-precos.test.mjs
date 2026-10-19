@@ -77,6 +77,17 @@ const preparar = async page => {
     return nova;
 };
 
+test("impressão identifica Kit/Combo e mantém custo calculado recebido do backend", async()=>{
+    const estado={responderImpressao:r=>({...r,items:r.items.map(p=>p.id===1?{...p,composto:true,precoCusto:7}:p)})};
+    const {page,context}=await abrir(estado);
+    try {
+        const janela=await preparar(page);
+        await expect(janela.getByRole("cell",{name:/Produto 001 \(Kit\/Combo\)/})).toBeVisible();
+        await expect(janela.getByRole("row").filter({has:janela.getByRole("cell",{name:/Produto 001 \(Kit\/Combo\)/})})).toContainText("7,00");
+        assert.ok(estado.chamadas.filter(c=>c.size==="100").length>=3);
+    } finally {await context.close();}
+});
+
 test("abertura, filtros, ordenação e paginação consultam o servidor e preservam o cadastro", async () => {
     const estado = {};
     const { page, context, dialog } = await abrir(estado);

@@ -14,6 +14,12 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "itens_venda")
 public class ItemVendaEntity {
+    @Column(nullable=false) private long composicaoVersao;
+    public long getComposicaoVersao(){return composicaoVersao;}
+    @jakarta.persistence.OneToMany(mappedBy="item")
+    @org.hibernate.annotations.BatchSize(size=100)
+    private java.util.List<ConsumoKitVendaEntity> componentesConsumidos=new java.util.ArrayList<>();
+    public java.util.List<ConsumoKitVendaEntity> getComponentesConsumidos(){return componentesConsumidos;}
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -57,6 +63,7 @@ public class ItemVendaEntity {
                            Integer ordem) {
         this.venda = venda;
         this.produto = produto;
+        this.composicaoVersao=produto.getComposicaoVersao();
         this.nomeProduto = produto.getNome();
         this.quantidade = quantidade;
         this.precoUnitario = precoUnitario;

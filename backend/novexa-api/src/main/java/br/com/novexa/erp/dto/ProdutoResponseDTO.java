@@ -4,6 +4,16 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class ProdutoResponseDTO {
+    public record Componente(Long produtoId,String nome,String unidade,BigDecimal quantidadePorKit,BigDecimal estoqueAtual) { }
+    private java.util.List<Componente> componentes=java.util.List.of();
+    public java.util.List<Componente> getComponentes(){return componentes;}
+    public void setComponentes(java.util.List<Componente> valor){componentes=valor;}
+    private boolean composto;
+    private long composicaoVersao;
+    public boolean isComposto() { return composto; }
+    public void setComposto(boolean valor) { composto=valor; }
+    public long getComposicaoVersao() { return composicaoVersao; }
+    public void setComposicaoVersao(long valor) { composicaoVersao=valor; }
     @jakarta.validation.constraints.Pattern(regexp = "[0-9]{8}", message = "NCM deve conter 8 dígitos.")
     private String ncm;
     public String getNcm() { return ncm; }

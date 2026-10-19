@@ -1,6 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdir } from "node:fs/promises";
 import { createServer } from "vite";
 import { chromium } from "@playwright/test";
 
@@ -106,6 +106,25 @@ async function abrir({ hasTouch = false, adiarRender = false, sessoes, caixas = 
     }
     return { page, estado, busca };
 }
+
+for (const largura of [1440,390]) test(`Kit/Combo no PDV recalcula consumo sem movimentar antes de finalizar em ${largura}px`, async () => {
+    const {page,estado,busca}=await abrir();
+    try {
+        await page.setViewportSize({width:largura,height:650});
+        estado.produtos=[{...produto("Kit teste","KIT-1"),composto:true,controlaEstoque:true,estoqueAtual:5,
+            componentes:[{produtoId:2,nome:"Componente físico",unidade:"UN",quantidadePorKit:2,estoqueAtual:10}]}];
+        await busca.fill("7890001");await busca.press("Enter");await page.getByLabel("Quantidade de Kit teste").waitFor();
+        assert.equal(estado.requests.filter(r=>r.method==="POST").length,0);
+        await page.getByLabel("Quantidade de Kit teste").fill("3");await page.getByLabel("Quantidade de Kit teste").press("Tab");
+        await page.getByText("Consumo previsto dos componentes",{exact:true}).click();
+        await page.getByText("Componente físico: 6 UN · disponível 10",{exact:true}).waitFor();
+        await mkdir("node_modules/kit-validacao",{recursive:true});await page.screenshot({path:`node_modules/kit-validacao/pdv-${largura}.png`});
+        await page.getByRole("button",{name:"Pagar · F2"}).click();await page.getByText("Venda concluída",{exact:true}).waitFor();
+        const body=JSON.parse(estado.requests.find(r=>r.path==="/vendas"&&r.method==="POST").body);
+        assert.equal(body.itens.length,1);assert.equal(body.itens[0].quantidade,3);assert.equal(body.itens[0].produtoId,1);
+        assert.equal("componentes" in body.itens[0],false);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    } finally {await page.close();}
+});
 
 for (const sessoes of [[sessaoCaixa(10)], [sessaoCaixa(20, 2), sessaoCaixa(10), sessaoCaixa(30, 3)]]) {
     test(`Caixa proprio unico entre ${sessoes.length} sessoes e usado no faturamento`, async () => {

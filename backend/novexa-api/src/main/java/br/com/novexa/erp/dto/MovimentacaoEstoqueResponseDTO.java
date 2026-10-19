@@ -7,6 +7,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class MovimentacaoEstoqueResponseDTO {
+    private Long vendaId;
+    private Long produtoCompostoId;
+    public Long getVendaId(){return vendaId;}
+    public void setVendaId(Long valor){vendaId=valor;}
+    public Long getProdutoCompostoId(){return produtoCompostoId;}
+    public void setProdutoCompostoId(Long valor){produtoCompostoId=valor;}
 
     private Long id;
     private Long produtoId;

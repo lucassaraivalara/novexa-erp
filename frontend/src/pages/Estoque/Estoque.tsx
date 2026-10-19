@@ -13,6 +13,7 @@ import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import PageFilters from "../../components/ui/PageFilters";
 import type { Produto } from "../../types/produto";
+import { buscarProdutoPorId } from "../../services/produtoService";
 import {
     listarHistoricoProduto, listarProdutosEstoque, obterMensagemEstoque,
     registrarAjuste, registrarEntrada, registrarSaida, type MovimentacaoEstoque,
@@ -67,6 +68,7 @@ function SaldoEstoque() {
     const [erro, setErro] = useState("");
     const [dialogo, setDialogo] = useState<DialogoMovimentacao>(null);
     const [historicoProduto, setHistoricoProduto] = useState<Produto | null>(null);
+    const [erroComponente, setErroComponente] = useState("");
     const [historico, setHistorico] = useState<MovimentacaoEstoque[]>([]);
     const [carregandoHistorico, setCarregandoHistorico] = useState(false);
     const [quantidade, setQuantidade] = useState("");
@@ -123,6 +125,7 @@ function SaldoEstoque() {
     }
 
     function abrirHistorico(produto: Produto) {
+        setErroComponente("");
         setHistoricoProduto(produto); setPaginaHistorico(0); setHistorico([]); setTotalHistorico(0);
         setFiltrosHistorico({ tipo: "", origem: "", dataInicial: "", dataFinal: "", sort: "dataHora,desc" });
     }
@@ -160,7 +163,7 @@ function SaldoEstoque() {
     }
 
     const colunas: Coluna<ProdutoEstoque>[] = [
-        { campo: "nome", cabecalho: "Produto", largura: 280, pesquisavel: true, ordenavel: true },
+        { campo: "nome", cabecalho: "Produto", largura: 280, pesquisavel: true, ordenavel: true, render: (_, produto) => <>{produto.nome}{produto.composto && <Typography variant="caption" sx={{ display: "block" }} color="text.secondary">Kit/Combo · disponibilidade calculada pelos componentes</Typography>}</> },
         { campo: "codigoEstoque", cabecalho: "Código", largura: 135, pesquisavel: true, ordenavel: true },
         { campo: "estoqueAtual", cabecalho: "Estoque atual", largura: 125, alinhar: "right", ordenavel: true, render: (valor) => quantidadeFormatada.format(Number(valor)) },
         { campo: "estoqueMinimo", cabecalho: "Estoque mínimo", largura: 125, alinhar: "right", ordenavel: true, render: (valor) => quantidadeFormatada.format(Number(valor)) },
@@ -168,9 +171,9 @@ function SaldoEstoque() {
     ];
 
     const acoes: AcaoTabela<ProdutoEstoque>[] = [
-        { rotulo: "Entrada avulsa", icone: <InputRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "ENTRADA"), desabilitado: (produto) => !produto.controlaEstoque || !produto.ativo, tooltip: "Registrar entrada avulsa" },
-        { rotulo: "Saída", icone: <OutputRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "SAIDA"), desabilitado: (produto) => !produto.controlaEstoque || !produto.ativo, cor: "error", tooltip: "Registrar saída" },
-        { rotulo: "Ajuste", icone: <TuneRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "AJUSTE"), desabilitado: (produto) => !produto.controlaEstoque || !produto.ativo, tooltip: "Ajustar novo saldo físico" },
+        { rotulo: "Entrada avulsa", icone: <InputRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "ENTRADA"), desabilitado: (produto) => !!produto.composto || !produto.controlaEstoque || !produto.ativo, tooltip: "Registrar entrada avulsa" },
+        { rotulo: "Saída", icone: <OutputRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "SAIDA"), desabilitado: (produto) => !!produto.composto || !produto.controlaEstoque || !produto.ativo, cor: "error", tooltip: "Registrar saída" },
+        { rotulo: "Ajuste", icone: <TuneRoundedIcon fontSize="small" />, onClick: (produto) => abrirMovimentacao(produto, "AJUSTE"), desabilitado: (produto) => !!produto.composto || !produto.controlaEstoque || !produto.ativo, tooltip: "Ajustar novo saldo físico" },
         { rotulo: "Histórico", icone: <HistoryRoundedIcon fontSize="small" />, onClick: (produto) => void abrirHistorico(produto), tooltip: "Consultar histórico" },
     ];
 
@@ -235,6 +238,12 @@ function SaldoEstoque() {
 
         <Dialog open={historicoProduto !== null} onClose={() => setHistoricoProduto(null)} fullWidth maxWidth="md" aria-labelledby="estoque-historico-titulo">
             <DialogTitle id="estoque-historico-titulo">Histórico de movimentações{historicoProduto ? ` · ${historicoProduto.nome}` : ""}</DialogTitle>
+            {historicoProduto?.composto && <Stack spacing={1} sx={{ px: 3, pb: 2 }}>
+                <Alert severity="info">Kit/Combo não possui movimentos físicos próprios. Consulte o consumo e as reversões no histórico dos componentes ou no detalhe da venda.</Alert>
+                {erroComponente && <Alert severity="error">{erroComponente}</Alert>}
+                {historicoProduto.componentes?.map(c => <Button key={c.produtoId} variant="text" sx={{ justifyContent: "flex-start" }}
+                    onClick={() => { void buscarProdutoPorId(c.produtoId).then(abrirHistorico).catch(e => setErroComponente(obterMensagemEstoque(e, "Não foi possível consultar o componente."))); }}>Consultar movimentos de {c.nome}</Button>)}
+            </Stack>}
             <Stack direction="row" spacing={1} sx={{ px: 3, flexWrap: "wrap", gap: 1 }}>
                 {([ ["tipo", "Tipo", ["ENTRADA", "SAIDA", "AJUSTE"]],
                     ["origem", "Origem", ["MANUAL", "VENDA", "COMPRA", "AJUSTE", "CANCELAMENTO"]] ] as const).map(([campo, label, opcoes]) =>
@@ -256,6 +265,7 @@ function SaldoEstoque() {
                     <Stack direction="row" sx={{ justifyContent: "space-between", gap: 2 }}><Typography sx={{ fontWeight: 700 }}>{movimentacao.tipo} · {movimentacao.origem}</Typography><Typography variant="body2" color="text.secondary">{dataFormatada.format(new Date(movimentacao.dataHora))}</Typography></Stack>
                     <Typography variant="body2">Saldo: {quantidadeFormatada.format(movimentacao.saldoAnterior)} → {quantidadeFormatada.format(movimentacao.saldoPosterior)} · Valor: {quantidadeFormatada.format(movimentacao.quantidade)}</Typography>
                     <Typography variant="body2" color="text.secondary">{movimentacao.motivo || "Sem motivo informado"} · {movimentacao.nomeUsuario}</Typography>
+                    {movimentacao.vendaId != null && <Typography variant="body2"><Link href={`/vendas?vendaId=${movimentacao.vendaId}`} target="_blank" rel="noopener noreferrer">Abrir venda #{movimentacao.vendaId} · Kit/Combo #{movimentacao.produtoCompostoId} (nova aba)</Link></Typography>}
                     {movimentacao.entradaMercadoriaId != null && <Typography variant="body2">
                         <Link href={`/estoque?aba=entradas&entradaId=${movimentacao.entradaMercadoriaId}`} target="_blank" rel="noopener noreferrer">
                             Abrir entrada de origem #{movimentacao.entradaMercadoriaId} (nova aba)

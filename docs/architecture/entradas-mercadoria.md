@@ -1,5 +1,7 @@
 # Entrada de Mercadoria - manual e XML NF-e
 
+Kit/Combo composto não pode ser recebido como mercadoria nem movimentado fisicamente. Entrada manual/XML deve referenciar os componentes físicos; não cria montagem, compra ou entrada automática do composto. A validação backend rejeita o composto e o seletor apresenta produtos físicos. Custo/disponibilidade do composto são derivados dos componentes conforme [produtos.md](produtos.md#kitcombo--composição-operacional-v46).
+
 Dominio unico `EntradaMercadoriaEntity -> ItemEntradaMercadoriaEntity`, implementado na branch `feat/contas-pagar-integracao-backend`, sobre `039526f`. Criacao manual usa origem MANUAL; importacao revisada usa XML. Ambas criam RASCUNHO e compartilham confirmacao/cancelamento, sem dominio paralelo.
 
 ## API

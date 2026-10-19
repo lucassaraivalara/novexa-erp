@@ -1,5 +1,9 @@
 # Frontend — padrões de cadastros, buscas e formulários
 
+## Composição de Produtos (Kit/Combo)
+
+O formulário completo oferece tipo composto, busca remota de componentes físicos, quantidade/unidade/fator, remoção e histórico versionado. Cadastro rápido permanece simples. Campos digitados são preservados em erro; componentes não carregados não são sobrescritos. Produtos, Estoque, busca/carrinho do PDV e impressão identificam o composto e sua disponibilidade/custo calculados. O carrinho apresenta consumo previsto recolhível e recalcula com a quantidade, sem gravar estoque. Central de Vendas apresenta consumo histórico, custo e IDs de saída/reversão. Operações avulsas de estoque e seleção para Entrada excluem Kit/Combo. Layout, temas, pagamento, atalhos e rotas existentes são reutilizados.
+
 ## Dinheiro em cofre (2026-10-19)
 
 Contas e saldos inclui painel compacto com saldo COFRE, entradas/saídas confirmadas, pendências por sessão, histórico de recolhimentos/troco e extrato paginado com depósitos/contrapartes. A conta permanece na listagem existente. Fechamento e sangria oferecem destinação opcional, responsável, observação e confirmação explícita; fechar sem informar destino não credita cofre. Devolução para troco usa sessão aberta e confirmação gerencial. Nenhuma conta ou sessão é criada automaticamente. Regras e contratos em [financeiro.md](financeiro.md#dinheiro-em-cofre--v45). A validação funcional em produção será realizada pelo cliente, sem movimentações reais pelo agente.

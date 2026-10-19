@@ -8,6 +8,16 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
 public class ProdutoRequestDTO {
+    private Boolean composto;
+    public Boolean getComposto() { return composto; }
+    public void setComposto(Boolean valor) { composto=valor; }
+    @jakarta.validation.Valid @Size(max=100)
+    private java.util.List<@NotNull @jakarta.validation.Valid ComponenteProdutoDTO> componentes;
+    public java.util.List<ComponenteProdutoDTO> getComponentes() { return componentes; }
+    public void setComponentes(java.util.List<ComponenteProdutoDTO> valor) { componentes=valor; }
+    @com.fasterxml.jackson.annotation.JsonIgnore private Long usuarioComposicaoId;
+    @com.fasterxml.jackson.annotation.JsonIgnore public Long getUsuarioComposicaoId() { return usuarioComposicaoId; }
+    @com.fasterxml.jackson.annotation.JsonIgnore public void setUsuarioComposicaoId(Long id) { usuarioComposicaoId=id; }
     @jakarta.validation.constraints.Pattern(regexp = "[0-9]{8}", message = "NCM deve conter 8 dígitos.")
     private String ncm;
     public String getNcm() { return ncm; }

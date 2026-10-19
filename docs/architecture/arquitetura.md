@@ -8,6 +8,10 @@ docs/
 ├── AGENTES.md
 └── ROADMAP.md
 
+## Produtos compostos — V46
+
+`Produto(composto, composicaoVersao) → componentes_produto` mantém revisões imutáveis da receita, quantidades/fatores e auditoria. `ItemVenda → consumos_kit_venda → MovimentacaoEstoque` preserva componentes, custo, versão e saída/reversão efetivos. Estoque físico permanece somente nos componentes; disponibilidade e custo do composto são consultas calculadas no banco. Faturamento/cancelamento reutilizam a transação e os efeitos financeiros existentes. Contratos aditivos e limites em [produtos.md](produtos.md).
+
 ## Execucao em producao
 
 Perfil `prod` isola configuracao local, valida propriedades criticas, preserva Hibernate validate/Flyway e usa pool limitado por instancia. A API publica somente probes de health sem detalhes; JWT/perfis/tenant continuam na cadeia existente. Request ID em MDC/header e logs JSON permitem correlacao sem payload/PII. Estrategia atual: Vercel (frontend) -> Oracle Cloud VM Ubuntu (Nginx/HTTPS -> Docker/Compose, Java 21 non-root, PORT dinamica e shutdown graceful) -> Supabase (PostgreSQL/Storage). Render abandonado; sem banco local. Procedimento, limites e checklist em [producao.md](../deploy/producao.md); preparacao nao equivale a deploy homologado.
