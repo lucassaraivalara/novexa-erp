@@ -32,7 +32,7 @@ class ContaReceberPostgresTest extends ContaReceberHttpTest {
     }
     @Test void postgres18FlywayAtualEHibernateValidate() {
         assertThat(jdbc.queryForObject("show server_version", String.class)).startsWith("18.");
-        assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success and version is not null", Integer.class)).isEqualTo(36);
+        assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success and version is not null", Integer.class)).isEqualTo(43);
     }
     @RepeatedTest(3) void duasBaixasConcorrentesNaoUltrapassamSaldo() throws Exception {
         long id = criar().get("id").asLong();
@@ -103,8 +103,10 @@ class ContaReceberPostgresTest extends ContaReceberHttpTest {
                 s.execute("insert into contas_financeiras(id,empresa_id,nome,tipo,saldo_inicial,saldo_atual,ativo,data_criacao,data_atualizacao) values (991,991,'Saldo','OUTROS',0,10,true,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)");
                 s.execute("insert into movimentacoes_financeiras(empresa_id,conta_financeira_id,tipo,origem,descricao,valor,data_movimento,usuario_id,data_criacao) values (991,991,'ENTRADA','MANUAL','Historico',10,CURRENT_DATE,991,CURRENT_TIMESTAMP)");
             }
-            var depois = Flyway.configure().dataSource(URL, USER, PASSWORD).schemas(upgrade).defaultSchema(upgrade).load();
-            assertThat(depois.migrate().migrationsExecuted).isEqualTo(2); depois.validate();
+            // Schema novo: este teste histórico cobre somente o avanço V34 -> V35.
+            var depois = Flyway.configure().dataSource(URL, USER, PASSWORD).schemas(upgrade).defaultSchema(upgrade).target("35").load();
+            assertThat(depois.migrate().migrationsExecuted).isEqualTo(1); depois.validate();
+            assertThat(depois.info().current().getVersion().getVersion()).isEqualTo("35");
             try (var c = DriverManager.getConnection(URL, USER, PASSWORD); var s = c.createStatement()) {
                 s.execute("SET search_path TO " + upgrade);
                 try (var r = s.executeQuery("select valor,origem,conta_receber_id,chave_requisicao from movimentacoes_financeiras")) {

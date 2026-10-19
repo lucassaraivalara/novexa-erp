@@ -5,7 +5,7 @@
       <option name="myRunnerSettings" />
       <option name="myRunnerParameters">
         <MavenRunnerParameters>
-          <option name="cmdOptions" value="" />
+          <option name="cmdOptions" value="-Dspring-boot.run.profiles=local" />
           <option name="profiles">
             <set />
           </option>
@@ -25,6 +25,7 @@
       </option>
     </MavenSettings>
     <envs>
+      <env name="SPRING_PROFILES_ACTIVE" value="local" />
       <env name="DB_URL" value="jdbc:postgresql://localhost:5432/novexa_erp" />
       <env name="DB_USERNAME" value="postgres" />
       <env name="JAVA_HOME" value="C:\Users\lucas\.jdks\temurin-21\jdk-21.0.12.1+1" />

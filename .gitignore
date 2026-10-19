@@ -13,7 +13,9 @@ env-prod.yml
 !.env.example
 !**/.env.example
 **/application-local.properties
+!backend/novexa-api/src/main/resources/application-local.properties
 !**/application-local.example.properties
+backend/novexa-api/config/local-secrets.properties
 *.credentials
 *.credentials.*
 credentials.json

@@ -37,7 +37,7 @@ class VendaPrazoPostgresTest extends VendaPrazoHttpTest {
     }
     @Test void prazoPostgres18FlywayHibernateEConstraintParcela() throws Exception {
         assertThat(jdbc.queryForObject("show server_version", String.class)).startsWith("18.");
-        assertThat(jdbc.queryForObject("select max(version::integer) from flyway_schema_history where success", Integer.class)).isEqualTo(36);
+        assertThat(jdbc.queryForObject("select max(version::integer) from flyway_schema_history where success", Integer.class)).isEqualTo(43);
         var v = enviarPrazo(pedidoPrazo(""), 201);
         long conta = v.get("contasReceber").get(0).get("id").asLong();
         assertThatThrownBy(() -> jdbc.update("""
@@ -94,8 +94,10 @@ class VendaPrazoPostgresTest extends VendaPrazoHttpTest {
                         'FATURADA',100,0,100,'DINHEIRO',110,10)
                     """);
             }
-            var flyway = Flyway.configure().dataSource(URL, USER, PASSWORD).schemas(schema).defaultSchema(schema).load();
+            // Schema novo: preserva o recorte histórico V35 -> V36, independente do contexto atual.
+            var flyway = Flyway.configure().dataSource(URL, USER, PASSWORD).schemas(schema).defaultSchema(schema).target("36").load();
             assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1); flyway.validate();
+            assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("36");
             try (var c = DriverManager.getConnection(URL, USER, PASSWORD); var s = c.createStatement()) {
                 s.execute("SET search_path TO " + schema);
                 try (var r = s.executeQuery("select total,valor_recebido,troco,valor_prazo from vendas")) {

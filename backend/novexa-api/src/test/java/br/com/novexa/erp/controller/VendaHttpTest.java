@@ -1220,8 +1220,13 @@ class VendaHttpTest {
         jdbc.update("update pagamentos set configuracao_conta_financeira_destino_id=null where id=?", id);
         confirmarPix(id, authorization).andExpect(status().isConflict());
         var externa = contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(outra, "Externa", TipoContaFinanceira.BANCO, BigDecimal.ZERO));
-        jdbc.update("update pagamentos set configuracao_conta_financeira_destino_id=? where id=?", externa.getId(), id);
-        confirmarPix(id, authorization).andExpect(status().isNotFound());
+        // A FK impede persistir esse estado; injeta somente o snapshot lido pelo serviço.
+        var snapshot = spy(pagamentos.findById(id).orElseThrow());
+        doReturn(externa.getId()).when(snapshot).getConfiguracaoContaFinanceiraDestinoId();
+        doReturn(Optional.of(snapshot)).when(pagamentos).buscarParaConfirmar(id, empresa.getId());
+        confirmarPix(id, authorization).andExpect(status().isNotFound())
+                .andExpect(content().string("Conta financeira historica nao encontrada."));
+        assertThat(pagamentos.findById(id).orElseThrow().getConfiguracaoContaFinanceiraDestinoId()).isNull();
         assertThat(movimentosFinanceiros.count()).isZero();
     }
 
@@ -1229,8 +1234,14 @@ class VendaHttpTest {
     void confirmacaoPixRejeitaValorInvalido(int valor) throws Exception {
         vendaConfigurada(configuracao(empresa, 2, true), 2);
         long id = pagamentos.findAll().getFirst().getId();
-        jdbc.update("update pagamentos set valor=? where id=?", valor, id);
-        confirmarPix(id, authorization).andExpect(status().isConflict());
+        var original = pagamentos.findById(id).orElseThrow();
+        // O CHECK protege a gravação; a guarda HTTP recebe um snapshot inválido em memória.
+        var snapshot = spy(original);
+        doReturn(BigDecimal.valueOf(valor)).when(snapshot).getValor();
+        doReturn(Optional.of(snapshot)).when(pagamentos).buscarParaConfirmar(id, empresa.getId());
+        confirmarPix(id, authorization).andExpect(status().isConflict())
+                .andExpect(content().string("Pagamento deve possuir valor positivo."));
+        assertThat(pagamentos.findById(id).orElseThrow().getValor()).isEqualByComparingTo(original.getValor());
         assertThat(movimentosFinanceiros.count()).isZero();
     }
 
@@ -1529,7 +1540,7 @@ class VendaHttpTest {
         return mvc.perform(post("/vendas/" + venda + "/cancelar").header(HttpHeaders.AUTHORIZATION, authorization));
     }
 
-    private long vendaConfigurada(ConfiguracaoFormaPagamentoEmpresaEntity config, long forma) throws Exception {
+    long vendaConfigurada(ConfiguracaoFormaPagamentoEmpresaEntity config, long forma) throws Exception {
         var p = pedido(); p.remove("formaPagamento"); p.put("formaPagamentoId", forma);
         p.put("configuracaoFormaPagamentoId", config.getId()); return enviar(p);
     }
@@ -1543,7 +1554,7 @@ class VendaHttpTest {
         return "Bearer " + jwt.gerarToken(segundo);
     }
 
-    private ConfiguracaoFormaPagamentoEmpresaEntity configuracao(EmpresaEntity e, long formaId, boolean ativo) {
+    ConfiguracaoFormaPagamentoEmpresaEntity configuracao(EmpresaEntity e, long formaId, boolean ativo) {
         var forma = catalogo.findById(formaId).orElseThrow();
         var destino = forma.getTipo() == TipoFormaPagamento.PIX || forma.getTipo() == TipoFormaPagamento.DEBITO
                 || forma.getTipo() == TipoFormaPagamento.CREDITO

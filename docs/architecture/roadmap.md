@@ -1,6 +1,12 @@
 # Roadmap do Projeto - Novexa ERP
 
+Auditoria de 2026-10-18 sobre `main/e940972`: descrições históricas abaixo (inclusive fases financeiras marcadas como futuras) não substituem o código atual. Pagamento misto, prazo, PIX e cartão já possuem implementação e testes; a liberação integral permanece pendente por lacunas de validação. Estado e próximos passos comprovados em [CURRENT_STATE.md](CURRENT_STATE.md) e na [auditoria contínua do MVP](../audits/MVP_AUDITORIA_CONTINUA_2026-10-18.md). Nenhuma nova funcionalidade foi priorizada ou implementada nesta revisão.
+
+Balanço posterior das quatro etapas no [relatório final do MVP](../audits/MVP_RELATORIO_FINAL_2026-10-18.md): fixtures/expectativas corrigidas localmente, leitura autenticada concluída e backup V43 restaurável validado. Prioridade restante: homologação operacional integrada em ambiente seguro, comprovação do fechamento por forma em PostgreSQL e decisão fiscal conforme o piloto; sem antecipar módulos ou declarar CONTRACT READY global.
+
 ## 1. Objetivo
+
+Atualização de 19/10: fluxo principal em dinheiro homologado localmente pelo usuário, com venda 58 e efeitos persistidos conferidos somente por leitura. Gate direcionado de publicação aprovado; publicar esse recorte não encerra as validações de outros meios financeiros, fechamento atual ou multiempresa. Evidências e limites no CURRENT_STATE e no complemento do relatório final; sem nova funcionalidade ou regra de Caixa.
 
 Etapa integrada: Contas a Receber Bloco 3 conecta Venda/PDV a parcelas com vencimentos independentes e cancelamento atomico das baixas. Pagamentos imediatos e prazo coexistem sem criar configuracao financeira A_PRAZO. Validacoes e limites atuais em [CURRENT_STATE.md](CURRENT_STATE.md); boleto, juros, multa e cobranca automatica continuam futuros.
 

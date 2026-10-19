@@ -9,12 +9,16 @@ import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import br.com.novexa.erp.entity.ContaFinanceiraEntity;
+import br.com.novexa.erp.entity.TipoContaFinanceira;
 import br.com.novexa.erp.repository.*;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.jdbc.Sql;
 import java.sql.DriverManager;
+import java.math.BigDecimal;
 import java.util.UUID;
+import static org.assertj.core.api.Assertions.*;
 
 @EnabledIfSystemProperty(named = "novexa.test.pagamento-pix.jdbc-url", matches = "jdbc:postgresql:.*")
 @SpringBootTest(properties = {"spring.jpa.open-in-view=false", "spring.jpa.show-sql=false",
@@ -29,6 +33,7 @@ class PagamentoPixPostgresTest {
     @Autowired AutowireCapableBeanFactory beans;
     @MockitoSpyBean PagamentoRepository pagamentos;
     @MockitoSpyBean MovimentacaoFinanceiraRepository movimentosFinanceiros;
+    @MockitoSpyBean MovimentacaoCaixaRepository movimentosCaixa;
     private VendaHttpTest fluxo;
 
     @BeforeEach
@@ -37,6 +42,7 @@ class PagamentoPixPostgresTest {
         fluxo = new VendaHttpTest();
         beans.autowireBean(fluxo);
         fluxo.pagamentos = pagamentos; fluxo.movimentosFinanceiros = movimentosFinanceiros;
+        fluxo.movimentosCaixa = movimentosCaixa;
         fluxo.preparar();
     }
     @AfterEach void limpar() { fluxo.limpar(); }
@@ -60,6 +66,27 @@ class PagamentoPixPostgresTest {
     void confirmacaoPixRespeitaPerfil(String perfil) throws Exception { fluxo.confirmacaoPixRespeitaPerfil(perfil); }
     @Test void confirmacaoPixExigeAutenticacao() throws Exception { fluxo.confirmacaoPixExigeAutenticacao(); }
     @Test void confirmacaoPixSemSnapshotNaoUsaConfiguracaoAtual() throws Exception { fluxo.confirmacaoPixSemSnapshotNaoUsaConfiguracaoAtual(); }
+
+    @ParameterizedTest @ValueSource(ints = {0, -1})
+    void bancoRejeitaValorPixInvalidoSemAlterarPagamento(int valor) throws Exception {
+        fluxo.vendaConfigurada(fluxo.configuracao(fluxo.empresa, 2, true), 2);
+        var original = pagamentos.findAll().getFirst();
+        assertThatThrownBy(() -> fluxo.jdbc.update("update pagamentos set valor=? where id=?", valor, original.getId()))
+                .hasMessageContaining("chk_pagamento_valor");
+        assertThat(pagamentos.findById(original.getId()).orElseThrow().getValor()).isEqualByComparingTo(original.getValor());
+        assertThat(movimentosFinanceiros.count()).isZero();
+    }
+
+    @Test void bancoRejeitaDestinoPixDeOutraEmpresaSemAlterarSnapshot() throws Exception {
+        fluxo.vendaConfigurada(fluxo.configuracao(fluxo.empresa, 2, true), 2);
+        var original = pagamentos.findAll().getFirst();
+        var externa = fluxo.contasFinanceiras.saveAndFlush(new ContaFinanceiraEntity(fluxo.outra, "Externa", TipoContaFinanceira.BANCO, BigDecimal.ZERO));
+        assertThatThrownBy(() -> fluxo.jdbc.update("update pagamentos set configuracao_conta_financeira_destino_id=? where id=?", externa.getId(), original.getId()))
+                .hasMessageContaining("fk_pagamento_snapshot_destino_empresa");
+        assertThat(pagamentos.findById(original.getId()).orElseThrow().getConfiguracaoContaFinanceiraDestinoId())
+                .isEqualTo(original.getConfiguracaoContaFinanceiraDestinoId());
+        assertThat(movimentosFinanceiros.count()).isZero();
+    }
     private static final String SCHEMA = "teste_ciclo_pix_" + UUID.randomUUID().toString().replace("-", "");
     private static final String URL = System.getProperty("novexa.test.pagamento-pix.jdbc-url");
     private static final String USER = System.getProperty("novexa.test.pagamento-pix.jdbc-user", "postgres");

@@ -47,7 +47,8 @@ class AdministracaoPostgresTest extends UsuarioIsolamentoTest {
                     .hasMessageContaining("uk_usuario_cpf_normalizado");
             try (var r = s.executeQuery("SELECT max(version::int) FROM " + SCHEMA + ".flyway_schema_history WHERE success")) {
                 assertThat(r.next()).isTrue();
-                assertThat(r.getInt(1)).isEqualTo(32);
+                // O contexto da aplicação atualiza o histórico V31 até a versão oficial atual.
+                assertThat(r.getInt(1)).isEqualTo(43);
             }
         }
     }

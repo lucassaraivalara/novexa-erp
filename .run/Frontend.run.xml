@@ -5,8 +5,11 @@
     <scripts>
       <script value="dev" />
     </scripts>
+    <arguments value="-- --port 5173 --strictPort" />
     <node-interpreter value="C:\Users\lucas\AppData\Local\Programs\nodejs-24.20.0\node-v24.20.0-win-x64\node.exe" />
-    <envs />
+    <envs>
+      <env name="VITE_API_URL" value="http://localhost:8080" />
+    </envs>
     <method v="2" />
   </configuration>
 </component>
