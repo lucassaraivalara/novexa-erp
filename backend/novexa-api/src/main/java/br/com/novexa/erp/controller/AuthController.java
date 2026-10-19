@@ -15,6 +15,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+    public record Renovacao(String token) { }
+
+    @PostMapping("/renovar")
+    public Renovacao renovar(@org.springframework.web.bind.annotation.RequestHeader("Authorization") String authorization) {
+        // O filtro JWT já validou usuário ativo, empresa, perfil e versão de revogação.
+        try { return new Renovacao(jwtService.renovarToken(authorization.substring(7).trim())); }
+        catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED,
+                    "Sessão expirada. Entre novamente para continuar.");
+        }
+    }
 
     private final UsuarioService usuarioService;
     private final UsuarioMapper usuarioMapper;

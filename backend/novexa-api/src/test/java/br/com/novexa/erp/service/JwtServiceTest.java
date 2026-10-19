@@ -20,6 +20,31 @@ class JwtServiceTest {
 
     private JwtService jwtService;
 
+    @Test void renovacaoPreservaInicioVersaoEPermissoesComLimiteAbsoluto() {
+        var service = new JwtService(SECRET, 60_000, 90_000);
+        long inicio = System.currentTimeMillis() - 50_000;
+        String original = io.jsonwebtoken.Jwts.builder().claim(JwtService.CLAIM_USUARIO_ID, USUARIO_ID)
+                .claim(JwtService.CLAIM_CPF, CPF).claim(JwtService.CLAIM_EMPRESA_ID, EMPRESA_ID)
+                .claim(JwtService.CLAIM_PERFIL, PERFIL.name()).claim(JwtService.CLAIM_VERSAO, 3)
+                .claim(JwtService.CLAIM_INICIO_SESSAO, inicio).issuedAt(new java.util.Date(inicio))
+                .expiration(new java.util.Date(System.currentTimeMillis() + 30_000))
+                .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(SECRET.getBytes(java.nio.charset.StandardCharsets.UTF_8))).compact();
+        var claims = service.extrairClaims(service.renovarToken(original));
+        assertThat(claims.get(JwtService.CLAIM_INICIO_SESSAO, Number.class).longValue()).isEqualTo(inicio);
+        assertThat(claims.getExpiration().getTime()).isBetween(inicio + 89_000, inicio + 90_000);
+        assertThat(claims.get(JwtService.CLAIM_VERSAO, Number.class).intValue()).isEqualTo(3);
+        assertThat(claims.get(JwtService.CLAIM_EMPRESA_ID, Long.class)).isEqualTo(EMPRESA_ID);
+        assertThat(claims.get(JwtService.CLAIM_PERFIL, String.class)).isEqualTo(PERFIL.name());
+    }
+
+    @Test void renovacaoNaoRecuperaTokenExpiradoOuUltrapassaLimiteTotal() throws Exception {
+        var curto = new JwtService(SECRET, 60_000, 1);
+        String token = curto.gerarToken(USUARIO_ID, CPF, EMPRESA_ID, PERFIL);
+        Thread.sleep(10);
+        assertThatThrownBy(() -> curto.renovarToken(token)).isInstanceOf(JwtException.class);
+        assertThatThrownBy(() -> jwtService.renovarToken("invalid")).isInstanceOf(JwtException.class);
+    }
+
     @BeforeEach
     void configurar() {
         jwtService = new JwtService(SECRET, 60_000);

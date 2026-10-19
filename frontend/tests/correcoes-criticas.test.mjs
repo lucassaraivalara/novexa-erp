@@ -67,7 +67,7 @@ test("rejeição explícita do token atual encerra a sessão", async () => {
         { "www-authenticate": 'Bearer error="invalid_token"' });
     await assert.rejects(api.get("/clientes"));
     assert.equal(obterToken(), null);
-    assert.deepEqual(redirecionamentos, ["/login"]);
+    assert.deepEqual(redirecionamentos, ["/login?sessao=expirada"]);
 });
 
 test("resposta atrasada de um token antigo não encerra um novo login", async () => {

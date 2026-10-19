@@ -43,7 +43,8 @@ function Login() {
     const [cpf, setCpf] = useState("");
     const [senha, setSenha] = useState("");
     const [erroCPF, setErroCPF] = useState("");
-    const [erroLogin, setErroLogin] = useState("");
+    const [erroLogin, setErroLogin] = useState(() => new URLSearchParams(window.location.search).get("sessao") === "expirada"
+        ? "Sua sessão expirou. Entre novamente para continuar; o rascunho do PDV foi preservado neste navegador." : "");
     const [carregando, setCarregando] = useState(false);
     const [mostrarSenha, setMostrarSenha] = useState(false);
 

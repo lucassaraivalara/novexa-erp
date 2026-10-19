@@ -238,7 +238,7 @@ public class VendaService {
         }
         return faturar(venda, new FaturamentoVendaDTO(pedido.chaveRequisicao(), pedido.totalEsperado(),
                 pedido.formaPagamento(), pedido.valorRecebido(), pedido.formaPagamentoId(), pedido.sessaoCaixaId(),
-                pedido.configuracaoFormaPagamentoId(), pedido.pagamentos(), pedido.parcelasPrazo()), autenticado, operador, resumo, produtosMap);
+                pedido.configuracaoFormaPagamentoId(), pedido.pagamentos(), pedido.parcelasPrazo(), pedido.confirmarEstoqueInsuficiente()), autenticado, operador, resumo, produtosMap);
     }
 
     public VendaResponseDTO faturar(Long vendaId, FaturamentoVendaDTO pedido, UsuarioAutenticado autenticado) {
@@ -302,6 +302,14 @@ public class VendaService {
         BigDecimal total = subtotal.subtract(desconto).setScale(2, RoundingMode.HALF_UP);
         if (subtotal.compareTo(venda.getSubtotal()) != 0 || total.compareTo(venda.getTotal()) != 0
                 || total.compareTo(pedido.totalEsperado()) != 0) throw conflito("O total mudou. Revise os itens antes de finalizar.");
+        var insuficientes = venda.getItens().stream().filter(i -> {
+            var produto = produtosMap.get(i.getProduto().getId());
+            return Boolean.TRUE.equals(produto.getControlaEstoque()) && produto.getEstoqueAtual().compareTo(i.getQuantidade()) < 0;
+        }).map(i -> new br.com.novexa.erp.exception.ConfirmacaoEstoqueException.Item(i.getProduto().getId(),
+                i.getProduto().getNome(), produtosMap.get(i.getProduto().getId()).getEstoqueAtual(), i.getQuantidade())).toList();
+        boolean permitido = Boolean.TRUE.equals(operador.getEmpresa().getPermitirVendaEstoqueNegativo());
+        if (!insuficientes.isEmpty() && (!permitido || !Boolean.TRUE.equals(pedido.confirmarEstoqueInsuficiente())))
+            throw new br.com.novexa.erp.exception.ConfirmacaoEstoqueException(permitido, insuficientes);
         var parcelas = prepararPagamentos(pedido, autenticado.empresaId(), total);
         contasReceber.validarParcelasVenda(venda, pedido.parcelasPrazo());
         BigDecimal recebido = parcelas.stream().map(p -> p.recebido() == null ? p.valor() : p.recebido())
@@ -309,9 +317,9 @@ public class VendaService {
         venda.vincularSessaoCaixa(caixaOperacional.resolverSessao(pedido.sessaoCaixaId(), autenticado.empresaId(), autenticado.usuarioId()));
         for (var item : venda.getItens()) {
             if (Boolean.TRUE.equals(produtosMap.get(item.getProduto().getId()).getControlaEstoque())) {
-                var movimento = estoque.movimentar(autenticado.empresaId(), item.getProduto().getId(),
-                        autenticado.usuarioId(), TipoMovimentacaoEstoque.SAIDA, OrigemMovimentacaoEstoque.VENDA,
-                        item.getQuantidade(), "Venda " + venda.getId());
+                var movimento = estoque.movimentarSaidaVenda(autenticado.empresaId(), item.getProduto().getId(),
+                        autenticado.usuarioId(), item.getQuantidade(), "Venda " + venda.getId(),
+                        Boolean.TRUE.equals(pedido.confirmarEstoqueInsuficiente()));
                 item.setMovimentacaoEstoqueId(movimento.getId());
             }
         }

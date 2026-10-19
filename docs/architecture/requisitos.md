@@ -1,5 +1,9 @@
 # Requisitos do Sistema - Novexa ERP
 
+## Ajustes operacionais aprovados — 2026-10-19
+
+MEI é uma opção cadastral de regime tributário, sem implementação de regras fiscais. Consulta de CEP auxilia o endereço de Empresas e permite edição manual e continuidade em caso de indisponibilidade. Sessão JWT tem padrão de uma hora sem renovação, renovação por atividade e limite absoluto padrão de oito horas desde o login. Venda com estoque insuficiente exige autorização por empresa, desativada por padrão, e confirmação explícita do operador, auditada no movimento; demais saídas mantêm bloqueio. Detalhes em [frontend.md](frontend.md) e [estoque.md](estoque.md).
+
 ## 1. Introdução
 
 Este documento apresenta os requisitos iniciais do Novexa ERP.

@@ -1,5 +1,13 @@
 # Frontend — padrões de cadastros, buscas e formulários
 
+## Empresas, CEP e sessão operacional (2026-10-19)
+
+Regime Tributário oferece MEI na criação, edição e listagem, sem inferir regras ou valores fiscais. O formulário administrativo também oferece a autorização empresarial de venda com estoque insuficiente, desativada por padrão; o PDV exige confirmação explícita conforme [estoque.md](estoque.md).
+
+No endereço de Empresas, informar oito dígitos consulta `GET /enderecos/cep/{cep}` após debounce. O backend consulta [ViaCEP](https://viacep.com.br/) com limites de conexão/leitura de 2/3 segundos; erros 400, 404 e 503 oferecem preenchimento manual. Logradouro, bairro, cidade e UF continuam editáveis; resposta atrasada não sobrescreve campos alterados durante a consulta nem outro CEP. Número e complemento não são inferidos, e indisponibilidade do provedor não impede salvar dados preenchidos manualmente.
+
+JWT passa a usar o padrão de uma hora, com renovação autenticada por atividade de teclado/leitor, clique/toque ou rolagem via `POST /auth/renovar`. Polling não renova. O início original assinado limita a sessão a oito horas; após expiração é necessário login e o rascunho local do PDV é preservado. Tokens continuam sujeitos à assinatura, empresa, usuário ativo, perfil e versão de revogação existentes. Parâmetros operacionais em [produção](../deploy/producao.md).
+
 Este documento define os padrões do frontend do Novexa ERP, preservando a densidade e a velocidade operacional.
 
 ## Navegacao por dominios

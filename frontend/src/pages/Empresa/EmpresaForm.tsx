@@ -7,6 +7,7 @@ import {
 } from "@mui/material";
 import { buscarCoordenadas, consultarGeocodificacao, mensagemEmpresa, salvarEmpresa } from "../../services/empresaService";
 import type { CoordenadaEmpresa, EmpresaCompleta, InscricaoSt } from "../../types/empresa";
+import { consultarCep } from "../../services/cepService";
 import { formatarDocumentoEmpresa } from "../../utils/validators/documentoEmpresa";
 import { abasEmpresa, criarFormulario, gerarInput, gruposEmpresa, lerCampo, ufs, validarFormulario, type Campo, type NomeCampo } from "./empresaFormulario";
 
@@ -29,8 +30,40 @@ export default function EmpresaForm({ empresa, abaInicial = 0, onFechar, onSalvo
     const [geoConsultado, setGeoConsultado] = useState(false);
     const leituraLogo = useRef({ id: 0 });
     const geoRequest = useRef<AbortController | null>(null);
+    const [avisoCep, setAvisoCep] = useState("");
+    const [buscandoCep, setBuscandoCep] = useState(false);
+    const cepRevisado = useRef(form.cadastro.cep);
     const alterado = JSON.stringify(form) !== JSON.stringify(inicial) || inscricaoAlterada;
     const bloqueio = useBlocker(alterado || salvando);
+
+    useEffect(() => {
+        const cep = form.cadastro.cep;
+        if (cep === cepRevisado.current) return;
+        setAvisoCep("");
+        setBuscandoCep(false);
+        if (!/^\d{8}$/.test(cep)) return;
+        const controller = new AbortController();
+        const timer = setTimeout(async () => {
+            cepRevisado.current = cep;
+            setBuscandoCep(true);
+            try {
+                const endereco = await consultarCep(cep, controller.signal);
+                if (controller.signal.aborted) return;
+                setForm(atual => atual.cadastro.cep !== cep ? atual : { ...atual, cadastro: {
+                    ...atual.cadastro,
+                    ...Object.fromEntries((["logradouro", "bairro", "cidade", "uf"] as const)
+                        .filter(campo => atual.cadastro[campo] === form.cadastro[campo] && endereco[campo])
+                        .map(campo => [campo, endereco[campo]])),
+                } });
+                setAvisoCep("Endereço consultado. Confira os dados e informe o número. Todos os campos podem ser editados.");
+            } catch (e) {
+                if (!controller.signal.aborted) setAvisoCep(mensagemEmpresa(e, "Não foi possível consultar o CEP. Preencha o endereço manualmente."));
+            } finally { if (!controller.signal.aborted) setBuscandoCep(false); }
+        }, 450);
+        return () => { clearTimeout(timer); controller.abort(); };
+        // A resposta não substitui alterações manuais feitas enquanto a consulta está em andamento.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [form.cadastro.cep]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -150,6 +183,12 @@ export default function EmpresaForm({ empresa, abaInicial = 0, onFechar, onSalvo
                                 <FormControlLabel control={<Checkbox slotProps={{ input: { name: "cadastro.produtorRural" } }} checked={form.cadastro.produtorRural} onChange={e => alterar("cadastro.produtorRural", e.target.checked)} />} label="Produtor rural" />
                                 <FormControlLabel control={<Checkbox slotProps={{ input: { name: "ativo" } }} checked={form.ativo} onChange={e => alterar("ativo", e.target.checked)} />} label="Empresa ativa" />
                             </Stack>}
+                            {index === 0 && <FormControlLabel control={<Checkbox checked={form.permitirVendaEstoqueNegativo}
+                                onChange={e => alterar("permitirVendaEstoqueNegativo", e.target.checked)} />}
+                                label="Permitir venda com estoque insuficiente, mediante confirmação" />}
+                            {index === 1 && <Typography role="status" aria-live="polite" variant="body2" color="text.secondary">
+                                {buscandoCep ? "Consultando CEP…" : avisoCep || "Ao informar 8 dígitos, o CEP preenche o endereço. Você pode preencher tudo manualmente."}
+                            </Typography>}
                             {gruposEmpresa.filter(g => g.aba === index).map(grupo => <Stack key={grupo.titulo} spacing={2}>
                                 <Typography sx={{ fontWeight: 700 }}>{grupo.titulo}</Typography>
                                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>{grupo.campos.map(campo)}</Box>

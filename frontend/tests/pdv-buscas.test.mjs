@@ -86,6 +86,11 @@ async function abrir({ hasTouch = false, adiarRender = false, sessoes, caixas = 
                 controlaEstoque: estado.controlaEstoque ?? true, estoqueAtual: estado.estoqueAtual ?? 100 }])
                 : [cliente(registro.termo === "antiga" ? "Cliente antigo" : "Cliente remoto")];
         } else if (u.pathname === "/vendas" && req.method() === "POST") {
+            if (estado.estoqueInsuficiente && !JSON.parse(req.postData()).confirmarEstoqueInsuficiente)
+                return route.fulfill({ status: 409, headers: cors, contentType: "application/json", body: JSON.stringify({
+                    codigo: "ESTOQUE_INSUFICIENTE", permitido: estado.permitirEstoqueNegativo ?? true,
+                    itens: [{ produtoId: 1, nome: "Produto remoto", disponivel: 0, solicitada: 1 }],
+                }) });
             if (estado.erroVenda) return route.fulfill({status:estado.erroVenda,headers:cors,contentType:"application/json",body:JSON.stringify({detail:estado.mensagemErro ?? "A soma dos pagamentos deve corresponder ao total da venda."})});
             dados = { id: 20, total: 10, troco: 0 };
         }
@@ -1283,7 +1288,7 @@ test("PIX invalido nao e oferecido; valores manuais sobrevivem a terceira forma 
     } finally { await page.close(); }
 });
 
-test("busca vazia mostra feedback contextual e saldo zero respeita controle de estoque", async () => {
+test("busca vazia mostra feedback contextual e saldo zero exige confirmação autorizada no servidor", async () => {
     const { page, estado, busca } = await abrir();
     try {
         estado.semResultados = true; await busca.fill("Inexistente");
@@ -1292,14 +1297,22 @@ test("busca vazia mostra feedback contextual e saldo zero respeita controle de e
         await busca.fill(""); assert.equal(await page.getByText("Nenhum produto encontrado para esta busca.", { exact: true }).count(), 0);
         estado.semResultados = false; estado.estoqueAtual = 0;
         await busca.fill("Produto"); await page.getByRole("listbox").getByRole("option").click();
-        await page.getByText("Produto sem estoque disponível. Confira o estoque antes de vender.", { exact: true }).waitFor();
-        assert.equal(await page.getByLabel("Quantidade de Produto remoto").count(), 0);
-        await busca.fill("");
-        assert.equal(await page.getByText("Produto sem estoque disponível. Confira o estoque antes de vender.", { exact: true }).count(), 1);
-        estado.controlaEstoque = false;
-        await busca.fill("P1"); await busca.press("Enter");
         await page.getByLabel("Quantidade de Produto remoto").waitFor();
         assert.equal(await page.getByLabel("Quantidade de Produto remoto").inputValue(), "1");
+        estado.estoqueInsuficiente = true;
+        await page.getByRole("button", { name: "Pagar · F2" }).click();
+        const dialog = page.getByRole("dialog", { name: "Estoque insuficiente" });
+        await dialog.waitFor();
+        assert.match(await dialog.innerText(), /Disponível: 0 · Solicitado: 1/);
+        assert.equal(estado.requests.filter(r => r.path === "/vendas").length, 1);
+        await dialog.getByRole("button", { name: "Voltar e revisar" }).click();
+        assert.equal(await page.getByLabel("Quantidade de Produto remoto").inputValue(), "1");
+        await page.getByRole("button", { name: "Pagar · F2" }).click();
+        await dialog.getByRole("button", { name: "Confirmar e finalizar venda" }).click();
+        await page.getByText("Venda concluída", { exact: true }).waitFor();
+        const pedidos = estado.requests.filter(r => r.path === "/vendas").map(r => JSON.parse(r.body));
+        assert.equal(pedidos.at(-1).confirmarEstoqueInsuficiente, true);
+        assert.equal(pedidos[0].confirmarEstoqueInsuficiente, undefined);
     } finally { await page.close(); }
 });
 

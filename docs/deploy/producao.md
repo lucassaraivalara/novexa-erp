@@ -14,7 +14,8 @@ Ativar `SPRING_PROFILES_ACTIVE=prod`. Sem perfil explicito, `application-default
 | `DB_USERNAME` | Usuario com privilegios somente no banco/schema Novexa. |
 | `DB_PASSWORD` | Secret obrigatorio, nunca no Git, Dockerfile, argumento de build ou comando literal. |
 | `JWT_SECRET` | Secret aleatorio de no minimo 32 bytes UTF-8; diferente por ambiente. |
-| `JWT_EXPIRATION_MS` | Expiracao positiva, padrao 900000 (15 minutos). |
+| `JWT_EXPIRATION_MS` | Expiração positiva, padrão 3600000 (uma hora). Atividade no frontend solicita renovação autenticada; polling não renova. |
+| `JWT_MAX_SESSION_MS` | Limite absoluto desde o login, padrão 28800000 (oito horas). Renovação não altera o início assinado nem ignora revogação. |
 | `CORS_ALLOWED_ORIGINS` | Origem HTTPS real do frontend Vercel; multiplas origens separadas por virgula, sem caminho, barra final, wildcard ou credenciais. |
 | `SUPABASE_URL` | Origem HTTPS do storage, sem barra final. |
 | `SUPABASE_SECRET_KEY` | Secret de storage; somente backend. Nunca chave secreta em `VITE_*`. |

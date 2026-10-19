@@ -20,6 +20,16 @@ test("novo cadastro exige identificação e regime, mas aceita campos opcionais 
     assert.deepEqual(validarFormulario(preenchido()), {});
 });
 
+test("MEI e autorização de estoque são preservados ao editar sem inferir dados fiscais", () => {
+    const f = preenchido(); f.cadastro.regimeTributario = "MEI"; f.permitirVendaEstoqueNegativo = true;
+    assert.deepEqual(validarFormulario(f), {});
+    const dados = gerarInput(f);
+    assert.equal(dados.cadastro.regimeTributario, "MEI");
+    assert.equal(dados.cadastro.regimePisCofins, null);
+    assert.equal(criarFormulario({ ...dados, id: 7 }).permitirVendaEstoqueNegativo, true);
+    assert.equal(criarFormulario(null).permitirVendaEstoqueNegativo, false);
+});
+
 test("documento numérico e alfanumérico; CPF restrito a produtor rural", () => {
     assert.ok(documentoEmpresaValido("12.ABC.345/01DE-35"));
     assert.equal(documentoEmpresaValido("12.ABC.345/01DE-36"), false);

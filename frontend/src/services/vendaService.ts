@@ -19,6 +19,7 @@ export type PagamentoVendaInput = {
 };
 export type ParcelaPrazoVendaInput = { valor: number; vencimento: string };
 export type VendaInput = {
+    confirmarEstoqueInsuficiente?: boolean;
     chaveRequisicao: string;
     itens: { produtoId: number; quantidade: number; precoUnitarioEsperado: number }[];
     clienteId: number | null; desconto: number; totalEsperado: number; formaPagamento?: FormaPagamento;

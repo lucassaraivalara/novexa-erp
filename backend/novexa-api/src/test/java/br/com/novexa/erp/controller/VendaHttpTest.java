@@ -146,6 +146,33 @@ class VendaHttpTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.itens[0].movimentacaoEstoqueId").value(movimento.getId()));
     }
 
+    @Test void estoqueInsuficienteExigeParametroEConfirmacaoSemEfeitosAntesDoAceite() throws Exception {
+        produto.setEstoqueAtual(BigDecimal.ONE); produtos.saveAndFlush(produto);
+        var pedido = pedido();
+        pedido.put("confirmarEstoqueInsuficiente", true);
+        mvc.perform(post("/vendas").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pedido)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.permitido").value(false))
+                .andExpect(jsonPath("$.itens[0].disponivel").value(1)).andExpect(jsonPath("$.itens[0].solicitada").value(2));
+        empresa.setPermitirVendaEstoqueNegativo(true); empresas.saveAndFlush(empresa);
+        pedido.remove("confirmarEstoqueInsuficiente");
+        mvc.perform(post("/vendas").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pedido)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.permitido").value(true));
+        assertThat(vendas.count()).isZero(); assertThat(pagamentos.count()).isZero(); assertThat(movimentos.count()).isZero();
+        assertThat(movimentosCaixa.count()).isZero();
+        pedido.put("confirmarEstoqueInsuficiente", true);
+        long id = enviar(pedido);
+        assertThat(enviar(pedido)).isEqualTo(id);
+        assertThat(vendas.count()).isEqualTo(1); assertThat(movimentos.count()).isEqualTo(1);
+        var movimento = movimentos.findAll().getFirst();
+        assertThat(movimento.isEstoqueInsuficienteConfirmado()).isTrue();
+        assertThat(movimento.getUsuario().getId()).isEqualTo(operador.getId());
+        assertThat(movimento.getSaldoPosterior()).isEqualByComparingTo("-1");
+        mvc.perform(post("/vendas/" + id + "/cancelar").header(HttpHeaders.AUTHORIZATION, authorization)).andExpect(status().isOk());
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("1");
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"1", "1,2", "1,3", "2,4", "1,2,4", "3,4", "3,3"})
     void mistoProcessaCadaFormaComSequenciaSnapshotEReenvioSeguro(String formas) throws Exception {

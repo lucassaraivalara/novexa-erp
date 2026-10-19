@@ -52,6 +52,11 @@ export function removerSessao(): void {
     localStorage.removeItem(CHAVE_SESSAO);
 }
 
+export function expirarSessao(): void {
+    removerSessao();
+    window.location.assign("/login?sessao=expirada");
+}
+
 export function obterEmpresaAtiva(): EmpresaAtiva | null {
     return obterSessao()?.empresa ?? null;
 }

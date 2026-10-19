@@ -22,6 +22,13 @@ public class VendaController {
         this.service = service; this.cancelamento = cancelamento;
     }
 
+    @ExceptionHandler(br.com.novexa.erp.exception.ConfirmacaoEstoqueException.class)
+    public ResponseEntity<?> estoqueInsuficiente(br.com.novexa.erp.exception.ConfirmacaoEstoqueException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(java.util.Map.of(
+                "codigo", "ESTOQUE_INSUFICIENTE", "detail", e.getMessage(),
+                "permitido", e.isPermitido(), "itens", e.getItens()));
+    }
+
     @PostMapping("/{id}/cancelar")
     public VendaResponseDTO cancelar(@PathVariable Long id, @AuthenticationPrincipal UsuarioAutenticado autenticado) {
         return cancelamento.cancelarVendaFaturada(id, autenticado);

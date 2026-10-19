@@ -27,6 +27,7 @@ public class EmpresaService {
     // POST
     // metodo para cadastrar empresa
     public EmpresaEntity salvar(EmpresaEntity empresa) {
+        empresa.setPermitirVendaEstoqueNegativo(Boolean.TRUE.equals(empresa.getPermitirVendaEstoqueNegativo()));
         preparar(empresa);
 
         // Verifica se já existe uma empresa
@@ -131,6 +132,8 @@ public class EmpresaService {
         empresaExistente.setTelefone(empresa.getTelefone());
         empresaExistente.setEndereco(empresa.getEndereco());
         empresaExistente.setAtivo(empresa.getAtivo());
+        if (empresa.getPermitirVendaEstoqueNegativo() != null)
+            empresaExistente.setPermitirVendaEstoqueNegativo(empresa.getPermitirVendaEstoqueNegativo());
         empresaExistente.setCadastro(empresa.getCadastro());
         empresaExistente.setLogomarca(empresa.getLogomarca());
         // Reutiliza as inscrições da mesma UF e remove apenas as retiradas do formulário.

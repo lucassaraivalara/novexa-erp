@@ -22,13 +22,19 @@ public class JwtService {
     public static final String CLAIM_EMPRESA_ID = "empresaId";
     public static final String CLAIM_PERFIL = "perfil";
     public static final String CLAIM_VERSAO = "versaoToken";
+    public static final String CLAIM_INICIO_SESSAO = "inicioSessao";
 
     private final SecretKey chaveAssinatura;
     private final long expirationMs;
+    private final long maxSessionMs;
 
+    public JwtService(String secret, long expirationMs) { this(secret, expirationMs, 28_800_000); }
+
+    @org.springframework.beans.factory.annotation.Autowired
     public JwtService(
             @Value("${novexa.jwt.secret}") String secret,
-            @Value("${novexa.jwt.expiration-ms}") long expirationMs) {
+            @Value("${novexa.jwt.expiration-ms}") long expirationMs,
+            @Value("${novexa.jwt.max-session-ms:28800000}") long maxSessionMs) {
         if (secret == null || secret.isBlank()) {
             throw new IllegalArgumentException("O segredo JWT é obrigatório.");
         }
@@ -44,6 +50,8 @@ public class JwtService {
 
         this.chaveAssinatura = Keys.hmacShaKeyFor(secretBytes);
         this.expirationMs = expirationMs;
+        if (maxSessionMs <= 0) throw new IllegalArgumentException("O limite total da sessão deve ser positivo.");
+        this.maxSessionMs = maxSessionMs;
     }
 
     public String gerarToken(UsuarioEntity usuario) {
@@ -70,6 +78,23 @@ public class JwtService {
     }
 
     private String gerarToken(Long usuarioId, String cpf, Long empresaId, PerfilUsuario perfil, long versao) {
+        return gerarToken(usuarioId, cpf, empresaId, perfil, versao, System.currentTimeMillis());
+    }
+
+    public String renovarToken(String token) {
+        Claims claims = extrairClaims(token); // assinatura e expiração, sem recuperar token vencido
+        Number inicio = claims.get(CLAIM_INICIO_SESSAO, Number.class);
+        if (inicio == null && claims.getIssuedAt() == null) throw new JwtException("Início da sessão ausente. Entre novamente.");
+        long inicioMs = inicio == null ? claims.getIssuedAt().getTime() : inicio.longValue();
+        if (inicioMs > System.currentTimeMillis() || inicioMs <= System.currentTimeMillis() - maxSessionMs)
+            throw new JwtException("Limite total da sessão atingido.");
+        Number versao = claims.get(CLAIM_VERSAO, Number.class);
+        return gerarToken(claims.get(CLAIM_USUARIO_ID, Long.class), claims.get(CLAIM_CPF, String.class),
+                claims.get(CLAIM_EMPRESA_ID, Long.class), PerfilUsuario.valueOf(claims.get(CLAIM_PERFIL, String.class)),
+                versao == null ? 0 : versao.longValue(), inicioMs);
+    }
+
+    private String gerarToken(Long usuarioId, String cpf, Long empresaId, PerfilUsuario perfil, long versao, long inicioMs) {
 
         if (usuarioId == null || cpf == null || cpf.isBlank() || empresaId == null || perfil == null) {
             throw new IllegalArgumentException("Usuário, CPF, empresa e perfil são obrigatórios para gerar o JWT.");
@@ -82,8 +107,9 @@ public class JwtService {
                 .claim(CLAIM_CPF, cpf)
                 .claim(CLAIM_EMPRESA_ID, empresaId)
                 .claim(CLAIM_PERFIL, perfil.name())
+                .claim(CLAIM_INICIO_SESSAO, inicioMs)
                 .issuedAt(agora)
-                .expiration(new Date(agora.getTime() + expirationMs))
+                .expiration(new Date(Math.min(agora.getTime() + expirationMs, inicioMs + maxSessionMs)))
                 .signWith(chaveAssinatura);
         if (versao != 0) builder.claim(CLAIM_VERSAO, versao);
         return builder.compact();

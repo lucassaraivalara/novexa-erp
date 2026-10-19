@@ -22,6 +22,7 @@ public class EmpresaMapper {
         empresa.setTelefone(empresaDTO.getTelefone());
         empresa.setEndereco(empresaDTO.getEndereco());
         empresa.setAtivo(empresaDTO.getAtivo());
+        empresa.setPermitirVendaEstoqueNegativo(empresaDTO.getPermitirVendaEstoqueNegativo());
         empresa.setCadastro(empresaDTO.getCadastro());
         empresa.setLogomarca(empresaDTO.getLogomarca());
         for (EmpresaInscricaoStDTO dto : empresaDTO.getInscricoesSt()) {
@@ -53,6 +54,7 @@ public class EmpresaMapper {
         responseDTO.setTelefone(empresa.getTelefone());
         responseDTO.setEndereco(empresa.getEndereco());
         responseDTO.setAtivo(empresa.getAtivo());
+        responseDTO.setPermitirVendaEstoqueNegativo(empresa.getPermitirVendaEstoqueNegativo());
         responseDTO.setCadastro(empresa.getCadastro());
 
         return responseDTO;

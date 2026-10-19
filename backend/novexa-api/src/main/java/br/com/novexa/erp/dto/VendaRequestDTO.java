@@ -21,8 +21,16 @@ public record VendaRequestDTO(
         @Positive Long sessaoCaixaId,
         @Positive Long configuracaoFormaPagamentoId,
         @Size(max = 20) List<@NotNull @Valid PagamentoVendaRequestDTO> pagamentos,
-        @Size(min = 1, max = 120) List<@NotNull @Valid ParcelaPrazoVendaDTO> parcelasPrazo
+        @Size(min = 1, max = 120) List<@NotNull @Valid ParcelaPrazoVendaDTO> parcelasPrazo,
+        Boolean confirmarEstoqueInsuficiente
 ) {
+    public VendaRequestDTO(UUID chaveRequisicao, List<Item> itens, Long clienteId, BigDecimal desconto,
+            BigDecimal totalEsperado, FormaPagamento formaPagamento, BigDecimal valorRecebido,
+            String entrega, String observacoes, Long formaPagamentoId, Long sessaoCaixaId, Long configuracaoFormaPagamentoId,
+            List<PagamentoVendaRequestDTO> pagamentos, List<ParcelaPrazoVendaDTO> parcelasPrazo) {
+        this(chaveRequisicao, itens, clienteId, desconto, totalEsperado, formaPagamento, valorRecebido,
+                entrega, observacoes, formaPagamentoId, sessaoCaixaId, configuracaoFormaPagamentoId, pagamentos, parcelasPrazo, null);
+    }
     public VendaRequestDTO(UUID chaveRequisicao, List<Item> itens, Long clienteId, BigDecimal desconto,
             BigDecimal totalEsperado, FormaPagamento formaPagamento, BigDecimal valorRecebido,
             String entrega, String observacoes, Long formaPagamentoId, Long sessaoCaixaId, Long configuracaoFormaPagamentoId,
@@ -72,7 +80,8 @@ public record VendaRequestDTO(
                 + (formaPagamentoId == null ? "" : ", formaPagamentoId=" + formaPagamentoId) + (sessaoCaixaId == null ? "" : ", sessaoCaixaId=" + sessaoCaixaId)
                 + (configuracaoFormaPagamentoId == null ? "" : ", configuracaoFormaPagamentoId=" + configuracaoFormaPagamentoId)
                 + (pagamentos == null ? "" : ", pagamentos=" + pagamentos)
-                + (parcelasPrazo == null ? "" : ", parcelasPrazo=" + parcelasPrazo) + "]";
+                + (parcelasPrazo == null ? "" : ", parcelasPrazo=" + parcelasPrazo)
+                + (Boolean.TRUE.equals(confirmarEstoqueInsuficiente) ? ", confirmarEstoqueInsuficiente=true" : "") + "]";
     }
 
     public record Item(

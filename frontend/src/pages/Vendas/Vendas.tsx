@@ -88,6 +88,8 @@ export default function Vendas() {
     const [salvando, setSalvando] = useState(false);
     const [sessaoCaixaResolvida, setSessaoCaixaResolvida] = useState(false);
     const [finalizacao, setFinalizacao] = useState<Finalizacao | null>(null);
+    const [confirmacaoEstoque, setConfirmacaoEstoque] = useState<{ permitido: boolean;
+        itens: { produtoId: number; nome: string; disponivel: number; solicitada: number }[] } | null>(null);
     const emEnvio = useRef(false);
     const finalizacaoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const buscaRef = useRef<HTMLInputElement>(null);
@@ -244,9 +246,6 @@ export default function Vendas() {
     }
     function adicionar(produto: Produto) {
         if (bloqueado) return;
-        if (produto.controlaEstoque && produto.estoqueAtual <= 0) {
-            setErro("Produto sem estoque disponível. Confira o estoque antes de vender."); return;
-        }
         if (rascunho.itens.length >= 200 && !rascunho.itens.some(i => i.produto.id === produto.id)) {
             setErro("O limite é de 200 produtos diferentes por venda."); return;
         }
@@ -275,7 +274,7 @@ export default function Vendas() {
         finalizacaoTimerRef.current = null;
         setFinalizacao(null);
     }
-    async function finalizar() {
+    async function finalizar(confirmarEstoqueInsuficiente = false) {
         if (emEnvio.current) return;
         if (!sessaoCaixaResolvida || rascunho.sessaoCaixaId === null) {
             setErro("Aguarde a definição do Caixa antes de finalizar a venda.");
@@ -289,7 +288,8 @@ export default function Vendas() {
             return;
         }
         let pedido = rascunho.pendente;
-        try { pedido ??= criarPedido(rascunho, crypto.randomUUID()); }
+        try { pedido ??= { ...criarPedido(rascunho, crypto.randomUUID()),
+            ...(confirmarEstoqueInsuficiente ? { confirmarEstoqueInsuficiente: true } : {}) }; }
         catch (e) {
             setErro((e as Error).message);
             if (t.parcelas.some(p => p.formaPagamento === "DINHEIRO") && t.valido) recebidoRef.current?.focus();
@@ -320,6 +320,13 @@ export default function Vendas() {
             }, 1200);
         } catch (e) {
             const status = axios.isAxiosError(e) ? e.response?.status : undefined;
+            const dados = axios.isAxiosError(e) ? e.response?.data : undefined;
+            if (status === 409 && dados?.codigo === "ESTOQUE_INSUFICIENTE" && Array.isArray(dados.itens)) {
+                setRascunho(r => ({ ...r, pendente: null }));
+                setFinalizacao(null);
+                setConfirmacaoEstoque({ permitido: dados.permitido === true, itens: dados.itens });
+                return;
+            }
             let mensagemFalha: string;
             let podeTentarNovamente = false;
             if (status && status >= 400 && status < 500 && ![408, 429].includes(status)) {
@@ -347,6 +354,7 @@ export default function Vendas() {
     function atalhos(e: KeyboardEvent) {
         if (e.altKey || e.ctrlKey && e.key !== "Delete" || e.metaKey) return;
         if (["F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9"].includes(e.key)) e.preventDefault();
+        if (confirmacaoEstoque) return;
         if (finalizacao) { if (e.key === "Escape") { e.preventDefault(); fecharFinalizacao(); } return; }
         if (limpezaAberta) { if (e.key === "Escape") { e.preventDefault(); fecharLimpeza(); } return; }
         if (opcional) {
@@ -390,6 +398,25 @@ export default function Vendas() {
 
     return <Box sx={{ height: { xs: "auto", md: "100dvh" }, minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: cores.canvas }}>
         <SessaoCaixaPDVDialog resolvida={sessaoCaixaResolvida} onResolvida={definirSessaoCaixa} />
+        <Dialog open={!!confirmacaoEstoque} fullWidth maxWidth="sm" onClose={() => setConfirmacaoEstoque(null)}
+            aria-labelledby="pdv-estoque-titulo" aria-describedby="pdv-estoque-descricao">
+            <DialogTitle id="pdv-estoque-titulo">Estoque insuficiente</DialogTitle>
+            <DialogContent>
+                <Typography id="pdv-estoque-descricao" sx={{ mb: 2 }}>
+                    {confirmacaoEstoque?.permitido ? "Confira as quantidades. Continuar poderá deixar o estoque negativo; sua confirmação será registrada."
+                        : "A empresa não permite vender com estoque insuficiente. Revise as quantidades ou solicite ao administrador a configuração em Empresas."}
+                </Typography>
+                <Stack spacing={1}>{confirmacaoEstoque?.itens.map(item => <Box key={item.produtoId}>
+                    <Typography sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>{item.nome}</Typography>
+                    <Typography color="text.secondary" variant="body2">Disponível: {item.disponivel.toLocaleString("pt-BR")} · Solicitado: {item.solicitada.toLocaleString("pt-BR")}</Typography>
+                </Box>)}</Stack>
+            </DialogContent>
+            <DialogActions sx={{ flexWrap: "wrap", gap: 1 }}>
+                <Button autoFocus onClick={() => setConfirmacaoEstoque(null)}>Voltar e revisar</Button>
+                {confirmacaoEstoque?.permitido && <Button variant="contained" color="warning" disabled={salvando}
+                    onClick={() => { setConfirmacaoEstoque(null); void finalizar(true); }}>Confirmar e finalizar venda</Button>}
+            </DialogActions>
+        </Dialog>
         <Dialog open={limpezaAberta} onClose={fecharLimpeza} aria-labelledby="pdv-limpar-titulo">
             <DialogTitle id="pdv-limpar-titulo">Limpar esta venda?</DialogTitle>
             <DialogContent>Os itens e os dados desta venda em andamento serão descartados.</DialogContent>

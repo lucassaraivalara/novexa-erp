@@ -77,10 +77,31 @@ public class MovimentacaoEstoqueService {
     private MovimentacaoEstoqueEntity aplicarMovimentacao(EmpresaEntity empresa, ProdutoEntity produto,
             UsuarioEntity usuario, TipoMovimentacaoEstoque tipo, OrigemMovimentacaoEstoque origem,
             BigDecimal quantidade, String motivo) {
+        return aplicarMovimentacao(empresa, produto, usuario, tipo, origem, quantidade, motivo, false);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    MovimentacaoEstoqueEntity movimentarSaidaVenda(Long empresaId, Long produtoId, Long usuarioId,
+            BigDecimal quantidade, String motivo, boolean confirmado) {
+        validarParametrosObrigatorios(empresaId, produtoId, usuarioId, TipoMovimentacaoEstoque.SAIDA,
+                OrigemMovimentacaoEstoque.VENDA, quantidade);
+        EmpresaEntity empresa = buscarEmpresa(empresaId);
+        ProdutoEntity produto = buscarProdutoComLock(produtoId, empresaId);
+        UsuarioEntity usuario = buscarUsuario(usuarioId, empresaId);
+        validarProdutoControlaEstoque(produto);
+        validarEmpresaUsuario(produto, usuario, empresa);
+        return aplicarMovimentacao(empresa, produto, usuario, TipoMovimentacaoEstoque.SAIDA,
+                OrigemMovimentacaoEstoque.VENDA, quantidade, motivo,
+                confirmado && Boolean.TRUE.equals(empresa.getPermitirVendaEstoqueNegativo()));
+    }
+
+    private MovimentacaoEstoqueEntity aplicarMovimentacao(EmpresaEntity empresa, ProdutoEntity produto,
+            UsuarioEntity usuario, TipoMovimentacaoEstoque tipo, OrigemMovimentacaoEstoque origem,
+            BigDecimal quantidade, String motivo, boolean permitirNegativo) {
         BigDecimal saldoAnterior = produto.getEstoqueAtual();
         BigDecimal saldoPosterior = calcularSaldoPosterior(tipo, saldoAnterior, quantidade);
 
-        validarSaldoNaoNegativo(tipo, saldoPosterior, saldoAnterior, quantidade);
+        if (!permitirNegativo) validarSaldoNaoNegativo(tipo, saldoPosterior, saldoAnterior, quantidade);
 
         produto.setEstoqueAtual(saldoPosterior);
         produtoRepository.save(produto);
@@ -90,6 +111,7 @@ public class MovimentacaoEstoqueService {
                 saldoAnterior, saldoPosterior, motivo
         );
 
+        movimentacao.setEstoqueInsuficienteConfirmado(permitirNegativo && saldoPosterior.signum() < 0);
         return movimentacaoRepository.save(movimentacao);
     }
 

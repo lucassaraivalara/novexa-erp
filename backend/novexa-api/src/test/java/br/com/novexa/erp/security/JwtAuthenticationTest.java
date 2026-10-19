@@ -72,6 +72,20 @@ class JwtAuthenticationTest {
     private static final String SECRET = "01234567890123456789012345678901";
     private static final String CPF = "02360684663";
 
+    @Test void renovacaoAutenticadaNaoPermiteRecuperarSessaoRevogada() throws Exception {
+        var usuario = usuario(PerfilUsuario.ADMIN);
+        String token = token();
+        var resposta = mvc.perform(post("/auth/renovar").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.senha").doesNotExist()).andReturn();
+        String novo = json.readTree(resposta.getResponse().getContentAsString()).path("token").asText();
+        assertThat(jwtService.extrairClaims(novo).get(JwtService.CLAIM_INICIO_SESSAO, Number.class))
+                .isEqualTo(jwtService.extrairClaims(token).get(JwtService.CLAIM_INICIO_SESSAO, Number.class));
+        usuario.setAtivo(false);
+        mvc.perform(post("/auth/renovar").header(HttpHeaders.AUTHORIZATION, "Bearer " + novo)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/auth/renovar")).andExpect(status().isUnauthorized());
+    }
+
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper json;
     @Autowired private PasswordEncoder passwordEncoder;
@@ -104,7 +118,7 @@ class JwtAuthenticationTest {
         String token = json.readTree(resultado.getResponse().getContentAsString()).get("token").asText();
         assertThat(jwtService.validarToken(token)).isTrue();
         assertThat(jwtService.extrairClaims(token)).containsOnlyKeys(
-                "usuarioId", "cpf", "empresaId", "perfil", "iat", "exp");
+                "usuarioId", "cpf", "empresaId", "perfil", "inicioSessao", "iat", "exp");
         assertThat(jwtService.extrairCpf(token)).isEqualTo(CPF);
         assertThat(resultado.getRequest().getSession(false)).isNull();
         assertThat(resultado.getResponse().getContentAsString()).doesNotContain(usuario.getSenha());

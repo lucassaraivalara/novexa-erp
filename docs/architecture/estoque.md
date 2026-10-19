@@ -1,5 +1,13 @@
 # Estoque — Arquitetura e Regras de Negócio
 
+## Exceção explícita de venda sem saldo — V44
+
+A empresa pode habilitar `permitirVendaEstoqueNegativo` no formulário de Empresas (ADMIN). O padrão é `false`, inclusive para empresas existentes. Fora do faturamento de Venda, a regra de saída sem saldo continua bloqueada.
+
+`POST /vendas` e `POST /vendas/{id}/faturar` aceitam `confirmarEstoqueInsuficiente=true`. Sem autorização empresarial ou confirmação, retornam 409 com `codigo=ESTOQUE_INSUFICIENTE`, `permitido` e `itens[{produtoId,nome,disponivel,solicitada}]`, sem gravar efeitos parciais. O PDV apresenta esses dados e só reenvia confirmado após ação explícita. Vendas com saldo suficiente seguem diretamente.
+
+Somente a saída VENDA confirmada pode ficar negativa. `movimentacoes_estoque.estoque_insuficiente_confirmado` registra a exceção junto ao usuário, horário, saldos e vínculo com item da venda já existentes. Locks, transação, hash da requisição, repetição e reversão permanecem; flag ausente/false preserva o hash legado. Nenhuma baixa acontece ao adicionar itens ao rascunho. Cancelamento da venda repõe a quantidade original, sem apagar a confirmação histórica.
+
 ## Entrada de Mercadoria manual implementada
 
 Entrada/Itens preservam nota, fornecedor e custo historico. RASCUNHO nao movimenta; CONFIRMADA aplica ENTRADA/COMPRA e ultimo precoCusto; CANCELADA gera SAIDA/CANCELAMENTO pelo servico existente. Locks de Entrada e Produtos em ordem crescente, idempotencia de operacoes e transacao unica preservam saldo/historico; saldo insuficiente bloqueia reversao integral. Contrato e detalhes em [entradas-mercadoria.md](entradas-mercadoria.md). Nao ha custo medio, importacao XML ou geracao financeira automatica nesta etapa. As referencias futuras a Compras neste documento nao representam implementacao de Pedido/Ordem de Compra.

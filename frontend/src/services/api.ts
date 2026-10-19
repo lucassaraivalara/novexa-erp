@@ -1,5 +1,5 @@
 import axios from "axios";
-import { obterToken, removerSessao } from "../utils/auth/sessao";
+import { obterToken, expirarSessao } from "../utils/auth/sessao";
 
 const apiBase =
     (import.meta.env.VITE_API_URL as string | undefined) ??
@@ -34,8 +34,7 @@ api.interceptors.response.use(
             const tokenInvalido = /^Bearer\s+.*\berror="invalid_token"/i.test(desafio);
 
             if (!isLoginRequest && token && tokenEnviado === `Bearer ${token}` && tokenInvalido) {
-                removerSessao();
-                window.location.assign("/login");
+                expirarSessao();
             }
         }
         return Promise.reject(error);

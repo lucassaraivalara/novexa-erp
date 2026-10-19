@@ -47,6 +47,11 @@ public class EmpresaRequestDTO {
     @NotNull(message = "O campo ativo é obrigatório.")
     private Boolean ativo;
 
+    private Boolean permitirVendaEstoqueNegativo;
+
+    public Boolean getPermitirVendaEstoqueNegativo() { return permitirVendaEstoqueNegativo; }
+    public void setPermitirVendaEstoqueNegativo(Boolean valor) { permitirVendaEstoqueNegativo = valor; }
+
     @Valid @NotNull(message = "Informe os dados complementares da empresa.")
     private EmpresaCadastroDados cadastro;
 

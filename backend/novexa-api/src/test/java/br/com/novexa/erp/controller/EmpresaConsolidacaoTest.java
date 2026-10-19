@@ -151,6 +151,22 @@ class EmpresaConsolidacaoTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test void meiEParametroDeEstoquePersistemComEdicaoOmissaCompativel() throws Exception {
+        var dados = json.readTree(corpoPut());
+        ((com.fasterxml.jackson.databind.node.ObjectNode) dados.path("cadastro")).put("regimeTributario", "MEI");
+        ((com.fasterxml.jackson.databind.node.ObjectNode) dados).put("permitirVendaEstoqueNegativo", true);
+        mvc.perform(put("/empresas/" + empresaA.getId()).header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(dados)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.cadastro.regimeTributario").value("MEI"))
+                .andExpect(jsonPath("$.permitirVendaEstoqueNegativo").value(true));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) dados).remove("permitirVendaEstoqueNegativo");
+        mvc.perform(put("/empresas/" + empresaA.getId()).header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(dados)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.permitirVendaEstoqueNegativo").value(true));
+        mvc.perform(get("/empresas/pagina").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].cadastro.regimeTributario").value("MEI"));
+    }
+
     private String corpoPost() throws Exception {
         EmpresaRequestDTO dto = new EmpresaRequestDTO();
         dto.setRazaoSocial("Empresa C");

@@ -16,8 +16,15 @@ public record FaturamentoVendaDTO(
         @Positive Long sessaoCaixaId,
         @Positive Long configuracaoFormaPagamentoId,
         @Size(max = 20) List<@NotNull @Valid PagamentoVendaRequestDTO> pagamentos,
-        @Size(min = 1, max = 120) List<@NotNull @Valid ParcelaPrazoVendaDTO> parcelasPrazo
+        @Size(min = 1, max = 120) List<@NotNull @Valid ParcelaPrazoVendaDTO> parcelasPrazo,
+        Boolean confirmarEstoqueInsuficiente
 ) {
+    public FaturamentoVendaDTO(UUID chaveRequisicao, BigDecimal totalEsperado, FormaPagamento formaPagamento,
+            BigDecimal valorRecebido, Long formaPagamentoId, Long sessaoCaixaId, Long configuracaoFormaPagamentoId,
+            List<PagamentoVendaRequestDTO> pagamentos, List<ParcelaPrazoVendaDTO> parcelasPrazo) {
+        this(chaveRequisicao, totalEsperado, formaPagamento, valorRecebido, formaPagamentoId, sessaoCaixaId,
+                configuracaoFormaPagamentoId, pagamentos, parcelasPrazo, null);
+    }
     public FaturamentoVendaDTO(UUID chaveRequisicao, BigDecimal totalEsperado, FormaPagamento formaPagamento,
             BigDecimal valorRecebido, Long formaPagamentoId, Long sessaoCaixaId, Long configuracaoFormaPagamentoId,
             List<PagamentoVendaRequestDTO> pagamentos) {
@@ -56,6 +63,7 @@ public record FaturamentoVendaDTO(
                 + (formaPagamentoId == null ? "" : ", formaPagamentoId=" + formaPagamentoId) + (sessaoCaixaId == null ? "" : ", sessaoCaixaId=" + sessaoCaixaId)
                 + (configuracaoFormaPagamentoId == null ? "" : ", configuracaoFormaPagamentoId=" + configuracaoFormaPagamentoId)
                 + (pagamentos == null ? "" : ", pagamentos=" + pagamentos)
-                + (parcelasPrazo == null ? "" : ", parcelasPrazo=" + parcelasPrazo) + "]";
+                + (parcelasPrazo == null ? "" : ", parcelasPrazo=" + parcelasPrazo)
+                + (Boolean.TRUE.equals(confirmarEstoqueInsuficiente) ? ", confirmarEstoqueInsuficiente=true" : "") + "]";
     }
 }

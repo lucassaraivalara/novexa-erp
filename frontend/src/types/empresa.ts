@@ -1,6 +1,6 @@
 import type { EmpresaAtiva } from "./auth";
 
-export type RegimeTributario = "SIMPLES_NACIONAL" | "LUCRO_PRESUMIDO" | "LUCRO_REAL";
+export type RegimeTributario = "MEI" | "SIMPLES_NACIONAL" | "LUCRO_PRESUMIDO" | "LUCRO_REAL";
 export type EmpresaCadastro = {
     produtorRural: boolean;
     regimeTributario: RegimeTributario | null;

@@ -1,5 +1,12 @@
 Empresa ........ funcional
 
+## MEI, CEP, sessão e confirmação de estoque — 2026-10-19
+
+Implementados: MEI nos contratos e cadastro de Empresas; consulta autenticada de CEP pelo backend/ViaCEP com edição manual; renovação JWT por atividade com padrão de uma hora e limite absoluto de oito horas; autorização empresarial e confirmação explícita para venda com estoque insuficiente, auditada no movimento existente. Opção empresarial inicia desativada; nenhuma empresa ou produto foi configurado manualmente nesta entrega. Regras e contratos em [frontend.md](frontend.md) e [estoque.md](estoque.md).
+
+V44 aditiva cria somente as duas flags de autorização/auditoria, preservando migrations anteriores. Validação local: 26 testes backend direcionados e 7 PostgreSQL, incluindo V1–V44, upgrade V43–V44, Flyway validate, Hibernate validate, confirmação, repetição, concorrência e rollback; 145 testes frontend (HTTP simulado nas verificações de interface), builds backend/frontend, lint sem erros e diff check. Dois avisos de React Hook Form e aviso de bundle permanecem preexistentes. Revisão responsiva em 1366×768, 390×650 e 1024×500 para Empresa/CEP, além das regressões existentes do PDV. Homologação de venda real em produção e observação por uma hora dependem do cliente; não foram executadas nesta validação local. Não declarar CONTRACT READY global com base nesta entrega direcionada.
+
+
 ## Homologação manual local e validação de publicação (2026-10-19)
 
 O usuário confirmou login, busca por código interno/EAN e fluxo principal do PDV homologados no ambiente local sem Docker. Consulta posterior somente leitura confirmou a venda 58 FATURADA, empresa 1/ADMIN 1/sessão 17: item 79, produto 14, 1 UN × R$ 3,50, pagamento 42 DINHEIRO, movimento de estoque 83 (4 → 3) e exatamente um movimento de Caixa 59 de R$ 3,50, sem movimento bancário. Não foi repetida a venda pelo agente. Essa evidência posterior complementa a consolidação somente leitura abaixo; não equivale a homologar PIX, cartão, boleto, fechamento atual ou multiempresa.

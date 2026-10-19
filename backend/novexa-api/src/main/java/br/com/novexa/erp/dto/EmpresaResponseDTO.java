@@ -20,6 +20,11 @@ public class EmpresaResponseDTO {
     private String endereco;
     private Boolean ativo;
 
+    private Boolean permitirVendaEstoqueNegativo;
+
+    public Boolean getPermitirVendaEstoqueNegativo() { return permitirVendaEstoqueNegativo; }
+    public void setPermitirVendaEstoqueNegativo(Boolean valor) { permitirVendaEstoqueNegativo = valor; }
+
     private br.com.novexa.erp.entity.EmpresaCadastroDados cadastro;
     private String logomarca;
     private java.util.List<EmpresaInscricaoStDTO> inscricoesSt;

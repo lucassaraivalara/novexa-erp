@@ -80,6 +80,12 @@ public class MovimentacaoEstoqueEntity {
     @Column(name = "data_hora", nullable = false, updatable = false)
     private LocalDateTime dataHora;
 
+    @Column(nullable = false)
+    private boolean estoqueInsuficienteConfirmado;
+
+    public boolean isEstoqueInsuficienteConfirmado() { return estoqueInsuficienteConfirmado; }
+    public void setEstoqueInsuficienteConfirmado(boolean valor) { estoqueInsuficienteConfirmado = valor; }
+
     public MovimentacaoEstoqueEntity() {
     }
 

@@ -2,11 +2,11 @@ import { cadastroVazio, type CadastroFormulario, type EmpresaCadastro, type Empr
 import { documentoEmpresaValido, normalizarDocumentoEmpresa } from "../../utils/validators/documentoEmpresa";
 
 export const ufs = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
-export const regimes = [["SIMPLES_NACIONAL", "Simples Nacional"], ["LUCRO_PRESUMIDO", "Lucro Presumido"], ["LUCRO_REAL", "Lucro Real"]];
+export const regimes = [["MEI", "MEI"], ["SIMPLES_NACIONAL", "Simples Nacional"], ["LUCRO_PRESUMIDO", "Lucro Presumido"], ["LUCRO_REAL", "Lucro Real"]];
 export const abasEmpresa = ["Dados", "Endereço", "Contato", "Fiscal / SPED"];
 export type EstadoEmpresa = {
     razaoSocial: string; nomeFantasia: string; cnpj: string; inscricaoEstadual: string;
-    telefone: string; email: string; endereco: string; ativo: boolean;
+    telefone: string; email: string; endereco: string; ativo: boolean; permitirVendaEstoqueNegativo: boolean;
     cadastro: CadastroFormulario; logomarca: string | null; inscricoesSt: InscricaoSt[];
 };
 export type NomeCampo = Exclude<keyof EstadoEmpresa, "cadastro" | "inscricoesSt" | "logomarca"> | `cadastro.${keyof CadastroFormulario}`;
@@ -58,6 +58,7 @@ export function criarFormulario(empresa: EmpresaCompleta | null): EstadoEmpresa 
     }
     return { razaoSocial: empresa?.razaoSocial ?? "", nomeFantasia: empresa?.nomeFantasia ?? "", cnpj: empresa?.cnpj ?? "", inscricaoEstadual: empresa?.inscricaoEstadual ?? "",
         email: empresa?.email ?? "", telefone: empresa?.telefone ?? "", endereco: empresa?.endereco ?? "", ativo: empresa?.ativo ?? true,
+        permitirVendaEstoqueNegativo: empresa?.permitirVendaEstoqueNegativo ?? false,
         cadastro, logomarca: empresa?.logomarca ?? null, inscricoesSt: empresa?.inscricoesSt?.map(i => ({ ...i })) ?? [] };
 }
 

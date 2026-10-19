@@ -35,6 +35,12 @@ public class EmpresaEntity {
 
     private Boolean ativo;
 
+    @jakarta.persistence.Column(nullable = false)
+    private Boolean permitirVendaEstoqueNegativo = false;
+
+    public Boolean getPermitirVendaEstoqueNegativo() { return permitirVendaEstoqueNegativo; }
+    public void setPermitirVendaEstoqueNegativo(Boolean valor) { permitirVendaEstoqueNegativo = valor; }
+
     @jakarta.persistence.Embedded
     private EmpresaCadastroDados cadastro = new EmpresaCadastroDados();
 
