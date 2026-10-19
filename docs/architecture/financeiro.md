@@ -1,5 +1,9 @@
 FINANCEIRO NOVEXA
 
+## PDV — momento da confirmação
+
+O carrinho é revisado antes da escolha do pagamento. Finalizar venda/F2 abre o diálogo, sem gravar. Somente Confirmar pagamento envia o pedido existente e inicia a transação de Venda/Estoque/Financeiro. Voltar/fechar preserva o rascunho local. Troco, misto, parcelas a prazo, confirmação de estoque insuficiente, idempotência e destinos financeiros permanecem sob as regras já implementadas; selecionar uma forma não comprova recebimento. Transferência e boleto não foram adicionados ao faturamento: continuam pendentes no contrato operacional atual. Detalhes de teclado e apresentação em [frontend.md](frontend.md#pdv---comandos-operacionais).
+
 ## Venda de Kit/Combo
 
 Kit/Combo é um item comercial com consumo de componentes físicos (V46). Venda, pagamentos, Caixa, PIX, recebíveis e prazo seguem o fluxo financeiro existente uma única vez; componentes não geram receita ou pagamentos próprios. Cancelamento integral reverte os consumos históricos na mesma transação das reversões financeiras já existentes, com seus bloqueios preservados. Não existe baixa financeira ou estorno independente da composição.

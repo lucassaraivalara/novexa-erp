@@ -71,6 +71,11 @@ export default function Vendas() {
     const [rascunho, setRascunho] = useState<RascunhoPDV>(novoRascunho);
     const chaveRascunho = chaveOperador + ":" + rascunho.sessaoCaixaId;
     const [limpezaAberta, setLimpezaAberta] = useState(false);
+    const [pagamentoAberto, setPagamentoAberto] = useState(false);
+    const [estoqueConfirmado, setEstoqueConfirmado] = useState(false);
+    const formaPagamentoRef = useRef<HTMLSelectElement>(null);
+    const erroPagamentoRef = useRef<HTMLDivElement>(null);
+    const retornandoPagamento = useRef(false);
     const [resultados, setResultados] = useState<Produto[]>([]);
     const [buscaConcluida, setBuscaConcluida] = useState(false);
     const [configuracoes, setConfiguracoes] = useState<ConfiguracaoFormaPagamento[]>([]);
@@ -115,6 +120,7 @@ export default function Vendas() {
     const emInclusao = !!busca.trim();
     const produtoEmInclusao = encontrarProdutoPorCodigo(resultados, busca) ?? (listaAberta ? resultados[indice] : undefined);
     const produtoExibido = emInclusao ? produtoEmInclusao : itemAtual?.produto;
+    const revisaoDesabilitada = !sessaoCaixaResolvida || salvando || (!rascunho.pendente && (!rascunho.itens.length || !t.valido));
     const pagarDesabilitado = !sessaoCaixaResolvida || salvando || carregandoConfig || (!rascunho.pendente && (!rascunho.itens.length || !t.valido || !t.pagamentosValidos || t.restante !== 0
         || t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))));
 
@@ -178,8 +184,15 @@ export default function Vendas() {
     }, [chaveOperador]);
 
     useEffect(() => {
-        if (sessaoCaixaResolvida && !salvando && !finalizacao) focarBusca();
-    }, [sessaoCaixaResolvida, salvando, finalizacao]);
+        if (sessaoCaixaResolvida && !salvando && !finalizacao && !pagamentoAberto && !retornandoPagamento.current) focarBusca();
+    }, [sessaoCaixaResolvida, salvando, finalizacao, pagamentoAberto]);
+
+    useEffect(() => {
+        if (pagamentoAberto && !carregandoConfig && !finalizacao && !opcional && !confirmacaoEstoque) {
+            const campo = erro || erroConfig ? erroPagamentoRef.current : formaPagamentoRef.current;
+            campo?.focus();
+        }
+    }, [pagamentoAberto, carregandoConfig, finalizacao, opcional, confirmacaoEstoque, erro, erroConfig]);
 
     useEffect(() => () => {
         if (finalizacaoTimerRef.current) clearTimeout(finalizacaoTimerRef.current);
@@ -215,9 +228,24 @@ export default function Vendas() {
         const campo = quantidadesRef.current[id];
         campo?.focus(); campo?.select();
     }
-    function fecharOpcional() { setOpcional(null); focarBusca(); }
+    function fecharOpcional() { setOpcional(null); if (!pagamentoAberto) focarBusca(); }
     function fecharLimpeza() { setLimpezaAberta(false); focarBusca(); }
-    function alterar(patch: Partial<RascunhoPDV>) { if (!bloqueado) setRascunho(r => ({ ...r, ...patch })); }
+    function alterar(patch: Partial<RascunhoPDV>) {
+        if (!bloqueado) {
+            if (patch.itens || patch.desconto !== undefined) setEstoqueConfirmado(false);
+            setRascunho(r => ({ ...r, ...patch }));
+        }
+    }
+    function abrirPagamento() {
+        if (revisaoDesabilitada) return;
+        retornandoPagamento.current = false;
+        setListaAberta(false); setErro(""); setPagamentoAberto(true);
+    }
+    function fecharPagamento() {
+        if (emEnvio.current) return;
+        retornandoPagamento.current = true;
+        setPagamentoAberto(false);
+    }
     function ajustarQuantidade(id: number, passo: number) {
         const item = rascunho.itens.find(i => i.produto.id === id);
         if (!item) return;
@@ -246,6 +274,7 @@ export default function Vendas() {
     }
     function adicionar(produto: Produto) {
         if (bloqueado) return;
+        setEstoqueConfirmado(false);
         if (rascunho.itens.length >= 200 && !rascunho.itens.some(i => i.produto.id === produto.id)) {
             setErro("O limite é de 200 produtos diferentes por venda."); return;
         }
@@ -274,8 +303,8 @@ export default function Vendas() {
         finalizacaoTimerRef.current = null;
         setFinalizacao(null);
     }
-    async function finalizar(confirmarEstoqueInsuficiente = false) {
-        if (emEnvio.current) return;
+    async function confirmarPagamento() {
+        if (!pagamentoAberto || emEnvio.current) return;
         if (!sessaoCaixaResolvida || rascunho.sessaoCaixaId === null) {
             setErro("Aguarde a definição do Caixa antes de finalizar a venda.");
             return;
@@ -289,7 +318,7 @@ export default function Vendas() {
         }
         let pedido = rascunho.pendente;
         try { pedido ??= { ...criarPedido(rascunho, crypto.randomUUID()),
-            ...(confirmarEstoqueInsuficiente ? { confirmarEstoqueInsuficiente: true } : {}) }; }
+            ...(estoqueConfirmado ? { confirmarEstoqueInsuficiente: true } : {}) }; }
         catch (e) {
             setErro((e as Error).message);
             if (t.parcelas.some(p => p.formaPagamento === "DINHEIRO") && t.valido) recebidoRef.current?.focus();
@@ -312,6 +341,7 @@ export default function Vendas() {
             await finalizarVenda(pedido);
             const proximoRascunho = novoRascunho(rascunho.sessaoCaixaId);
             setFinalizacao(atual => atual ? { ...atual, estado: "success" } : atual);
+            setPagamentoAberto(false); retornandoPagamento.current = false; setEstoqueConfirmado(false);
             setRascunho(proximoRascunho); setOpcional(null); setBusca("");
             try { sessionStorage.removeItem(chaveRascunho); } catch { /* Venda já confirmada pelo servidor. */ }
             finalizacaoTimerRef.current = setTimeout(() => {
@@ -354,7 +384,7 @@ export default function Vendas() {
     function atalhos(e: KeyboardEvent) {
         if (e.altKey || e.ctrlKey && e.key !== "Delete" || e.metaKey) return;
         if (["F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9"].includes(e.key)) e.preventDefault();
-        if (confirmacaoEstoque) return;
+        if (confirmacaoEstoque || pagamentoAberto) return;
         if (finalizacao) { if (e.key === "Escape") { e.preventDefault(); fecharFinalizacao(); } return; }
         if (limpezaAberta) { if (e.key === "Escape") { e.preventDefault(); fecharLimpeza(); } return; }
         if (opcional) {
@@ -365,7 +395,7 @@ export default function Vendas() {
             if (listaAberta) { e.preventDefault(); setListaAberta(false); focarBusca(); return; }
             e.preventDefault(); navigate("/vendas"); return;
         }
-        if (e.key === "F2" && sessaoCaixaResolvida && !salvando) { e.preventDefault(); void finalizar(); return; }
+        if (e.key === "F2" && sessaoCaixaResolvida && !salvando) { e.preventDefault(); abrirPagamento(); return; }
         if (bloqueado) return;
         const id = selecionado ?? rascunho.itens.at(-1)?.produto.id;
         if (e.ctrlKey && e.key === "Delete" && id) { e.preventDefault(); remover(id); }
@@ -391,12 +421,149 @@ export default function Vendas() {
         <PdvActionButton compacto categoria="opcional" icone={<PersonOutlineRoundedIcon />} atalho="F8" aria-label="F8 Cliente" disabled={bloqueado} onClick={() => setOpcional("cliente")}>Cliente</PdvActionButton>
         <PdvActionButton compacto categoria="opcional" icone={<NotesRoundedIcon />} atalho="F9" aria-label="F9 Observações" disabled={bloqueado} onClick={() => setOpcional("observacoes")}>Observações</PdvActionButton>
         <PdvActionButton compacto categoria="opcional" icone={<LocalShippingOutlinedIcon />} disabled={bloqueado} onClick={() => setOpcional("entrega")}>Entrega</PdvActionButton>
-        <PdvActionButton compacto categoria="confirmacao" icone={<ShoppingCartCheckoutRoundedIcon />} atalho="F2" aria-label="Finalizar venda · F2" disabled={pagarDesabilitado} onClick={() => void finalizar()}>Finalizar</PdvActionButton>
+        <PdvActionButton compacto categoria="confirmacao" icone={<ShoppingCartCheckoutRoundedIcon />} atalho="F2" aria-label="Abrir pagamento · F2" disabled={revisaoDesabilitada} onClick={abrirPagamento}>Finalizar</PdvActionButton>
         <PdvActionButton compacto categoria="cancelamento" icone={<DeleteOutlineRoundedIcon />} atalho="F4" disabled={bloqueado || !rascunho.itens.length} onClick={() => { const id = itemAtual?.produto.id; if (id) remover(id); }}>Cancelar item</PdvActionButton>
         <PdvActionButton compacto categoria="cancelamento" icone={<CloseRoundedIcon />} atalho="F6" disabled={bloqueado || !rascunho.itens.length} onClick={() => setLimpezaAberta(true)}>Cancelar venda</PdvActionButton>
     </Box>;
 
     return <Box sx={{ height: { xs: "auto", md: "100dvh" }, minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: cores.canvas }}>
+        <Dialog open={pagamentoAberto} onClose={fecharPagamento} fullWidth maxWidth="sm"
+            aria-labelledby="pdv-pagamento-titulo" aria-describedby="pdv-pagamento-descricao"
+            onKeyDown={evento => { if (evento.key !== "Escape") evento.stopPropagation(); }}
+            slotProps={{ paper: { sx: { m: { xs: 1, sm: 4 }, width: { xs: "calc(100% - 16px)", sm: "100%" }, maxHeight: "calc(100dvh - 16px)" } } }}>
+            <DialogTitle id="pdv-pagamento-titulo" sx={{ pb: 0 }}>Pagamento da venda</DialogTitle>
+            <Box sx={{ px: 3, flexShrink: 0 }}>
+                <Box sx={{ py: 1, borderBottom: 1, borderColor: "divider" }}><Typography variant="body2" color="text.secondary">Total da venda</Typography><Typography aria-label="Total a pagar" sx={{ fontSize: 40, lineHeight: 1.25, fontWeight: 800, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", color: cores.total }}>{moeda(Math.max(0, t.total))}</Typography></Box>
+            </Box>
+            <DialogContent dividers sx={{ minHeight: 0, overscrollBehavior: "contain" }}>
+                <Typography id="pdv-pagamento-descricao" variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Escolha como receber. A venda será gravada somente ao confirmar o pagamento.
+                </Typography>
+                {erro && <Alert severity="error" tabIndex={-1} ref={erroPagamentoRef} sx={{ mb: 2 }}>{erro}</Alert>}
+                {estoqueConfirmado && <Alert severity="warning" sx={{ mb: 2 }}>Estoque insuficiente autorizado. Confirme o pagamento para concluir a venda.</Alert>}
+                <Box role="region" aria-label="Pagamentos da venda" sx={{ minWidth: 0 }}>
+                <Stack spacing={1.5}>
+
+                {carregandoConfig ? (
+                    <Typography variant="body2" color="text.secondary">Carregando formas de pagamento…</Typography>
+                ) : erroConfig ? (
+                    <Alert severity="error" tabIndex={-1} ref={erroPagamentoRef}>{erroConfig}</Alert>
+                ) : (
+                    <>
+                        {t.parcelas.map((p, i) => <Stack key={i} spacing={1} role="group" aria-label={`Pagamento ${i + 1}`}
+                            sx={t.parcelas.length > 1 ? { py: 1.25, borderBottom: 1, borderColor: "divider" } : undefined}>
+                        {t.parcelas.length > 1 && <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>Forma {i + 1}</Typography>
+                            <Tooltip title="Remover forma"><IconButton aria-label={`Remover pagamento ${i + 1}`} disabled={bloqueado} sx={{ width: 36, height: 36 }}
+                                onClick={() => alterar({ pagamentos: pagamentosRascunho(rascunho).filter((_, indice) => indice !== i) })}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>
+                        </Stack>}
+                        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, alignItems: "flex-start" }}>
+                        <TextField size="small" select sx={{ flex: "1 1 140px", minWidth: 0 }} label={i === 0 ? "Forma de pagamento" : `Forma de pagamento ${i + 1}`} value={p.formaPagamento === "A_PRAZO" ? "A_PRAZO" : p.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
+                            inputRef={i === 0 ? formaPagamentoRef : undefined}
+                            autoFocus={i === 0} slotProps={{ inputLabel: { shrink: true }, select: { native: true } }}
+                            onChange={e => {
+                                if (e.target.value === "A_PRAZO") {
+                                    alterar({ pagamentos: pagamentosRascunho(rascunho).map((pag, indice) => indice === i
+                                        ? { ...pag, formaPagamento: "A_PRAZO", configuracaoFormaPagamentoId: null, nomeExibicao: "A prazo", recebido: "" } : pag),
+                                        parcelasPrazo: [{ valor: p.valor === "" && t.parcelas.length === 1 ? "" : ((p.valorCentavos ?? 0) / 100).toFixed(2), vencimento: "" }] });
+                                    if (!rascunho.cliente) setOpcional("cliente");
+                                    return;
+                                }
+                                const configId = e.target.value ? Number(e.target.value) : null;
+                                const config = configuracoes.find(c => c.id === configId);
+                                if (config) {
+                                    alterarPagamento(i, {
+                                        configuracaoFormaPagamentoId: config.id,
+                                        nomeExibicao: config.nomeExibicao,
+                                        formaPagamento: tipoConfigParaLegado[config.tipo],
+                                        valor: p.formaPagamento === "DINHEIRO" && p.recebido !== "" ? ((p.valorCentavos ?? 0) / 100).toFixed(2) : p.valor,
+                                        recebido: config.tipo === "DINHEIRO" ? p.recebido : "",
+                                    });
+                                } else {
+                                    alterarPagamento(i, {
+                                        configuracaoFormaPagamentoId: null,
+                                        nomeExibicao: null,
+                                        formaPagamento: "DINHEIRO",
+                                    });
+                                }
+                            }}>
+                            <option value="">Selecione uma forma de pagamento</option>
+                            {configuracoes.map(config => (
+                                <option key={config.id} value={config.id} disabled={t.parcelas.some((outra, indice) => indice !== i && outra.configuracaoFormaPagamentoId === config.id)}>
+                                    {config.nomeExibicao}
+                                </option>
+                            ))}
+                            <option value="A_PRAZO" disabled={t.parcelas.some((outra, indice) => indice !== i && outra.formaPagamento === "A_PRAZO")}>A prazo</option>
+                        </TextField>
+                        {p.formaPagamento !== "A_PRAZO" && <ValorMonetarioPDV size="small" label={p.formaPagamento === "DINHEIRO" ? "Recebido em dinheiro (R$)" : "Valor aplicado (R$)"}
+                            sx={{ flex: p.formaPagamento === "DINHEIRO" ? "1 1 100%" : "0 0 140px", "& input": { fontWeight: 600 } }}
+                            inputRef={p.formaPagamento === "DINHEIRO" ? recebidoRef : undefined}
+                            helperText={p.formaPagamento === "DINHEIRO" && p.configuracaoFormaPagamentoId !== null && p.valorCentavos === 0 && t.total > 0 && t.restante === 0
+                                ? "O total já está coberto pelas outras formas. Remova esta forma de pagamento." : undefined}
+                            value={p.formaPagamento === "DINHEIRO" ? p.recebido : p.valor === "" && t.parcelas.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : p.valor}
+                            placeholder={p.formaPagamento === "DINHEIRO" ? formatarValorMonetario(((p.recebidoCentavos ?? 0) / 100).toFixed(2)) : undefined}
+                            disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }}
+                            onChange={valor => alterarPagamento(i, p.formaPagamento === "DINHEIRO" ? { recebido: valor } : { valor })} />}
+                        </Stack>
+                        {p.formaPagamento === "A_PRAZO" ? <Stack spacing={1}>
+                            {!rascunho.cliente && <Alert severity="warning">Selecione um cliente para vender a prazo.</Alert>}
+                            <Button size="small" aria-label="Selecionar cliente do pagamento" startIcon={<PersonOutlineRoundedIcon />}
+                                disabled={bloqueado} onClick={() => setOpcional("cliente")} sx={{ alignSelf: "flex-start" }}>
+                                {rascunho.cliente ? `Cliente: ${rascunho.cliente.nome}` : "Selecionar cliente"}
+                            </Button>
+                            {t.parcelasPrazo.map((parcela, indice) => <Stack key={indice} spacing={0.5} role="group" aria-label={`Parcela a prazo ${indice + 1}`}>
+                                {t.parcelasPrazo.length > 1 && <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
+                                    <Typography variant="caption">Parcela {indice + 1}/{t.parcelasPrazo.length}</Typography>
+                                    {t.parcelasPrazo.length > 1 && <Tooltip title="Remover parcela"><IconButton size="small" aria-label={`Remover parcela a prazo ${indice + 1}`} disabled={bloqueado}
+                                        onClick={() => alterar({ parcelasPrazo: rascunho.parcelasPrazo?.filter((_, posicao) => posicao !== indice) })}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>}
+                                </Stack>}
+                                <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 105px", gap: 1 }}>
+                                <TextField size="small" type="date" label={`Vencimento ${indice + 1}`} value={parcela.vencimento} disabled={bloqueado}
+                                    error={!/^\d{4}-\d{2}-\d{2}$/.test(parcela.vencimento) || Number.isNaN(Date.parse(parcela.vencimento))}
+                                    helperText={!parcela.vencimento ? "Informe o vencimento." : undefined}
+                                    slotProps={{ inputLabel: { shrink: true } }} onChange={e => alterarParcelaPrazo(indice, { vencimento: e.target.value })} />
+                                <ValorMonetarioPDV size="small" label="Valor (R$)" value={parcela.valor === "" && t.parcelas.length === 1 && t.parcelasPrazo.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : parcela.valor}
+                                    disabled={bloqueado} slotProps={{ htmlInput: { "aria-label": `Valor da parcela ${indice + 1} (R$)`, inputMode: "decimal" } }}
+                                    onChange={valor => alterarParcelaPrazo(indice, { valor })} />
+                                </Box>
+                            </Stack>)}
+                            <Button size="small" startIcon={<AddRoundedIcon />} sx={{ alignSelf: "flex-start" }} disabled={bloqueado || t.parcelasPrazo.length >= 120}
+                                onClick={() => alterar({ parcelasPrazo: [
+                                    ...t.parcelasPrazo.map(parcela => ({ valor: parcela.valor === "" ? ((parcela.valorCentavos ?? 0) / 100).toFixed(2) : parcela.valor, vencimento: parcela.vencimento })),
+                                    { valor: (Math.max(0, t.restante) / 100).toFixed(2), vencimento: "" },
+                                ] })}>Adicionar parcela</Button>
+                        </Stack> : p.formaPagamento === "DINHEIRO" && (
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between" }}>
+                                <Typography variant="caption" color="text.secondary">Aplicado à venda: {moeda(p.valorCentavos ?? 0)}</Typography>
+                                {p.troco > 0 && <Stack sx={{ alignItems: "flex-end", flexShrink: 0 }}>
+                                    <Typography variant="caption">Troco</Typography>
+                                    <Typography aria-label={`Troco do pagamento ${i + 1}`} sx={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda(p.troco)}</Typography>
+                                </Stack>}
+                            </Stack>
+                        )}
+                        </Stack>)}
+                        <Button size="small" startIcon={<AddRoundedIcon />} sx={{ alignSelf: "flex-start" }} disabled={bloqueado || t.parcelas.length >= 20} onClick={adicionarForma}>Adicionar forma</Button>
+                        {t.parcelas.some(p => p.formaPagamento !== "A_PRAZO") && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Pago agora</span><Typography aria-label="Pago agora">{moeda(t.totalImediato)}</Typography></Stack>}
+                        {t.usaPrazo && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>A receber</span><Typography aria-label="A receber">{moeda(t.totalPrazo)}</Typography></Stack>}
+                    </>
+                )}
+                </Stack>
+                </Box>
+
+            </DialogContent>
+                <Stack spacing={1.5} sx={{ flexShrink: 0, bgcolor: "background.paper", p: 2, borderTop: 1, borderColor: "divider" }}>
+
+                {!carregandoConfig && !erroConfig && t.restante !== 0 && <Alert severity={t.restante > 0 ? "warning" : "error"} icon={false} sx={{ py: 0.75, border: 1, borderColor: t.restante > 0 ? "warning.main" : "error.main", "& .MuiAlert-message": { width: "100%" } }}>
+                    <Stack direction="row" sx={{ justifyContent: "space-between", fontWeight: 700 }}><span>{t.restante > 0 ? "Falta distribuir" : "Valor excedente"}</span><Typography aria-label={t.restante > 0 ? "Falta distribuir" : "Valor excedente"} sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.abs(t.restante))}</Typography></Stack>
+                    <Typography variant="caption" sx={{ display: "block" }}>{t.restante > 0 ? "Distribua o restante para confirmar o pagamento." : "Reduza o valor aplicado em uma forma de pagamento."}</Typography>
+                </Alert>}
+                <PdvActionButton categoria="confirmacao" icone={<ShoppingCartCheckoutRoundedIcon />} aria-label="Confirmar pagamento"
+                    disabled={pagarDesabilitado} onClick={() => void confirmarPagamento()}>
+                    {salvando ? "Finalizando…" : "Confirmar pagamento"}
+                </PdvActionButton>
+                <Button disabled={salvando} onClick={fecharPagamento} startIcon={<ArrowBackRoundedIcon />}>Voltar para a venda</Button>
+                </Stack>
+        </Dialog>
         <SessaoCaixaPDVDialog resolvida={sessaoCaixaResolvida} onResolvida={definirSessaoCaixa} />
         <Dialog open={!!confirmacaoEstoque} fullWidth maxWidth="sm" onClose={() => setConfirmacaoEstoque(null)}
             aria-labelledby="pdv-estoque-titulo" aria-describedby="pdv-estoque-descricao">
@@ -414,7 +581,7 @@ export default function Vendas() {
             <DialogActions sx={{ flexWrap: "wrap", gap: 1 }}>
                 <Button autoFocus onClick={() => setConfirmacaoEstoque(null)}>Voltar e revisar</Button>
                 {confirmacaoEstoque?.permitido && <Button variant="contained" color="warning" disabled={salvando}
-                    onClick={() => { setConfirmacaoEstoque(null); void finalizar(true); }}>Confirmar e finalizar venda</Button>}
+                    onClick={() => { setEstoqueConfirmado(true); setConfirmacaoEstoque(null); }}>Autorizar estoque insuficiente</Button>}
             </DialogActions>
         </Dialog>
         <Dialog open={limpezaAberta} onClose={fecharLimpeza} aria-labelledby="pdv-limpar-titulo">
@@ -431,7 +598,7 @@ export default function Vendas() {
             troco={finalizacao.troco}
             mensagemErro={finalizacao.mensagemErro}
             onVoltar={fecharFinalizacao}
-            onTentarNovamente={finalizacao.podeTentarNovamente ? () => void finalizar() : undefined} />}
+            onTentarNovamente={finalizacao.podeTentarNovamente ? fecharFinalizacao : undefined} />}
         <Stack component="header" direction="row" aria-label="Topo operacional" sx={{ minHeight: 48, bgcolor: cores.header, color: cores.headerText, px: 1.5, py: 0.75, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
             <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", minWidth: 0, flexWrap: "wrap" }}>
                 <PointOfSaleRoundedIcon sx={{ color: cores.accent, fontSize: 24 }} />
@@ -447,7 +614,7 @@ export default function Vendas() {
         {comandos}
         {erro && <Alert severity="error" role="alert">{erro}</Alert>}
         {erroConfig && <Alert severity="error" role="alert">{erroConfig}</Alert>}
-        {rascunho.pendente && !salvando && !erro && <Alert severity="info">Finalização pendente de confirmação. F2 retoma sem duplicar a venda.</Alert>}
+        {rascunho.pendente && !salvando && !erro && <Alert severity="info">Finalização pendente de confirmação. Abra o pagamento para consultar o resultado com segurança, sem duplicar a venda.</Alert>}
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) 320px", xl: "minmax(0, 1fr) 360px" }, gap: 1, p: 1, flex: 1, minHeight: 0, minWidth: 0 }}>
             <Stack spacing={1} sx={{ minHeight: 0, minWidth: 0, display: { xs: "contents", md: "flex" } }}>
                 <Box role="group" aria-label="Inclusão de produto" sx={{ order: { xs: 0 }, bgcolor: "background.paper", p: 1.25, border: 1, borderColor: cores.border }}>
@@ -583,119 +750,11 @@ export default function Vendas() {
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Subtotal</span><span>{moeda(t.subtotal)}</span></Stack>
                 {!!t.desconto && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Desconto</span><span>− {moeda(t.desconto)}</span></Stack>}
                 </Stack>
-                <Box role="region" aria-label="Pagamentos da venda" sx={{ order: { xs: 5, md: 0 }, minHeight: 0, flex: { md: 1 }, overflowY: { xs: "visible", md: "auto" } }}>
-                <Stack spacing={1.5}>
-                <Typography variant="overline">Pagamento</Typography>
-                {carregandoConfig ? (
-                    <Typography variant="body2" color="text.secondary">Carregando formas de pagamento…</Typography>
-                ) : erroConfig ? (
-                    <Alert severity="error">{erroConfig}</Alert>
-                ) : (
-                    <>
-                        {t.parcelas.map((p, i) => <Stack key={i} spacing={1} role="group" aria-label={`Pagamento ${i + 1}`}
-                            sx={t.parcelas.length > 1 ? { py: 1.25, borderBottom: 1, borderColor: "divider" } : undefined}>
-                        {t.parcelas.length > 1 && <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
-                            <Typography variant="body2" sx={{ fontWeight: 700 }}>Forma {i + 1}</Typography>
-                            <Tooltip title="Remover forma"><IconButton aria-label={`Remover pagamento ${i + 1}`} disabled={bloqueado} sx={{ width: 36, height: 36 }}
-                                onClick={() => alterar({ pagamentos: pagamentosRascunho(rascunho).filter((_, indice) => indice !== i) })}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>
-                        </Stack>}
-                        <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, alignItems: "flex-start" }}>
-                        <TextField size="small" select sx={{ flex: "1 1 140px", minWidth: 0 }} label={i === 0 ? "Forma de pagamento" : `Forma de pagamento ${i + 1}`} value={p.formaPagamento === "A_PRAZO" ? "A_PRAZO" : p.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
-                            slotProps={{ inputLabel: { shrink: true }, select: { native: true } }}
-                            onChange={e => {
-                                if (e.target.value === "A_PRAZO") {
-                                    alterar({ pagamentos: pagamentosRascunho(rascunho).map((pag, indice) => indice === i
-                                        ? { ...pag, formaPagamento: "A_PRAZO", configuracaoFormaPagamentoId: null, nomeExibicao: "A prazo", recebido: "" } : pag),
-                                        parcelasPrazo: [{ valor: p.valor === "" && t.parcelas.length === 1 ? "" : ((p.valorCentavos ?? 0) / 100).toFixed(2), vencimento: "" }] });
-                                    if (!rascunho.cliente) setOpcional("cliente");
-                                    return;
-                                }
-                                const configId = e.target.value ? Number(e.target.value) : null;
-                                const config = configuracoes.find(c => c.id === configId);
-                                if (config) {
-                                    alterarPagamento(i, {
-                                        configuracaoFormaPagamentoId: config.id,
-                                        nomeExibicao: config.nomeExibicao,
-                                        formaPagamento: tipoConfigParaLegado[config.tipo],
-                                        valor: p.formaPagamento === "DINHEIRO" && p.recebido !== "" ? ((p.valorCentavos ?? 0) / 100).toFixed(2) : p.valor,
-                                        recebido: config.tipo === "DINHEIRO" ? p.recebido : "",
-                                    });
-                                } else {
-                                    alterarPagamento(i, {
-                                        configuracaoFormaPagamentoId: null,
-                                        nomeExibicao: null,
-                                        formaPagamento: "DINHEIRO",
-                                    });
-                                }
-                            }}>
-                            <option value="">Selecione uma forma de pagamento</option>
-                            <option value="A_PRAZO" disabled={t.parcelas.some((outra, indice) => indice !== i && outra.formaPagamento === "A_PRAZO")}>A prazo</option>
-                            {configuracoes.map(config => (
-                                <option key={config.id} value={config.id} disabled={t.parcelas.some((outra, indice) => indice !== i && outra.configuracaoFormaPagamentoId === config.id)}>
-                                    {config.nomeExibicao}
-                                </option>
-                            ))}
-                        </TextField>
-                        {p.formaPagamento !== "A_PRAZO" && <ValorMonetarioPDV size="small" label={p.formaPagamento === "DINHEIRO" ? "Recebido em dinheiro (R$)" : "Valor aplicado (R$)"}
-                            sx={{ flex: p.formaPagamento === "DINHEIRO" ? "1 1 100%" : "0 0 140px", "& input": { fontWeight: 600 } }}
-                            inputRef={p.formaPagamento === "DINHEIRO" ? recebidoRef : undefined}
-                            helperText={p.formaPagamento === "DINHEIRO" && p.configuracaoFormaPagamentoId !== null && p.valorCentavos === 0 && t.total > 0 && t.restante === 0
-                                ? "O total já está coberto pelas outras formas. Remova esta forma de pagamento." : undefined}
-                            value={p.formaPagamento === "DINHEIRO" ? p.recebido : p.valor === "" && t.parcelas.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : p.valor}
-                            placeholder={p.formaPagamento === "DINHEIRO" ? formatarValorMonetario(((p.recebidoCentavos ?? 0) / 100).toFixed(2)) : undefined}
-                            disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }}
-                            onChange={valor => alterarPagamento(i, p.formaPagamento === "DINHEIRO" ? { recebido: valor } : { valor })} />}
-                        </Stack>
-                        {p.formaPagamento === "A_PRAZO" ? <Stack spacing={1}>
-                            {!rascunho.cliente && <Alert severity="warning">Selecione um cliente para vender a prazo.</Alert>}
-                            {t.parcelasPrazo.map((parcela, indice) => <Stack key={indice} spacing={0.5} role="group" aria-label={`Parcela a prazo ${indice + 1}`}>
-                                {t.parcelasPrazo.length > 1 && <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
-                                    <Typography variant="caption">Parcela {indice + 1}/{t.parcelasPrazo.length}</Typography>
-                                    {t.parcelasPrazo.length > 1 && <Tooltip title="Remover parcela"><IconButton size="small" aria-label={`Remover parcela a prazo ${indice + 1}`} disabled={bloqueado}
-                                        onClick={() => alterar({ parcelasPrazo: rascunho.parcelasPrazo?.filter((_, posicao) => posicao !== indice) })}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>}
-                                </Stack>}
-                                <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 105px", gap: 1 }}>
-                                <TextField size="small" type="date" label={`Vencimento ${indice + 1}`} value={parcela.vencimento} disabled={bloqueado}
-                                    error={!/^\d{4}-\d{2}-\d{2}$/.test(parcela.vencimento) || Number.isNaN(Date.parse(parcela.vencimento))}
-                                    helperText={!parcela.vencimento ? "Informe o vencimento." : undefined}
-                                    slotProps={{ inputLabel: { shrink: true } }} onChange={e => alterarParcelaPrazo(indice, { vencimento: e.target.value })} />
-                                <ValorMonetarioPDV size="small" label="Valor (R$)" value={parcela.valor === "" && t.parcelas.length === 1 && t.parcelasPrazo.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : parcela.valor}
-                                    disabled={bloqueado} slotProps={{ htmlInput: { "aria-label": `Valor da parcela ${indice + 1} (R$)`, inputMode: "decimal" } }}
-                                    onChange={valor => alterarParcelaPrazo(indice, { valor })} />
-                                </Box>
-                            </Stack>)}
-                            <Button size="small" startIcon={<AddRoundedIcon />} sx={{ alignSelf: "flex-start" }} disabled={bloqueado || t.parcelasPrazo.length >= 120}
-                                onClick={() => alterar({ parcelasPrazo: [
-                                    ...t.parcelasPrazo.map(parcela => ({ valor: parcela.valor === "" ? ((parcela.valorCentavos ?? 0) / 100).toFixed(2) : parcela.valor, vencimento: parcela.vencimento })),
-                                    { valor: (Math.max(0, t.restante) / 100).toFixed(2), vencimento: "" },
-                                ] })}>Adicionar parcela</Button>
-                        </Stack> : p.formaPagamento === "DINHEIRO" && (
-                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between" }}>
-                                <Typography variant="caption" color="text.secondary">Aplicado à venda: {moeda(p.valorCentavos ?? 0)}</Typography>
-                                {p.troco > 0 && <Stack sx={{ alignItems: "flex-end", flexShrink: 0 }}>
-                                    <Typography variant="caption">Troco</Typography>
-                                    <Typography aria-label={`Troco do pagamento ${i + 1}`} sx={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda(p.troco)}</Typography>
-                                </Stack>}
-                            </Stack>
-                        )}
-                        </Stack>)}
-                        <Button size="small" startIcon={<AddRoundedIcon />} sx={{ alignSelf: "flex-start" }} disabled={bloqueado || t.parcelas.length >= 20} onClick={adicionarForma}>Adicionar forma</Button>
-                        {t.parcelas.some(p => p.formaPagamento !== "A_PRAZO") && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Pago agora</span><Typography aria-label="Pago agora">{moeda(t.totalImediato)}</Typography></Stack>}
-                        {t.usaPrazo && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>A receber</span><Typography aria-label="A receber">{moeda(t.totalPrazo)}</Typography></Stack>}
-                    </>
-                )}
-                </Stack>
-                </Box>
-                <Stack spacing={1.5} sx={{ flexShrink: 0, order: { xs: 6, md: 0 }, position: { xs: "sticky", md: "static" }, bottom: 0, zIndex: 2, bgcolor: "background.paper", p: { xs: 1, md: 0 }, borderTop: 1, borderColor: "divider" }}>
+                <Stack spacing={1.5} sx={{ mt: { md: "auto !important" }, order: { xs: 6, md: 0 }, position: { xs: "sticky", md: "static" }, bottom: 0, zIndex: 2, bgcolor: "background.paper", p: { xs: 1, md: 0 }, borderTop: 1, borderColor: "divider" }}>
                 <Box sx={{ py: 1, borderBottom: 1, borderColor: "divider" }}><Typography variant="body2" color="text.secondary">Total da venda</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 40, lineHeight: 1.25, fontWeight: 800, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", color: cores.total }}>{moeda(Math.max(0, t.total))}</Typography></Box>
-                {!carregandoConfig && !erroConfig && t.restante !== 0 && <Alert severity={t.restante > 0 ? "warning" : "error"} icon={false} sx={{ py: 0.75, border: 1, borderColor: t.restante > 0 ? "warning.main" : "error.main", "& .MuiAlert-message": { width: "100%" } }}>
-                    <Stack direction="row" sx={{ justifyContent: "space-between", fontWeight: 700 }}><span>{t.restante > 0 ? "Falta distribuir" : "Valor excedente"}</span><Typography aria-label={t.restante > 0 ? "Falta distribuir" : "Valor excedente"} sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda(Math.abs(t.restante))}</Typography></Stack>
-                    <Typography variant="caption" sx={{ display: "block" }}>{t.restante > 0 ? "Distribua o restante para liberar o Pagar." : "Reduza o valor aplicado em uma forma de pagamento."}</Typography>
-                </Alert>}
-                <PdvActionButton categoria="confirmacao" icone={<ShoppingCartCheckoutRoundedIcon />} atalho="F2" aria-label={salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado · F2" : "Pagar · F2"}
-                    disabled={pagarDesabilitado} onClick={() => void finalizar()}>
-                    {salvando ? "Finalizando…" : rascunho.pendente ? "Confirmar resultado" : "Pagar"}
-                </PdvActionButton>
+                    <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", md: "block" } }}>Revise os itens e o total. Escolha o pagamento na próxima etapa.</Typography>
+                    <PdvActionButton categoria="confirmacao" icone={<ShoppingCartCheckoutRoundedIcon />} atalho="F2"
+                        aria-label="Finalizar venda · F2" disabled={revisaoDesabilitada} onClick={abrirPagamento}>Finalizar venda</PdvActionButton>
                 </Stack>
             </Stack>
         </Box>
@@ -703,7 +762,7 @@ export default function Vendas() {
             <DialogTitle id="pdv-opcional-titulo">{opcional === "cliente" ? "Cliente" : opcional === "desconto" ? "Desconto" : opcional === "entrega" ? "Entrega" : "Observações"}</DialogTitle>
             <DialogContent sx={{ pt: "12px !important" }}>
                 {opcional === "cliente" && <ClienteAutocomplete value={rascunho.cliente} disabled={bloqueado} inputRef={registrarOpcional}
-                    onChange={cliente => { alterar({ cliente }); setOpcional(null); focarBusca(); }} />}
+                    onChange={cliente => { alterar({ cliente }); setOpcional(null); if (!pagamentoAberto) focarBusca(); }} />}
                 {opcional && opcional !== "cliente" && <TextField fullWidth inputRef={registrarOpcional} disabled={bloqueado}
                     label={opcional === "desconto" ? "Desconto em R$" : opcional === "entrega" ? "Endereço / instruções de entrega" : "Observações"}
                     value={rascunho[opcional]} multiline={opcional !== "desconto"} minRows={opcional !== "desconto" ? 2 : undefined}

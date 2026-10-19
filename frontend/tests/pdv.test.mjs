@@ -128,7 +128,7 @@ test("PDV conecta seleção, sequência de foco, Escape, F2 e atalhos sem confli
     assert.match(fontePDV, /if \(listaAberta\).*setListaAberta\(false\)/s);
     assert.match(fontePDV, /if \(opcional\).*fecharOpcional\(\)/s);
     assert.match(fontePDV, /navigate\("\/vendas"\)/);
-    assert.match(fontePDV, /e\.key === "F2".*void finalizar\(\)/s);
+    assert.match(fontePDV, /e\.key === "F2".*abrirPagamento\(\)/s);
     assert.match(fontePDV, /e\.key === "F4".*remover\(id\)/s);
     assert.match(fontePDV, /e\.key === "F7".*setOpcional\("desconto"\)/s);
     assert.match(fontePDV, /e\.key === "F8".*setOpcional\("cliente"\)/s);
@@ -147,7 +147,7 @@ test("finalização apresenta processamento, sucesso, erro e bloqueia envio dupl
     assert.match(fonteFinalizacao, /CircularProgress/);
     assert.match(fonteFinalizacao, /CheckCircleRoundedIcon/);
     assert.match(fonteFinalizacao, /onTentarNovamente/);
-    assert.match(fontePDV, /if \(emEnvio\.current\) return/);
+    assert.match(fontePDV, /if \(!pagamentoAberto \|\| emEnvio\.current\) return/);
     assert.match(fontePDV, /estado: "processing"/);
     assert.match(fontePDV, /estado: "success"/);
     assert.match(fontePDV, /estado: "error"/);
@@ -155,7 +155,7 @@ test("finalização apresenta processamento, sucesso, erro e bloqueia envio dupl
 test("sucesso fecha em 1200 ms e devolve o foco somente depois do modal", () => {
     assert.match(fontePDV, /setTimeout\(\(\) => \{\s*setFinalizacao\(null\)/);
     assert.match(fontePDV, /\}, 1200\)/);
-    assert.match(fontePDV, /!salvando && !finalizacao\) focarBusca\(\)/);
+    assert.match(fontePDV, /!salvando && !finalizacao && !pagamentoAberto && !retornandoPagamento\.current\) focarBusca\(\)/);
 });
 test("quantidade fracionada usa HALF_UP por item, inclusive meio centavo", () => {
     assert.equal(decimal("1,125", 3), 1125);

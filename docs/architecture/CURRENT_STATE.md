@@ -1,5 +1,11 @@
 Empresa ........ funcional
 
+## PDV — revisão antes do pagamento (2026-10-19)
+
+Finalizar venda/F2 somente abre o diálogo de pagamento. Confirmar pagamento é o único acionador do envio de `POST /vendas`; voltar, Escape e fechamento do diálogo preservam carrinho e rascunho sem gravação. Reutilizados cálculos de troco, misto, prazo, UUID de retry, validações, Kit/Combo e confirmação de estoque insuficiente. Nenhum contrato, backend, migration ou regra financeira foi alterado. Transferência/boleto continuam fora dos tipos aceitos pelo faturamento atual; não foram convertidos em dinheiro nem implementados nesta entrega.
+
+Regressão local de 119 cenários de PDV/tema: 115 aprovados na execução inicial; os quatro casos de teste afetados pela nova etapa foram ajustados e aprovados na reexecução focada de 18 cenários. Inclui teclado sem mouse, Tab/Shift+Tab, Enter/Space, F2/Escape, leitor, foco, duplo envio, cancelamento sem POST e layout em 1440×900, 1024×600, 390×844 e 390×480 nos temas claro/escuro/automático. HTTP simulado comprova a interface, sem alegar integração financeira real. Build/lint e diff check aprovados; dois avisos preexistentes de React Hook Form e tamanho do bundle permanecem. Homologação funcional após publicação será realizada pelo usuário, sem venda real pelo agente.
+
 ## Kit/Combo — V46 (2026-10-19)
 
 Implementado ciclo de cadastro/edição versionada, consulta, busca por nome/código/EAN, disponibilidade/custo calculados pelos componentes, rascunho/quantidade, faturamento, consumo e movimentos individuais, financeiro único, cancelamento integral por consumo histórico, impressão e rastreabilidade. Tipo imutável, componentes físicos simples, fatores explícitos e FKs por empresa preservam integridade; não há estoque físico de kit, kits aninhados, depósitos ou devolução parcial. Composição alterada exige nova conferência no PDV. Histórico incompleto bloqueia cancelamento antes de qualquer reversão. Detalhes em [produtos.md](produtos.md#kitcombo--composição-operacional-v46).

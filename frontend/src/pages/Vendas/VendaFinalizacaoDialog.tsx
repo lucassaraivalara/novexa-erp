@@ -1,5 +1,6 @@
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
+import { useEffect, useRef } from "react";
 import {
     Box,
     Button,
@@ -47,6 +48,10 @@ export default function VendaFinalizacaoDialog({
 }: Props) {
     const processando = estado === "processing";
     const sucesso = estado === "success";
+    const erroRef = useRef<HTMLParagraphElement>(null);
+    useEffect(() => {
+        if (open && estado === "error") erroRef.current?.focus();
+    }, [open, estado]);
 
     return <Dialog
         open={open}
@@ -76,7 +81,8 @@ export default function VendaFinalizacaoDialog({
                             <Typography id="finalizacao-venda-titulo" variant="h5" sx={{ fontWeight: 750 }}>
                                 {processando ? "Finalizando venda" : sucesso ? "Venda concluída" : "Não foi possível concluir"}
                             </Typography>
-                            <Typography id="finalizacao-venda-descricao" color="text.secondary" sx={{ mt: 0.75 }}>
+                            <Typography id="finalizacao-venda-descricao" ref={erroRef} tabIndex={estado === "error" ? -1 : undefined}
+                                color="text.secondary" sx={{ mt: 0.75 }}>
                                 {processando
                                     ? "Aguarde enquanto o Novexa conclui a operação."
                                     : sucesso
