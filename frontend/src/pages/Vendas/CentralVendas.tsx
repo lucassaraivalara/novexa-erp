@@ -544,7 +544,7 @@ export default function CentralVendas() {
                                 : recebiveis.erro ? <Typography variant="body2" color="text.secondary">Situação indisponível</Typography>
                                     : recebivel ? <Box><StatusChip status={recebivel.status} label={rotulosRecebivel[recebivel.status] ?? "Situação indisponível"} /></Box>
                                         : <Typography variant="body2" color="text.secondary">Recebível não localizado</Typography>)}
-                            {!cartao && pagamento.configuracaoContaFinanceiraDestinoNome && <Typography variant="body2" color="text.secondary">Conta de destino: {pagamento.configuracaoContaFinanceiraDestinoNome}</Typography>}
+                            {pagamento.configuracaoContaFinanceiraDestinoNome && <Typography variant="body2" color="text.secondary">Conta de destino: {pagamento.configuracaoContaFinanceiraDestinoNome}</Typography>}
                             {pix && <Box><Chip size="small" variant="outlined" color={cancelado ? "default" : pagamento.confirmadoFinanceiramente ? "success" : "warning"}
                                 label={cancelado ? "Pagamento cancelado" : pagamento.confirmadoFinanceiramente ? "Recebimento confirmado" : "Aguardando confirmação"} /></Box>}
                             {pix && pagamento.confirmadoFinanceiramente && <Typography variant="caption" color="text.secondary">

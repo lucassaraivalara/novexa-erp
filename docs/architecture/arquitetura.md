@@ -8,6 +8,10 @@ docs/
 ├── AGENTES.md
 └── ROADMAP.md
 
+## Consulta de recebimentos por conta
+
+`RecebimentoContaController/Service/Repository` acrescenta projeções somente de leitura de Pagamento, Recebível e Movimentação Financeira. Paginação e agregação acontecem no banco por empresa do JWT, com destino e condições históricos, sem entidade/tabela nova ou outra fonte de saldo. A interface de Contas e saldos apresenta A LIQUIDAR/LIQUIDADO e reutiliza os comandos existentes de confirmação PIX/liquidação de cartão. Contratos, exclusão de cancelados e tratamento de legado em [financeiro.md](financeiro.md#pix-e-cartões-por-conta-de-destino-2026-10-20).
+
 ## Código interno de Produtos — V47
 
 Código interno de novos Produtos é atribuído pelo PostgreSQL quando ausente (V47), na mesma transação da criação. A tabela técnica `produto_codigo_numeradores` e o trigger de Produtos serializam a geração por empresa; Hibernate recupera o código antes da resposta. O contrato HTTP e a unicidade por empresa existentes são preservados. Formato, edição e carga operacional em [produtos.md](produtos.md).

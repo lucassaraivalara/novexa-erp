@@ -1,5 +1,11 @@
 # Frontend — padrões de cadastros, buscas e formulários
 
+## Contas e saldos — PIX e cartões por destino
+
+A listagem mostra saldo disponível e previsão a liquidar separadamente. A ação “PIX e cartões” da conta abre consulta paginada no drawer; “Ver PIX e cartões” consulta todos os destinos. O resumo inclui todas as páginas, separa históricos sem destino e sinaliza previsão incompleta quando faltar líquido histórico. Falha de consulta apresenta erro e retry, sem substituir indisponibilidade por saldo zero.
+
+O drawer apresenta A LIQUIDAR/LIQUIDADO, configuração usada, destino histórico, venda em nova aba, bruto, taxas, líquido, previsão e auditoria do movimento. ADMIN/GERENTE confirmam PIX ou liquidam cartão com diálogo explícito e endpoints existentes; demais perfis apenas consultam. Retry, bloqueio síncrono contra duplo envio, foco, Escape, rolagem em telas estreitas e tokens claro/escuro seguem os componentes existentes. Central de Vendas passa a exibir o destino também para cartão; extrato identifica PIX confirmado e cartão liquidado. Sem mudança no PDV ou no fechamento.
+
 ## Composição de Produtos (Kit/Combo)
 
 O formulário completo oferece tipo composto, busca remota de componentes físicos, quantidade/unidade/fator, remoção e histórico versionado. Cadastro rápido permanece simples. Campos digitados são preservados em erro; componentes não carregados não são sobrescritos. Produtos, Estoque, busca/carrinho do PDV e impressão identificam o composto e sua disponibilidade/custo calculados. O carrinho apresenta consumo previsto recolhível e recalcula com a quantidade, sem gravar estoque. Central de Vendas apresenta consumo histórico, custo e IDs de saída/reversão. Operações avulsas de estoque e seleção para Entrada excluem Kit/Combo. Layout, temas, pagamento, atalhos e rotas existentes são reutilizados.

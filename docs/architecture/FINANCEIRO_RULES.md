@@ -1,5 +1,12 @@
 # Regras oficiais do Financeiro
 
+## Apresentação de recebimentos por conta
+
+- A previsão de PIX/cartão é consultada nos registros da venda e não aumenta `ContaFinanceira.saldoAtual`. A LIQUIDAR e LIQUIDADO são estados de apresentação derivados da ausência/presença de movimento financeiro ativo vinculado; não substituem os status persistidos nem o histórico de cancelamento.
+- Fechar Caixa não liquida recebimentos. Confirmar PIX/liquidar cartão continuam ações explícitas, com destino histórico, permissões, idempotência e reversões existentes.
+- A previsão soma líquidos conhecidos de pagamentos não cancelados. Destino ou valor histórico ausente deve ser sinalizado, sem inferir conta pelo nome, reutilizar configuração atual ou apresentar valor desconhecido como zero.
+- Total liquidado histórico não é saldo disponível: saídas, transferências e outros movimentos permanecem refletidos exclusivamente no saldo da conta. Gateway identificado no cadastro não implica integração automática com provedor.
+
 ## PIX antes do faturamento
 
 - Nova venda com PIX exige configuracao empresarial ativa com destino BANCO/CARTEIRA_DIGITAL ativo do mesmo tenant. Vale tambem para o payload singular legado: PIX sem configuracao retorna 409 antes dos efeitos de Venda/estoque/pagamentos. Cadastro ja exige destino; faturamento revalida sua disponibilidade.

@@ -4,6 +4,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SwapHorizRoundedIcon from "@mui/icons-material/SwapHorizRounded";
 import CompareArrowsRoundedIcon from "@mui/icons-material/CompareArrowsRounded";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
+import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import PowerSettingsNewRoundedIcon from "@mui/icons-material/PowerSettingsNewRounded";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
     Paper, Snackbar, Typography } from "@mui/material";
@@ -19,6 +20,9 @@ import MovimentacaoFinanceiraDrawer from "./MovimentacaoFinanceiraDrawer";
 import ExtratoFinanceiroDrawer from "./ExtratoFinanceiroDrawer";
 import TransferenciaFinanceiraDrawer from "./TransferenciaFinanceiraDrawer";
 import CofrePainel from "./CofrePainel";
+import RecebimentosContaDrawer from "./RecebimentosContaDrawer";
+import { resumirRecebimentosContas } from "../../services/recebimentoContaService";
+import type { RecebimentoContaResumo } from "../../types/recebimentoConta";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -42,6 +46,20 @@ export default function ContasFinanceiras() {
     const [transferirId, setTransferirId] = useState<number | null>(null);
     const [situacao, setSituacao] = useState<ContaFinanceira | null>(null);
     const [processando, setProcessando] = useState(false);
+    const [recebimentosResumo, setRecebimentosResumo] = useState<RecebimentoContaResumo[] | null>(null);
+    const [erroRecebimentos, setErroRecebimentos] = useState("");
+    const [recebimentos, setRecebimentos] = useState<{ contaId?: number; nome?: string; semDestino?: boolean } | null>(null);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        resumirRecebimentosContas(controller.signal)
+            .then(dados => { if (!controller.signal.aborted) { setRecebimentosResumo(dados); setErroRecebimentos(""); } })
+            .catch(e => { if (!controller.signal.aborted) {
+                setRecebimentosResumo(null);
+                setErroRecebimentos(mensagemContaFinanceira(e, "Não foi possível consultar os valores a liquidar."));
+            } });
+        return () => controller.abort();
+    }, [tentativa]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -104,7 +122,7 @@ export default function ContasFinanceiras() {
     }
 
     const grupos: { titulo: string; tipos: TipoContaFinanceira[]; cor: string }[] = [
-        { titulo: "Saldo total", tipos: Object.keys(rotulosTipoContaFinanceira) as TipoContaFinanceira[], cor: "primary.main" },
+        { titulo: "Saldo disponível total", tipos: Object.keys(rotulosTipoContaFinanceira) as TipoContaFinanceira[], cor: "primary.main" },
         { titulo: "Bancos", tipos: ["BANCO"], cor: "info.main" },
         { titulo: "Cofre", tipos: ["COFRE"], cor: "warning.main" },
         { titulo: "Carteiras digitais", tipos: ["CARTEIRA_DIGITAL"], cor: "success.main" },
@@ -118,13 +136,20 @@ export default function ContasFinanceiras() {
             </Typography>}
         </Box> },
         { campo: "tipo", cabecalho: "Tipo", largura: 180, ordenavel: true, render: (_, conta) => rotulosTipoContaFinanceira[conta.tipo] },
-        { campo: "saldoAtual", cabecalho: "Saldo atual", largura: 170, ordenavel: true, alinhar: "right", render: (valor) =>
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>{moeda.format(Number(valor))}</Typography> },
+        { campo: "saldoAtual", cabecalho: "Saldo disponível", largura: 190, ordenavel: true, alinhar: "right", render: (valor, conta) => <Box>
+            <Typography variant="body2" sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda.format(Number(valor))}</Typography>
+            {(conta.tipo === "BANCO" || conta.tipo === "CARTEIRA_DIGITAL") && <Typography variant="caption" color="text.secondary">
+                A liquidar: {recebimentosResumo ? moeda.format(recebimentosResumo.find(r => r.contaDestinoId === conta.id)?.aLiquidar ?? 0) : "—"}
+                {!!recebimentosResumo?.find(r => r.contaDestinoId === conta.id)?.quantidadeSemValor && " + valor não informado"}
+            </Typography>}
+        </Box> },
         { campo: "ativo", cabecalho: "Situação", largura: 125, ordenavel: true, render: (_, conta) =>
             <Chip size="small" variant="outlined" label={conta.ativo ? "Ativa" : "Inativa"}
                 color={conta.ativo ? "success" : "default"} /> },
     ];
     const acoes: AcaoTabela<ContaFinanceira>[] = [
+        { rotulo: "PIX e cartões", icone: <PaymentsOutlinedIcon fontSize="small" />,
+            onClick: conta => setRecebimentos({ contaId: conta.id, nome: conta.nome }), tooltip: "Consultar valores a liquidar e liquidados" },
         { rotulo: "Extrato", icone: <ReceiptLongOutlinedIcon fontSize="small" />, onClick: (conta) => setExtratoId(conta.id),
             cor: "primary", tooltip: "Ver extrato" },
         { rotulo: "Movimentar", icone: <SwapHorizRoundedIcon fontSize="small" />, onClick: (conta) => setMovimentarId(conta.id),
@@ -137,10 +162,13 @@ export default function ContasFinanceiras() {
     ];
     const contaMovimentar = contas.find((conta) => conta.id === movimentarId);
     const contaExtrato = contas.find((conta) => conta.id === extratoId);
+    const aLiquidar = recebimentosResumo?.filter(r => r.contaDestinoId !== null).reduce((soma, r) => soma + r.aLiquidar, 0);
+    const semDestino = recebimentosResumo?.find(r => r.contaDestinoId === null);
+    const semValor = recebimentosResumo?.reduce((total, r) => total + r.quantidadeSemValor, 0) ?? 0;
 
     return <PageContainer>
         <PageHeader titulo="Contas e saldos"
-            descricao="Saldos, movimentos e transferências das contas financeiras. A identificação bancária fica em Dados bancários."
+            descricao="Saldo disponível e valores a liquidar são separados. PIX e cartões só entram no saldo após confirmação do recebimento."
             acoesSecundarias={<Button variant="outlined" startIcon={<AddRoundedIcon />} onClick={() => setEditor(null)}>Nova conta</Button>} />
         {erro && !situacao && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErro("")}
             action={contas.length === 0 ? <Button color="inherit" onClick={() => { setCarregando(true); setTentativa((n) => n + 1); }}>Tentar novamente</Button> : undefined}>{erro}</Alert>}
@@ -158,6 +186,21 @@ export default function ContasFinanceiras() {
                     <Typography variant="caption" color="text.secondary">{totais ? `${totais.quantidade} ${totais.quantidade === 1 ? "conta" : "contas"}` : "—"}</Typography>
                 </Paper>;
             })}
+        </Box>
+        <Box component="section" aria-label="Previsão de PIX e cartões" sx={{ mb: 2 }}>
+            {erroRecebimentos && <Alert severity="error" sx={{ mb: 1 }}
+                action={<Button color="inherit" onClick={atualizar}>Tentar novamente</Button>}>{erroRecebimentos}</Alert>}
+            <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5 }}>
+                <Typography variant="body2"><strong>A LIQUIDAR: {aLiquidar == null ? "—" : moeda.format(aLiquidar)}</strong> · PIX e cartões com destino registrado</Typography>
+                <Button startIcon={<PaymentsOutlinedIcon />} onClick={() => setRecebimentos({})}>Ver PIX e cartões</Button>
+            </Box>
+            <Typography variant="caption" color="text.secondary">Valores previstos não compõem o saldo disponível. Fechar o Caixa não liquida esses recebimentos.</Typography>
+            {semValor > 0 && <Alert severity="warning" sx={{ mt: 1 }}>{semValor} recebimento(s) com valor líquido não informado.
+                A previsão soma somente valores conhecidos; confira o histórico antes de liquidar.</Alert>}
+            {!!semDestino?.quantidadeALiquidar && <Alert severity="warning" sx={{ mt: 1 }}
+                action={<Button color="inherit" onClick={() => setRecebimentos({ semDestino: true })}>Consultar</Button>}>
+                {semDestino.quantidadeALiquidar} recebimento(s) sem destino histórico: {moeda.format(semDestino.aLiquidar)}. Não incluídos na previsão das contas.
+            </Alert>}
         </Box>
         <PageFilters busca={{ placeholder: "Buscar por nome ou tipo", valor: busca,
             onChange: (valor) => { setBusca(valor); setPagina(0); } }} />
@@ -179,6 +222,7 @@ export default function ContasFinanceiras() {
             onFechar={() => setTransferirId(null)} onSalvo={() => { setTransferirId(null); setTentativa((n) => n + 1); setSucesso("Transferência concluída."); }} />}
         {contaExtrato && <ExtratoFinanceiroDrawer key={contaExtrato.id} conta={contaExtrato}
             onFechar={() => setExtratoId(null)} onSaldoAlterado={() => { setTentativa((n) => n + 1); setSucesso("Movimentação estornada."); }} />}
+        {recebimentos && <RecebimentosContaDrawer {...recebimentos} onFechar={() => setRecebimentos(null)} onAlterado={atualizar} />}
         <Dialog open={situacao !== null} onClose={processando ? undefined : () => setSituacao(null)} aria-labelledby="situacao-conta-titulo">
             <DialogTitle id="situacao-conta-titulo">{situacao?.ativo ? "Inativar conta?" : "Ativar conta?"}</DialogTitle>
             <DialogContent>

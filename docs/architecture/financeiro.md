@@ -1,5 +1,20 @@
 FINANCEIRO NOVEXA
 
+## PIX e cartões por conta de destino (2026-10-20)
+
+Contas e saldos distingue **saldo disponível**, **A LIQUIDAR** e **LIQUIDADO**. A venda já registra a previsão: Pagamento para PIX e Recebível para cartão. A consulta reúne esses registros pelo destino histórico, sem criar saldo paralelo ou creditar a conta no faturamento/fechamento. O saldo disponível continua exclusivamente em ContaFinanceira; o total liquidado é histórico de entradas e não desconta saídas/transferências posteriores.
+
+Contratos adicionais, autenticados e somente de leitura:
+
+- `GET /financeiro/recebimentos-contas/resumo`: agregado de toda a empresa por `contaDestinoId`, com líquido conhecido `aLiquidar`, `liquidado`, `quantidadeALiquidar` e `quantidadeSemValor`. Destino nulo é um grupo de pendências históricas separado das contas.
+- `GET /financeiro/recebimentos-contas`: `contaId` opcional, `semDestino=false`, `status=A_LIQUIDAR|LIQUIDADO` opcional (vazio significa ambos), `page=0`, `size=25` (máximo 100) e `sort=dataHora,desc` (campos `id`, `dataHora`, `valor`). Resposta paginada inclui pagamento/venda/recebível, forma, configuração, destino original, bruto, taxas, líquido previsto, previsão, situação, valor/data/movimento efetivamente confirmado. Empresa vem exclusivamente do JWT; conta externa retorna 404.
+
+Projeções e agregação executam no banco, sem consulta por linha e sem carregar todas as vendas no navegador. `A_LIQUIDAR` significa ausência de entrada financeira ativa; `LIQUIDADO` exige movimento vinculado não estornado. Cancelados não compõem essa consulta nem os totais; seu histórico permanece nos módulos originais. O estado persistido PENDENTE dos recebíveis e os contratos de confirmação/cancelamento existentes não mudam.
+
+Destino, nome da configuração e condições vêm dos snapshots da venda, nunca do cadastro atual. Cartão usa líquido/taxas/data persistidos; PIX usa o valor do pagamento, sem inventar taxa ou previsão. Histórico sem valor líquido aparece como incompleto, fora da soma conhecida e sem ação de confirmação na nova tela. Histórico sem destino fica visível, sem associação automática por nome. Atualizar a configuração não reinterpreta vendas anteriores.
+
+A consulta permite confirmar PIX ou liquidar cartão pelos endpoints atuais, com confirmação explícita, proteção contra repetição e restrição ADMIN/GERENTE existente. Valor e destino continuam determinados pelo backend. Fechamento não confirma recebimento; dinheiro/Cofre, Contas a Receber, transferências, reversões e locks não foram alterados. InfinityPay/PagSeguro continuam identificações do cadastro/configuração: esta entrega não integra APIs, webhooks ou conciliação desses provedores. Nenhuma migration nova.
+
 ## PDV — momento da confirmação
 
 O carrinho é revisado antes da escolha do pagamento. Finalizar venda/F2 abre o diálogo, sem gravar. Somente Confirmar pagamento envia o pedido existente e inicia a transação de Venda/Estoque/Financeiro. Voltar/fechar preserva o rascunho local. Troco, misto, parcelas a prazo, confirmação de estoque insuficiente, idempotência e destinos financeiros permanecem sob as regras já implementadas; selecionar uma forma não comprova recebimento. Transferência e boleto não foram adicionados ao faturamento: continuam pendentes no contrato operacional atual. Detalhes de teclado e apresentação em [frontend.md](frontend.md#pdv---comandos-operacionais).
