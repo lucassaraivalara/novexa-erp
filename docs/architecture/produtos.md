@@ -1,5 +1,19 @@
 # Produtos
 
+## Código interno automático — V47 (implementação local)
+
+Código vazio/nulo/somente espaços na criação recebe um número decimal positivo, sem prefixo ou zeros adicionados. `produto_codigo_numeradores` guarda o maior número utilizado por empresa; a V47 inicializa esse controle pelos códigos numéricos existentes, sem atualizar produtos. Não é uma sequência sem lacunas: códigos manuais numéricos podem avançar o numerador. O limite continua sendo 60 caracteres.
+
+O trigger `atribuir_codigo_interno_produto` executa na transação do INSERT. UPSERT/UPDATE bloqueiam o numerador da empresa até commit/rollback, inclusive no primeiro cadastro concorrente; o índice único existente `(empresa_id,codigo_interno)` permanece como proteção final. Valores numéricos informados/importados também avançam o controle, que não retrocede ao editar, inativar ou excluir um produto. Falha da transação reverte produto e numerador. Não há MAX + 1 durante o cadastro.
+
+Na criação de Kit/Combo, componentes são bloqueados em ordem de ID antes do INSERT/numerador, reutilizando o bloqueio existente de composição. Essa ordem evita inversão com edição concorrente do código de um componente, sem mudar a composição ou a movimentação de estoque.
+
+A API mantém `codigoInterno`; Hibernate lê o valor atribuído pelo banco antes da resposta. Códigos informados mantêm a normalização anterior (trim/maiúsculas); duplicidade é rejeitada com 409. Códigos só de pontuação ou com caracteres de controle são inválidos. Edição com código ausente/vazio preserva o atual; edição explícita continua permitida, com validação de duplicidade. Produtos legados sem código permanecem sem código até edição explícita: não há renumeração nem saneamento retroativo de dados. A listagem os identifica como “Sem código interno”, sem traço que possa ser confundido com código.
+
+Cadastro completo, rápido e Kit/Combo usam o mesmo INSERT, sem numerador no frontend. Não existe operação própria de duplicação: nova criação sem código recebe outro número; copiar um código existente é conflito. Busca por código no PDV, filtros, ordenação textual, paginação e referências por ID de venda/estoque permanecem iguais. A V47 não cria saldo, composição, movimento ou efeito financeiro.
+
+O script operacional único também utiliza o trigger, sem API/tela de importação. Linhas com código são inseridas antes das linhas sem código, prevenindo colisões com códigos informados mais adiante no arquivo. Código ausente exige V47 aplicada; códigos/EAN existentes continuam rejeitados, nunca atualizados. Sem código e sem EAN, nome já existente/repetido bloqueia a linha como duplicada, evitando reenvio ambíguo. Nenhuma planilha real foi importada nesta alteração.
+
 ## Kit/Combo — composição operacional (V46)
 
 `GET /produtos/composicao/capacidade` autenticado confirma suporte antes de habilitar a criação do composto na interface, evitando incompatibilidade durante publicação desencontrada de frontend/API.

@@ -4,6 +4,8 @@ Procedimento operacional do primeiro cliente, fora do frontend/backend. Não é 
 
 Usar Python 3.12 com `xlrd==2.0.2` e `psycopg[binary]==3.3.6` em ambiente isolado. Nunca salvar credenciais, planilha ou relatórios no Git. O arquivo original não é reescrito.
 
+Compatibilidade V47: linha sem código interno exige a migration aplicada e recebe o código pelo mesmo trigger usado pela API. O script insere os códigos informados antes dos automáticos, mantendo-os intactos. Sem código e sem EAN, nome existente/repetido é duplicidade a revisar; não há atualização ou inferência sobre qual produto reutilizar. Testes novos usam somente registros sintéticos em PostgreSQL descartável. Este ajuste não autoriza nova carga em produção.
+
 1. Confirmar backup do banco correto, API saudável, commit e V42 aplicada.
 2. Testar no PostgreSQL descartável migrado por Flyway. Configurar `NOVEXA_CARGA_DSN` somente no ambiente; para os testes, schema `carga_operacional_test` com ADMIN sintético, empresa `900001` e CPF fictício. `NOVEXA_CARGA_CPF` recebe o CPF de teste, sem registrá-lo em logs.
 3. Executar `python scripts/operacoes/test_carga_inicial_produtos.py` e ensaiar o arquivo com `--mode rehearse`. O ensaio sempre faz rollback; conferir os registros anteriores após o retorno.

@@ -96,6 +96,8 @@ public class ProdutoEntity {
     public void setSubcategoria(SubcategoriaProdutoEntity subcategoria) { this.subcategoria = subcategoria; }
 
     @Column(name = "codigo_interno", length = 60)
+    // V47 atribui o código na mesma transação; inclusive INSERTs operacionais.
+    @org.hibernate.annotations.Generated(event = org.hibernate.generator.EventType.INSERT, writable = true)
     private String codigoInterno;
 
     @Column(name = "codigo_barras", length = 60)

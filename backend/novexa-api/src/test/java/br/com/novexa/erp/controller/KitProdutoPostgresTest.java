@@ -22,7 +22,7 @@ class KitProdutoPostgresTest extends KitProdutoHttpTest {
         p.add("spring.flyway.enabled",()->true);p.add("spring.flyway.schemas",()->SCHEMA);p.add("spring.flyway.default-schema",()->SCHEMA);
         p.add("spring.jpa.hibernate.ddl-auto",()->"validate");
     }
-    @Test void schemaAtualV46Validado() { flyway.validate();assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("46"); }
+    @Test void schemaAtualV47Validado() { flyway.validate();assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("47"); }
     @AfterAll static void limparSchema() throws Exception {
         try(var c=DriverManager.getConnection(URL,"postgres","synthetic-test-password");var s=c.createStatement()){s.execute("drop schema if exists "+SCHEMA+" cascade");}
     }

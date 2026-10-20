@@ -43,7 +43,7 @@ public class ComposicaoProdutoService {
         return resultado;
     }
     public void bloquearEdicao(Long id,Long empresa,List<ComponenteProdutoDTO> linhas) {
-        var ids=new TreeSet<Long>();ids.add(id);
+        var ids=new TreeSet<Long>();if(id!=null)ids.add(id);
         linhas.forEach(l->{if(l!=null&&l.produtoId()!=null)ids.add(l.produtoId());});
         for(var pid:ids) { var p=produtos.findByIdAndEmpresaIdWithLock(pid,empresa).orElseThrow(()->erro("Componente indisponível para esta empresa."));em.refresh(p); }
     }

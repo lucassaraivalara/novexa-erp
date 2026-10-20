@@ -171,7 +171,7 @@ function Produtos() {
     const renderCodigo = (_: unknown, linha: Produto): React.ReactNode => (
         <Stack sx={{ gap: 0.125, minWidth: 0 }}>
             <Typography sx={{ fontSize: "0.85rem", fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis" }}>
-                {linha.codigoInterno ?? "—"}
+                {linha.codigoInterno?.trim() || "Sem código interno"}
             </Typography>
             {linha.codigoBarras && <Typography color="text.secondary" sx={{ fontSize: "0.72rem", overflow: "hidden", textOverflow: "ellipsis" }}>
                 Barras: {linha.codigoBarras}

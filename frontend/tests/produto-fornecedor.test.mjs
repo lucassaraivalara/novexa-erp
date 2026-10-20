@@ -62,6 +62,8 @@ async function abrir(e, viewport = { width: 1440, height: 900 }) {
         if ((id && req.method() === "PUT") || (u.pathname === "/produtos" && req.method() === "POST")) {
             if (e.erroSalvar) return responder(404, "Fornecedor não encontrado para a empresa informada.");
             const salvo = { ...produto, ...body, id: id ? Number(id[1]) : 500, fornecedor: e.fornecedores.find(f => f.id === body.fornecedorId) ?? null };
+            // Resposta simulada da API; o frontend não calcula o código.
+            salvo.codigoInterno = body.codigoInterno || (id ? produto.codigoInterno : "2049");
             salvo.categoria = categorias.find(c => c.id === body.categoriaId) ?? null; salvo.subcategoria = subcategorias.find(c => c.id === body.subcategoriaId) ?? null; salvo.marca = marcas.find(c => c.id === body.marcaId) ?? null;
             if (id) e.produtos.splice(e.produtos.findIndex(p => p.id === salvo.id), 1, salvo); else e.produtos.push(salvo);
             return responder(id ? 200 : 201, salvo);
@@ -75,6 +77,42 @@ const categorias = [{ id: 10, nome: "Bebidas", ativo: true }, { id: 11, nome: "A
 const subcategorias = [{ id: 20, nome: "Sucos", ativo: true, categoria: categorias[0] }, { id: 21, nome: "Massas", ativo: true, categoria: categorias[1] }];
 const marcas = [{ id: 30, nome: "Marca teste", ativo: true }];
 const gravacoes = e => e.chamadas.filter(c => ["POST", "PUT"].includes(c.metodo));
+
+for (const viewport of [{width:1440,height:900}, {width:390,height:480}]) {
+    test(`Código interno opcional exibe somente o valor retornado pela API em ${viewport.width}px`, async () => {
+        const e=novoEstado(), p=await abrir(e,viewport);
+        try {
+            await p.getByRole("button",{name:"Novo produto",exact:true}).click();
+            const d=p.getByRole("dialog"), codigo=d.getByRole("textbox",{name:"Código interno",exact:true});
+            await expect(codigo).toHaveValue("");
+            await expect(codigo).toHaveAccessibleDescription("Opcional: gerado automaticamente ao cadastrar.");
+            await codigo.fill("   ");
+            await d.getByRole("textbox",{name:"Nome",exact:true}).fill("Produto com código automático");
+            await d.getByRole("textbox",{name:"Preço de venda",exact:true}).fill("10");
+            await d.getByRole("button",{name:"Cadastrar produto",exact:true}).click();
+            await expect(d).toHaveCount(0);
+            assert.equal(gravacoes(e).at(-1).body.codigoInterno,null);
+            const row=p.getByRole("row").filter({has:p.getByRole("cell",{name:/Produto com código automático/})});
+            await expect(row.getByText("2049",{exact:true})).toBeVisible();
+            assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+        } finally {await p.close();}
+    });
+}
+
+test("Edição informa preservação e listagem identifica código legado ausente sem placeholder",async()=>{
+    const e=novoEstado();e.produtos[0].codigoInterno=null;
+    const p=await abrir(e);
+    try {
+        await expect(p.getByText("Sem código interno",{exact:true})).toBeVisible();
+        const d=await editar(p), campo=d.getByRole("textbox",{name:"Código interno",exact:true});
+        await expect(campo).toHaveAccessibleDescription("Produto legado sem código: informe um código para identificá-lo.");
+        await campo.fill("SKU-INFORMADO");
+        await d.getByRole("button",{name:"Salvar alterações",exact:true}).click();
+        await expect(d).toHaveCount(0);
+        assert.equal(gravacoes(e).at(-1).body.codigoInterno,"SKU-INFORMADO");
+        await expect(p.getByText("SKU-INFORMADO",{exact:true})).toBeVisible();
+    } finally {await p.close();}
+});
 
 test("Kit/Combo aguarda suporte da API sem bloquear cadastro simples",async()=>{
     const e=novoEstado();e.kitIndisponivel=true;const p=await abrir(e);

@@ -108,6 +108,14 @@ test("scanner usa somente código exato entre resultados remotos; nunca nome par
     assert.equal(encontrarProdutoPorCodigo([{ ...produto, ativo: false }], "7890001"), undefined);
     assert.equal(encontrarProdutoPorCodigo([produto], ""), undefined);
 });
+
+test("PDV reconhece código interno numérico gerado sem convertê-lo ou confundir prefixos", () => {
+    const gerado = { ...produto, codigoInterno: "2049", codigoBarras: null };
+    const prefixo = { ...produto, id: 2, codigoInterno: "20490", codigoBarras: null };
+    assert.equal(encontrarProdutoPorCodigo([prefixo, gerado], " 2049 "), gerado);
+    assert.equal(encontrarProdutoPorCodigo([gerado], "204"), undefined);
+    assert.equal(encontrarProdutoPorCodigo([gerado], "02049"), undefined);
+});
 test("codigo compartilhado entre EAN e codigo interno exige selecao", () => {
     const outro = { ...produto, id: 2, codigoBarras: "7890002", codigoInterno: "7890001" };
     assert.equal(encontrarProdutoPorCodigo([produto, outro], "7890001"), undefined);

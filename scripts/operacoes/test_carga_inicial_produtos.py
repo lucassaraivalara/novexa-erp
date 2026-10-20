@@ -50,6 +50,25 @@ class PostgreSQLTest(unittest.TestCase):
         _,indexes=planejar(self.conn,repeat,900001)
         self.assertEqual(repeat[0]['situacao'],'DUPLICADA')
         self.assertEqual(gravar(self.conn,repeat,900001,indexes)[0],[])
+    def test_sem_codigo_usa_numerador_da_api_e_preserva_codigo_importado(self):
+        rows=[linha(codigo_interno='',codigo_barras='7890000000028'),
+              linha(2,codigo_interno='8400',codigo_barras='7890000000011')]
+        _,indexes=planejar(self.conn,rows,900001)
+        ids,_=gravar(self.conn,rows,900001,indexes)
+        codigos=[self.conn.execute('select codigo_interno from produtos where id=%s',(id,)).fetchone()['codigo_interno'] for id in ids]
+        self.assertEqual(codigos,['8400','8401'])
+        self.assertEqual(snapshot(self.conn,900001)['movimentos'],self.before['movimentos'])
+        repeat=[linha(codigo_interno='8400',codigo_barras='7890000000011'),linha(2,codigo_interno='',codigo_barras='7890000000028')]
+        planejar(self.conn,repeat,900001)
+        self.assertEqual([r['situacao'] for r in repeat],['DUPLICADA','DUPLICADA'])
+    def test_sem_codigo_e_sem_ean_reenvio_nao_duplica_por_nome(self):
+        rows=[linha(codigo_interno='')]
+        _,indexes=planejar(self.conn,rows,900001)
+        ids,_=gravar(self.conn,rows,900001,indexes)
+        self.assertEqual(len(ids),1)
+        again=[linha(codigo_interno='')]
+        planejar(self.conn,again,900001)
+        self.assertEqual(again[0]['situacao'],'DUPLICADA')
     def test_duplicidade_no_arquivo_rejeita_todas_ocorrencias(self):
         rows=[linha(),linha(2)]
         planejar(self.conn,rows,900001)

@@ -8,6 +8,10 @@ docs/
 ├── AGENTES.md
 └── ROADMAP.md
 
+## Código interno de Produtos — V47
+
+Código interno de novos Produtos é atribuído pelo PostgreSQL quando ausente (V47), na mesma transação da criação. A tabela técnica `produto_codigo_numeradores` e o trigger de Produtos serializam a geração por empresa; Hibernate recupera o código antes da resposta. O contrato HTTP e a unicidade por empresa existentes são preservados. Formato, edição e carga operacional em [produtos.md](produtos.md).
+
 ## Produtos compostos — V46
 
 `Produto(composto, composicaoVersao) → componentes_produto` mantém revisões imutáveis da receita, quantidades/fatores e auditoria. `ItemVenda → consumos_kit_venda → MovimentacaoEstoque` preserva componentes, custo, versão e saída/reversão efetivos. Estoque físico permanece somente nos componentes; disponibilidade e custo do composto são consultas calculadas no banco. Faturamento/cancelamento reutilizam a transação e os efeitos financeiros existentes. Contratos aditivos e limites em [produtos.md](produtos.md).

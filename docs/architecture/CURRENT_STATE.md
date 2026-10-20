@@ -1,5 +1,13 @@
 Empresa ........ funcional
 
+## Código interno automático de Produtos — V47 (validação local, 2026-10-20)
+
+Criação sem código recebe número decimal por empresa na mesma transação do INSERT, pelo trigger/numerador persistido da V47. Código informado mantém a normalização anterior e a unicidade existente; edição vazia preserva o código. Cadastro completo, rápido, Kit/Combo e script operacional utilizam a mesma geração, sem API/tela de importação ou numerador no frontend. Produtos existentes não foram renumerados; legados sem código são identificados na lista e podem receber código por edição explícita. Contratos, PDV, estoque e financeiro não foram alterados. Formato e limites em [produtos.md](produtos.md#código-interno-automático--v47-implementação-local).
+
+Validação em PostgreSQL 18 descartável: Flyway V1–V47, upgrade V46→V47 com legado preservado, Hibernate validate e startup completo; health local 200/UP. Grupo relacionado: 196 aprovações e dois casos já desabilitados no teste herdado de Caixa (inclui 17 aprovações H2 complementares). Reexecução final de geração/unidade/Kit e build backend: 179 aprovações e dois casos desabilitados, incluindo criação de Kit concorrente com edição do código de componente sem inversão de locks. Nove testes do script com dados sintéticos aprovados, incluindo código ausente, preservação do informado, repetição e rollback. Frontend: 107 cenários de cadastro/PDV/relatório aprovados com HTTP simulado, três casos focados de apresentação revalidados e um teste adicional de código numérico no PDV aprovado. Builds backend/frontend, lint (zero erros; dois avisos preexistentes de React Hook Form) e diff check aprovados; aviso de bundle permanece.
+
+Regressão suplementar `ProdutoIsolamentoTest`: 30 aprovações e duas falhas anteriores à geração, em PUT de produto de outra empresa (409 do bloqueio de composição versus 404 esperado). O caminho já consta no baseline e continua negando acesso; não foi alterado nem mascarado nesta tarefa. Não declarar validação integral da suíte. Nenhuma planilha real, produção ou dado de cliente foi acessado; V47 somente aplicada no ambiente descartável, sem publicação/deploy nesta etapa.
+
 ## PDV — revisão antes do pagamento (2026-10-19)
 
 Finalizar venda/F2 somente abre o diálogo de pagamento. Confirmar pagamento é o único acionador do envio de `POST /vendas`; voltar, Escape e fechamento do diálogo preservam carrinho e rascunho sem gravação. Reutilizados cálculos de troco, misto, prazo, UUID de retry, validações, Kit/Combo e confirmação de estoque insuficiente. Nenhum contrato, backend, migration ou regra financeira foi alterado. Transferência/boleto continuam fora dos tipos aceitos pelo faturamento atual; não foram convertidos em dinheiro nem implementados nesta entrega.

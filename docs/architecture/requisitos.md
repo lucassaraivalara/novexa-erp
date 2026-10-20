@@ -1,5 +1,7 @@
 # Requisitos do Sistema - Novexa ERP
 
+Código interno pode ser omitido no cadastro de Produto: a criação deve persistir um código numérico único por empresa, gerado transacionalmente no backend/PostgreSQL (V47). Código informado mantém a normalização atual e não é substituído; duplicidade é conflito. Edição vazia preserva o código, sem renumerar produtos legados. A mesma geração atende ao procedimento operacional sem código; regras em [produtos.md](produtos.md).
+
 ## Ajustes operacionais aprovados — 2026-10-19
 
 MEI é uma opção cadastral de regime tributário, sem implementação de regras fiscais. Consulta de CEP auxilia o endereço de Empresas e permite edição manual e continuidade em caso de indisponibilidade. Sessão JWT tem padrão de uma hora sem renovação, renovação por atividade e limite absoluto padrão de oito horas desde o login. Venda com estoque insuficiente exige autorização por empresa, desativada por padrão, e confirmação explícita do operador, auditada no movimento; demais saídas mantêm bloqueio. Detalhes em [frontend.md](frontend.md) e [estoque.md](estoque.md).

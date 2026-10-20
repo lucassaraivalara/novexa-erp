@@ -67,6 +67,10 @@ public class ProdutoService {
         prepararDados(produto, null);
         validarCodigosDuplicados(produto, empresaId, null);
 
+        // Mesma ordem da edição: componentes antes do numerador adquirido no INSERT.
+        if (classificacao != null && classificacao.getComponentes() != null)
+            composicoes.bloquearEdicao(null, empresaId, classificacao.getComponentes());
+
         var salvo=produtoRepository.save(produto);
         if (classificacao != null) composicoes.gravar(salvo, classificacao);
         return salvo;
@@ -205,6 +209,10 @@ public class ProdutoService {
             throw new ProdutoInvalidoException("O tipo simples/composto nao pode ser alterado; preserve o historico e cadastre outro produto.");
         aplicarClassificacao(produtoExistente, empresaId, classificacao);
         prepararDados(dadosNovos, produtoExistente);
+        // Vazio na edição preserva o código; geração é exclusiva da criação.
+        if (dadosNovos.getCodigoInterno() == null) {
+            dadosNovos.setCodigoInterno(produtoExistente.getCodigoInterno());
+        }
         if (composicoes != null) composicoes.validarAlteracaoFisica(produtoExistente,dadosNovos);
         validarCodigosDuplicados(dadosNovos, empresaId, id);
         if (fornecedorInformado) produtoExistente.setFornecedorPrincipal(buscarFornecedor(fornecedorId, empresaId));
@@ -364,7 +372,12 @@ public class ProdutoService {
             return null;
         }
 
-        return codigoInterno.trim().toUpperCase(Locale.ROOT);
+        String normalizado = codigoInterno.trim().toUpperCase(Locale.ROOT);
+        if (normalizado.length() > 60 || normalizado.codePoints().noneMatch(Character::isLetterOrDigit)
+                || normalizado.codePoints().anyMatch(Character::isISOControl)) {
+            throw new ProdutoInvalidoException("Informe um código interno de até 60 caracteres, com letras ou números e sem caracteres de controle.");
+        }
+        return normalizado;
     }
 
     private String normalizarCodigoBarras(String codigoBarras) {

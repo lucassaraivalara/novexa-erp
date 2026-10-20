@@ -191,6 +191,8 @@ Clientes, Produtos, Estoque, Central de Vendas, Contas a Pagar e Extrato usam pa
 
 ## Busca por coluna em Produtos, Clientes e Estoque
 
+No cadastro completo de Produto, Código interno continua opcional e informa que será gerado ao cadastrar; o frontend envia null e exibe somente o valor retornado pela API. Na edição, vazio preserva o código atual. Produto legado sem código recebe orientação para identificação manual; na lista aparece “Sem código interno”. O cadastro rápido permanece sem campo adicional e utiliza a mesma geração do PostgreSQL (V47), descrita em [produtos.md](produtos.md).
+
 Produtos permite selecionar Código interno ou Produto pelo botão textual
 do cabeçalho. O chip removível de PageFilters indica o campo ativo; o texto digitado
 é mantido ao trocar de coluna ou retornar à busca geral. A coluna restringe a busca

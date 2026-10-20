@@ -407,11 +407,17 @@ function ProdutoForm({
                                             erros.codigoInterno
                                         )}
                                         helperText={
-                                            erros.codigoInterno
+                                            erros.codigoInterno || (editando
+                                                ? produto?.codigoInterno?.trim()
+                                                    ? "Deixe vazio para manter o código atual."
+                                                    : "Produto legado sem código: informe um código para identificá-lo."
+                                                : "Opcional: gerado automaticamente ao cadastrar.")
                                         }
                                         slotProps={{
                                             htmlInput: {
                                                 maxLength: 60,
+                                                spellCheck: false,
+                                                translate: "no",
                                             },
                                         }}
                                     />}

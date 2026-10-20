@@ -155,6 +155,10 @@ public class ProdutoController {
     public ResponseEntity<String> conflitoFornecedor(org.springframework.dao.DataIntegrityViolationException erro) {
         for (Throwable causa = erro; causa != null; causa = causa.getCause()) {
             if (causa instanceof org.hibernate.exception.ConstraintViolationException restricao
+                    && "uk_produto_empresa_codigo_interno".equals(restricao.getConstraintName())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Já existe um produto com este código interno na empresa informada.");
+            }
+            if (causa instanceof org.hibernate.exception.ConstraintViolationException restricao
                     && java.util.Set.of("fk_produto_fornecedor_empresa", "fk_produto_categoria_empresa", "fk_produto_subcategoria_empresa", "fk_produto_marca_empresa", "ck_produto_subcategoria_categoria").contains(restricao.getConstraintName())) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Cadastro indisponível ou vínculo inválido. Atualize a consulta e tente novamente.");
             }

@@ -172,12 +172,17 @@ def planejar(conn, rows, empresa):
                 raise Bloqueio(f'Subcategoria incompatível com a categoria, linha {row["linha"]}.')
     codes = collections.Counter(row['codigo_interno'] for row in rows if row.get('situacao') != 'IGNORADA' and row['codigo_interno'])
     eans = collections.Counter(row['codigo_barras'] for row in rows if row.get('situacao') != 'IGNORADA' and row['codigo_barras'])
-    existing = conn.execute('SELECT codigo_interno,codigo_barras FROM produtos WHERE empresa_id=%s', (empresa,)).fetchall()
+    existing = conn.execute('SELECT nome,codigo_interno,codigo_barras FROM produtos WHERE empresa_id=%s', (empresa,)).fetchall()
     oldcodes = {chave(p['codigo_interno']) for p in existing if p['codigo_interno']}
     oldeans = {chave(p['codigo_barras']) for p in existing if p['codigo_barras']}
+    oldnames = {chave(p['nome']) for p in existing}
+    names = collections.Counter(chave(r['nome']) for r in rows if r.get('situacao') != 'IGNORADA')
     for row in rows:
         if row.get('situacao') == 'IGNORADA': continue
         if row['erros']: row['situacao'] = 'REJEITADA'
+        elif not row['codigo_interno'] and not row['codigo_barras'] and (chave(row['nome']) in oldnames or names[chave(row['nome'])] > 1):
+            row['situacao'] = 'DUPLICADA'
+            row['erros'].append(('codigo/EAN', 'Sem identificador e nome já existente ou repetido; revise antes da carga.'))
         elif ((row['codigo_interno'] and (codes[row['codigo_interno']] > 1 or chave(row['codigo_interno']) in oldcodes)) or
               (row['codigo_barras'] and (eans[row['codigo_barras']] > 1 or chave(row['codigo_barras']) in oldeans))):
             row['situacao'] = 'DUPLICADA'
@@ -187,9 +192,14 @@ def planejar(conn, rows, empresa):
 
 
 def gravar(conn, rows, empresa, indexes):
+    if any(r['situacao'] == 'VALIDA' and not r['codigo_interno'] for r in rows):
+        if not conn.execute("SELECT 1 FROM flyway_schema_history WHERE version='47' AND success").fetchone():
+            raise Bloqueio('Código ausente exige V47 validada; nenhuma gravação.')
     created = collections.Counter()
     ids = []
-    for row in rows:
+    # Códigos fornecidos são reservados pelo mesmo trigger antes dos automáticos,
+    # inclusive quando aparecem depois das linhas sem código na planilha.
+    for row in sorted(rows, key=lambda r: not bool(r.get('codigo_interno'))):
         if row['situacao'] != 'VALIDA': continue
         linked = {}
         for field, table in TABLES.items():
