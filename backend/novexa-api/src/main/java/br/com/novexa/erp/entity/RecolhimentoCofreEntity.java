@@ -24,4 +24,10 @@ public class RecolhimentoCofreEntity {
     @Column(length = 500) public String observacao;
     @Column(nullable = false) public LocalDateTime dataCriacao;
     public LocalDateTime dataConfirmacao;
+
+    public Long getId() { return id; }
+    public BigDecimal getValor() { return valor; }
+    public BigDecimal getValorTroco() { return valorTroco; }
+    public UsuarioEntity getUsuario() { return usuario; }
+    public ContaFinanceiraEntity getConta() { return conta; }
 }

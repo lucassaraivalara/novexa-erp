@@ -1,11 +1,13 @@
 package br.com.novexa.erp.controller;
 
+import br.com.novexa.erp.dto.AberturaContextoDTO;
 import br.com.novexa.erp.dto.CaixaRequestDTO;
 import br.com.novexa.erp.dto.CaixaResponseDTO;
 import br.com.novexa.erp.entity.CaixaEntity;
 import br.com.novexa.erp.mapper.CaixaMapper;
 import br.com.novexa.erp.security.UsuarioAutenticado;
 import br.com.novexa.erp.service.CaixaService;
+import br.com.novexa.erp.service.SessaoCaixaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,13 +29,16 @@ public class CaixaController {
 
     private final CaixaService caixaService;
     private final CaixaMapper caixaMapper;
+    private final SessaoCaixaService sessaoService;
 
     public CaixaController(
             CaixaService caixaService,
-            CaixaMapper caixaMapper) {
+            CaixaMapper caixaMapper,
+            SessaoCaixaService sessaoService) {
 
         this.caixaService = caixaService;
         this.caixaMapper = caixaMapper;
+        this.sessaoService = sessaoService;
     }
 
     @PostMapping
@@ -68,6 +73,14 @@ public class CaixaController {
 
         CaixaEntity caixa = caixaService.buscarPorId(id, usuario.empresaId());
         return ResponseEntity.ok(caixaMapper.toResponse(caixa));
+    }
+
+    @GetMapping("/{id}/abertura-contexto")
+    public ResponseEntity<AberturaContextoDTO> obterContextoAbertura(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+
+        return ResponseEntity.ok(sessaoService.obterContextoAbertura(id, usuario));
     }
 
     @PutMapping("/{id}")

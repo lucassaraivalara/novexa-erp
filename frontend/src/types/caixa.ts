@@ -60,6 +60,20 @@ export type SessaoCaixaHistorico = {
     diferenca: number | null;
 };
 
+export type ComposicaoAbertura = {
+    valorTrocoHerdado: number;
+    sessaoOrigemTrocoId: number | null;
+    dataFechamentoOrigem: string | null;
+    valorRetiradoCofre: number;
+    contaCofreId: number | null;
+    contaCofreNome: string | null;
+    movimentoFinanceiroId: number | null;
+    valorAporteExterno: number;
+    observacaoAporte: string | null;
+    operadorAbertura: string;
+    dataCriacao: string;
+};
+
 export type SessaoCaixaDetalhe = {
     sessao: SessaoCaixaHistorico;
     resumo: ResumoSessaoCaixa;
@@ -81,6 +95,7 @@ export type SessaoCaixaDetalhe = {
         vendaId: number | null;
         observacao: string | null;
     }[];
+    composicaoAbertura?: ComposicaoAbertura | null;
 };
 
 export type MovimentacaoCaixa = {
@@ -105,6 +120,37 @@ export type MovimentacaoCaixaInput = {
 
 export type AberturaCaixaInput = {
     saldoInicial: number;
+    chaveRequisicao?: string;
+    confirmarTroco?: boolean;
+    valorRetiradoCofre?: number;
+    contaCofreId?: number | null;
+    valorAporteExterno?: number;
+    observacaoAporte?: string | null;
+};
+
+export type TrocoAnteriorContexto = {
+    sessaoId: number;
+    valor: number;
+    dataFechamento: string;
+    operadorFechamento: string | null;
+};
+
+export type CofreOpcao = {
+    id: number;
+    nome: string;
+    saldoAtual: number;
+};
+
+export type AberturaContexto = {
+    caixaId: number;
+    descricaoCaixa: string;
+    caixaAtivo: boolean;
+    sessaoAberta: boolean;
+    sessaoAbertaId: number | null;
+    trocoAnterior: TrocoAnteriorContexto | null;
+    cofres: CofreOpcao[];
+    saldoSugerido: number;
+    podeMovimentarCofre: boolean;
 };
 
 export type ConferenciaFechamentoInput = {

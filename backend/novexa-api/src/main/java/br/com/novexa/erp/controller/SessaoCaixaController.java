@@ -18,7 +18,7 @@ public class SessaoCaixaController {
     @PostMapping
     public ResponseEntity<SessaoCaixaResponseDTO> abrir(@PathVariable Long caixaId,
             @Valid @RequestBody AberturaCaixaDTO request, @AuthenticationPrincipal UsuarioAutenticado usuario) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.abrir(caixaId, request.saldoInicial(), usuario));
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.abrir(caixaId, request, usuario));
     }
 
     @GetMapping("/aberta")

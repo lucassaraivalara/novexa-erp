@@ -20,4 +20,6 @@ public interface SessaoCaixaRepository extends JpaRepository<SessaoCaixaEntity, 
     Optional<SessaoCaixaEntity> bloquear(Long id, Long empresaId);
     Optional<SessaoCaixaEntity> findByCaixaIdAndEmpresaIdAndStatus(Long caixaId, Long empresaId, StatusSessaoCaixa status);
     Optional<SessaoCaixaEntity> findByIdAndCaixaIdAndEmpresaId(Long id, Long caixaId, Long empresaId);
+    Optional<SessaoCaixaEntity> findFirstByCaixaIdAndEmpresaIdAndStatusOrderByDataFechamentoDescIdDesc(Long caixaId, Long empresaId, StatusSessaoCaixa status);
+    boolean existsByCaixaIdAndEmpresaIdAndDataAberturaAfter(Long caixaId, Long empresaId, java.time.LocalDateTime data);
 }

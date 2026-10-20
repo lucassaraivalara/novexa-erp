@@ -7,6 +7,12 @@ import java.util.List;
 
 public record SessaoCaixaDetalheDTO(SessaoCaixaHistoricoDTO sessao, ResumoSessaoCaixaDTO resumo,
         ModalidadeConferencia modalidadeConferencia, String observacaoFechamento,
-        List<ConferenciaFechamentoCaixaDTO> conferencias, List<Evento> movimentacoes) {
+        List<ConferenciaFechamentoCaixaDTO> conferencias, List<Evento> movimentacoes,
+        ComposicaoAberturaDTO composicaoAbertura) {
+    public SessaoCaixaDetalheDTO(SessaoCaixaHistoricoDTO sessao, ResumoSessaoCaixaDTO resumo,
+            ModalidadeConferencia modalidadeConferencia, String observacaoFechamento,
+            List<ConferenciaFechamentoCaixaDTO> conferencias, List<Evento> movimentacoes) {
+        this(sessao, resumo, modalidadeConferencia, observacaoFechamento, conferencias, movimentacoes, null);
+    }
     public record Evento(String tipo, LocalDateTime dataHora, BigDecimal valor, Long vendaId, String observacao) { }
 }

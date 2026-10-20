@@ -23,13 +23,15 @@ public class CaixaOperacionalService {
     private final UsuarioRepository usuarios;
     private final VendaRepository vendas;
     private final ConferenciaFechamentoCaixaRepository conferencias;
+    private final AberturaCaixaOrigemRepository aberturasOrigem;
     private final EntityManager em;
 
     public CaixaOperacionalService(CaixaRepository caixas, SessaoCaixaRepository sessoes, PagamentoRepository pagamentos,
             MovimentacaoCaixaRepository movimentos, UsuarioRepository usuarios, VendaRepository vendas,
-            ConferenciaFechamentoCaixaRepository conferencias, EntityManager em) {
+            ConferenciaFechamentoCaixaRepository conferencias, AberturaCaixaOrigemRepository aberturasOrigem, EntityManager em) {
         this.caixas = caixas; this.sessoes = sessoes; this.pagamentos = pagamentos; this.movimentos = movimentos;
-        this.usuarios = usuarios; this.vendas = vendas; this.conferencias = conferencias; this.em = em;
+        this.usuarios = usuarios; this.vendas = vendas; this.conferencias = conferencias;
+        this.aberturasOrigem = aberturasOrigem; this.em = em;
     }
 
     @Transactional(readOnly = true)
@@ -78,10 +80,26 @@ public class CaixaOperacionalService {
         }
         eventos.add(new SessaoCaixaDetalheDTO.Evento("FECHAMENTO", sessao.getDataFechamento(), sessao.getSaldoFinal(), null, null));
         eventos.sort(Comparator.comparing(SessaoCaixaDetalheDTO.Evento::dataHora));
+
+        var origemOpt = aberturasOrigem.findBySessaoId(sessaoId);
+        ComposicaoAberturaDTO composicao = origemOpt.map(o -> new ComposicaoAberturaDTO(
+                o.getValorTrocoHerdado(),
+                o.getSessaoOrigemTroco() != null ? o.getSessaoOrigemTroco().getId() : null,
+                o.getSessaoOrigemTroco() != null ? o.getSessaoOrigemTroco().getDataFechamento() : null,
+                o.getValorRetiradoCofre(),
+                o.getContaCofre() != null ? o.getContaCofre().getId() : null,
+                o.getContaCofre() != null ? o.getContaCofre().getNome() : null,
+                o.getMovimentoFinanceiro() != null ? o.getMovimentoFinanceiro().getId() : null,
+                o.getValorAporteExterno(),
+                o.getObservacaoAporte(),
+                o.getUsuario().getNomeUsuario(),
+                o.getDataCriacao()
+        )).orElse(null);
+
         return new SessaoCaixaDetalheDTO(SessaoCaixaHistoricoDTO.de(sessao, resumo), resumo,
                 sessao.getModalidadeConferencia(), sessao.getObservacaoFechamento(),
                 conferencias.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessaoId, usuario.empresaId()).stream()
-                        .map(ConferenciaFechamentoCaixaDTO::de).toList(), eventos);
+                        .map(ConferenciaFechamentoCaixaDTO::de).toList(), eventos, composicao);
     }
 
     private boolean podeVer(SessaoCaixaEntity sessao, UsuarioAutenticado usuario) {

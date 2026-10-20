@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import axios from "axios";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
@@ -17,18 +17,19 @@ import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import {
-    adicionarMovimentacao, abrirSessaoCaixa, buscarCaixa, buscarDetalheSessao, buscarResumoSessao, fecharSessaoCaixa,
+    adicionarMovimentacao, buscarCaixa, buscarDetalheSessao, buscarResumoSessao, fecharSessaoCaixa,
     inativarCaixa, listarCaixas, listarMovimentacoes, listarSessoesAbertas, listarSessoesFechadas,
     mensagemCaixa,
 } from "../../services/caixaService";
 import { listarVendasSessao } from "../../services/vendaService";
 import EntregaCofreCampos from "./EntregaCofreCampos";
-import { novaEntregaCofre, lerEntregaCofre } from "./cofreFormulario";
+import { novaEntregaCofre, lerEntregaCofre, centavosDinheiro } from "./cofreFormulario";
 import type {
     CaixaCompleta, CaixaResumo, ResumoSessaoCaixa, SessaoCaixaAberta,
     SessaoCaixaHistorico, SessaoCaixaDetalhe,
 } from "../../types/caixa";
 import CaixaForm from "./CaixaForm";
+import AberturaCaixaDialog from "./AberturaCaixaDialog";
 import { criarTimeline, type ItemTimeline } from "./caixaTimeline";
 import { podeExecutarAcaoGerencial, podeFecharSessao } from "../../utils/auth/perfis";
 import { obterSessao } from "../../utils/auth/sessao";
@@ -39,8 +40,8 @@ const intervaloAtualizacaoSessao = 2000;
 const dinheiro = (valor: number | null | undefined) => moeda.format(valor ?? 0);
 const data = (valor: string | null | undefined) => valor ? dataHora.format(new Date(valor)) : "—";
 const valorDecimal = (texto: string) => {
-    const numero = Number(texto.trim().replace(/\./g, "").replace(",", "."));
-    return Number.isFinite(numero) && numero >= 0 ? Math.round(numero * 100) / 100 : null;
+    const valor = centavosDinheiro(texto);
+    return valor === null ? null : valor / 100;
 };
 const valorEditavel = (valor: number) => valor.toFixed(2).replace(".", ",");
 const chave = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
@@ -86,7 +87,10 @@ export default function Caixa() {
     const [processando, setProcessando] = useState(false);
     const [saldo, setSaldo] = useState("");
     const [observacao, setObservacao] = useState("");
-    const [caixaAbertura, setCaixaAbertura] = useState<number | "">("");
+    const fechamentoEmAndamento = useRef(false);
+    const erroFechamento = useRef<HTMLDivElement>(null);
+
+    useEffect(() => { if (modalFechamento && erroModal) erroFechamento.current?.focus(); }, [modalFechamento, erroModal]);
 
     const sessaoAtual = abertas.find((sessao) => sessao.sessaoId === sessaoId) ?? null;
 
@@ -173,13 +177,6 @@ export default function Caixa() {
         }
     }
 
-    async function abrir(evento: FormEvent) {
-        evento.preventDefault();
-        const inicial = valorDecimal(saldo);
-        if (caixaAbertura === "" || inicial === null) { setErroModal("Selecione um caixa e informe um saldo inicial válido."); return; }
-        await executar(async () => { await abrirSessaoCaixa(caixaAbertura, { saldoInicial: inicial }); setModalAbertura(false); setSaldo(""); setCaixaAbertura(""); }, "Não foi possível abrir o Caixa.");
-    }
-
     async function movimentar(evento: FormEvent) {
         evento.preventDefault();
         const valor = valorDecimal(saldo);
@@ -193,6 +190,7 @@ export default function Caixa() {
 
     async function fechar(evento: FormEvent) {
         evento.preventDefault();
+        if (fechamentoEmAndamento.current) return;
         const final = valorDecimal(saldo);
         if (sessaoAtual === null || sessaoId === null || final === null) { setErroModal("Informe um valor final válido."); return; }
         if (formasIncompletas) { setErroModal("Informe o valor conferido para todas as formas de pagamento."); return; }
@@ -201,10 +199,15 @@ export default function Caixa() {
             formas: linhasConferencia.map((linha) => ({ formaPagamentoId: linha.formaPagamentoId, valorInformado: linha.informado as number })),
             observacao: temDiferencaFechamento ? observacaoFechamento.trim() : undefined,
         } : undefined;
+        fechamentoEmAndamento.current = true;
         setProcessando(true); setErroModal("");
         try {
-            await fecharSessaoCaixa(sessaoAtual.caixaId, sessaoId, { saldoFinal: final, conferencia,
-                ...(destinarAoCofre ? { cofre: lerEntregaCofre(entregaCofre) } : {}) });
+            const cofre = lerEntregaCofre(entregaCofre);
+            if (Math.round((cofre.valor + cofre.valorTroco) * 100) !== Math.round(final * 100))
+                throw new Error("Troco mantido mais recolhimento ao cofre devem corresponder ao dinheiro contado.");
+            if (cofre.valor > 0 && (!cofre.contaCofreId || !cofre.responsavel))
+                throw new Error("Informe cofre e responsável pelo recebimento.");
+            await fecharSessaoCaixa(sessaoAtual.caixaId, sessaoId, { saldoFinal: final, conferencia, cofre });
             setModalFechamento(false); setSaldo(""); setObservacaoFechamento(""); setValoresConferidos({});
             await recarregar();
         } catch (e) {
@@ -215,6 +218,7 @@ export default function Caixa() {
                 setErroModal(e instanceof Error && !("isAxiosError" in e) ? e.message : mensagemCaixa(e, "Não foi possível fechar o Caixa."));
             }
         } finally {
+            fechamentoEmAndamento.current = false;
             setProcessando(false);
         }
     }
@@ -276,7 +280,7 @@ export default function Caixa() {
             acoesSecundarias={<Button variant="outlined" startIcon={<SettingsRoundedIcon />} onClick={() => setGerenciando(true)}>Cadastro de caixas</Button>} />
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void recarregar()}>Tentar novamente</Button>}>{erro}</Alert>}
         <Paper variant="outlined"><Tabs value={aba} onChange={(_, valor) => setAba(valor)} aria-label="Sessões do caixa físico" variant="scrollable" scrollButtons="auto" sx={{ minHeight: 44 }}><Tab id="caixa-atual-tab" aria-controls="caixa-atual-painel" label="Sessão aberta" sx={{ minHeight: 44, py: 1 }} /><Tab id="caixas-anteriores-tab" aria-controls="caixas-anteriores-painel" label="Histórico de sessões" sx={{ minHeight: 44, py: 1 }} /></Tabs></Paper>
-        {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} podeMovimentar={podeMovimentar} podeFechar={podeFecharSessao(usuarioAtual?.perfil, usuarioAtual?.id, resumo.operadorAbertura.id)} onSuprimento={() => { setErroModal(""); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setObservacaoFechamento(""); setValoresConferidos(Object.fromEntries((resumo?.totaisPorFormaPagamento ?? []).filter((forma) => forma.tipo !== "DINHEIRO").map((forma) => [forma.formaPagamentoId, valorEditavel(forma.total)]))); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalFechamento(true); }} /></Box>)}
+        {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} podeMovimentar={podeMovimentar} podeFechar={podeFecharSessao(usuarioAtual?.perfil, usuarioAtual?.id, resumo.operadorAbertura.id)} onSuprimento={() => { setErroModal(""); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setObservacaoFechamento(""); setValoresConferidos(Object.fromEntries((resumo?.totaisPorFormaPagamento ?? []).filter((forma) => forma.tipo !== "DINHEIRO").map((forma) => [forma.formaPagamentoId, valorEditavel(forma.total)]))); setDestinarAoCofre(false); setSaldo(""); setEntregaCofre({ ...novaEntregaCofre(), troco: valorEditavel(Math.min(resumo.saldoInicial, Math.max(0, resumo.saldoEsperadoDinheiro))), valor: valorEditavel(Math.max(0, resumo.saldoEsperadoDinheiro - resumo.saldoInicial)) }); setChaveMovimento(chave()); setModalFechamento(true); }} /></Box>)}
         {aba === 1 && <Box id="caixas-anteriores-painel" role="tabpanel" aria-labelledby="caixas-anteriores-tab"><AppTable colunas={[
             { campo: "descricaoCaixa", cabecalho: "Caixa", largura: 180 }, { campo: "dataHoraAbertura", cabecalho: "Abertura", largura: 170, render: (valor) => data(valor as string) },
             { campo: "dataHoraFechamento", cabecalho: "Fechamento", largura: 170, render: (valor) => data(valor as string | null) }, { campo: "operadorAbertura.nome", cabecalho: "Operador", largura: 180 },
@@ -294,7 +298,7 @@ export default function Caixa() {
             opcoesLinhasPorPagina: [10, 25, 50],
         }} /></Box>}
 
-        <Dialog open={modalAbertura} fullWidth maxWidth="xs" aria-labelledby="caixa-abertura-titulo" onClose={() => !processando && setModalAbertura(false)}><form onSubmit={abrir}><DialogTitle id="caixa-abertura-titulo">Abrir Caixa</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}>{erroModal && <Alert severity="error">{erroModal}</Alert>}<TextField select required name="caixaAbertura" autoComplete="off" label="Caixa" value={caixaAbertura} onChange={(e) => setCaixaAbertura(Number(e.target.value))} helperText={caixasAtivos.length === 0 ? "Nenhum Caixa ativo está disponível." : undefined}>{caixasAtivos.map((caixa) => <MenuItem key={caixa.id} value={caixa.id}>{caixa.descricao}</MenuItem>)}</TextField><TextField required name="saldoInicial" autoComplete="off" label="Saldo inicial (R$)" value={saldo} onChange={(e) => setSaldo(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} /></Stack></DialogContent><DialogActions><Button type="button" onClick={() => setModalAbertura(false)}>Cancelar</Button><Button type="submit" variant="contained" disabled={processando || caixasAtivos.length === 0}>{processando ? "Abrindo…" : "Abrir Caixa"}</Button></DialogActions></form></Dialog>
+        {modalAbertura && <AberturaCaixaDialog caixasAtivos={caixasAtivos} onClose={() => setModalAbertura(false)} onSucesso={() => { setModalAbertura(false); void recarregar(); }} />}
         <Dialog open={modalMovimento !== null} fullWidth maxWidth="xs" aria-labelledby="caixa-movimento-titulo" onClose={() => !processando && setModalMovimento(null)}><form onSubmit={movimentar}><DialogTitle id="caixa-movimento-titulo">{modalMovimento === "SANGRIA" ? "Registrar Sangria" : "Registrar Suprimento"}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}>{erroModal && <Alert severity="error">{erroModal}</Alert>}<TextField required autoFocus name="valor" autoComplete="off" label="Valor (R$)" value={saldo} onChange={(e) => setSaldo(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />{modalMovimento === "SANGRIA" && <><FormControlLabel control={<Checkbox checked={destinarAoCofre} disabled={processando} onChange={e => setDestinarAoCofre(e.target.checked)} />} label="Destino desta sangria: COFRE" />
                 {destinarAoCofre && <EntregaCofreCampos value={entregaCofre} onChange={setEntregaCofre} disabled={processando} valorFixo={valorDecimal(saldo) ?? 0} />}</>}
                 <TextField name="observacao" autoComplete="off" label="Observação" value={observacao} onChange={(e) => setObservacao(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} /></Stack></DialogContent><DialogActions><Button type="button" onClick={() => setModalMovimento(null)}>Cancelar</Button><Button type="submit" variant="contained" disabled={processando}>{processando ? "Registrando…" : "Confirmar"}</Button></DialogActions></form></Dialog>
@@ -303,7 +307,7 @@ export default function Caixa() {
                 <DialogTitle id="caixa-fechamento-titulo">Fechar Caixa</DialogTitle>
                 <DialogContent dividers>
                     <Stack spacing={2.5} sx={{ pt: 0.5 }}>
-                        {erroModal && <Alert severity="error">{erroModal}</Alert>}
+                        {erroModal && <Alert ref={erroFechamento} tabIndex={-1} severity="error">{erroModal}</Alert>}
                         <Typography id="caixa-fechamento-descricao" color="text.secondary">
                             Confira o valor esperado de cada forma de pagamento e informe o que foi efetivamente contado ou conferido.
                         </Typography>
@@ -315,7 +319,7 @@ export default function Caixa() {
                         </Box>}
                         <Divider />
                         <Box>
-                            <Typography component="label" htmlFor="input-saldoFinal" variant="body2" sx={{ fontWeight: 700 }}>Dinheiro físico</Typography>
+                            <Typography component="h3" variant="body2" sx={{ fontWeight: 700 }}>Dinheiro físico</Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Esperado: {dinheiro(resumo?.saldoEsperadoDinheiro)}</Typography>
                             <TextField id="input-saldoFinal" required autoFocus fullWidth name="saldoFinal" autoComplete="off" label="Dinheiro físico contado (R$)" value={saldo}
                                 sx={{ mt: 1 }}
@@ -328,13 +332,12 @@ export default function Caixa() {
                             </Box>
                         </Box>
                         <Divider />
-                        <FormControlLabel control={<Checkbox checked={destinarAoCofre} disabled={processando}
-                            onChange={e => setDestinarAoCofre(e.target.checked)} />} label="Informar envio ao cofre e troco mantido" />
-                        {destinarAoCofre ? <EntregaCofreCampos value={entregaCofre} onChange={setEntregaCofre} disabled={processando} />
-                            : <Typography variant="body2" color="text.secondary">O fechamento não credita o cofre. A destinação pode ser registrada depois em Contas e saldos.</Typography>}
+                        <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 700 }}>Destinação do dinheiro contado</Typography>
+                        <Typography variant="body2" color="text.secondary">Todo o valor contado deve ser mantido para troco ou destinado ao cofre. A entrega só credita o cofre quando confirmada.</Typography>
+                        <EntregaCofreCampos value={entregaCofre} onChange={setEntregaCofre} disabled={processando} valorContado={saldoFinalInformado} />
                         {linhasConferencia.length > 0 && <Stack spacing={2} divider={<Divider flexItem />}>
                             {linhasConferencia.map((linha) => <Box key={linha.formaPagamentoId}>
-                                <Typography component="label" htmlFor={`input-forma-${linha.formaPagamentoId}`} variant="body2" sx={{ fontWeight: 700 }}>{linha.descricao}</Typography>
+                                <Typography component="h3" variant="body2" sx={{ fontWeight: 700 }}>{linha.descricao}</Typography>
                                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Esperado: {dinheiro(linha.esperado)}</Typography>
                                 <TextField id={`input-forma-${linha.formaPagamentoId}`} required fullWidth label={`Valor conferido de ${linha.descricao} (R$)`} sx={{ mt: 1 }}
                                     value={valoresConferidos[linha.formaPagamentoId] ?? ""}
@@ -389,6 +392,15 @@ export default function Caixa() {
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo esperado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.dinheiroEsperado)}</Typography></Box>
                             <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo informado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.valorInformado)}</Typography></Box>
                         </Box>
+                        {drawerDetalhe && <Box component="section" aria-labelledby="origem-abertura-titulo">
+                            <Typography id="origem-abertura-titulo" variant="subtitle1" component="h3" sx={{ fontWeight: 700, mb: 1 }}>Composição da abertura</Typography>
+                            {drawerDetalhe.composicaoAbertura ? <Stack spacing={1} sx={{ overflowWrap: "anywhere" }}>
+                                {drawerDetalhe.composicaoAbertura.sessaoOrigemTrocoId && <Typography variant="body2">{dinheiro(drawerDetalhe.composicaoAbertura.valorTrocoHerdado)} · Troco herdado da sessão #{drawerDetalhe.composicaoAbertura.sessaoOrigemTrocoId} · {data(drawerDetalhe.composicaoAbertura.dataFechamentoOrigem)}</Typography>}
+                                {drawerDetalhe.composicaoAbertura.contaCofreId && <Typography variant="body2">{dinheiro(drawerDetalhe.composicaoAbertura.valorRetiradoCofre)} · Retirada do {drawerDetalhe.composicaoAbertura.contaCofreNome} · movimento #{drawerDetalhe.composicaoAbertura.movimentoFinanceiroId}</Typography>}
+                                {drawerDetalhe.composicaoAbertura.valorAporteExterno > 0 && <Typography variant="body2">{dinheiro(drawerDetalhe.composicaoAbertura.valorAporteExterno)} · Aporte externo. Motivo: {drawerDetalhe.composicaoAbertura.observacaoAporte}</Typography>}
+                                <Typography variant="caption" color="text.secondary">Confirmada por {drawerDetalhe.composicaoAbertura.operadorAbertura} em {data(drawerDetalhe.composicaoAbertura.dataCriacao)}</Typography>
+                            </Stack> : <Typography variant="body2" color="text.secondary">Abertura legada sem composição de origens registrada.</Typography>}
+                        </Box>}
                         <Box sx={{ borderLeft: 3, borderColor: !detalhe.diferenca ? "success.main" : "warning.main", bgcolor: "action.hover", px: 2, py: 1.5 }}>
                             <Typography variant="body2" color="text.secondary">Diferença</Typography>
                             <Typography variant="h6" sx={{ fontWeight: 750, fontVariantNumeric: "tabular-nums" }}>{dinheiro(detalhe.diferenca)}</Typography>

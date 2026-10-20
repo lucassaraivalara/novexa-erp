@@ -1,5 +1,16 @@
 # Regras oficiais do Financeiro
 
+## Dinheiro físico, troco e COFRE — V48
+
+- Dinheiro físico é controlado por Caixa/SessaoCaixa/MovimentacaoCaixa; dinheiro financeiro por ContaFinanceira/MovimentacaoFinanceira. Não são saldos intercambiáveis. O tipo financeiro CAIXA permanece legado.
+- `saldoInicial` representa todo o dinheiro físico presente na abertura: troco herdado + retirada do COFRE + aporte externo. A composição é auditoria, não outro saldo. O evento operacional de abertura continua excluído dos suprimentos somados ao saldo inicial; nenhuma parcela da composição gera outro suprimento.
+- Troco retido pertence ao Caixa físico, não ao operador. Somente o valor explicitamente classificado no fechamento anterior do mesmo Caixa/empresa, ainda não consumido, pode ser confirmado na próxima abertura. O backend resolve a origem; não recebe valor/ID de herança do cliente. Herança não movimenta ContaFinanceira e não abre sessão automaticamente.
+- V48 registra origem/destino, operador, valores, COFRE/movimento, motivo e UUID. Unicidade da sessão de origem impede duplo consumo; FKs compostas incluem empresa e Caixa nos vínculos entre sessões. Não há backfill de origens nem movimentos financeiros retroativos.
+- Retirada de COFRE ativo e aporte externo exigem ADMIN/GERENTE. Aporte exige motivo e não movimenta conta. Retirada exige saldo suficiente e gera uma SAIDA/MOVIMENTO_COFRE vinculada, na mesma transação da sessão e auditoria. Qualquer falha desfaz todos os efeitos, inclusive quando a abertura participa de outra transação.
+- UUID identifica a intenção completa de abertura por empresa. Repetição idêntica do mesmo operador retorna a sessão existente; chave com outra composição/Caixa/operador gera conflito. Ordem de locks: usuário → Caixa → sessão quando existente → conta COFRE; contas compartilhadas serializam retiradas. Unicidades do banco protegem corridas entre caixas distintos.
+- Novos fechamentos na interface classificam todo o dinheiro contado em troco + recolhimento. Recolhimento pendente não credita COFRE; somente entrega confirmada o faz, uma vez. Sangria comum continua sem destino automático. Devolução do COFRE para sessão já aberta continua sendo suprimento efetivo, distinto da composição da abertura.
+- Legado sem origem permanece legível. Contratos antigos sem composição continuam aceitos quando não ignoram troco sob custódia; o frontend de Caixa e a abertura do PDV usam a composição explícita. Não se permite atribuir troco retroativamente após outra abertura. Fundo menor que o troco disponível é bloqueado: divergência física e destinação de excedente antes da abertura exigem evolução própria, sem ajuste silencioso.
+
 ## Apresentação de recebimentos por conta
 
 - A previsão de PIX/cartão é consultada nos registros da venda e não aumenta `ContaFinanceira.saldoAtual`. A LIQUIDAR e LIQUIDADO são estados de apresentação derivados da ausência/presença de movimento financeiro ativo vinculado; não substituem os status persistidos nem o histórico de cancelamento.

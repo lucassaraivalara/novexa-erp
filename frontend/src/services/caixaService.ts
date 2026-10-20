@@ -9,6 +9,7 @@ import type {
     MovimentacaoCaixa,
     MovimentacaoCaixaInput,
     AberturaCaixaInput,
+    AberturaContexto,
     FechamentoCaixaInput,
     SessaoCaixaResponse,
     SessaoCaixaHistorico,
@@ -35,6 +36,9 @@ export const listarSessoesFechadas = async (signal?: AbortSignal) =>
 
 export const buscarDetalheSessao = async (sessaoId: number, signal?: AbortSignal) =>
     (await api.get<SessaoCaixaDetalhe>(`/financeiro/caixas/sessoes/${sessaoId}/detalhe`, { signal })).data;
+
+export const buscarContextoAbertura = async (caixaId: number, signal?: AbortSignal) =>
+    (await api.get<AberturaContexto>(`/financeiro/caixas/${caixaId}/abertura-contexto`, { signal })).data;
 
 export const abrirSessaoCaixa = async (caixaId: number, dados: AberturaCaixaInput) =>
     (await api.post<SessaoCaixaResponse>(`/financeiro/caixas/${caixaId}/sessoes`, dados)).data;

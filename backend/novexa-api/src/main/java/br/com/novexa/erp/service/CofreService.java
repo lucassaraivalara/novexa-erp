@@ -91,6 +91,10 @@ public class CofreService {
         if(p.valor().add(p.valorTroco()).compareTo(s.getSaldoFinal())!=0)
             throw erro("Valor enviado ao cofre mais troco mantido deve corresponder ao dinheiro contado.");
         var existente=registros.findBySessaoIdAndTipo(s.getId(),"FECHAMENTO");
+        if (existente.isEmpty() && p.valorTroco().signum() > 0
+                && sessoes.existsByCaixaIdAndEmpresaIdAndDataAberturaAfter(
+                        s.getCaixa().getId(), s.getEmpresa().getId(), s.getDataFechamento()))
+            throw erro("Já houve outra abertura neste Caixa. Não é possível atribuir troco retroativamente; consulte o histórico.");
         var r=existente.orElseGet(()->novo(s,u,"FECHAMENTO",UUID.nameUUIDFromBytes(("cofre-fechamento:"+s.getId()).getBytes(java.nio.charset.StandardCharsets.UTF_8)),p));
         if(existente.isPresent()) mesmos(r,p);
         registros.saveAndFlush(r);
@@ -114,11 +118,9 @@ public class CofreService {
         if(r.dataConfirmacao!=null) return;
         var c=conta(r.conta.getId(),r.empresa.getId());
         var tipo=r.tipo.equals("DEVOLUCAO_TROCO")?TipoMovimentacaoFinanceira.SAIDA:TipoMovimentacaoFinanceira.ENTRADA;
-        if(tipo==TipoMovimentacaoFinanceira.SAIDA&&c.getSaldoAtual().compareTo(r.valor)<0) throw erro("Saldo insuficiente no cofre.");
-        c.aplicar(tipo==TipoMovimentacaoFinanceira.ENTRADA?r.valor:r.valor.negate());
-        r.movimentoFinanceiro=movimentos.saveAndFlush(new MovimentacaoFinanceiraEntity(c,tipo,OrigemMovimentacaoFinanceira.MOVIMENTO_COFRE,
+        r.movimentoFinanceiro=movimentarConta(c,tipo,r.valor,
                 (tipo==TipoMovimentacaoFinanceira.ENTRADA?"Recolhimento":"Devolução para troco")+" · sessão #"+r.sessao.getId(),
-                r.valor,LocalDate.now(),r.observacao,u));
+                r.observacao,u);
         r.usuarioConfirmacao=u;r.dataConfirmacao=LocalDateTime.now();registros.saveAndFlush(r);
     }
     public MovimentacaoCaixaResponseDTO sangria(Long id,MovimentacaoCaixaRequestDTO p,UsuarioAutenticado a) {
@@ -155,6 +157,22 @@ public class CofreService {
                 p.entrega().valor(),"Devolução do cofre #"+r.conta.getId()),a);
         r.movimentoCaixa=movimentosCaixa.findById(movimento.id()).orElseThrow();registros.saveAndFlush(r);
         confirmarInterno(r,u);return dto(r);
+    }
+    public MovimentacaoFinanceiraEntity debitarParaAbertura(Long contaId, BigDecimal valor, Long sessaoId, String caixaDescricao, UsuarioEntity usuario) {
+        if (valor == null || valor.signum() <= 0) return null;
+        var c = conta(contaId, usuario.getEmpresa().getId());
+        return movimentarConta(c, TipoMovimentacaoFinanceira.SAIDA, valor,
+                "Fundo de abertura · sessão #" + sessaoId, null, usuario);
+    }
+
+    // Conta já bloqueada e atualizada; o chamador coordena a mesma transação da sessão.
+    private MovimentacaoFinanceiraEntity movimentarConta(ContaFinanceiraEntity conta,
+            TipoMovimentacaoFinanceira tipo, BigDecimal valor, String descricao, String observacao, UsuarioEntity usuario) {
+        if (tipo == TipoMovimentacaoFinanceira.SAIDA && conta.getSaldoAtual().compareTo(valor) < 0)
+            throw erro("Saldo insuficiente no Cofre " + conta.getNome() + ".");
+        conta.aplicar(tipo == TipoMovimentacaoFinanceira.ENTRADA ? valor : valor.negate());
+        return movimentos.saveAndFlush(new MovimentacaoFinanceiraEntity(conta, tipo,
+                OrigemMovimentacaoFinanceira.MOVIMENTO_COFRE, descricao, valor, LocalDate.now(), observacao, usuario));
     }
     @Transactional(readOnly=true)
     public Map<String,Object> resumo(UsuarioAutenticado a) {

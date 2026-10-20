@@ -42,7 +42,7 @@ async function esperar(condicao) {
     for (let i = 0; i < 120 && !condicao(); i++) await new Promise(r => setTimeout(r, 25));
     assert.ok(condicao(), "Request esperado nao chegou");
 }
-async function abrir({ hasTouch = false, adiarRender = false, sessoes, caixas = [], resolverCaixa = true, tema = "light", colorScheme = "light" } = {}) {
+async function abrir({ hasTouch = false, adiarRender = false, sessoes, caixas = [], resolverCaixa = true, tema = "light", colorScheme = "light", contextoAbertura = {} } = {}) {
     const estado = { requests: [], atrasar: false, atrasarScanner: false, sessaoCaixaId: 10, sessoes, caixas };
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, hasTouch });
     await page.emulateMedia({ colorScheme });
@@ -70,6 +70,8 @@ async function abrir({ hasTouch = false, adiarRender = false, sessoes, caixas = 
         let dados;
         if (u.pathname === "/financeiro/caixas/sessoes/abertas") dados = estado.sessoes ?? [sessaoCaixa(estado.sessaoCaixaId)];
         else if (u.pathname === "/financeiro/caixas") dados = estado.caixas;
+        else if (u.pathname.endsWith("/abertura-contexto")) dados = { caixaId: Number(u.pathname.split("/")[3]), descricaoCaixa: "Caixa livre", caixaAtivo: true,
+            sessaoAberta: false, sessaoAbertaId: null, trocoAnterior: null, saldoSugerido: 0, cofres: [], podeMovimentarCofre: false, ...contextoAbertura };
         else if (/^\/financeiro\/caixas\/\d+\/sessoes$/.test(u.pathname) && req.method() === "POST") dados = { id: 40 };
         else if (u.pathname === "/financeiro/configuracoes-formas-pagamento") dados = [
             { id: 1, tipo: "DINHEIRO", nomeExibicao: "Dinheiro", ativo: true },
@@ -153,7 +155,7 @@ for (const sessoes of [[sessaoCaixa(10, 2)], [sessaoCaixa(10, 2), sessaoCaixa(20
             await page.getByText("Nenhum Caixa ativo está disponível.", { exact: true }).waitFor();
             assert.equal(await busca.isDisabled(), true);
             assert.equal(await page.getByRole("button", { name: "Finalizar venda · F2", includeHidden: true }).isDisabled(), true);
-            assert.equal(await page.getByRole("button", { name: "Abrir Caixa", exact: true }).isDisabled(), true);
+            assert.equal(await page.getByRole("button", { name: "Confirmar abertura", exact: true }).isDisabled(), true);
             await page.keyboard.press("F2");
             assert.equal(estado.requests.some(r => r.path === "/vendas" && r.method === "POST"), false);
             assert.equal(estado.requests.some(r => r.method === "POST"), false);
@@ -179,6 +181,24 @@ test("multiplas sessoes proprias permitem escolher sem oferecer sessao alheia", 
     } finally { await page.close(); }
 });
 
+test("abertura pelo PDV reutiliza troco confirmado e não grava venda", async () => {
+    const { page, estado, busca } = await abrir({ sessoes: [], caixas: [{id:30,descricao:"Caixa livre",ativo:true}], resolverCaixa:false,
+        contextoAbertura: { saldoSugerido:70, trocoAnterior:{sessaoId:29,valor:70,dataFechamento:"2026-10-20T10:00:00",operadorFechamento:"Outro operador"} } });
+    try {
+        const dialogo = page.getByRole("dialog", { name: "Abrir Caixa" });
+        await dialogo.getByText(/Troco disponível da sessão anterior/).waitFor();
+        assert.equal(await dialogo.getByLabel("Fundo inicial (R$)").inputValue(), "70,00");
+        assert.equal(estado.requests.filter(r => r.method === "POST").length, 0);
+        await dialogo.getByRole("button", { name: "Confirmar abertura" }).click();
+        await esperarFoco(page, busca);
+        const posts = estado.requests.filter(r => r.method === "POST");
+        assert.equal(posts.length,1); assert.equal(posts[0].path,"/financeiro/caixas/30/sessoes");
+        assert.equal(JSON.parse(posts[0].body).confirmarTroco,true);
+        assert.equal(JSON.parse(posts[0].body).valorRetiradoCofre,0);
+        assert.equal(posts.some(r => r.path === "/vendas"),false);
+    } finally { await page.close(); }
+});
+
 for (const sessoes of [[], [sessaoCaixa(10, 2)]]) {
     test(`sem sessao propria preserva abertura em Caixa livre com ${sessoes.length} sessoes existentes`, async () => {
         const caixas = [{ id: 10, descricao: "Caixa ocupado", ativo: true }, { id: 30, descricao: "Caixa livre", ativo: true },
@@ -194,12 +214,15 @@ for (const sessoes of [[], [sessaoCaixa(10, 2)]]) {
                 await dialogo.getByRole("combobox", { name: /Caixa/ }).click();
                 await page.getByRole("option", { name: "Caixa livre" }).click();
             }
-            await dialogo.getByLabel("Saldo inicial (R$)").fill("0");
-            await dialogo.getByRole("button", { name: "Abrir Caixa", exact: true }).click();
+            await dialogo.getByLabel("Fundo inicial (R$)").fill("0");
+            await dialogo.getByRole("button", { name: "Confirmar abertura", exact: true }).click();
             await esperarFoco(page, busca);
             const abertura = estado.requests.find(r => r.method === "POST");
             assert.equal(abertura.path, "/financeiro/caixas/30/sessoes");
-            assert.deepEqual(JSON.parse(abertura.body), { saldoInicial: 0 });
+            const origens = JSON.parse(abertura.body);
+            assert.equal(origens.saldoInicial, 0); assert.equal(origens.confirmarTroco, false);
+            assert.equal(origens.valorRetiradoCofre, 0); assert.equal(origens.valorAporteExterno, 0);
+            assert.match(origens.chaveRequisicao, /^[0-9a-f-]{36}$/);
             await esperarFoco(page, busca);
             await busca.fill("7890001"); await busca.press("Enter");
             await page.getByLabel("Quantidade de Produto remoto").waitFor();

@@ -340,14 +340,15 @@ test("Produtos mantém filtro acessível e tabela densa", async () => {
 
 test("Caixa mantem abas, acoes e modais acessiveis", async () => {
     const caixa = await readFile(new URL("../src/pages/Financeiro/Caixa.tsx", import.meta.url), "utf8");
+    const abertura = await readFile(new URL("../src/pages/Financeiro/AberturaCaixaDialog.tsx", import.meta.url), "utf8");
 
     assert.match(caixa, /aria-label="[^"]*Caixa"/);
     assert.match(caixa, /caixa-atual-tab/);
     assert.match(caixa, /caixas-anteriores-tab/);
-    assert.match(caixa, /aria-labelledby="caixa-abertura-titulo"/);
+    assert.match(abertura, /aria-labelledby="caixa-abertura-titulo"/);
     assert.match(caixa, /aria-labelledby="caixa-movimento-titulo"/);
     assert.match(caixa, /aria-labelledby="caixa-fechamento-titulo"/);
-    assert.match(caixa, /name="saldoInicial"/);
+    assert.match(abertura, /name="saldoInicial"/);
     assert.match(caixa, /name="saldoFinal"/);
     assert.match(caixa, /Dinheiro físico contado/);
     assert.match(caixa, /Confirmar fechamento com divergência/);
@@ -366,7 +367,7 @@ test("Fechamento de Caixa confere valores por forma de pagamento", async () => {
     assert.match(caixa, /formasNaoDinheiro = resumo\?\.totaisPorFormaPagamento\.filter\(\(forma\) => forma\.tipo !== "DINHEIRO"\)/);
     assert.match(caixa, /linhasConferencia\.map\(\(linha\) => \(\{ formaPagamentoId: linha\.formaPagamentoId, valorInformado: linha\.informado as number \}\)\)/);
     assert.match(caixa, /formas: linhasConferencia\.map/);
-    assert.match(caixa, /saldoFinal: final, conferencia \}/);
+    assert.match(caixa, /saldoFinal: final, conferencia, cofre \}/);
 
     // Diferença por linha exige observação antes de habilitar o fechamento.
     assert.match(caixa, /temDiferencaFormas = linhasConferencia\.some/);

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
     Alert,
     Button,
@@ -11,15 +11,14 @@ import {
     List,
     ListItemButton,
     ListItemText,
-    MenuItem,
     Stack,
-    TextField,
     Typography,
 } from "@mui/material";
-import { abrirSessaoCaixa, listarCaixas, listarSessoesAbertas, mensagemCaixa } from "../../services/caixaService";
+import { listarCaixas, listarSessoesAbertas, mensagemCaixa } from "../../services/caixaService";
 import type { CaixaResumo, SessaoCaixaAberta } from "../../types/caixa";
 import { obterSessao } from "../../utils/auth/sessao";
-import { decidirSessaoCaixa, decimal } from "./pdv";
+import { decidirSessaoCaixa } from "./pdv";
+import AberturaCaixaDialog from "../Financeiro/AberturaCaixaDialog";
 
 type Modo = "CARREGANDO" | "ABRIR" | "SELECIONAR" | "ERRO";
 
@@ -32,14 +31,12 @@ const horario = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle
 
 export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) {
     const usuarioId = obterSessao()?.id;
+    const navigate = useNavigate();
     const [modo, setModo] = useState<Modo>("CARREGANDO");
     const [sessoes, setSessoes] = useState<SessaoCaixaAberta[]>([]);
     const [caixas, setCaixas] = useState<CaixaResumo[]>([]);
     const [sessaoId, setSessaoId] = useState<number | null>(null);
-    const [caixaId, setCaixaId] = useState<number | null>(null);
-    const [saldoInicial, setSaldoInicial] = useState("");
     const [erro, setErro] = useState("");
-    const [processando, setProcessando] = useState(false);
 
     const carregar = useCallback((signal?: AbortSignal) => {
         return listarSessoesAbertas(signal).then(async (abertas) => {
@@ -57,7 +54,6 @@ export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) 
             const ativas = (await listarCaixas(signal)).filter(caixa => caixa.ativo
                 && !abertas.some(sessao => sessao.caixaId === caixa.id));
             setCaixas(ativas);
-            setCaixaId(ativas.length === 1 ? ativas[0].id : null);
             setModo("ABRIR");
         }).catch((e) => {
             if (signal?.aborted) return;
@@ -79,30 +75,10 @@ export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) 
         return () => controller.abort();
     }, [carregar, resolvida]);
 
-    async function abrir(evento: FormEvent) {
-        evento.preventDefault();
-        const centavos = decimal(saldoInicial, 2);
-        if (caixaId === null) {
-            setErro("Selecione o Caixa que será aberto.");
-            return;
-        }
-        if (centavos === null) {
-            setErro("Informe um saldo inicial válido, com até duas casas decimais.");
-            return;
-        }
-        setProcessando(true);
-        setErro("");
-        try {
-            const criada = await abrirSessaoCaixa(caixaId, { saldoInicial: centavos / 100 });
-            onResolvida(criada.id);
-        } catch (e) {
-            setErro(mensagemCaixa(e, "Não foi possível abrir o Caixa."));
-        } finally {
-            setProcessando(false);
-        }
-    }
-
     if (resolvida) return null;
+    if (modo === "ABRIR") return <AberturaCaixaDialog caixasAtivos={caixas}
+        aviso="Não há sessão de caixa aberta para o seu usuário."
+        onClose={() => navigate("/dashboard")} onSucesso={onResolvida} />;
 
     return (
         <Dialog open fullWidth maxWidth="xs" aria-labelledby="sessao-caixa-pdv-titulo">
@@ -140,33 +116,6 @@ export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) 
                 </DialogActions>
             </>}
 
-            {modo === "ABRIR" && <form onSubmit={abrir}>
-                <DialogTitle id="sessao-caixa-pdv-titulo">Abrir Caixa</DialogTitle>
-                <DialogContent>
-                    <Stack spacing={2} sx={{ pt: 1 }}>
-                        <Alert severity="info">Não há sessão de caixa aberta para o seu usuário.</Alert>
-                        {erro && <Alert severity="error">{erro}</Alert>}
-                        {caixas.length === 0 ? <Alert severity="warning">Nenhum Caixa ativo está disponível.</Alert> : <>
-                            {caixas.length === 1
-                                ? <Typography variant="body2">{caixas[0].descricao}</Typography>
-                                : <TextField select required autoFocus label="Caixa" value={caixaId ?? ""}
-                                    onChange={evento => setCaixaId(Number(evento.target.value))}>
-                                    {caixas.map(caixa => <MenuItem key={caixa.id} value={caixa.id}>{caixa.descricao}</MenuItem>)}
-                                </TextField>}
-                            <TextField required autoFocus={caixas.length === 1} label="Saldo inicial (R$)"
-                                value={saldoInicial} disabled={processando}
-                                onChange={evento => setSaldoInicial(evento.target.value)}
-                                slotProps={{ htmlInput: { inputMode: "decimal" } }} />
-                        </>}
-                    </Stack>
-                </DialogContent>
-                <DialogActions>
-                    <Button component={Link} to="/dashboard" disabled={processando}>Voltar ao ERP</Button>
-                    <Button type="submit" variant="contained" disabled={processando || caixas.length === 0}>
-                        {processando ? "Abrindo…" : "Abrir Caixa"}
-                    </Button>
-                </DialogActions>
-            </form>}
         </Dialog>
     );
 }
