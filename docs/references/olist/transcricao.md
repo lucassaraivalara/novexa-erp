@@ -1,0 +1,80 @@
+# Transcrição - REFERENCIA SAAS - ERP - OLIST
+
+- [00:00:00] O que está te mostrando aqui é o sistema rp.olist, que é o sistema que eu estou usando como uma
+- [00:00:05] referência para desenvolvimento do mundo.
+- [00:00:08] Então no caso, o que é para levar uma consideração aqui?
+- [00:00:12] O que eu tenho hoje, certo?
+- [00:00:14] Com o que o sistema olist tem para nos agregar.
+- [00:00:19] Então é só o que eu tenho hoje para criar nada no momento, é só para mexer no que eu tenho hoje, beleza?
+- [00:00:25] Na estrutura de domínio que eu tenho hoje.
+- [00:00:28] Se essas estruturas de domínio já estiver alinhadas com a referência do sistema que eu vou mostrar,
+- [00:00:37] a gente vai partir para as novas implementações que ainda faltam no meu sistema,
+- [00:00:42] que aqui já tem, e a gente fala os rp.olist como referência, beleza?
+- [00:00:46] Então aqui primeiro eu vou estar mostrando aqui o sistema para você entender a estrutura do mundo.
+- [00:00:51] Eu vou abrir aqui tela para tela.
+- [00:00:59] É só o que eu tenho, considerar o que eu tenho, né?
+- [00:01:02] Eu vou...
+- [00:01:06] Minha conta aqui, beleza?
+- [00:01:11] No caso, isso para mim não precisa de minha conta.
+- [00:01:14] Eu vou mostrar mais o que eu achei interessante.
+- [00:01:17] Subversão, não precisa.
+- [00:01:20] Ásido de um rp, não.
+- [00:01:22] Tem, mas ferramentas aqui, ó.
+- [00:01:25] Também isso ainda não, porque ainda não tem.
+- [00:01:28] Então isso aqui é mais a parte de um índice aqui, né?
+- [00:01:33] Índice também eu não tenho, já.
+- [00:01:36] Não tem, então vamos mais aqui para o cadastro que eu realmente tenho.
+- [00:01:40] Cliente-conecedor, observe o que ele colocou junto.
+- [00:01:44] Cliente-conecedor.
+- [00:01:46] Pois o cadastro que o cliente-conecedor é pra ele é um só.
+- [00:01:50] Para mim, eu gostaria de deixar isso bem claro, dividir.
+- [00:01:53] Pode ser em aba.
+- [00:01:55] Mas colocar junto mesmo.
+- [00:02:02] Aqui tem produto, ó.
+- [00:02:04] Produto.
+- [00:02:06] Aqui tem vendedores, cadastro-vendedores.
+- [00:02:09] Então cadastro, todo cadastro-sistema.
+- [00:02:11] Balagens, relatórios.
+- [00:02:19] Você consegue cadastrar um relatórios personalizado
+- [00:02:22] com títulos índices e tal.
+- [00:02:25] Beleza.
+- [00:02:27] Suprimento.
+- [00:02:29] Achei impressionante aqui.
+- [00:02:31] Controle de estoque, ordem de compra, serviço de tomate,
+- [00:02:34] notas de entrada, conferência de compra, necessidade de compra.
+- [00:02:37] Giro de estoque, FSI, relatórios.
+- [00:02:40] Beleza.
+- [00:02:42] Não vi a parte fiscal, né?
+- [00:02:44] Provavelmente a venda, que é a notas fiscais.
+- [00:02:46] Tá.
+- [00:02:48] Toda parte de notas fiscais aqui.
+- [00:02:50] Também não vi o cadastro, mas é o que tem nesse...
+- [00:02:52] Gratis aqui.
+- [00:02:55] Finanças.
+- [00:02:59] Cadastro-caixa.
+- [00:03:06] Na verdade, não é o cadastro, né?
+- [00:03:08] Parece que é a operação.
+- [00:03:10] Cadastro, tá aqui.
+- [00:03:15] Enfim, é pra usar o que tá legal aqui, ó.
+- [00:03:17] Xermenu.
+- [00:03:19] Aí ele encosta aqui.
+- [00:03:23] Saiu do sistema.
+- [00:03:25] Sentado de suporte.
+- [00:03:27] Não precisa disso.
+- [00:03:29] Notificações também não, não tem isso ainda.
+- [00:03:31] Configurações, ó.
+- [00:03:36] Achei interessante.
+- [00:03:38] Configurações do RP.
+- [00:03:40] Então, que tá certo parâmetro, só.
+- [00:03:42] Tá tudo muito aglomerado aqui.
+- [00:03:44] Dividido por...
+- [00:03:46] Responsabilidades.
+- [00:03:48] Certo?
+- [00:03:50] Usar o que tem de bom, que tem uns atalhos, ó.
+- [00:03:52] Por exemplo, a Tante PDV aqui.
+- [00:03:54] É a mesma coisa que está entrando aqui.
+- [00:03:56] Em...
+- [00:03:58] Vendas PDV.
+- [00:04:00] Tem PDV aqui. Aqui tem um RP.
+- [00:04:02] Volta pro RP.
+- [00:04:06] Tudo isso.

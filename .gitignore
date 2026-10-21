@@ -32,3 +32,6 @@ secrets.json
 *.pfx
 *.jks
 *.keystore
+
+# Reference video frames (working material; analysis lives in the .md files)
+docs/references/olist/frames/
