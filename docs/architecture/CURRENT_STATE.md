@@ -1,5 +1,11 @@
 Empresa ........ funcional
 
+## Pagamento do PDV por configurações visíveis — 2026-10-21
+
+Implementação local exclusivamente frontend: `PagamentoVendaDialog` exibe configurações ativas diretamente, resumo e produtos, distribuição mista, valor aplicado separado do entregue em dinheiro e troco. Reutilizados os cálculos em centavos, parcelas/clientes, rascunho, validações, POST existente e UUID. F2 abre a etapa a partir do carrinho e conclui dentro dela somente com valores válidos; Enter no valor apenas avança o foco. Sem alteração de backend, políticas financeiras, estoque ou contratos. Não publicado nem implantado nesta tarefa; validação de interface usa HTTP simulado. Detalhes em [frontend.md](frontend.md#configuracoes-empresariais-no-pdv).
+
+Validação: 36 testes de cálculo e 60 cenários de interface/regressão aprovados, incluindo revalidação do cenário de teclado após corrigir a espera pelo fechamento do modal. Cobertos integral, misto, troco, edição/remoção, prazo, configurações do mesmo tipo, retry/UUID, envio único, scanner, Kit/Combo, autorização de estoque e rascunho. Rolagem interna verificada com 30 itens e 35 configurações; layouts 1440×900, 1024×600, 390×844 e 390×480 nos temas claro/escuro/automático. Build frontend, lint dos arquivos afetados e diff check aprovados; permanece o aviso de bundle acima de 500 kB.
+
 ## Fator de conversão e memória de código de fabricante — V52 (2026-10-21)
 
 O vínculo produto-fornecedor (`produto_fornecedor`) ganha `fator_conversao` opcional (1 embalagem comprada = X unidades do produto; nulo = 1:1), configurado na aba Fornecedores do cadastro completo, inclusive para o fornecedor principal, que segue sem campo próprio e agora pode constar nos vínculos (a tabela é a carteira de códigos de fabricante/fator por fornecedor). Na entrada de mercadoria, o item guarda o snapshot do fator; a confirmação credita `quantidade × fator` no estoque, atualiza o `precoCusto` com `valorUnitario ÷ fator` e memoriza o código do fabricante no vínculo sem sobrescrever código existente nem alterar fator. O XML de NF-e casa por GTIN ou, na ausência, pelo código de fabricante do fornecedor. A tela de entrada mostra indicador discreto por item, sem campos novos para o operador; cancelamento reverte a quantidade efetiva do snapshot.

@@ -325,3 +325,19 @@ test("pagamento unico automatico acompanha total e dinheiro sem recebido assume 
     assert.equal(criarPedido({ ...r, desconto: "1.20" }, "chave").pagamentos[0].valor, 19);
     assert.equal(totais(r).troco, 0);
 });
+
+test("dinheiro explícito mantém aplicado separado do entregue e das outras configurações", () => {
+    const r = { ...novoRascunho(10), itens: [{ produto: { id: 1, precoVenda: 100 }, quantidade: "1" }], pagamentos: [
+        { configuracaoFormaPagamentoId: 1, nomeExibicao: "Dinheiro", formaPagamento: "DINHEIRO", valor: "50", recebido: "60", valorDinheiroExplicito: true },
+        { configuracaoFormaPagamentoId: 2, nomeExibicao: "PIX", formaPagamento: "PIX", valor: "50", recebido: "" },
+    ] };
+    assert.equal(totais(r).totalInformado, 10000); assert.equal(totais(r).troco, 1000);
+    assert.deepEqual(criarPedido(r, "uuid").pagamentos, [{ configuracaoFormaPagamentoId: 1, valor: 50, valorRecebido: 60 }, { configuracaoFormaPagamentoId: 2, valor: 50 }]);
+    r.pagamentos[1].valor = "40";
+    assert.equal(totais(r).restante, 1000); assert.equal(totais(r).parcelas[0].valorCentavos, 5000);
+    assert.throws(() => criarPedido(r, "uuid"));
+    r.pagamentos[1].valor = "60";
+    assert.equal(totais(r).restante, -1000); assert.throws(() => criarPedido(r, "uuid"));
+    r.pagamentos[1].valor = "50"; r.pagamentos[0].recebido = "49";
+    assert.equal(totais(r).pagamentosValidos, false); assert.throws(() => criarPedido(r, "uuid"));
+});
