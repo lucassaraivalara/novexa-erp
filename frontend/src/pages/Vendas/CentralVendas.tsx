@@ -8,6 +8,8 @@ import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import FilterAltOffRoundedIcon from "@mui/icons-material/FilterAltOffRounded";
 import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
+import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
+import KeyboardArrowUpRoundedIcon from "@mui/icons-material/KeyboardArrowUpRounded";
 import {
     Alert,
     Box,
@@ -44,6 +46,7 @@ import LoadingState from "../../components/ui/LoadingState";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import ClienteAutocomplete from "../../components/clientes/ClienteAutocomplete";
 import StatusChip from "../../components/ui/StatusChip";
+import VendaExpandida, { type ConsultaVenda } from "./VendaExpandida";
 import { listarRecebiveis, mensagemRecebivel } from "../../services/recebivelService";
 import type { Recebivel, StatusRecebivel } from "../../types/recebivel";
 import { formatarData, rotulosStatus as rotulosContaReceber } from "../Financeiro/contaReceberUtils";
@@ -85,6 +88,7 @@ type CampoOrdenacaoVenda = "id" | "dataHora" | "total" | "status";
 export default function CentralVendas() {
     const theme = useTheme();
     const mobile = useMediaQuery(theme.breakpoints.down("md"));
+    const compacto = useMediaQuery(theme.breakpoints.down("lg"));
     const [parametros, setParametros] = useSearchParams();
     const vendaIdParametro = parametros.get("vendaId");
     const vendaId = vendaIdParametro && /^[1-9]\d*$/.test(vendaIdParametro) && Number.isSafeInteger(Number(vendaIdParametro))
@@ -118,6 +122,10 @@ export default function CentralVendas() {
     const [confirmandoPix, setConfirmandoPix] = useState(false);
     const [erroPix, setErroPix] = useState("");
     const [sucessoPix, setSucessoPix] = useState(false);
+    const [expandida, setExpandida] = useState<number | null>(null);
+    const [consultas] = useState(() => new Map<number, ConsultaVenda>());
+    const [, atualizarContagemItens] = useState(0);
+    const consultaCarregada = useCallback(() => atualizarContagemItens(v => v + 1), []);
 
     const carregarVendas = useCallback(async (signal?: AbortSignal) => {
         setCarregando(true);
@@ -148,6 +156,7 @@ export default function CentralVendas() {
     }, [carregarVendas]);
 
     function alterarFiltro<K extends keyof FiltrosCentralVendas>(campo: K, valor: FiltrosCentralVendas[K]) {
+        setExpandida(null);
         setFiltros(atuais => ({ ...atuais, [campo]: valor }));
         setPagina(0);
     }
@@ -229,6 +238,8 @@ export default function CentralVendas() {
         setErroPix("");
         try {
             const confirmado = await confirmarRecebimentoPix(pixParaConfirmar.id);
+            consultas.delete(confirmado.vendaId);
+            setExpandida(null);
             setPagamentos(atuais => atuais.map(p => p.id === confirmado.id ? confirmado : p));
             setPixParaConfirmar(null);
             setSucessoPix(true);
@@ -259,6 +270,8 @@ export default function CentralVendas() {
         setErroCancelamento("");
         try {
             const cancelada = await cancelarVenda(venda.id);
+            consultas.delete(venda.id);
+            setExpandida(null);
             setVendas(atuais => atuais.map(atual => atual.id === venda.id
                 ? { ...atual, status: "CANCELADA" }
                 : atual));
@@ -276,18 +289,40 @@ export default function CentralVendas() {
         }
     }
 
+    function botaoExpansao(venda: VendaResumo) {
+        const aberta = expandida === venda.id;
+        return <Tooltip title={aberta ? "Recolher venda" : "Consultar itens e pagamentos"}>
+            <IconButton size="small" aria-label={`${aberta ? "Recolher" : "Expandir"} venda #${venda.id}`}
+                aria-expanded={aberta} aria-controls={aberta ? `venda-expandida-${venda.id}` : undefined}
+                onClick={() => setExpandida(aberta ? null : venda.id)}
+                sx={{ width: 36, height: 36, color: aberta ? "primary.main" : "text.secondary",
+                    "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
+                {aberta ? <KeyboardArrowUpRoundedIcon /> : <KeyboardArrowDownRoundedIcon />}
+            </IconButton>
+        </Tooltip>;
+    }
+    const detalheInline = (venda: VendaResumo) => expandida === venda.id
+        ? <VendaExpandida key={`${venda.id}-${venda.status}`} venda={venda} cache={consultas} onCarregado={consultaCarregada} /> : null;
+
     const colunas: Coluna<VendaResumo>[] = [
-        { campo: "id", cabecalho: "Venda", largura: 90, ordenavel: true,
-            render: valor => <Typography variant="body2" sx={{ fontWeight: 600 }}>#{String(valor)}</Typography> },
-        { campo: "dataHora", cabecalho: "Data / hora", largura: 150, ordenavel: true,
-            render: valor => <Typography variant="body2" color="text.secondary">{dataHoraVenda(String(valor))}</Typography> },
-        { campo: "nomeCliente", cabecalho: "Cliente", render: valor => String(valor || "Consumidor final") },
-        { campo: "total", cabecalho: "Total", largura: 125, alinhar: "right", ordenavel: true,
+        { campo: "expandir", cabecalho: "", largura: compacto ? 44 : 48, render: (_, venda) => botaoExpansao(venda) },
+        { campo: "id", cabecalho: "Venda", largura: compacto ? 100 : 85, ordenavel: true,
+            render: (valor, venda) => <><Typography variant="body2" sx={{ fontWeight: 600 }}>#{String(valor)}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: { lg: "none" }, fontSize: 11 }}>{venda.sessaoCaixaId ? `Sessão #${venda.sessaoCaixaId}` : "Sem sessão"}</Typography></> },
+        { campo: "dataHora", cabecalho: "Data / hora", largura: compacto ? 112 : 150, ordenavel: true,
+            render: valor => <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "normal" }}>{dataHoraVenda(String(valor))}</Typography> },
+        { campo: "nomeCliente", cabecalho: "Cliente", render: valor => <Typography variant="body2" title={String(valor || "Consumidor final")}
+            sx={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{String(valor || "Consumidor final")}</Typography> },
+        ...(!compacto ? [{ campo: "itens", cabecalho: "Itens", largura: 55, alinhar: "right", render: (_, venda) =>
+            <Tooltip title="Quantidade de linhas de itens, consultada ao expandir a venda">
+                <Typography component="span" variant="body2" color="text.secondary">{consultas.get(venda.id)?.detalhe.itens.length ?? "—"}</Typography>
+            </Tooltip> } satisfies Coluna<VendaResumo>] : []),
+        { campo: "total", cabecalho: "Total", largura: compacto ? 110 : 125, alinhar: "right", ordenavel: true,
             render: valor => <Typography component="span" variant="body2" sx={{ fontWeight: 700, fontSize: 15, fontVariantNumeric: "tabular-nums" }}>{moedaVenda(Number(valor))}</Typography> },
-        { campo: "status", cabecalho: "Status", largura: 115, ordenavel: true,
+        { campo: "status", cabecalho: "Status", largura: compacto ? 100 : 115, ordenavel: true,
             render: (_, venda) => <StatusChip status={venda.status} label={rotulosStatus[venda.status]} /> },
-        { campo: "sessaoCaixaId", cabecalho: "Caixa / sessão", largura: 125,
-            render: valor => <Typography variant="body2" color="text.secondary">{valor ? `Sessão #${valor}` : "—"}</Typography> },
+        ...(!compacto ? [{ campo: "sessaoCaixaId", cabecalho: "Caixa / sessão", largura: 125,
+            render: valor => <Typography variant="body2" color="text.secondary">{valor ? `Sessão #${valor}` : "—"}</Typography> } satisfies Coluna<VendaResumo>] : []),
     ];
 
     const acoes: AcaoTabela<VendaResumo>[] = [
@@ -317,21 +352,21 @@ export default function CentralVendas() {
     const pagoAgora = pagamentosRegistrados.reduce((total, pagamento) => total + pagamento.valor, 0);
     const aReceber = detalhe?.contasReceber?.reduce((total, conta) => total + conta.saldo, 0) ?? 0;
 
-    const ordenar = (campo: string) => { setPagina(0); setOrdenacao(atual => ({
+    const ordenar = (campo: string) => { setExpandida(null); setPagina(0); setOrdenacao(atual => ({
         campo: campo as CampoOrdenacaoVenda,
         direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc",
     })); };
     const paginacao = { pagina, linhasPorPagina: porPagina, total: totalItems,
-        onPageChange: setPagina,
-        onRowsPerPageChange: (linhasPorPagina: number) => { setPorPagina(linhasPorPagina); setPagina(0); },
+        onPageChange: (novaPagina: number) => { setExpandida(null); setPagina(novaPagina); },
+        onRowsPerPageChange: (linhasPorPagina: number) => { setExpandida(null); setPorPagina(linhasPorPagina); setPagina(0); },
         opcoesLinhasPorPagina: [10, 25, 50] };
     const vazio = { titulo: "Nenhuma venda encontrada", descricao: "Ajuste os filtros ou inicie uma nova venda." };
     const temFiltros = Object.values(filtros).some(Boolean);
 
     return <PageContainer>
-        <PageHeader titulo="Central de Vendas" descricao="Consulte a situação comercial das vendas e seus pagamentos no detalhe."
+        <PageHeader titulo="Central de Vendas" descricao="Acompanhe suas vendas, itens e pagamentos."
             acaoPrincipal={<Button component={Link} to="/pdv" variant="contained"
-                startIcon={<AddShoppingCartRoundedIcon />}>Vender</Button>}
+                startIcon={<AddShoppingCartRoundedIcon />}>Nova venda</Button>}
             sx={{ "& h1": { fontSize: 28 }, gap: 1.5 }} />
 
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregarVendas()}>Tentar novamente</Button>}>{erro}</Alert>}
@@ -362,10 +397,15 @@ export default function CentralVendas() {
                     }} />
                 </Box>
                 <Tooltip title="Limpar filtros"><span><IconButton aria-label="Limpar filtros" disabled={!temFiltros}
-                    onClick={() => { setFiltros({ ...filtrosIniciais, status: "" }); setClienteSelecionado(null); setPagina(0); }}
+                    onClick={() => { setExpandida(null); setFiltros({ ...filtrosIniciais, status: "" }); setClienteSelecionado(null); setPagina(0); }}
                     sx={{ width: 44, height: 40, border: 1, borderColor: "divider", borderRadius: "6px" }}><FilterAltOffRoundedIcon /></IconButton></span></Tooltip>
             </Box>
         </PageFilters>
+
+        <Stack direction="row" sx={{ justifyContent: "space-between", gap: 1, flexWrap: "wrap", alignItems: "baseline" }}>
+            <Typography component="h2" variant="subtitle2">Vendas <Typography component="span" variant="body2" color="text.secondary" aria-live="polite">{carregando ? "· Carregando…" : `· ${totalItems} ${totalItems === 1 ? "encontrada" : "encontradas"}`}</Typography></Typography>
+            <Typography variant="caption" color="text.secondary">Expanda uma venda para consultar itens e pagamentos.</Typography>
+        </Stack>
 
         {mobile ? <Paper data-app-table variant="outlined" sx={{ minWidth: 0, overflow: "hidden" }}>
             <Stack direction="row" sx={{ p: 1.5, gap: 1, alignItems: "center", borderBottom: 1, borderColor: "divider" }}>
@@ -382,9 +422,10 @@ export default function CentralVendas() {
             {carregando ? <LoadingState tamanho="pequeno" mensagem="Carregando dados…" />
                 : !vendas.length ? <EmptyState {...vazio} icone={<ReceiptLongRoundedIcon />} />
                     : vendas.map(venda => <Box component="article" aria-label={`Venda #${venda.id}`} key={venda.id}
-                        sx={{ p: 1.5, borderBottom: 1, borderColor: "divider", overflowWrap: "anywhere" }}>
+                        sx={{ borderBottom: 1, borderColor: "divider", overflowWrap: "anywhere", bgcolor: expandida === venda.id ? "action.selected" : undefined }}>
+                        <Box sx={{ p: 1.5 }}>
                         <Stack direction="row" sx={{ justifyContent: "space-between", gap: 1, alignItems: "center" }}>
-                            <Typography variant="subtitle2">#{venda.id}</Typography>
+                            <Stack direction="row" sx={{ gap: 0.5, alignItems: "center" }}>{botaoExpansao(venda)}<Typography variant="subtitle2">#{venda.id}</Typography></Stack>
                             <StatusChip status={venda.status} label={rotulosStatus[venda.status]} />
                         </Stack>
                         <Typography variant="body2" sx={{ mt: 1, fontWeight: 500 }}>{venda.nomeCliente || "Consumidor final"}</Typography>
@@ -403,6 +444,8 @@ export default function CentralVendas() {
                                 </IconButton>
                             </span></Tooltip>)}
                         </Stack>
+                        </Box>
+                        {detalheInline(venda)}
                     </Box>)}
             <Box component="footer" aria-label="Contagem e paginação da tabela" sx={{ p: 1.5 }}>
                 <Typography variant="caption" color="text.secondary" aria-live="polite">
@@ -420,8 +463,11 @@ export default function CentralVendas() {
         </Paper> : <AppTable colunas={colunas} linhas={vendas} carregando={carregando} compacta ordenacaoComIcone
             obterChaveLinha={venda => venda.id} minWidth={0} acoes={acoes} ordenacaoRemota
             ordenacao={{ ...ordenacao, onSort: ordenar }} paginacao={paginacao}
-            vazio={{ ...vazio, icone: <ReceiptLongRoundedIcon /> }} alturaCorpo="calc(100vh - 340px)"
-            sx={{ "& tbody td:nth-of-type(3)": { whiteSpace: "normal", overflowWrap: "anywhere" } }} />}
+            vazio={{ ...vazio, icone: <ReceiptLongRoundedIcon /> }} detalheLinha={detalheInline}
+            sx={{ "& tbody > tr > td:nth-of-type(4)": { whiteSpace: "normal", overflowWrap: "anywhere" },
+                "& tbody > tr > td:first-of-type": { px: 0.75 },
+                "& > .MuiTableContainer-root > table > thead > tr > th": { px: { md: 1, lg: 1.5 } },
+                "& > .MuiTableContainer-root > table > thead > tr > th:last-of-type": { width: { md: acoes.length * 36 + 16, lg: acoes.length * 44 + 16 } } }} />}
 
         <Dialog open={vendaParaCancelar !== null} fullWidth maxWidth="xs"
             onClose={cancelando !== null ? undefined : () => setVendaParaCancelar(null)}

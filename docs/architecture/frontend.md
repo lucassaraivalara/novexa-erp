@@ -269,15 +269,33 @@ sessionStorage usa chave por empresa, operador e sessao de caixa. A restauracao 
 
 ## Central de Vendas - listagem gerencial
 
-A listagem usa PageHeader e PageFilters, com filtros responsivos e acao Limpar
-filtros (remove status, periodo e cliente, retornando a primeira pagina sem
-alterar ordenacao ou tamanho da pagina). Desktop preserva AppTable; entre
-900px e 1199px, a sessao aparece junto do identificador da venda. Abaixo de
-900px, linhas empilhadas mantem status, cliente, data, sessao, total e acoes,
-com controles de ordenacao e paginacao remotas. Chips e botoes com tooltip
-reutilizam o padrao gerencial. Detalhe financeiro, calculos, permissoes e
-confirmacao de cancelamento permanecem inalterados. Testes Chromium cobrem
-layout real em 1440/1024/390px, limpeza de filtros e fluxos mobile.
+A Central usa PageHeader, PageFilters, AppTable e o diálogo completo já existentes.
+O cabeçalho oferece Nova venda para o PDV; status, período e cliente continuam
+filtrados/paginados/ordenados no backend. A contagem de vendas vem de `totalItems`,
+nunca da soma parcial da página. Não há indicadores financeiros globais nem
+filtros decorativos por número/sessão: o contrato atual não os fornece.
+
+Uma seta por venda abre a consulta rápida inline, uma por vez. `VendaExpandida`
+consulta `GET /vendas/{id}` e `GET /vendas/{id}/pagamentos` somente ao expandir,
+com loading, erro recuperável e cache em memória limitado à vida da página
+(até 100 vendas). Recolher/reabrir não repete uma consulta bem-sucedida; filtros,
+ordenação e paginação recolhem a linha. Cancelamento e confirmação PIX existentes
+invalidam o cache da venda. O diálogo completo e suas permissões permanecem.
+
+Itens exibem nome, quantidade, preço e subtotal históricos. A referência é o ID
+do produto; código interno, unidade e desconto por item não constam do snapshot
+atual e não são reconstruídos com o cadastro presente. O desconto geral é mostrado
+quando existente. A coluna Itens conta **linhas**, após a consulta sob demanda;
+antes disso exibe “—”, sem consultas por venda no carregamento da listagem.
+Origem e operador também não são inferidos sem contrato. Pagamentos mostram o
+nome histórico da configuração e `Pagamento.valor` aplicado à venda. O total
+distribuído inclui o valor original a prazo, não o saldo remanescente após baixas;
+troco fica separado e não aumenta faturamento. Cancelados conservam identificação.
+
+Desktop usa expansão em duas colunas; abaixo de 1200px os detalhes se empilham.
+Abaixo de 900px a listagem mantém linhas responsivas com ações e expansão. Tabelas
+largas dos itens rolam apenas no seu contêiner. Datas seguem `dataHoraVenda` e a
+padronização Brasília. Sem alteração de backend, contratos ou regras financeiras.
 
 ## Foco no carrinho do PDV
 

@@ -1,5 +1,11 @@
 Empresa ........ funcional
 
+## Central de Vendas com consulta expansível — 2026-10-21
+
+Reformulação exclusivamente frontend: grid compacto com expansão inline de uma venda por vez, itens e pagamentos sob demanda, cache em memória e retry. Mantidos o diálogo completo, cancelamento/permissões, filtros remotos por status/período/cliente, ordenação, paginação e datas de Brasília. Pagamentos mistos mostram valores aplicados; troco fica separado e prazo usa valor original, sem confundir com saldo após baixas. AppTable recebeu um slot opcional para o detalhe da linha. Backend, migrations e regras financeiras não foram alterados.
+
+Validação: 56 testes relacionados aprovados, incluindo interface em Chromium com HTTP simulado (expansão/recolhimento por teclado, cache, loading/erro/retry, um/vários itens, misto/prazo, ações existentes e layouts 1440×900, 1024×600, 390×844 e 390×480 em claro/escuro/automático). Esta evidência não substitui homologação com a API real. Build frontend, lint dos arquivos afetados e diff check aprovados; permanece o aviso de chunk acima de 500 kB. Limites do contrato preservados: sem indicadores financeiros globais, filtro por número/sessão, origem/operador ou código/unidade históricos; contagem de linhas de itens disponível após expandir. Detalhes em [frontend.md](frontend.md#central-de-vendas---listagem-gerencial).
+
 ## Data/hora oficial de Brasília — 2026-10-21
 
 Conferência posterior em produção: `main`/GitHub/checkout Oracle em `f9e73e4` (inclui `fe1e606`), deployment Vercel Production/success, container iniciado às 12:07 de Brasília com zona efetiva `America/Sao_Paulo`, V50, zero reinícios e health interno/público 200/UP. Classes de relógio e Venda do container coincidem com o JAR validado. A venda #130 já contém 14:03 no banco e exibe o mesmo horário na Central; não há venda posterior ao deploy identificada para validar o fluxo novo. JSON autenticado não capturado. **Resolução em produção e faixa histórica permanecem pendentes de comprovação com venda nova**; nenhuma correção retroativa ou mudança de produção realizada. Evidências em [diagnóstico da Central](../audits/CENTRAL_VENDAS_HORARIO_PRODUCAO_2026-10-21.md).

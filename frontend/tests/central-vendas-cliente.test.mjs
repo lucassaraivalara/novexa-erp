@@ -14,12 +14,14 @@ before(async () => {
             load(id) { if (id === "\0/fixture-cliente.js") return `
                 import React from 'react'; import {createRoot} from 'react-dom/client';
                 import {MemoryRouter} from 'react-router-dom'; import {ThemeProvider,CssBaseline} from '@mui/material';
-                import theme from '/src/theme/theme.ts'; import Central from '/src/pages/Vendas/CentralVendas.tsx';
+                import {createNovexaTheme} from '/src/theme/theme.ts'; import Central from '/src/pages/Vendas/CentralVendas.tsx';
                 import AppRoutes from '/src/routes/AppRoutes.tsx';
                 import ClienteAutocomplete from '/src/components/clientes/ClienteAutocomplete.tsx';
                 function Operacional() { const [value,onChange] = React.useState(null);
                     return React.createElement(ClienteAutocomplete,{value,onChange}); }
                 const Tela = location.pathname === '/__operacional' ? Operacional : location.pathname === '/vendas' ? AppRoutes : Central;
+                const mode = localStorage.getItem('fixture-tema');
+                const theme = createNovexaTheme(mode === 'dark' || (mode === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
                 createRoot(document.getElementById('root')).render(React.createElement(ThemeProvider,{theme},
                     React.createElement(CssBaseline),
                     React.createElement(MemoryRouter,{initialEntries:[location.pathname+location.search]},React.createElement(Tela))));`; },
@@ -46,6 +48,8 @@ async function abrir(operacional = false, opcoes = {}) {
     const estado = { requests: [], ...opcoes };
     const page = await browser.newPage({ viewport: estado.viewport ?? { width: 1440, height: 900 } });
     page.setDefaultTimeout(8000);
+    await page.emulateMedia({ colorScheme: estado.tema === "auto" ? "dark" : "light" });
+    await page.addInitScript(tema => localStorage.setItem("fixture-tema", tema), estado.tema ?? "light");
     await page.addInitScript(perfil => localStorage.setItem("novexa-auth", JSON.stringify({ token: "teste", perfil, empresa: { id: 1, nome: "Novexa" } })), estado.perfil ?? "ADMIN");
     await page.route("http://localhost:8080/**", async route => {
         const req = route.request(), u = new URL(req.url());
@@ -54,7 +58,8 @@ async function abrir(operacional = false, opcoes = {}) {
         let data, status = 200;
         if (u.pathname === "/vendas") data = { items: estado.listaVazia ? [] : estado.items ?? [{ id: 30, dataHora: "2026-10-01T10:00:00", nomeCliente: "Venda retornada", total: 85,
             status: "FATURADA", sessaoCaixaId: 1 }], page: Number(params.page), size: Number(params.size), totalItems: estado.listaVazia ? 0 : 63, totalPages: estado.listaVazia ? 0 : 3 };
-        else if (u.pathname === "/vendas/30") {
+        else if (/^\/vendas\/(30|31)$/.test(u.pathname)) {
+            if (estado.atrasoDetalhe) await new Promise(r => setTimeout(r, estado.atrasoDetalhe));
             if (estado.erroDetalhe) { status = 404; data = { detail: "Venda não encontrada." }; }
             else data = {
             id: 30, dataHora: "2026-10-01T10:00:00", clienteId: 8, status: "FATURADA", total: 200, subtotal: 200, desconto: 0,
@@ -62,9 +67,10 @@ async function abrir(operacional = false, opcoes = {}) {
             contasReceber: [1, 2].map(numero => ({ id: numero, numeroParcela: numero, totalParcelas: 2, valorOriginal: 75,
                 saldo: numero === 1 ? 35 : 75, dataVencimento: `2026-${numero === 1 ? "11" : "12"}-15`, status: numero === 1 ? "PARCIAL" : "PENDENTE" })),
             ...estado.detalhe,
+            id: Number(u.pathname.split("/").at(-1)),
             };
         }
-        else if (u.pathname === "/vendas/30/pagamentos") {
+        else if (/^\/vendas\/(30|31)\/pagamentos$/.test(u.pathname)) {
             if (estado.erroPagamentos) { status = 503; data = { detail: "Não foi possível carregar os pagamentos." }; }
             else data = estado.pagamentos ?? [{ id: 1, vendaId: 30, formaPagamento: "DINHEIRO", valor: 50,
                 status: "REGISTRADO", configuracaoNomeExibicao: "Dinheiro" }];
@@ -359,7 +365,7 @@ test("listagem gerencial com layout real preserva dados e acoes sem overflow em 
         try {
             const main = page.getByRole("main");
             assert.ok(await main.getByRole("heading", { name: "Central de Vendas", exact: true }).isVisible());
-            const vender = main.getByRole("link", { name: "Vender", exact: true });
+            const vender = main.getByRole("link", { name: "Nova venda", exact: true });
             assert.equal(await vender.getAttribute("href"), "/pdv");
             assert.equal(await vender.locator('[data-testid="AddShoppingCartRoundedIcon"]').count(), 1);
             for (const nome of ["Status", "Data inicial", "Data final", "Cliente"]) assert.ok(await main.getByLabel(nome, { exact: true }).isVisible());
@@ -538,4 +544,98 @@ test("PIX simplificado usa origem histórica Registrado no PDV sem nova confirma
         assert.equal(await page.getByRole("button", { name: "Confirmar recebimento", exact: true }).count(), 0);
         assert.ok(estado.requests.every(r => r.method === "GET"));
     } finally { await page.close(); }
+});
+
+const itemConsulta = (id = 1) => ({ id, produtoId: 8 + id, nomeProduto: id === 1 ? "Água mineral 500 mL" : "Produto com descrição extensa para consulta comercial",
+    quantidade: id === 1 ? 1 : 0.5, precoUnitario: 7.9, subtotal: id === 1 ? 7.9 : 3.95, ordem: id, movimentacaoEstoqueId: id });
+const vendaConsulta = id => ({ id, dataHora: "2026-10-21T14:03:00", nomeCliente: "Venda retornada", total: 7.9, status: "FATURADA", sessaoCaixaId: 42 });
+const opcoesConsulta = (extras = {}) => ({ items: [vendaConsulta(30)], detalhe: { total: 7.9, subtotal: 7.9, itens: [itemConsulta()], contasReceber: [], valorPrazo: 0,
+    dataHora: "2026-10-21T14:03:00", sessaoCaixaId: 42, troco: 3.1, valorRecebido: 10, observacoes: "Entrega no balcão." },
+    pagamentos: [pagamentoResumo(1, "DINHEIRO", 6.9, { configuracaoNomeExibicao: "Dinheiro" }), pagamentoResumo(2, "PIX", 1, { configuracaoNomeExibicao: "PIX Nubank" })], ...extras });
+const regiaoConsulta = (page, id = 30) => page.getByRole("region", { name: `Consulta rápida da venda #${id}`, exact: true });
+
+test("expansão por teclado consulta sob demanda, preserva misto/troco e reutiliza cache ao recolher", async () => {
+    const { page, estado } = await abrir(false, opcoesConsulta());
+    try {
+        assert.deepEqual(estado.requests.map(r => r.path), ["/vendas"]);
+        const expandir = page.getByRole("button", { name: "Expandir venda #30", exact: true });
+        await expandir.focus(); await page.keyboard.press("Enter");
+        const regiao = regiaoConsulta(page);
+        await regiao.getByText("Água mineral 500 mL", { exact: true }).waitFor();
+        assert.equal(await page.getByRole("button", { name: "Recolher venda #30" }).getAttribute("aria-expanded"), "true");
+        assert.match(await regiao.getByRole("region", { name: "Pagamentos da venda" }).innerText(), /Dinheiro\s*R\$\s*6,90\s*PIX Nubank\s*R\$\s*1,00\s*Total distribuído\s*R\$\s*7,90/);
+        assert.match(await regiao.innerText(), /Troco: R\$\s*3,10/);
+        assert.match(await regiao.innerText(), /21\/10\/2026.*14:03/);
+        assert.equal(estado.requests.filter(r => r.path === "/vendas/30").length, 1);
+        assert.equal(estado.requests.filter(r => r.path === "/vendas/30/pagamentos").length, 1);
+        await page.getByRole("button", { name: "Recolher venda #30" }).focus(); await page.keyboard.press("Space");
+        assert.equal(await regiao.count(), 0);
+        await page.keyboard.press("Enter"); await regiao.getByText("Água mineral 500 mL", { exact: true }).waitFor();
+        assert.equal(estado.requests.filter(r => r.path === "/vendas/30").length, 1);
+        assert.ok(estado.requests.every(r => r.method === "GET"));
+        assert.equal(await page.getByRole("dialog").count(), 0);
+        assert.equal(await page.getByLabel("Status", { exact: true }).innerText(), "Faturada");
+    } finally { await page.close(); }
+});
+
+test("apenas uma venda expande; mudança de página preserva filtros/sort e não busca outros detalhes", async () => {
+    const { page, estado } = await abrir(false, opcoesConsulta({ items: [vendaConsulta(30), { ...vendaConsulta(31), nomeCliente: "Outra venda" }] }));
+    try {
+        await page.getByRole("button", { name: "Expandir venda #30" }).click(); await regiaoConsulta(page).getByText("Água mineral 500 mL").waitFor();
+        await page.getByRole("button", { name: "Expandir venda #31" }).click(); await regiaoConsulta(page, 31).getByText("Água mineral 500 mL").waitFor();
+        assert.equal(await regiaoConsulta(page).count(), 0);
+        await page.getByRole("button", { name: "Próxima página", exact: true }).click();
+        await esperar(() => ultimaVenda(estado)?.page === "1");
+        assert.equal(await regiaoConsulta(page, 31).count(), 0);
+        assert.equal(ultimaVenda(estado).status, "FATURADA"); assert.equal(ultimaVenda(estado).sort, "dataHora,desc");
+        assert.equal(estado.requests.filter(r => /^\/vendas\/\d+$/.test(r.path)).length, 2);
+    } finally { await page.close(); }
+});
+
+test("expansão trata loading e falha de pagamentos com retry sem apresentar total fictício", async () => {
+    const { page, estado } = await abrir(false, opcoesConsulta({ atrasoDetalhe: 350, erroPagamentos: true }));
+    try {
+        await page.getByRole("button", { name: "Expandir venda #30" }).click();
+        const regiao = regiaoConsulta(page);
+        await regiao.getByRole("status").waitFor();
+        await regiao.getByRole("alert").waitFor();
+        assert.equal(await regiao.getByText("Total distribuído", { exact: true }).count(), 0);
+        estado.erroPagamentos = false;
+        await regiao.getByRole("button", { name: "Tentar novamente", exact: true }).click();
+        await regiao.getByText("Água mineral 500 mL").waitFor();
+        assert.equal(estado.requests.filter(r => r.path === "/vendas/30/pagamentos").length, 2);
+    } finally { await page.close(); }
+});
+
+test("vários itens e prazo usam valores originais, sem saldo baixado nem cadastro atual", async () => {
+    const { page, estado } = await abrir(false, opcoesConsulta({ detalhe: { itens: [itemConsulta(), itemConsulta(2)], total: 11.85, subtotal: 11.85,
+        desconto: 0, valorPrazo: 5.85, contasReceber: [parcelaResumo(1, { valorOriginal: 5.85, status: "PARCIAL" })] },
+        pagamentos: [pagamentoResumo(1, "DINHEIRO", 6, { configuracaoNomeExibicao: "Dinheiro" })] }));
+    try {
+        await page.getByRole("button", { name: "Expandir venda #30" }).click();
+        const regiao = regiaoConsulta(page);
+        await regiao.getByText("2 linhas", { exact: true }).waitFor();
+        assert.equal(await regiao.getByRole("table").getByRole("row").count(), 3);
+        assert.match(await regiao.getByRole("region", { name: "Pagamentos da venda" }).innerText(), /A prazo\s*R\$\s*5,85\s*Total distribuído\s*R\$\s*11,85/);
+        assert.ok(estado.requests.every(r => !r.path.includes("produtos") && r.method === "GET"));
+    } finally { await page.close(); }
+});
+
+for (const tema of ["light", "dark", "auto"]) test(`expansão responsiva e foco visível em tema ${tema}`, async () => {
+    await mkdir("node_modules/.cache/central-vendas", { recursive: true });
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 600 }, { width: 390, height: 844 }, { width: 390, height: 480 }]) {
+        const { page, estado } = await abrir(false, opcoesConsulta({ tema, layout: true, viewport }));
+        try {
+            const botao = page.getByRole("button", { name: "Expandir venda #30" });
+            await botao.focus(); await page.keyboard.press("Enter");
+            const regiao = regiaoConsulta(page);
+            await regiao.getByText("Água mineral 500 mL", { exact: true }).waitFor();
+            assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+            const foco = page.getByRole("button", { name: "Recolher venda #30" });
+            assert.equal(await foco.evaluate(el => el === document.activeElement), true);
+            assert.equal(await foco.evaluate(el => getComputedStyle(el).outlineStyle), "solid");
+            await page.screenshot({ path: `node_modules/.cache/central-vendas/expandida-${tema}-${viewport.width}-${viewport.height}.png`, fullPage: true });
+            assert.ok(estado.requests.every(r => r.method === "GET"));
+        } finally { await page.close(); }
+    }
 });

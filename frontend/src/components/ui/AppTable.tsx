@@ -23,7 +23,7 @@ import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
 import SwapVertRoundedIcon from "@mui/icons-material/SwapVertRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
-import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { layoutTokens } from "../layout/layoutTokens";
 import { visualTokens } from "../../theme/theme";
 import { darkTokens } from "../../theme/darkTokens";
@@ -98,6 +98,8 @@ interface AppTableProps<T> {
     linhaCliqueavel?: boolean;
     onLinhaClick?: (linha: T) => void;
     obterChaveLinha: (linha: T) => string | number;
+    /** Conteúdo opcional sob uma linha, controlado pela página. */
+    detalheLinha?: (linha: T) => ReactNode;
     sx?: SxProps;
     minWidth?: number | string;
     compacta?: boolean;
@@ -122,6 +124,7 @@ export default function AppTable<T extends Record<string, unknown>>({
     linhaCliqueavel = false,
     onLinhaClick,
     obterChaveLinha,
+    detalheLinha,
     sx,
     minWidth = 1000,
     compacta = false,
@@ -248,9 +251,9 @@ export default function AppTable<T extends Record<string, unknown>>({
                                 <TableCell
                                     key={String(coluna.campo)}
                                     align={coluna.alinhar ?? "left"}
-                                    style={{ width: coluna.largura }}
                                     sortDirection={coluna.ordenavel && ordenacaoAtiva?.campo === String(coluna.campo) ? ordenacaoAtiva.direcao : false}
                                     sx={{
+                                        width: coluna.largura,
                                         height: 44,
                                         py: 0.75,
                                         fontWeight: 600,
@@ -367,10 +370,12 @@ export default function AppTable<T extends Record<string, unknown>>({
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            linhasOrdenadas.map((linha, indice) => (
+                            linhasOrdenadas.map((linha, indice) => {
+                                const detalhe = detalheLinha?.(linha);
+                                return <Fragment key={obterChaveLinha(linha)}>
                                 <TableRow
-                                    key={obterChaveLinha(linha)}
                                     hover
+                                    selected={Boolean(detalhe)}
                                     sx={{
                                         height: compacta ? 40 : 48,
                                         bgcolor: "background.paper",
@@ -461,7 +466,11 @@ export default function AppTable<T extends Record<string, unknown>>({
                                         </TableCell>
                                     )}
                                 </TableRow>
-                            ))
+                                {detalhe && <TableRow><TableCell colSpan={colunas.length + (acoes?.length ? 1 : 0)} sx={{ p: 0, whiteSpace: "normal" }}>
+                                    {detalhe}
+                                </TableCell></TableRow>}
+                                </Fragment>;
+                            })
                         )}
                     </TableBody>
                 </Table>
