@@ -85,7 +85,6 @@ type CampoOrdenacaoVenda = "id" | "dataHora" | "total" | "status";
 export default function CentralVendas() {
     const theme = useTheme();
     const mobile = useMediaQuery(theme.breakpoints.down("md"));
-    const laptop = useMediaQuery(theme.breakpoints.between("sm", "lg"));
     const [parametros, setParametros] = useSearchParams();
     const vendaIdParametro = parametros.get("vendaId");
     const vendaId = vendaIdParametro && /^[1-9]\d*$/.test(vendaIdParametro) && Number.isSafeInteger(Number(vendaIdParametro))
@@ -278,19 +277,17 @@ export default function CentralVendas() {
     }
 
     const colunas: Coluna<VendaResumo>[] = [
-        { campo: "id", cabecalho: "Venda", largura: laptop ? 90 : 100, ordenavel: true, render: (valor, venda) => <Box>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>#{String(valor)}</Typography>
-            {laptop && <Typography variant="caption" color="text.secondary">{venda.sessaoCaixaId ? `Sessão #${venda.sessaoCaixaId}` : "—"}</Typography>}
-        </Box> },
-        { campo: "dataHora", cabecalho: "Data / hora", largura: laptop ? 145 : 170, ordenavel: true,
+        { campo: "id", cabecalho: "Venda", largura: 90, ordenavel: true,
+            render: valor => <Typography variant="body2" sx={{ fontWeight: 600 }}>#{String(valor)}</Typography> },
+        { campo: "dataHora", cabecalho: "Data / hora", largura: 150, ordenavel: true,
             render: valor => <Typography variant="body2" color="text.secondary">{dataHoraVenda(String(valor))}</Typography> },
         { campo: "nomeCliente", cabecalho: "Cliente", render: valor => String(valor || "Consumidor final") },
-        { campo: "total", cabecalho: "Total", largura: 135, alinhar: "right", ordenavel: true,
-            render: valor => <Typography component="span" variant="body2" sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moedaVenda(Number(valor))}</Typography> },
-        { campo: "status", cabecalho: "Status", largura: 120, ordenavel: true,
+        { campo: "total", cabecalho: "Total", largura: 125, alinhar: "right", ordenavel: true,
+            render: valor => <Typography component="span" variant="body2" sx={{ fontWeight: 700, fontSize: 15, fontVariantNumeric: "tabular-nums" }}>{moedaVenda(Number(valor))}</Typography> },
+        { campo: "status", cabecalho: "Status", largura: 115, ordenavel: true,
             render: (_, venda) => <StatusChip status={venda.status} label={rotulosStatus[venda.status]} /> },
-        ...(!laptop ? [{ campo: "sessaoCaixaId", cabecalho: "Caixa / sessão", largura: 130,
-            render: (valor: unknown) => <Typography variant="body2" color="text.secondary">{valor ? `Sessão #${valor}` : "—"}</Typography> }] : []),
+        { campo: "sessaoCaixaId", cabecalho: "Caixa / sessão", largura: 125,
+            render: valor => <Typography variant="body2" color="text.secondary">{valor ? `Sessão #${valor}` : "—"}</Typography> },
     ];
 
     const acoes: AcaoTabela<VendaResumo>[] = [
@@ -423,9 +420,8 @@ export default function CentralVendas() {
         </Paper> : <AppTable colunas={colunas} linhas={vendas} carregando={carregando} compacta ordenacaoComIcone
             obterChaveLinha={venda => venda.id} minWidth={0} acoes={acoes} ordenacaoRemota
             ordenacao={{ ...ordenacao, onSort: ordenar }} paginacao={paginacao}
-            vazio={{ ...vazio, icone: <ReceiptLongRoundedIcon /> }} alturaCorpo={480}
-            sx={{ "& tbody td": { py: 1.5 }, "& tbody td:nth-of-type(3)": { whiteSpace: "normal", overflowWrap: "anywhere" },
-                ...(laptop ? { "& .MuiTableCell-root": { px: 1 } } : {}) }} />}
+            vazio={{ ...vazio, icone: <ReceiptLongRoundedIcon /> }} alturaCorpo="calc(100vh - 340px)"
+            sx={{ "& tbody td:nth-of-type(3)": { whiteSpace: "normal", overflowWrap: "anywhere" } }} />}
 
         <Dialog open={vendaParaCancelar !== null} fullWidth maxWidth="xs"
             onClose={cancelando !== null ? undefined : () => setVendaParaCancelar(null)}
