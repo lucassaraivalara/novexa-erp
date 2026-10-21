@@ -35,3 +35,6 @@ secrets.json
 
 # Reference video frames (working material; analysis lives in the .md files)
 docs/references/olist/frames/
+
+# Arquivos temporarios locais
+.tmp/
