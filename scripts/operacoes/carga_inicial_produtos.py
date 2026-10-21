@@ -209,6 +209,13 @@ UNIDADE_AJUSTADA = {chave(n) for n in [
     'Tropeiro', 'Velas Aromatizantes',
 ]}
 
+# Produtos que já existem na base sem código/EAN (componentes criados na importação
+# anterior) e não devem ser inseridos de novo. O casamento por nome na regularização
+# atualiza custo; kits resolvem o componente pelo produto existente.
+SEM_INSERCAO = {chave(n) for n in [
+    'Tabaco ACrema 20g',
+]}
+
 
 def resolver_eans(rows):
     """EAN repetido no arquivo deixa de rejeitar a linha: kit tem prioridade ao código de barras;
@@ -296,6 +303,9 @@ def planejar(conn, rows, empresa):
               (row['codigo_barras'] and chave(row['codigo_barras']) in oldeans)):
             row['situacao'] = 'DUPLICADA'
             row['erros'].append(('codigo/EAN', 'Já existe na empresa; não atualizar.'))
+        elif chave(row['nome']) in SEM_INSERCAO and chave(row['nome']) in oldnames:
+            row['situacao'] = 'DUPLICADA'
+            row['erros'].append(('nome', 'Já existe na base como componente da importação anterior; não inserido para não duplicar. Custo atualizado pela regularização.'))
         else: row['situacao'] = 'VALIDA'
     resolver_eans([r for r in rows if r.get('situacao') == 'VALIDA'])
     return refs, indexes

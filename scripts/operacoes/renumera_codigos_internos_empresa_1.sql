@@ -9,6 +9,7 @@
 -- Operação única; após executada e validada, registrar como operação histórica.
 \set ON_ERROR_STOP on
 -- Total esperado de produtos da empresa 1 NA HORA da execução (conferir no preview):
+-- 598 = 537 atuais + 61 inseridos (Tabaco ACrema 20g não entra: já existe na base).
 \set expected_total 598
 
 -- PRÉ-VALIDAÇÃO (READ-ONLY)

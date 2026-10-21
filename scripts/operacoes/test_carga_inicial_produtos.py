@@ -165,6 +165,12 @@ class PostgreSQLTest(unittest.TestCase):
         with self.assertRaises(psycopg.errors.NotNullViolation): gravar(self.conn,rows,900001,indexes,self.admin_id)
         self.conn.rollback()
         self.assertEqual(snapshot(self.conn,900001),self.before)
+    def test_sem_insercao_declarada_nao_duplica_componente_existente(self):
+        self.conn.execute("insert into produtos(empresa_id,nome,unidade_medida,preco_venda,data_cadastro) values (900001,'Tabaco ACrema 20g','UN',10,current_timestamp)")
+        rows=[linha(1,nome='Tabaco ACrema 20g',codigo_interno='000120')]
+        planejar(self.conn,rows,900001)
+        self.assertEqual(rows[0]['situacao'],'DUPLICADA')
+        self.assertEqual(gravar(self.conn,rows,900001,{},self.admin_id)[0],[])
 
 
 if __name__=='__main__': unittest.main()
