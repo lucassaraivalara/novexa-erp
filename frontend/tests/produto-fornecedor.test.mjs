@@ -78,6 +78,75 @@ const subcategorias = [{ id: 20, nome: "Sucos", ativo: true, categoria: categori
 const marcas = [{ id: 30, nome: "Marca teste", ativo: true }];
 const gravacoes = e => e.chamadas.filter(c => ["POST", "PUT"].includes(c.metodo));
 
+test("duplicar revisa dados, limpa identificadores e cria novo produto sem tocar na origem", async () => {
+    const e = novoEstado();
+    e.produtos[0] = { ...e.produtos[0], codigoBarras: "7890000000011", estoqueAtual: 12, ativo: false, ncm: "12345678", cest: "1234567" };
+    const p = await abrir(e);
+    try {
+        const origem = { ...e.produtos[0] };
+        const linha = p.getByRole("row").filter({ has: p.getByRole("cell", { name: /Produto teste/ }) });
+        await linha.getByRole("button", { name: "Criar novo produto baseado neste" }).click();
+        const d = p.getByRole("dialog");
+        await expect(d.getByText("Duplicar produto")).toBeVisible();
+        await expect(d.getByRole("textbox", { name: "Código de barras" })).toHaveValue("");
+        await expect(d.getByRole("textbox", { name: "NCM" })).toHaveValue("12345678");
+        await expect(d.getByRole("textbox", { name: "CEST" })).toHaveValue("1234567");
+        await expect(d.getByRole("radio", { name: "Gerar automaticamente" })).toBeChecked();
+        await expect(d.getByRole("textbox", { name: "Código interno" })).toHaveCount(0);
+        await expect(d.getByText("Saldo atual:")).toBeVisible();
+        await d.getByRole("button", { name: "Criar produto" }).click();
+        await expect(d).toHaveCount(0);
+        const criacao = gravacoes(e).at(-1);
+        assert.equal(criacao.metodo, "POST");
+        assert.equal(criacao.body.codigoInterno, null);
+        assert.equal(criacao.body.codigoBarras, null);
+        assert.equal(criacao.body.estoqueAtual, undefined);
+        assert.equal(criacao.body.ativo, true);
+        assert.equal(criacao.body.ncm, "12345678");
+        assert.deepEqual(e.produtos[0], origem);
+    } finally { await p.close(); }
+});
+
+test("duplicar permite código manual e exige preenchimento antes do POST", async () => {
+    const e = novoEstado(), p = await abrir(e);
+    try {
+        const linha = p.getByRole("row").filter({ has: p.getByRole("cell", { name: /Produto teste/ }) });
+        await linha.getByRole("button", { name: "Criar novo produto baseado neste" }).click();
+        const d = p.getByRole("dialog");
+        await d.getByRole("radio", { name: "Informar manualmente" }).check();
+        await d.getByRole("button", { name: "Criar produto" }).click();
+        await expect(d.getByText("Informe um código interno válido.")).toBeVisible();
+        assert.equal(gravacoes(e).length, 0);
+        await d.getByRole("textbox", { name: "Código interno" }).fill("2050");
+        await d.getByRole("button", { name: "Criar produto" }).click();
+        await expect(d).toHaveCount(0);
+        assert.equal(gravacoes(e).at(-1).body.codigoInterno, "2050");
+        assert.equal(gravacoes(e).at(-1).metodo, "POST");
+    } finally { await p.close(); }
+});
+
+test("duplicar Kit não herda composição, custo calculado nem saldo", async () => {
+    const e = novoEstado();
+    e.produtos[0] = { ...e.produtos[0], composto: true, precoCusto: 18, estoqueAtual: 7,
+        componentes: [{ produtoId: 23, nome: "Componente", unidade: "UN", quantidadePorKit: 2, estoqueAtual: 14 }] };
+    const p = await abrir(e);
+    try {
+        const linha = p.getByRole("row").filter({ has: p.getByRole("cell", { name: /Produto teste/ }) });
+        await linha.getByRole("button", { name: "Criar novo produto baseado neste" }).click();
+        const d = p.getByRole("dialog");
+        await expect(d.getByText(/A composição e o custo calculado/)).toBeVisible();
+        await expect(d.getByRole("textbox", { name: "Preço de custo" })).toHaveValue("0,00");
+        await d.getByRole("button", { name: "Criar produto" }).click();
+        await expect(d).toHaveCount(0);
+        const novo = gravacoes(e).at(-1).body;
+        assert.equal(novo.composto, false);
+        assert.equal(novo.precoCusto, 0);
+        assert.equal(novo.componentes, undefined);
+        assert.equal(novo.estoqueAtual, undefined);
+        assert.equal(e.chamadas.some(c => c.path === "/produtos/10/composicoes"), false);
+    } finally { await p.close(); }
+});
+
 for (const viewport of [{width:1440,height:900}, {width:390,height:480}]) {
     test(`Código interno opcional exibe somente o valor retornado pela API em ${viewport.width}px`, async () => {
         const e=novoEstado(), p=await abrir(e,viewport);

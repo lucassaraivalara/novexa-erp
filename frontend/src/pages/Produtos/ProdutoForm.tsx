@@ -11,6 +11,8 @@ import {
     CircularProgress,
     Divider,
     FormControlLabel,
+    Radio,
+    RadioGroup,
     Stack,
     Switch,
     TextField,
@@ -27,6 +29,7 @@ type ProdutoFormProps = {
 } & ({
     modo?: "completo";
     produto: Produto | null;
+    duplicando?: boolean;
     carregandoProduto: boolean;
     salvando: boolean;
     erroExterno: string;
@@ -35,6 +38,7 @@ type ProdutoFormProps = {
     onSalvo?: never;
 } | {
     modo: "rapido";
+    duplicando?: never;
     dadosIniciais?: Partial<Pick<ProdutoInput, "nome" | "codigoBarras" | "unidadeMedida" | "precoCusto">>;
     onSalvo: (produto: Produto) => void;
     produto?: never;
@@ -47,6 +51,8 @@ type ProdutoFormProps = {
 type EstadoFormulario = {
     codigoInterno: string;
     codigoBarras: string;
+    ncm: string;
+    cest: string;
     nome: string;
     descricao: string;
     unidadeMedida: string;
@@ -60,6 +66,8 @@ type EstadoFormulario = {
 const estadoInicial: EstadoFormulario = {
     codigoInterno: "",
     codigoBarras: "",
+    ncm: "",
+    cest: "",
     nome: "",
     descricao: "",
     unidadeMedida: "UN",
@@ -70,20 +78,22 @@ const estadoInicial: EstadoFormulario = {
     ativo: true,
 };
 
-function criarEstadoFormulario(produto: Produto | null): EstadoFormulario {
+function criarEstadoFormulario(produto: Produto | null, duplicando = false): EstadoFormulario {
     if (!produto) return estadoInicial;
 
     return {
-        codigoInterno: produto.codigoInterno ?? "",
-        codigoBarras: produto.codigoBarras ?? "",
+        codigoInterno: duplicando ? "" : produto.codigoInterno ?? "",
+        codigoBarras: duplicando ? "" : produto.codigoBarras ?? "",
+        ncm: produto.ncm ?? "",
+        cest: produto.cest ?? "",
         nome: produto.nome,
         descricao: produto.descricao ?? "",
         unidadeMedida: produto.unidadeMedida,
-        precoCusto: numeroParaCampo(produto.precoCusto, 2),
+        precoCusto: numeroParaCampo(duplicando && produto.composto ? 0 : produto.precoCusto, 2),
         precoVenda: numeroParaCampo(produto.precoVenda, 2),
         estoqueMinimo: numeroParaCampo(produto.estoqueMinimo, 3),
         controlaEstoque: produto.controlaEstoque,
-        ativo: produto.ativo,
+        ativo: duplicando ? true : produto.ativo,
     };
 }
 
@@ -116,6 +126,7 @@ function ProdutoForm({
                          aberto,
                          modo = "completo",
                          produto = null,
+                         duplicando = false,
                          carregandoProduto = false,
                          salvando: salvandoExterno = false,
                          erroExterno = "",
@@ -133,8 +144,8 @@ function ProdutoForm({
             .then(r=>{if(!c.signal.aborted)setSuportaKit(r.data.habilitado===true);}).catch(()=>{});
         return ()=>c.abort();
     },[rapido]);
-    const [composto, setComposto] = useState(!!produto?.composto);
-    const [componentes, setComponentes] = useState<LinhaComposicao[] | null>(produto?.composto ? null : []);
+    const [composto, setComposto] = useState(!!produto?.composto && !duplicando);
+    const [componentes, setComponentes] = useState<LinhaComposicao[] | null>(produto?.composto && !duplicando ? null : []);
     const [formulario, setFormulario] = useState<EstadoFormulario>(() =>
         rapido ? {
             ...estadoInicial,
@@ -142,8 +153,9 @@ function ProdutoForm({
             codigoBarras: dadosIniciais?.codigoBarras ?? "",
             unidadeMedida: dadosIniciais?.unidadeMedida ?? "UN",
             precoCusto: String(dadosIniciais?.precoCusto ?? 0).replace(".", ","),
-        } : criarEstadoFormulario(produto)
+        } : criarEstadoFormulario(produto, duplicando)
     );
+    const [codigoAutomatico, setCodigoAutomatico] = useState(duplicando);
     const [salvandoRapido, setSalvandoRapido] = useState(false);
     const [fornecedor, setFornecedor] = useState<FornecedorOpcao | null>(produto?.fornecedor ?? null);
     const [classificacao, setClassificacao] = useState<ClassificacaoProduto>({ categoria: produto?.categoria ?? null, subcategoria: produto?.subcategoria ?? null, marca: produto?.marca ?? null });
@@ -157,7 +169,7 @@ function ProdutoForm({
     >({});
 
     const [arquivoImagem, setArquivoImagem] = useState<File | null>(null);
-    const [previewImagem, setPreviewImagem] = useState<string | null>(produto?.imagemUrl ?? null);
+    const [previewImagem, setPreviewImagem] = useState<string | null>(duplicando ? null : produto?.imagemUrl ?? null);
     const [imagemRemovida, setImagemRemovida] = useState(false);
 
     function alterarCampo<K extends keyof EstadoFormulario>(
@@ -239,10 +251,18 @@ function ProdutoForm({
         if (formulario.codigoInterno.length > 60) {
             novosErros.codigoInterno = "Use no máximo 60 caracteres.";
         }
+        if (duplicando && !codigoAutomatico && !formulario.codigoInterno.trim()) {
+            novosErros.codigoInterno = "Informe um código interno válido.";
+        }
+        if (formulario.codigoInterno.trim() && !/[\p{L}\p{N}]/u.test(formulario.codigoInterno)) {
+            novosErros.codigoInterno = "Informe um código interno válido.";
+        }
 
         if (formulario.codigoBarras.length > 60) {
             novosErros.codigoBarras = "Use no máximo 60 caracteres.";
         }
+        if (formulario.ncm && !/^\d{8}$/.test(formulario.ncm)) novosErros.ncm = "NCM deve conter 8 dígitos.";
+        if (formulario.cest && !/^\d{7}$/.test(formulario.cest)) novosErros.cest = "CEST deve conter 7 dígitos.";
 
         if (formulario.descricao.length > 2000) {
             novosErros.descricao = "Use no máximo 2000 caracteres.";
@@ -284,10 +304,10 @@ function ProdutoForm({
         return {
             ...(!rapido ? { composto, ...(composicao ? { componentes: composicao } : {}) } : {}),
             ...(!rapido ? { fornecedorId: fornecedor?.id ?? null, categoriaId: classificacao.categoria?.id ?? null, subcategoriaId: classificacao.subcategoria?.id ?? null, marcaId: classificacao.marca?.id ?? null } : {}),
-            codigoInterno:
-                formulario.codigoInterno.trim() || null,
+            codigoInterno: duplicando && codigoAutomatico ? null : formulario.codigoInterno.trim() || null,
             codigoBarras:
                 formulario.codigoBarras.trim() || null,
+            ...(!rapido ? { ncm: formulario.ncm.trim() || null, cest: formulario.cest.trim() || null } : {}),
             nome: formulario.nome.trim(),
             descricao: formulario.descricao.trim() || null,
             unidadeMedida: formulario.unidadeMedida.trim(),
@@ -319,22 +339,23 @@ function ProdutoForm({
         }
     }
 
-    const editando = produto !== null;
+    const editando = produto !== null && !duplicando;
 
     return (
         <CadastroDialog
             aberto={aberto}
             variante={rapido ? "compact" : "full"}
-            titulo={editando ? "Editar produto" : "Novo produto"}
+            titulo={duplicando ? "Duplicar produto" : editando ? "Editar produto" : "Novo produto"}
             descricao={
-                rapido ? "Cadastro rápido: só o essencial." : editando
+                rapido ? "Cadastro rápido: só o essencial." : duplicando
+                    ? `Novo produto baseado em “${produto?.nome ?? "produto"}”. Revise os dados antes de criar.` : editando
                     ? "Revise os dados e salve as alterações."
                     : "Preencha os dados para cadastrar um produto."
             }
             salvando={salvando}
             desabilitarSalvar={carregandoProduto}
             textoSalvar={
-                rapido ? "Cadastrar e selecionar" : editando
+                rapido ? "Cadastrar e selecionar" : duplicando ? "Criar produto" : editando
                     ? "Salvar alterações"
                     : "Cadastrar produto"
             }
@@ -342,7 +363,8 @@ function ProdutoForm({
             onSubmit={enviar}
         >
             {!rapido && <Stack spacing={1.5} sx={{ mb: 2 }}>
-                <FormControlLabel control={<Switch checked={composto} disabled={!!produto || salvando || !suportaKit} onChange={(_, v) => setComposto(v)} />} label="Produto composto (Kit/Combo)" />
+                <FormControlLabel control={<Switch checked={composto} disabled={(!!produto && !duplicando) || salvando || !suportaKit} onChange={(_, v) => setComposto(v)} />} label="Produto composto (Kit/Combo)" />
+                {duplicando && produto?.composto && <Alert severity="info">A composição e o custo calculado do Kit/Combo original não são copiados. Configure os componentes antes de criar um novo Kit/Combo.</Alert>}
                 {!suportaKit && !produto && <Typography variant="caption" color="text.secondary">Kit/Combo requer API atualizada e disponível. Reabra o formulário após a atualização.</Typography>}
             </Stack>}
             {carregandoProduto ? (
@@ -392,7 +414,15 @@ function ProdutoForm({
                                         gap: 1.5,
                                     }}
                                 >
-                                    {!rapido && <TextField
+                                    {duplicando && <Box sx={{ gridColumn: "1 / -1" }}>
+                                        <Typography variant="body2" sx={{ mb: 0.5 }}>Código interno</Typography>
+                                        <RadioGroup aria-label="Origem do código interno" value={codigoAutomatico ? "automatico" : "manual"} onChange={(_, valor) => { setCodigoAutomatico(valor === "automatico"); alterarCampo("codigoInterno", ""); }}>
+                                            <FormControlLabel value="automatico" control={<Radio />} label="Gerar automaticamente" />
+                                            <FormControlLabel value="manual" control={<Radio />} label="Informar manualmente" />
+                                        </RadioGroup>
+                                        {codigoAutomatico && <Typography variant="caption" color="text.secondary">O código será gerado ao salvar.</Typography>}
+                                    </Box>}
+                                    {!rapido && (!duplicando || !codigoAutomatico) && <TextField
                                         label="Código interno"
                                         name="codigoInterno"
                                         autoComplete="off"
@@ -407,7 +437,7 @@ function ProdutoForm({
                                             erros.codigoInterno
                                         )}
                                         helperText={
-                                            erros.codigoInterno || (editando
+                                            erros.codigoInterno || (duplicando ? "Use um código ainda não utilizado nesta empresa." : editando
                                                 ? produto?.codigoInterno?.trim()
                                                     ? "Deixe vazio para manter o código atual."
                                                     : "Produto legado sem código: informe um código para identificá-lo."
@@ -470,7 +500,7 @@ function ProdutoForm({
                                 />
 
                                 {!rapido && <ClassificacaoProdutoCampos valor={classificacao} onChange={setClassificacao} disabled={salvando} />}
-                                {!rapido && composto && <ComposicaoProdutoCampos produtoId={produto?.id} valor={componentes} onChange={setComponentes} disabled={salvando} />}
+                                {!rapido && composto && <ComposicaoProdutoCampos produtoId={duplicando ? undefined : produto?.id} valor={componentes} onChange={setComponentes} disabled={salvando} />}
                                 {!rapido && <FornecedorAutocomplete value={fornecedor} onChange={setFornecedor}
                                     label="Fornecedor principal" disabled={salvando} mostrarErroConsulta
                                     helperText={produto?.fornecedor?.id === fornecedor?.id && produto?.fornecedor?.ativo === false
@@ -503,6 +533,10 @@ function ProdutoForm({
                                         },
                                     }}
                                 />}
+                                {!rapido && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+                                    <TextField label="NCM" name="ncm" autoComplete="off" value={formulario.ncm} onChange={e => alterarCampo("ncm", e.target.value)} error={Boolean(erros.ncm)} helperText={erros.ncm} slotProps={{ htmlInput: { maxLength: 8, inputMode: "numeric" } }} />
+                                    <TextField label="CEST" name="cest" autoComplete="off" value={formulario.cest} onChange={e => alterarCampo("cest", e.target.value)} error={Boolean(erros.cest)} helperText={erros.cest} slotProps={{ htmlInput: { maxLength: 7, inputMode: "numeric" } }} />
+                                </Box>}
                             </Stack>
 
                             {!rapido && <Stack spacing={0.75}>
@@ -813,7 +847,7 @@ function ProdutoForm({
                         >
                             <Typography variant="body2">
                                 <strong>Saldo atual:</strong>{" "}
-                                {produto
+                                {produto && !duplicando
                                     ? numeroParaCampo(
                                         produto.estoqueAtual,
                                         3

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import {
     Alert, Button, Chip, CircularProgress, Dialog, DialogActions,
@@ -42,6 +43,7 @@ function Produtos() {
     const [formularioAberto, setFormularioAberto] = useState(false);
     const [relatorioAberto, setRelatorioAberto] = useState(false);
     const [produtoEmEdicao, setProdutoEmEdicao] = useState<Produto | null>(null);
+    const [duplicando, setDuplicando] = useState(false);
     const [carregandoProduto, setCarregandoProduto] = useState(false);
     const [salvando, setSalvando] = useState(false);
     const [erroFormulario, setErroFormulario] = useState("");
@@ -87,6 +89,7 @@ function Produtos() {
     function removerCampoBusca() { setCampoBusca(null); setPagina(0); }
 
     function abrirCadastro() {
+        setDuplicando(false);
         setProdutoEmEdicao(null);
         setErroFormulario("");
         setFormularioAberto(true);
@@ -94,6 +97,7 @@ function Produtos() {
 
     async function abrirEdicao(produto: Produto) {
         if (!empresaId) return;
+        setDuplicando(false);
         setProdutoEmEdicao(produto);
         setErroFormulario("");
         setFormularioAberto(true);
@@ -102,6 +106,23 @@ function Produtos() {
             setProdutoEmEdicao(await buscarProdutoPorId(produto.id));
         } catch (erro) {
             setErroFormulario(obterMensagemDaApi(erro, "Não foi possível carregar os dados do produto. Verifique a conexão ou tente novamente."));
+        } finally {
+            setCarregandoProduto(false);
+        }
+    }
+
+    async function abrirDuplicacao(produto: Produto) {
+        if (!empresaId) return;
+        setDuplicando(true);
+        setProdutoEmEdicao(produto);
+        setErroFormulario("");
+        setFormularioAberto(true);
+        setCarregandoProduto(true);
+        try {
+            setProdutoEmEdicao(await buscarProdutoPorId(produto.id));
+        } catch (erro) {
+            setFormularioAberto(false);
+            setNotificacao({ mensagem: obterMensagemDaApi(erro, "Não foi possível carregar o produto original."), tipo: "error" });
         } finally {
             setCarregandoProduto(false);
         }
@@ -117,19 +138,19 @@ function Produtos() {
     async function salvarProduto(dados: ProdutoInput, arquivoImagem: File | null, removerImagem: boolean) {
         setSalvando(true);
         setErroFormulario("");
-        let etapa = produtoEmEdicao ? "atualização do produto" : "cadastro do produto";
+        let etapa = produtoEmEdicao && !duplicando ? "atualização do produto" : "cadastro do produto";
         try {
-            const produtoSalvo = produtoEmEdicao
+            const produtoSalvo = produtoEmEdicao && !duplicando
                 ? await atualizarProduto(produtoEmEdicao.id, dados)
                 : await cadastrarProduto(dados);
             if (arquivoImagem) {
                 etapa = "envio da imagem";
                 await enviarImagemProduto(produtoSalvo.id, arquivoImagem);
-            } else if (produtoEmEdicao && removerImagem) {
+            } else if (produtoEmEdicao && !duplicando && removerImagem) {
                 etapa = "remoção da imagem";
                 await removerImagemProduto(produtoSalvo.id);
             }
-            if (produtoEmEdicao) {
+            if (produtoEmEdicao && !duplicando) {
                 setNotificacao({ mensagem: "Produto atualizado com sucesso.", tipo: "success" });
             } else {
                 setNotificacao({ mensagem: "Produto cadastrado com sucesso.", tipo: "success" });
@@ -209,6 +230,12 @@ function Produtos() {
             icone: <EditOutlinedIcon fontSize="small" />,
             onClick: abrirEdicao,
             tooltip: "Editar produto",
+        },
+        {
+            rotulo: "Duplicar",
+            icone: <ContentCopyOutlinedIcon fontSize="small" />,
+            onClick: abrirDuplicacao,
+            tooltip: "Criar novo produto baseado neste",
         },
         {
             rotulo: "Inativar",
@@ -302,8 +329,9 @@ function Produtos() {
             <ProdutoForm
                 aberto={formularioAberto}
                 produto={produtoEmEdicao}
+                duplicando={duplicando}
                 carregandoProduto={carregandoProduto}
-                key={produtoEmEdicao ? `${produtoEmEdicao.id}-${carregandoProduto ? "carregando" : "pronto"}` : `novo-${formularioAberto}`}
+                key={produtoEmEdicao ? `${duplicando ? "duplicar" : "editar"}-${produtoEmEdicao.id}-${carregandoProduto ? "carregando" : "pronto"}` : `novo-${formularioAberto}`}
                 salvando={salvando}
                 erroExterno={erroFormulario}
                 onFechar={fecharFormulario}

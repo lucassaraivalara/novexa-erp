@@ -21,13 +21,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ProdutoCodigoPostgresTest extends ProdutoFornecedorHttpTest {
     private static final String URL = System.getProperty("novexa.test.produto-codigo.jdbc-url");
-    private static final String USER = System.getProperty("novexa.test.produto-codigo.jdbc-user", "novexa_test");
+    private static final String USER = System.getProperty("novexa.test.produto-codigo.jdbc-user", System.getenv().getOrDefault("LOCAL_DB_USERNAME", "novexa_test"));
+    private static final String PASSWORD = System.getenv().getOrDefault("LOCAL_DB_PASSWORD", "");
     private static final String SCHEMA = "teste_produto_codigo_" + UUID.randomUUID().toString().replace("-", "");
     @Autowired JdbcTemplate jdbc;
 
     @DynamicPropertySource static void postgres(DynamicPropertyRegistry p) {
         p.add("spring.datasource.url", () -> URL + "?currentSchema=" + SCHEMA);
-        p.add("spring.datasource.username", () -> USER); p.add("spring.datasource.password", () -> "");
+        p.add("spring.datasource.username", () -> USER); p.add("spring.datasource.password", () -> PASSWORD);
         p.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
         p.add("spring.jpa.hibernate.ddl-auto", () -> "validate"); p.add("spring.flyway.enabled", () -> "true");
         p.add("spring.flyway.default-schema", () -> SCHEMA); p.add("spring.flyway.schemas", () -> SCHEMA);
@@ -72,7 +73,7 @@ class ProdutoCodigoPostgresTest extends ProdutoFornecedorHttpTest {
                 .content(json.writeValueAsBytes(dados(Map.of("codigoInterno", invalido))))).andExpect(status().isBadRequest());
     }
 
-    @Test void edicaoVaziaPreservaCodigoEEdicaoExplicitaAvancaNumeradorSemReuso() throws Exception {
+    @Test void edicaoVaziaPreservaCodigoEManualNaoAvancaNumerador() throws Exception {
         long id = criar(tokenA, Map.of("codigoInterno", "500"));
         for (String vazio : List.of("", "   ")) {
             mvc.perform(put("/produtos/" + id).header("Authorization", tokenA).contentType(MediaType.APPLICATION_JSON)
@@ -81,12 +82,41 @@ class ProdutoCodigoPostgresTest extends ProdutoFornecedorHttpTest {
         }
         mvc.perform(put("/produtos/" + id).header("Authorization", tokenA).contentType(MediaType.APPLICATION_JSON)
             .content(json.writeValueAsBytes(dados(Map.of("codigoInterno", "SKU-EDITADO"))))).andExpect(status().isOk());
-        assertThat(codigo(criar(tokenA, Map.of()))).isEqualTo("501");
+        assertThat(codigo(criar(tokenA, Map.of()))).isEqualTo("1");
         long outro = criar(tokenA, Map.of());
         mvc.perform(put("/produtos/" + outro).header("Authorization", tokenA).contentType(MediaType.APPLICATION_JSON)
             .content(json.writeValueAsBytes(dados(Map.of("codigoInterno", "SKU-EDITADO"))))).andExpect(status().isConflict());
         mvc.perform(delete("/produtos/" + outro).header("Authorization", tokenA)).andExpect(status().isNoContent());
-        assertThat(codigo(criar(tokenA, Map.of()))).isEqualTo("503");
+        assertThat(codigo(criar(tokenA, Map.of()))).isEqualTo("3");
+    }
+
+    @Test void manualAltoNaoDeslocaAutomaticoEColisaoManualEIgnorada() throws Exception {
+        criar(tokenA, Map.of("codigoInterno", "900000"));
+        criar(tokenA, Map.of("codigoInterno", "2"));
+        assertThat(codigo(criar(tokenA, Map.of()))).isEqualTo("1");
+        assertThat(codigo(criar(tokenA, Map.of()))).isEqualTo("3");
+        mvc.perform(get("/produtos/" + criar(tokenB, Map.of())).header("Authorization", tokenB))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.codigoInterno").value("1"));
+    }
+
+    @Test void novaCriacaoBaseadaEmProdutoMantemOriginalEEstoqueZerado() throws Exception {
+        long origem = criar(tokenA, Map.of("codigoInterno", "ORIGINAL", "codigoBarras", "7890000000011"));
+        var novo = dados(Map.of("nome", "Copia revisada", "codigoInterno", "2050"));
+        novo.put("codigoBarras", null);
+        novo.put("estoqueAtual", 99);
+        var resposta = mvc.perform(post("/produtos").header("Authorization", tokenA).contentType(MediaType.APPLICATION_JSON)
+            .content(json.writeValueAsBytes(novo))).andExpect(status().isCreated())
+            .andExpect(jsonPath("$.codigoInterno").value("2050"))
+            .andExpect(jsonPath("$.codigoBarras").isEmpty())
+            .andExpect(jsonPath("$.estoqueAtual").value(0)).andReturn();
+        long novoId = json.readTree(resposta.getResponse().getContentAsString()).get("id").asLong();
+        assertThat(novoId).isNotEqualTo(origem);
+        mvc.perform(get("/produtos/" + origem).header("Authorization", tokenA))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.codigoInterno").value("ORIGINAL"))
+            .andExpect(jsonPath("$.codigoBarras").value("7890000000011"));
+        mvc.perform(post("/produtos").header("Authorization", tokenA).contentType(MediaType.APPLICATION_JSON)
+            .content(json.writeValueAsBytes(dados(Map.of("codigoInterno", "2050")))))
+            .andExpect(status().isConflict());
     }
 
     @Test void kitRecebeCodigoSemSaldoFisicoEHistoricoMantemIds() throws Exception {
@@ -100,7 +130,7 @@ class ProdutoCodigoPostgresTest extends ProdutoFornecedorHttpTest {
 
     @Test void concorrenciaPrimeiroCadastroManualAutomaticoERollbackSemDuplicacao() throws Exception {
         long empresa;
-        try (var c = DriverManager.getConnection(URL + "?currentSchema=" + SCHEMA, USER, ""); var s = c.createStatement()) {
+        try (var c = DriverManager.getConnection(URL + "?currentSchema=" + SCHEMA, USER, PASSWORD); var s = c.createStatement()) {
             try (var r = s.executeQuery("insert into empresas(razao_social,ativo) values ('Concorrencia sintetica',true) returning id")) { r.next(); empresa = r.getLong(1); }
         }
         var pool = Executors.newFixedThreadPool(2);
@@ -108,14 +138,14 @@ class ProdutoCodigoPostgresTest extends ProdutoFornecedorHttpTest {
             var inicio = new CountDownLatch(1);
             Callable<String> cadastrar = () -> {
                 inicio.await();
-                try (var c = DriverManager.getConnection(URL + "?currentSchema=" + SCHEMA, USER, "");
+                try (var c = DriverManager.getConnection(URL + "?currentSchema=" + SCHEMA, USER, PASSWORD);
                      var s = c.prepareStatement("insert into produtos(empresa_id,nome,unidade_medida,preco_venda,data_cadastro) values (?,'Concorrente','UN',1,current_timestamp) returning codigo_interno")) {
                     s.setLong(1, empresa); try (var r = s.executeQuery()) { r.next(); return r.getString(1); }
                 }
             };
             var a = pool.submit(cadastrar); var b = pool.submit(cadastrar); inicio.countDown();
             assertThat(Set.of(a.get(20, TimeUnit.SECONDS), b.get(20, TimeUnit.SECONDS))).containsExactlyInAnyOrder("1", "2");
-            try (var c = DriverManager.getConnection(URL + "?currentSchema=" + SCHEMA, USER, "")) {
+            try (var c = DriverManager.getConnection(URL + "?currentSchema=" + SCHEMA, USER, PASSWORD)) {
                 c.setAutoCommit(false);
                 try (var s = c.createStatement()) {
                     s.executeUpdate("insert into produtos(empresa_id,nome,unidade_medida,preco_venda,data_cadastro) values ("+empresa+",'Revertido','UN',1,current_timestamp)");
@@ -131,18 +161,18 @@ class ProdutoCodigoPostgresTest extends ProdutoFornecedorHttpTest {
     @Test void upgradeV46PreservaLegadoEInicializaAcimaDosNumericosImportados() throws Exception {
         String schema = "teste_upgrade_codigo_" + UUID.randomUUID().toString().replace("-", "");
         try {
-            var antigo = Flyway.configure().dataSource(URL, USER, "").schemas(schema).defaultSchema(schema).target("46").load(); antigo.migrate();
-            try (var c = DriverManager.getConnection(URL + "?currentSchema=" + schema, USER, ""); var s = c.createStatement()) {
+            var antigo = Flyway.configure().dataSource(URL, USER, PASSWORD).schemas(schema).defaultSchema(schema).target("46").load(); antigo.migrate();
+            try (var c = DriverManager.getConnection(URL + "?currentSchema=" + schema, USER, PASSWORD); var s = c.createStatement()) {
                 s.executeUpdate("insert into empresas(id,razao_social,ativo) values (900001,'Legada sintetica',true)");
                 s.executeUpdate("insert into produtos(empresa_id,nome,codigo_interno,unidade_medida,preco_venda,data_cadastro) values (900001,'Importado','8000','UN',10,current_timestamp),(900001,'Legado sem codigo',null,'UN',10,current_timestamp)");
             }
-            var atual = Flyway.configure().dataSource(URL, USER, "").schemas(schema).defaultSchema(schema).load(); atual.migrate(); atual.validate();
-            try (var c = DriverManager.getConnection(URL + "?currentSchema=" + schema, USER, ""); var s = c.createStatement()) {
+            var atual = Flyway.configure().dataSource(URL, USER, PASSWORD).schemas(schema).defaultSchema(schema).load(); atual.migrate(); atual.validate();
+            try (var c = DriverManager.getConnection(URL + "?currentSchema=" + schema, USER, PASSWORD); var s = c.createStatement()) {
                 try (var r = s.executeQuery("select codigo_interno from produtos where nome='Legado sem codigo'")) { r.next(); assertThat(r.getString(1)).isNull(); }
                 try (var r = s.executeQuery("insert into produtos(empresa_id,nome,unidade_medida,preco_venda,data_cadastro) values (900001,'Novo','UN',10,current_timestamp) returning codigo_interno")) { r.next(); assertThat(r.getString(1)).isEqualTo("8001"); }
                 try (var r = s.executeQuery("select codigo_interno from produtos where nome='Importado'")) { r.next(); assertThat(r.getString(1)).isEqualTo("8000"); }
             }
-        } finally { try (var c = DriverManager.getConnection(URL, USER, ""); var s = c.createStatement()) { s.execute("drop schema if exists " + schema + " cascade"); } }
+        } finally { try (var c = DriverManager.getConnection(URL, USER, PASSWORD); var s = c.createStatement()) { s.execute("drop schema if exists " + schema + " cascade"); } }
     }
 
     @Test @Order(Integer.MAX_VALUE)
@@ -150,7 +180,7 @@ class ProdutoCodigoPostgresTest extends ProdutoFornecedorHttpTest {
     void criarKitConcorrenteComEdicaoDoCodigoDoComponenteNaoInverteLocks() throws Exception {
         long componente = criar(tokenA, Map.of("codigoInterno", "COMPONENTE"));
         var pool = Executors.newSingleThreadExecutor();
-        try (var c = DriverManager.getConnection(URL + "?currentSchema=" + SCHEMA, USER, "")) {
+        try (var c = DriverManager.getConnection(URL + "?currentSchema=" + SCHEMA, USER, PASSWORD)) {
             c.setAutoCommit(false);
             try (var s = c.prepareStatement("select id from produtos where id=? for update")) {
                 s.setLong(1, componente); s.executeQuery().close();
@@ -173,13 +203,13 @@ class ProdutoCodigoPostgresTest extends ProdutoFornecedorHttpTest {
             }
             c.commit();
             var kit = json.readTree(criando.get(15, TimeUnit.SECONDS).getResponse().getContentAsString());
-            assertThat(kit.get("codigoInterno").asText()).isEqualTo("3101");
+            assertThat(kit.get("codigoInterno").asText()).isEqualTo("1");
             assertThat(kit.get("componentes").size()).isEqualTo(1);
             assertThat(jdbc.queryForObject("select count(*) from movimentacoes_estoque where empresa_id=?", Integer.class, empresaA.getId())).isZero();
         } finally { pool.shutdownNow(); }
     }
 
     @AfterAll static void removerSchema() throws Exception {
-        try (var c = DriverManager.getConnection(URL, USER, ""); var s = c.createStatement()) { s.execute("drop schema if exists " + SCHEMA + " cascade"); }
+        try (var c = DriverManager.getConnection(URL, USER, PASSWORD); var s = c.createStatement()) { s.execute("drop schema if exists " + SCHEMA + " cascade"); }
     }
 }

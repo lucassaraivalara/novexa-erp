@@ -1,5 +1,9 @@
 Empresa ........ funcional
 
+## Duplicação de Produtos e numerador manual — V50 (2026-10-20)
+
+A listagem oferece Duplicar e reutiliza o formulário e o `POST /produtos`. O novo cadastro não leva ID, saldo, EAN, imagem, histórico ou composição da origem; código interno é manual ou gerado no backend. A V50 preserva o numerador V47 e impede que códigos manuais futuros o avancem, sem renumerar o legado. PostgreSQL local descartável: 15 testes direcionados aprovados com Flyway V1–V50 e Hibernate validate; build backend aprovado. Frontend: 28 testes relacionados aprovados, build e lint dos arquivos alterados sem erros. Detalhes em [produtos.md](produtos.md#duplicação-e-código-interno--v50). Deploy da API na Oracle fica pendente após a publicação; nenhuma produção foi alterada nesta etapa.
+
 ## Cartões no modo Simplificado (2026-10-20)
 
 Implementado sobre a V49, sem migration adicional: todo cartão continua gerando Recebível; no SIMPLIFICADO, prazo zero liquida pelo núcleo existente na transação da Venda e prazo positivo entra na varredura horária ao atingir a data prevista ou após ela. Conta, taxa, líquido e prazo são os snapshots históricos. O movimento individual identifica a liquidação automática; retries e cancelamento usam as proteções existentes. No CONTROLADO, a liquidação continua manual. A Agenda permanece para consulta e exceções. Não houve alteração no PDV, PIX, Caixa/Troco/Cofre ou conciliação bancária. Compilação backend, build frontend e diff check são as únicas validações previstas nesta etapa; homologação funcional fica pendente.
