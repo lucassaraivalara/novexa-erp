@@ -292,6 +292,13 @@ nome histórico da configuração e `Pagamento.valor` aplicado à venda. O total
 distribuído inclui o valor original a prazo, não o saldo remanescente após baixas;
 troco fica separado e não aumenta faturamento. Cancelados conservam identificação.
 
+O painel direito agrupa pagamentos e informações em uma superfície discreta,
+com ícones por meio, contagem dos registros de pagamento e divisórias suaves.
+`Total da venda` destaca `detalhe.total` em verde suave; `Total distribuído`, prazo
+e troco mantêm seus próprios valores e rótulos. Contas a prazo não aumentam a
+contagem de pagamentos. Labels e valores da venda se organizam em duas colunas
+quando há espaço, reutilizando StatusChip e os tokens dos temas claro/escuro.
+
 Desktop usa expansão em duas colunas; abaixo de 1200px os detalhes se empilham.
 Abaixo de 900px a listagem mantém linhas responsivas com ações e expansão. Tabelas
 largas dos itens rolam apenas no seu contêiner. Datas seguem `dataHoraVenda` e a

@@ -562,6 +562,7 @@ test("expansão por teclado consulta sob demanda, preserva misto/troco e reutili
         await expandir.focus(); await page.keyboard.press("Enter");
         const regiao = regiaoConsulta(page);
         await regiao.getByText("Água mineral 500 mL", { exact: true }).waitFor();
+        assert.ok(await regiao.getByRole("heading", { name: "Pagamentos (2)", exact: true }).isVisible());
         assert.equal(await page.getByRole("button", { name: "Recolher venda #30" }).getAttribute("aria-expanded"), "true");
         assert.match(await regiao.getByRole("region", { name: "Pagamentos da venda" }).innerText(), /Dinheiro\s*R\$\s*6,90\s*PIX Nubank\s*R\$\s*1,00\s*Total distribuído\s*R\$\s*7,90/);
         assert.match(await regiao.innerText(), /Troco: R\$\s*3,10/);
@@ -615,9 +616,26 @@ test("vários itens e prazo usam valores originais, sem saldo baixado nem cadast
         await page.getByRole("button", { name: "Expandir venda #30" }).click();
         const regiao = regiaoConsulta(page);
         await regiao.getByText("2 linhas", { exact: true }).waitFor();
+        assert.ok(await regiao.getByRole("heading", { name: "Pagamentos (1)", exact: true }).isVisible());
         assert.equal(await regiao.getByRole("table").getByRole("row").count(), 3);
         assert.match(await regiao.getByRole("region", { name: "Pagamentos da venda" }).innerText(), /A prazo\s*R\$\s*5,85\s*Total distribuído\s*R\$\s*11,85/);
         assert.ok(estado.requests.every(r => !r.path.includes("produtos") && r.method === "GET"));
+    } finally { await page.close(); }
+});
+
+test("painel distingue total da venda e distribuído e identifica os quatro meios existentes", async () => {
+    const { page } = await abrir(false, opcoesConsulta({ detalhe: { status: "ABERTA", total: 100, subtotal: 100, contasReceber: [], valorPrazo: 0, troco: 0, itens: [itemConsulta()] },
+        pagamentos: [pagamentoResumo(1, "DINHEIRO", 10), pagamentoResumo(2, "PIX", 20),
+            pagamentoResumo(3, "CARTAO_DEBITO", 15), pagamentoResumo(4, "CARTAO_CREDITO", 25)] }));
+    try {
+        await page.getByRole("button", { name: "Expandir venda #30" }).click();
+        const painel = regiaoConsulta(page).getByRole("region", { name: "Pagamentos da venda" });
+        await painel.getByRole("heading", { name: "Pagamentos (4)", exact: true }).waitFor();
+        assert.match(await painel.getByText("Total da venda", { exact: true }).locator("..").innerText(), /R\$\s*100,00/);
+        assert.match(await painel.getByText("Total distribuído", { exact: true }).locator("..").innerText(), /R\$\s*70,00/);
+        for (const icon of ["PaymentsOutlinedIcon", "PixIcon", "PaymentOutlinedIcon", "CreditCardOutlinedIcon"]) {
+            assert.equal(await painel.getByTestId(icon).getAttribute("aria-hidden"), "true");
+        }
     } finally { await page.close(); }
 });
 
