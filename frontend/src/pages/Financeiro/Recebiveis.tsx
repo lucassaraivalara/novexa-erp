@@ -1,3 +1,4 @@
+import { formatarData as dataCivil, formatarDataHora } from "../../utils/dataHora";
 import AgendaRecebimentos from "./AgendaRecebimentos";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -27,10 +28,7 @@ type SortField = typeof sortFields[number];
 
 function formatarData(valor: string | null, comHora = false) {
     if (!valor) return "—";
-    const data = new Date(comHora ? valor : `${valor}T12:00:00`);
-    return Number.isNaN(data.getTime()) ? "—" : comHora
-        ? data.toLocaleString("pt-BR")
-        : data.toLocaleDateString("pt-BR");
+    return comHora ? formatarDataHora(valor) : dataCivil(valor);
 }
 
 export default function Recebiveis() {

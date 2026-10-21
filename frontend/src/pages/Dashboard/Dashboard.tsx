@@ -1,3 +1,4 @@
+import { dataExtensaBrasilia } from "../../utils/dataHora";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import AddShoppingCartRoundedIcon from "@mui/icons-material/AddShoppingCartRounded";
@@ -75,7 +76,7 @@ export default function Dashboard() {
         return () => controller.abort();
     }, [carregar]);
 
-    const hoje = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" }).format(new Date());
+    const hoje = dataExtensaBrasilia();
 
     return <Stack spacing={{ xs: 1.5, md: 1.75 }}>
         <Stack direction="row" sx={{ minHeight: 32, alignItems: "center", justifyContent: "flex-end" }}>

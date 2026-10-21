@@ -1,3 +1,4 @@
+import { interpretarDataHora } from "../../utils/dataHora";
 import type { MovimentacaoCaixa } from "../../types/caixa";
 import type { VendaDetalhe } from "../../services/vendaService";
 
@@ -38,6 +39,6 @@ export function criarTimeline(movimentos: MovimentacaoCaixa[], vendas: VendaDeta
             formaPagamento: null,
         }));
     return [...vendasTimeline, ...movimentosTimeline].sort(
-        (a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime(),
+        (a, b) => (interpretarDataHora(b.dataHora)?.getTime() ?? 0) - (interpretarDataHora(a.dataHora)?.getTime() ?? 0),
     );
 }

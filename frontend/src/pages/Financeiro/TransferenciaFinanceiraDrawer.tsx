@@ -1,3 +1,4 @@
+import { hojeBrasilia } from "../../utils/dataHora";
 import { useState, type FormEvent } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { Alert, Box, Button, Drawer, IconButton, MenuItem, Stack, TextField, Typography } from "@mui/material";
@@ -6,10 +7,7 @@ import { tiposContaFinanceiraFuncionais, type ContaFinanceira } from "../../type
 
 type Props = { contas: ContaFinanceira[]; origemId?: number; onFechar: () => void; onSalvo: () => void };
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const hoje = () => {
-    const data = new Date();
-    return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
-};
+const hoje = hojeBrasilia;
 
 export default function TransferenciaFinanceiraDrawer({ contas, origemId, onFechar, onSalvo }: Props) {
     const [origem, setOrigem] = useState(origemId ?? "");

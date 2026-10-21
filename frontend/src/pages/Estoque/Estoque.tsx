@@ -1,3 +1,4 @@
+import { formatarDataHora } from "../../utils/dataHora";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import InputRoundedIcon from "@mui/icons-material/InputRounded";
 import OutputRoundedIcon from "@mui/icons-material/OutputRounded";
@@ -23,7 +24,6 @@ import { novoSaldoEsperado, situacaoEstoque, type SituacaoEstoque } from "./esto
 import EntradasMercadoria from "./EntradasMercadoria";
 
 const quantidadeFormatada = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
-const dataFormatada = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 type Operacao = TipoMovimentacaoEstoque;
 type DialogoMovimentacao = { produto: Produto; operacao: Operacao } | null;
 type CampoBuscaEstoque = "nome" | "codigoEstoque";
@@ -262,7 +262,7 @@ function SaldoEstoque() {
             </Stack>
             <DialogContent>{carregandoHistorico ? <Typography color="text.secondary">Carregando histórico…</Typography> : historico.length === 0 ? <Typography color="text.secondary">Nenhuma movimentação encontrada.</Typography> : <Stack divider={<Divider />}>
                 {historico.map((movimentacao) => <Stack key={movimentacao.id} spacing={0.5} sx={{ py: 1.5 }}>
-                    <Stack direction="row" sx={{ justifyContent: "space-between", gap: 2 }}><Typography sx={{ fontWeight: 700 }}>{movimentacao.tipo} · {movimentacao.origem}</Typography><Typography variant="body2" color="text.secondary">{dataFormatada.format(new Date(movimentacao.dataHora))}</Typography></Stack>
+                    <Stack direction="row" sx={{ justifyContent: "space-between", gap: 2 }}><Typography sx={{ fontWeight: 700 }}>{movimentacao.tipo} · {movimentacao.origem}</Typography><Typography variant="body2" color="text.secondary">{formatarDataHora(movimentacao.dataHora)}</Typography></Stack>
                     <Typography variant="body2">Saldo: {quantidadeFormatada.format(movimentacao.saldoAnterior)} → {quantidadeFormatada.format(movimentacao.saldoPosterior)} · Valor: {quantidadeFormatada.format(movimentacao.quantidade)}</Typography>
                     <Typography variant="body2" color="text.secondary">{movimentacao.motivo || "Sem motivo informado"} · {movimentacao.nomeUsuario}</Typography>
                     {movimentacao.vendaId != null && <Typography variant="body2"><Link href={`/vendas?vendaId=${movimentacao.vendaId}`} target="_blank" rel="noopener noreferrer">Abrir venda #{movimentacao.vendaId} · Kit/Combo #{movimentacao.produtoCompostoId} (nova aba)</Link></Typography>}

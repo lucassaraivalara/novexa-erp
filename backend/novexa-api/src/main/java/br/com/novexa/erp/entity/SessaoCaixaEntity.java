@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -39,7 +41,7 @@ public class SessaoCaixaEntity {
         this.empresa = caixa.getEmpresa();
         this.usuarioAbertura = usuario;
         this.saldoInicial = saldoInicial;
-        this.dataAbertura = LocalDateTime.now();
+        this.dataAbertura = TempoNovexa.agora();
         this.status = StatusSessaoCaixa.ABERTO;
     }
 
@@ -51,7 +53,7 @@ public class SessaoCaixaEntity {
         if (status != StatusSessaoCaixa.ABERTO) throw new IllegalStateException("Sessão já fechada.");
         this.usuarioFechamento = usuario;
         this.saldoFinal = saldoFinal;
-        this.dataFechamento = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        this.dataFechamento = TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS);
         this.status = StatusSessaoCaixa.FECHADO;
         this.modalidadeConferencia = modalidade;
         this.observacaoFechamento = observacao;

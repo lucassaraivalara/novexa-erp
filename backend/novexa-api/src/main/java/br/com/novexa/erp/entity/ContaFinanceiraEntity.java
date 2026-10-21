@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -31,7 +33,7 @@ public class ContaFinanceiraEntity {
         this.saldoInicial = saldoInicial;
         this.saldoAtual = saldoInicial;
         this.ativo = true;
-        this.dataCriacao = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        this.dataCriacao = TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS);
         this.dataAtualizacao = dataCriacao;
     }
 
@@ -42,7 +44,7 @@ public class ContaFinanceiraEntity {
     }
     public void situacao(boolean ativo) { this.ativo = ativo; atualizarData(); }
     public void aplicar(BigDecimal diferenca) { this.saldoAtual = saldoAtual.add(diferenca); atualizarData(); }
-    private void atualizarData() { dataAtualizacao = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS); }
+    private void atualizarData() { dataAtualizacao = TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS); }
     public Long getId() { return id; }
     public ContaBancariaEntity getContaBancaria() { return contaBancaria; }
     public void vincularContaBancaria(ContaBancariaEntity conta) { this.contaBancaria = conta; }

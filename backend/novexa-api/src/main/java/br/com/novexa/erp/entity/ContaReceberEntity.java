@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -31,7 +33,7 @@ public class ContaReceberEntity {
     protected ContaReceberEntity() { }
     public ContaReceberEntity(EmpresaEntity empresa) {
         this.empresa = empresa;
-        this.dataCriacao = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        this.dataCriacao = TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS);
         this.dataAtualizacao = dataCriacao;
     }
     public static ContaReceberEntity daVenda(VendaEntity venda, BigDecimal valor, LocalDate vencimento,
@@ -40,7 +42,7 @@ public class ContaReceberEntity {
         conta.venda = venda;
         conta.origem = OrigemContaReceber.VENDA_A_PRAZO;
         conta.editar(venda.getCliente(), "Venda #" + venda.getId() + " - parcela " + numero + "/" + total,
-                valor, LocalDate.now(), vencimento, numero, total, null);
+                valor, TempoNovexa.hoje(), vencimento, numero, total, null);
         return conta;
     }
     public void editar(ClienteEntity cliente, String descricao, BigDecimal valor, LocalDate emissao,
@@ -65,7 +67,7 @@ public class ContaReceberEntity {
         atualizarData();
     }
     public void cancelar() { status = StatusContaReceber.CANCELADA; atualizarData(); }
-    private void atualizarData() { dataAtualizacao = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS); }
+    private void atualizarData() { dataAtualizacao = TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS); }
     public Long getId() { return id; }
     public EmpresaEntity getEmpresa() { return empresa; }
     public ClienteEntity getCliente() { return cliente; }

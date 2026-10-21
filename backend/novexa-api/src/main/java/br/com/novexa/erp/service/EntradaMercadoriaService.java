@@ -1,5 +1,7 @@
 package br.com.novexa.erp.service;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import br.com.novexa.erp.dto.*;
 import br.com.novexa.erp.entity.*;
 import br.com.novexa.erp.repository.*;
@@ -151,7 +153,7 @@ public class EntradaMercadoriaService {
         entrada.setFornecedor(fornecedor(p.fornecedorId(), empresaId));
         entrada.setNumeroNota(limpar(p.numeroNota())); entrada.setSerie(limpar(p.serie()));
         entrada.setChaveAcessoNfe(limpar(p.chaveAcessoNfe())); entrada.setDataEmissao(p.dataEmissao());
-        entrada.setDataEntrada(p.dataEntrada() == null ? LocalDate.now() : p.dataEntrada());
+        entrada.setDataEntrada(p.dataEntrada() == null ? TempoNovexa.hoje() : p.dataEntrada());
         entrada.setObservacao(limpar(p.observacao()));
         Set<Long> ids = new HashSet<>(); BigDecimal total = BigDecimal.ZERO.setScale(2);
         for (var dados : p.itens()) {

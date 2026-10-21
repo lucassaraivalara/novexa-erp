@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -92,7 +94,7 @@ public class MovimentacaoEstoqueEntity {
     @PrePersist
     private void preencherDataHora() {
         if (dataHora == null) {
-            dataHora = LocalDateTime.now();
+            dataHora = TempoNovexa.agora();
         }
     }
 

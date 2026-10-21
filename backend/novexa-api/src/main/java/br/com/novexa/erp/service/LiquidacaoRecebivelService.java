@@ -1,5 +1,7 @@
 package br.com.novexa.erp.service;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import br.com.novexa.erp.dto.RecebivelResponseDTO;
 import br.com.novexa.erp.entity.*;
 import br.com.novexa.erp.repository.*;
@@ -9,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -113,7 +114,7 @@ public class LiquidacaoRecebivelService {
             em.refresh(conta); destinos.put(destinoId,conta);
         }
         if (automatico && registros.stream().anyMatch(r -> r.getPagamento().getModoRecebimentoSnapshot() != ModoRecebimentoFinanceiro.SIMPLIFICADO
-                || r.getDataPrevistaRecebimento() == null || r.getDataPrevistaRecebimento().isAfter(LocalDate.now())))
+                || r.getDataPrevistaRecebimento() == null || r.getDataPrevistaRecebimento().isAfter(TempoNovexa.hoje())))
             throw conflito("Recebível ainda não elegível para liquidação automática.");
         return registros.stream().map(r -> liquidarBloqueado(r,usuario,destinos,automatico)).toList();
     }

@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -97,7 +99,7 @@ public class PagamentoEntity {
         }
         this.valor = valor;
         this.status = StatusPagamento.REGISTRADO;
-        this.dataHora = LocalDateTime.now();
+        this.dataHora = TempoNovexa.agora();
         if (formaPagamento == FormaPagamento.DINHEIRO) {
             if (recebido == null || recebido.compareTo(valor) < 0)
                 throw new IllegalArgumentException("Valor recebido menor que a parcela em dinheiro.");

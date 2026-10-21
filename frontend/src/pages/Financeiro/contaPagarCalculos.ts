@@ -1,3 +1,4 @@
+import { somarDias } from "../../utils/dataHora";
 import type { ContaPagar } from "../../types/contaPagar";
 
 export type FiltrosContaPagar = {
@@ -34,11 +35,7 @@ function somar(contas: ContaPagar[]) {
 }
 
 export function resumirContas(contas: ContaPagar[], hoje: string) {
-    const prazo = (dias: number) => {
-        const data = new Date(`${hoje}T12:00:00`);
-        data.setDate(data.getDate() + dias);
-        return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
-    };
+    const prazo = (dias: number) => somarDias(hoje, dias);
     const abertas = contas.filter((conta) => conta.status === "ABERTA");
     const vencidas = abertas.filter((conta) => conta.dataVencimento < hoje);
     const emSeteDias = abertas.filter((conta) => conta.dataVencimento >= hoje && conta.dataVencimento <= prazo(7));

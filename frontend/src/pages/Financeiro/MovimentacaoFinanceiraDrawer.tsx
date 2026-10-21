@@ -1,3 +1,4 @@
+import { hojeBrasilia } from "../../utils/dataHora";
 import { useState, type FormEvent } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { Alert, Box, Button, Drawer, IconButton, Stack, TextField, ToggleButton,
@@ -6,10 +7,7 @@ import { criarMovimentacaoFinanceira, mensagemContaFinanceira } from "../../serv
 import type { ContaFinanceira, TipoMovimentacaoFinanceira } from "../../types/contaFinanceira";
 
 type Props = { conta: ContaFinanceira; onFechar: () => void; onSalvo: () => void };
-const hoje = () => {
-    const data = new Date();
-    return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
-};
+const hoje = hojeBrasilia;
 
 export default function MovimentacaoFinanceiraDrawer({ conta, onFechar, onSalvo }: Props) {
     const [tipo, setTipo] = useState<TipoMovimentacaoFinanceira>("ENTRADA");

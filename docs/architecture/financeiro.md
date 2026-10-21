@@ -1,5 +1,9 @@
 FINANCEIRO NOVEXA
 
+## Referência temporal oficial
+
+Datas e horas operacionais seguem `America/Sao_Paulo`, via `TempoNovexa`: sessão de Caixa, pagamentos PIX, criação/liquidação/cancelamento de recebíveis, movimentos financeiros, cofre e vencimentos. O scheduler de cartão e a validação da liquidação automática consultam o mesmo dia civil de Brasília, inclusive após indisponibilidade do servidor (`dataPrevista <= hoje`). Prazo de recebimento continua derivado da data histórica do pagamento em Brasília. Valores, locks, idempotência, regras de saldo e confirmações permanecem os mesmos. Não há liquidação ou correção retroativa introduzida por esta padronização. Semântica de armazenamento e exibição em [arquitetura.md](arquitetura.md#data-e-hora-oficial--brasília).
+
 ## Políticas de recebimento e conferência de Caixa — V49
 
 **Registro operacional ≠ conciliação bancária. Fechamento de Caixa ≠ liquidação financeira. Data prevista ≠ dinheiro recebido.**

@@ -51,6 +51,8 @@ async function esperar(fn) {
 async function abrir(extras = {}, viewport = { width: 1440, height: 1000 }, opcoes = {}) {
     const estado = { conta: conta(1, extras), requests: [], falhaBaixa: false, falhaAcao: false, keys: new Set(), falhaStatus: 503, ...opcoes };
     const page = await browser.newPage({ viewport }); page.setDefaultTimeout(10000);
+    // A fixture vence em 20/10; o calendário do computador não deve mudar os estados esperados.
+    await page.clock.setFixedTime(new Date("2026-10-20T15:00:00Z"));
     const errors = []; page.on("pageerror", e => errors.push(e.message));
     await page.context().addInitScript(() => localStorage.setItem("novexa-auth", JSON.stringify({ token: "teste", perfil: "ADMIN", usuarioId: 2,
         nome: "Gestora", empresa: { id: 1, nomeFantasia: "Loja de teste" } })));

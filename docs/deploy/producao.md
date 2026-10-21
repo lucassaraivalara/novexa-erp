@@ -1,5 +1,9 @@
 # Publicacao do Novexa: Oracle Cloud VM / Docker
 
+## Horário oficial
+
+Preservar `TZ=America/Sao_Paulo` no Compose e `-Duser.timezone=America/Sao_Paulo` nas opções da JVM da imagem. O bootstrap também fixa a zona antes do Spring iniciar; o startup registra `Horário oficial Novexa: America/Sao_Paulo; zona JVM: America/Sao_Paulo`. Conexões da aplicação executam `SET TIME ZONE 'America/Sao_Paulo'` somente na própria sessão; nenhuma alteração global no PostgreSQL é necessária. Não alterar timestamps históricos durante deploy. O relógio operacional explícito continua correto mesmo quando a máquina usa outra zona. Uma alteração de `JAVA_TOOL_OPTIONS` substitui os defaults completos e deve preservar a opção de timezone. Esta documentação não comprova o runtime da VM; confirmar o log no deploy manual.
+
 Perfil implementado: `prod`, Java 21 / Spring Boot 3.5.4, PostgreSQL e migrations Flyway versionadas no repositorio. Este guia prepara a publicacao; nao comprova deploy nem homologacao do piloto. Frontend, regras financeiras e migrations existentes nao sao alterados.
 
 Estrategia atual: **Vercel (React/Vite) -> Oracle Cloud VM Ubuntu (Nginx/HTTPS -> Docker/Spring Boot) -> Supabase (PostgreSQL + Storage)**. Render foi abandonado; `2b6a027` e `bc1ca42` sao historico, nao instrucoes atuais. Cloud Run tambem nao e destino desta etapa. Uma VM, um backend, sem PostgreSQL local, Redis, Kubernetes ou nova automacao CI/CD.

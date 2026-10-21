@@ -1,3 +1,4 @@
+import { formatarData } from "../../utils/dataHora";
 import { useEffect, useState, type FormEvent } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
@@ -10,7 +11,7 @@ import { descricaoMovimentacaoFinanceira, rotulosOrigemMovimentacaoFinanceira, t
 
 type Props = { conta: ContaFinanceira; onFechar: () => void; onSaldoAlterado: () => void };
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const data = (valor: string) => new Date(`${valor}T12:00:00`).toLocaleDateString("pt-BR");
+const data = formatarData;
 
 export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAlterado }: Props) {
     const [movimentos, setMovimentos] = useState<MovimentacaoFinanceira[]>([]);

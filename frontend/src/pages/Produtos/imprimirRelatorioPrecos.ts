@@ -1,3 +1,4 @@
+import { formatarDataHora } from "../../utils/dataHora";
 import { listarProdutosPaginado, type FiltrosProduto } from "../../services/produtoService";
 import type { Produto } from "../../types/produto";
 import { obterSessao } from "../../utils/auth/sessao";
@@ -102,7 +103,7 @@ export async function imprimirRelatorioPrecos(
         texto("p", "Todos os produtos filtrados foram carregados. Use a impressão do navegador para imprimir ou salvar como PDF.", acoes);
         texto("h1", "Relatório de preços de Produtos");
         texto("p", empresa.nomeFantasia || empresa.razaoSocial);
-        texto("p", `${descricao} · ${produtos.length} produtos · Consultado em ${new Date().toLocaleString("pt-BR")}`);
+        texto("p", `${descricao} · ${produtos.length} produtos · Consultado em ${formatarDataHora(new Date())}`);
         const tabela = documento.createElement("table");
         documento.body.append(tabela);
         const cabecalho = texto("tr", "", texto("thead", "", tabela));

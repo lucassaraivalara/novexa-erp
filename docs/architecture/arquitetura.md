@@ -8,6 +8,16 @@ docs/
 ├── AGENTES.md
 └── ROADMAP.md
 
+## Data e hora oficial — Brasília
+
+Toda data/hora operacional do Novexa usa `America/Sao_Paulo`, inclusive comparação, auditoria, vencimentos, filtros, scheduler e exibição. `TempoNovexa` centraliza `Clock.system(ZoneId.of("America/Sao_Paulo"))`, `agora()` e `hoje()`; entidades e serviços não consultam o fuso padrão da máquina para determinar o horário operacional. Novos usos devem seguir essa fonte.
+
+O contrato existente permanece: `LocalDateTime`/PostgreSQL `TIMESTAMP WITHOUT TIME ZONE` representam horário civil de Brasília; JSON sem offset tem essa mesma semântica. `LocalDate`/SQL `DATE` representam dia civil, sem conversão de fuso. Filtros por período usam início inclusivo e início do dia seguinte exclusivo. Não adicionar `Z` artificialmente aos horários civis, nem aplicar deslocamentos fixos. Instantes técnicos de JWT, durações e medição de atividade continuam absolutos.
+
+O bootstrap da aplicação fixa o fuso da JVM, a serialização legada Jackson e as conexões PostgreSQL são configuradas para Brasília, e o container preserva `TZ` e `-Duser.timezone`. Os logs informam a zona efetiva no startup. O frontend centraliza interpretação, formatação e calendário em `utils/dataHora.ts`: timestamps com offset/Z são convertidos pela zona IANA; timestamps civis sem offset são interpretados nessa zona; datas sem hora não mudam de dia conforme o navegador.
+
+Não há migration, conversão de coluna ou correção de registros antigos. Dados históricos gravados no fuso errado exigem diagnóstico e operação auditada separados; timestamps civis antigos em horas ambíguas de horário de verão não permitem reconstruir o instante original com certeza. Evidências e limites em [auditoria de horário](../audits/HORARIO_BRASILIA_2026-10-21.md).
+
 ## Consulta de recebimentos por conta
 
 `RecebimentoContaController/Service/Repository` acrescenta projeções somente de leitura de Pagamento, Recebível e Movimentação Financeira. Paginação e agregação acontecem no banco por empresa do JWT, com destino e condições históricos, sem entidade/tabela nova ou outra fonte de saldo. A interface de Contas e saldos apresenta A LIQUIDAR/LIQUIDADO e reutiliza os comandos existentes de confirmação PIX/liquidação de cartão. Contratos, exclusão de cancelados e tratamento de legado em [financeiro.md](financeiro.md#pix-e-cartões-por-conta-de-destino-2026-10-20).

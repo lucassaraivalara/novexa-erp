@@ -1,5 +1,7 @@
 package br.com.novexa.erp.service;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import br.com.novexa.erp.dto.*;
 import br.com.novexa.erp.entity.*;
 import br.com.novexa.erp.repository.*;
@@ -14,7 +16,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -242,7 +243,7 @@ public class SessaoCaixaService {
                     valorCofre,
                     valorAporte,
                     normalizarAporte(request.observacaoAporte()),
-                    LocalDateTime.now()
+                    TempoNovexa.agora()
             );
             aberturasOrigem.saveAndFlush(origem);
         }

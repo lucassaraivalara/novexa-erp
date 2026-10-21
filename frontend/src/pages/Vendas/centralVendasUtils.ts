@@ -1,3 +1,4 @@
+import { formatarDataHora } from "../../utils/dataHora";
 import type { FiltrosVenda, StatusVenda } from "../../services/vendaService";
 
 export type FiltrosCentralVendas = {
@@ -45,7 +46,4 @@ export const moedaVenda = (valor: number) => valor.toLocaleString("pt-BR", {
     currency: "BRL",
 });
 
-export const dataHoraVenda = (valor: string) => new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-}).format(new Date(valor));
+export const dataHoraVenda = formatarDataHora;

@@ -1,3 +1,4 @@
+import { horaBrasilia } from "../../utils/dataHora";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import { AppBar, Avatar, Box, Divider, IconButton, Toolbar, Tooltip, Typography } from "@mui/material";
@@ -15,7 +16,7 @@ function AppHeader() {
     const [logomarcaComErro, setLogomarcaComErro] = useState(false);
     const nomeUsuario = sessao?.nomeUsuario ?? "Usuário";
     const noDashboard = location.pathname === "/dashboard";
-    const hora = new Date().getHours();
+    const hora = horaBrasilia();
     const saudacao = hora >= 5 && hora < 12 ? "Bom dia" : hora >= 12 && hora < 18 ? "Boa tarde" : "Boa noite";
     const nomeEmpresa = sessao?.empresa?.nomeFantasia?.trim() || sessao?.empresa?.razaoSocial?.trim() || "Empresa";
     const logomarcaEmpresa = sessao?.empresa?.logomarca;

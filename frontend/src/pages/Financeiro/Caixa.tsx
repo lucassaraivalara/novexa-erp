@@ -1,3 +1,4 @@
+import { formatarDataHora } from "../../utils/dataHora";
 import { consultarConfiguracaoRecebimentos, type ConfiguracaoRecebimentos } from "../../services/configuracaoRecebimentosService";
 import { conferenciaMeios } from "./conferenciaMeios";
 import ConferenciaMeiosPagamento from "./ConferenciaMeiosPagamento";
@@ -38,10 +39,9 @@ import { podeExecutarAcaoGerencial, podeFecharSessao } from "../../utils/auth/pe
 import { obterSessao } from "../../utils/auth/sessao";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const dataHora = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 const intervaloAtualizacaoSessao = 2000;
 const dinheiro = (valor: number | null | undefined) => moeda.format(valor ?? 0);
-const data = (valor: string | null | undefined) => valor ? dataHora.format(new Date(valor)) : "—";
+const data = formatarDataHora;
 const valorDecimal = (texto: string) => {
     const valor = centavosDinheiro(texto);
     return valor === null ? null : valor / 100;

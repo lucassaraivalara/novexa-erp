@@ -1,3 +1,4 @@
+import { formatarDataHora } from "../../utils/dataHora";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -27,7 +28,6 @@ type Props = {
     onResolvida: (sessaoId: number) => void;
 };
 
-const horario = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
 export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) {
     const usuarioId = obterSessao()?.id;
@@ -105,7 +105,7 @@ export default function SessaoCaixaPDVDialog({ resolvida, onResolvida }: Props) 
                         {sessoes.map(sessao => <ListItemButton key={sessao.sessaoId}
                             selected={sessaoId === sessao.sessaoId} onClick={() => setSessaoId(sessao.sessaoId)}>
                             <ListItemText primary={sessao.descricaoCaixa}
-                                secondary={`${sessao.operadorAbertura.nome} · ${horario.format(new Date(sessao.dataHoraAbertura))}`} />
+                                secondary={`${sessao.operadorAbertura.nome} · ${formatarDataHora(sessao.dataHoraAbertura)}`} />
                         </ListItemButton>)}
                     </List>
                 </DialogContent>

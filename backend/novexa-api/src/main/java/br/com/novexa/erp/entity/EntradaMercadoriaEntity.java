@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -47,8 +49,8 @@ public class EntradaMercadoriaEntity {
     @OneToMany(mappedBy = "entrada", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("ordem ASC") private List<ItemEntradaMercadoriaEntity> itens = new ArrayList<>();
 
-    @PrePersist void criarDatas() { dataCadastro = LocalDateTime.now(); dataAtualizacao = dataCadastro; }
-    @PreUpdate void atualizarData() { dataAtualizacao = LocalDateTime.now(); }
+    @PrePersist void criarDatas() { dataCadastro = TempoNovexa.agora(); dataAtualizacao = dataCadastro; }
+    @PreUpdate void atualizarData() { dataAtualizacao = TempoNovexa.agora(); }
     public Long getId() { return id; }
     public EmpresaEntity getEmpresa() { return empresa; }
     public void setEmpresa(EmpresaEntity v) { empresa = v; }
@@ -93,7 +95,7 @@ public class EntradaMercadoriaEntity {
     public void vincularConta(ContaPagarEntity conta, OrigemContaPagarEntrada origem, Long usuarioId,
             UUID chave, String resumo) {
         contaPagar = conta; origemContaPagar = origem;
-        usuarioVinculoContaId = usuarioId; dataVinculoConta = LocalDateTime.now();
+        usuarioVinculoContaId = usuarioId; dataVinculoConta = TempoNovexa.agora();
         chaveGeracaoConta = chave; resumoGeracaoConta = resumo;
         conta.setEntradaMercadoria(this);
     }
@@ -104,11 +106,11 @@ public class EntradaMercadoriaEntity {
     }
     public void setResumoRequisicao(String v) { resumoRequisicao = v; }
     public List<ItemEntradaMercadoriaEntity> getItens() { return itens; }
-    public void registrarEdicao() { dataAtualizacao = LocalDateTime.now(); }
+    public void registrarEdicao() { dataAtualizacao = TempoNovexa.agora(); }
     public void confirmar(Long usuarioId) {
-        status = StatusEntradaMercadoria.CONFIRMADA; usuarioConfirmacaoId = usuarioId; dataConfirmacao = LocalDateTime.now();
+        status = StatusEntradaMercadoria.CONFIRMADA; usuarioConfirmacaoId = usuarioId; dataConfirmacao = TempoNovexa.agora();
     }
     public void cancelar(Long usuarioId) {
-        status = StatusEntradaMercadoria.CANCELADA; usuarioCancelamentoId = usuarioId; dataCancelamento = LocalDateTime.now();
+        status = StatusEntradaMercadoria.CANCELADA; usuarioCancelamentoId = usuarioId; dataCancelamento = TempoNovexa.agora();
     }
 }

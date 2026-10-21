@@ -1,5 +1,7 @@
 package br.com.novexa.erp.service;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import br.com.novexa.erp.entity.*;
 import br.com.novexa.erp.dto.*;
 import br.com.novexa.erp.repository.*;
@@ -71,7 +73,7 @@ public class ComposicaoProdutoService {
             if(n.unidade.equals(c.getUnidadeMedida())&&n.fator.compareTo(BigDecimal.ONE)!=0)throw erro("Na unidade do estoque o fator deve ser 1.");
             try { if(n.consumoUnitario().signum()<=0 || n.consumoUnitario().precision()>19)throw erro("Consumo deve caber na precisão do estoque (19 dígitos e 3 casas decimais)."); }
             catch(ArithmeticException e) { throw erro("Conversão excede a precisão do estoque (3 casas decimais)."); }
-            n.nomeComponente=c.getNome();n.unidadeEstoque=c.getUnidadeMedida();n.usuario=u;n.dataCriacao=LocalDateTime.now();novas.add(n);
+            n.nomeComponente=c.getNome();n.unidadeEstoque=c.getUnidadeMedida();n.usuario=u;n.dataCriacao=TempoNovexa.agora();novas.add(n);
         }
         p.setComposto(true);p.setControlaEstoque(true);p.setPrecoCusto(BigDecimal.ZERO);p.setComposicaoVersao(p.getComposicaoVersao()+1);
         composicoes.saveAllAndFlush(novas);em.flush();em.refresh(p);

@@ -1,3 +1,4 @@
+import { hojeBrasilia, formatarData } from "../../utils/dataHora";
 import { useEffect, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -24,12 +25,9 @@ import ContaPagarDrawer from "./ContaPagarDrawer";
 import { emAberto } from "./contaPagarCalculos";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const data = (valor: string | null) => valor ? new Date(`${valor}T12:00:00`).toLocaleDateString("pt-BR") : "—";
+const data = formatarData;
 const rotulos: Record<StatusContaPagar, string> = { ABERTA: "Aberta", PAGA: "Paga", CANCELADA: "Cancelada" };
-const hoje = () => {
-    const data = new Date();
-    return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
-};
+const hoje = hojeBrasilia;
 
 export default function ContasPagar() {
     const [parametros, setParametros] = useSearchParams();

@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -42,11 +44,11 @@ public class TransferenciaFinanceiraEntity {
         this.usuario = usuario;
         this.chaveRequisicao = chave;
         this.status = StatusTransferenciaFinanceira.CONCLUIDA;
-        this.dataCriacao = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        this.dataCriacao = TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS);
     }
     public void estornar(UsuarioEntity usuario, String motivo) {
         status = StatusTransferenciaFinanceira.ESTORNADA;
-        dataEstorno = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        dataEstorno = TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS);
         usuarioEstorno = usuario;
         motivoEstorno = motivo;
     }

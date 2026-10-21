@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -68,7 +70,7 @@ public class ClienteEntity {
         }
 
         if (dataCadastro == null) {
-            dataCadastro = LocalDateTime.now();
+            dataCadastro = TempoNovexa.agora();
         }
     }
 

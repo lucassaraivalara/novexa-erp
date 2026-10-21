@@ -1,5 +1,7 @@
 package br.com.novexa.erp.service;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import br.com.novexa.erp.dto.*;
 import br.com.novexa.erp.entity.*;
 import br.com.novexa.erp.repository.*;
@@ -11,7 +13,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -74,7 +75,7 @@ public class CofreService {
     private RecolhimentoCofreEntity novo(SessaoCaixaEntity s,UsuarioEntity u,String tipo,UUID chave,EntregaCofreDTO p) {
         var r=new RecolhimentoCofreEntity();r.empresa=s.getEmpresa();r.sessao=s;r.usuario=u;r.tipo=tipo;r.chaveRequisicao=chave;
         r.valor=p.valor();r.valorTroco=p.valorTroco();r.responsavel=texto(p.responsavel());r.observacao=texto(p.observacao());
-        r.dataCriacao=LocalDateTime.now();
+        r.dataCriacao=TempoNovexa.agora();
         if(r.valor.signum()>0) r.conta=conta(p.contaCofreId(),s.getEmpresa().getId());
         return r;
     }
@@ -121,7 +122,7 @@ public class CofreService {
         r.movimentoFinanceiro=movimentarConta(c,tipo,r.valor,
                 (tipo==TipoMovimentacaoFinanceira.ENTRADA?"Recolhimento":"Devolução para troco")+" · sessão #"+r.sessao.getId(),
                 r.observacao,u);
-        r.usuarioConfirmacao=u;r.dataConfirmacao=LocalDateTime.now();registros.saveAndFlush(r);
+        r.usuarioConfirmacao=u;r.dataConfirmacao=TempoNovexa.agora();registros.saveAndFlush(r);
     }
     public MovimentacaoCaixaResponseDTO sangria(Long id,MovimentacaoCaixaRequestDTO p,UsuarioAutenticado a) {
         if(!gerente(a)) throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Ação gerencial.");
@@ -172,7 +173,7 @@ public class CofreService {
             throw erro("Saldo insuficiente no Cofre " + conta.getNome() + ".");
         conta.aplicar(tipo == TipoMovimentacaoFinanceira.ENTRADA ? valor : valor.negate());
         return movimentos.saveAndFlush(new MovimentacaoFinanceiraEntity(conta, tipo,
-                OrigemMovimentacaoFinanceira.MOVIMENTO_COFRE, descricao, valor, LocalDate.now(), observacao, usuario));
+                OrigemMovimentacaoFinanceira.MOVIMENTO_COFRE, descricao, valor, TempoNovexa.hoje(), observacao, usuario));
     }
     @Transactional(readOnly=true)
     public Map<String,Object> resumo(UsuarioAutenticado a) {

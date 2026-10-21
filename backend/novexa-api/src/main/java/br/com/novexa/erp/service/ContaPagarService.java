@@ -1,5 +1,7 @@
 package br.com.novexa.erp.service;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import br.com.novexa.erp.dto.*;
 import br.com.novexa.erp.entity.*;
 import br.com.novexa.erp.repository.*;
@@ -58,7 +60,7 @@ public class ContaPagarService {
     public List<String> categorias(Long empresaId) { return contas.categorias(empresaId); }
 
     public ResumoContasPagarDTO resumo(Long empresaId) {
-        var hoje = java.time.LocalDate.now();
+        var hoje = TempoNovexa.hoje();
         return new ResumoContasPagarDTO(total(empresaId, StatusContaPagar.ABERTA, null, hoje.minusDays(1)),
                 total(empresaId, StatusContaPagar.ABERTA, hoje, hoje.plusDays(7)),
                 total(empresaId, StatusContaPagar.ABERTA, hoje, hoje.plusDays(30)),

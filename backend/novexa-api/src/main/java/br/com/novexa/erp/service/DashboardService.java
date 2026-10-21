@@ -1,5 +1,7 @@
 package br.com.novexa.erp.service;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import br.com.novexa.erp.dto.DashboardResumoDTO;
 import br.com.novexa.erp.entity.StatusSessaoCaixa;
 import br.com.novexa.erp.entity.StatusVenda;
@@ -37,7 +39,7 @@ public class DashboardService {
     }
 
     public DashboardResumoDTO resumo(Long empresaId) {
-        LocalDate hoje = LocalDate.now();
+        LocalDate hoje = TempoNovexa.hoje();
         VendaRepository.ResumoVendasHoje vendasHoje = vendas.resumirPorPeriodo(
                 empresaId, StatusVenda.FATURADA, hoje.atStartOfDay(), hoje.plusDays(1).atStartOfDay());
         BigDecimal faturamento = vendasHoje.getFaturamento() == null ? BigDecimal.ZERO : vendasHoje.getFaturamento();

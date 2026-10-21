@@ -1,5 +1,7 @@
 package br.com.novexa.erp.service;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import br.com.novexa.erp.dto.EntradaXmlPreviewDTO;
 import br.com.novexa.erp.exception.DocumentoInvalidoException;
 import br.com.novexa.erp.util.DocumentoUtils;
@@ -139,7 +141,8 @@ public class NfeXmlParser {
     }
     private static LocalDate data(Map<String, String> dados) {
         String dataHora = opcional(dados, "ide/dhEmi", 40);
-        try { return dataHora == null ? LocalDate.parse(obrigatorio(dados, "ide/dEmi", 10)) : OffsetDateTime.parse(dataHora).toLocalDate(); }
+        try { return dataHora == null ? LocalDate.parse(obrigatorio(dados, "ide/dEmi", 10))
+                : OffsetDateTime.parse(dataHora).atZoneSameInstant(TempoNovexa.ZONA).toLocalDate(); }
         catch (DateTimeParseException e) { throw invalida("Data de emissao invalida."); }
     }
     private static String obrigatorio(Map<String, String> dados, String campo, int limite) {

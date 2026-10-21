@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -65,14 +67,14 @@ public class VendaEntity {
                        BigDecimal subtotal, BigDecimal desconto, BigDecimal total, FormaPagamento forma,
                        BigDecimal recebido, BigDecimal troco, String entrega, String observacoes) {
         this.empresa = usuario.getEmpresa(); this.usuario = usuario; this.cliente = cliente;
-        this.chaveRequisicao = chave; this.resumoRequisicao = resumo; this.dataHora = LocalDateTime.now();
+        this.chaveRequisicao = chave; this.resumoRequisicao = resumo; this.dataHora = TempoNovexa.agora();
         this.status = StatusVenda.ABERTA;
         this.subtotal = subtotal; this.desconto = desconto; this.total = total; this.formaPagamento = forma;
         this.valorRecebido = recebido; this.troco = troco; this.entrega = entrega; this.observacoes = observacoes;
     }
     public VendaEntity(UsuarioEntity usuario, ClienteEntity cliente) {
         this.empresa = usuario.getEmpresa(); this.usuario = usuario; this.cliente = cliente;
-        this.dataHora = LocalDateTime.now();
+        this.dataHora = TempoNovexa.agora();
         this.status = StatusVenda.ABERTA;
         this.subtotal = BigDecimal.ZERO; this.desconto = BigDecimal.ZERO; this.total = BigDecimal.ZERO;
     }

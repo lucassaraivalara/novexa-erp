@@ -1,3 +1,4 @@
+import { formatarDataHora } from "../../utils/dataHora";
 import { useEffect, useState } from "react";
 import { Alert, Autocomplete, Box, Button, Stack, TextField, Typography } from "@mui/material";
 import type { Produto } from "../../types/produto";
@@ -53,7 +54,7 @@ export default function ComposicaoProdutoCampos({ produtoId, valor, onChange, di
         </Box>)}
         {produtoId && valor === null && !erro && <Typography role="status">Carregando composição…</Typography>}
         {historico.length > 0 && <Box component="details"><Typography component="summary" sx={{ cursor: "pointer" }}>Histórico da composição ({new Set(historico.map(l => l.versao)).size} versões)</Typography>
-            {historico.map(l => <Typography key={l.id} variant="body2">v{l.versao} · {l.nome} · {l.quantidade} {l.unidade} × {l.fator} · {new Date(l.data).toLocaleString("pt-BR")} · usuário #{l.usuarioId}</Typography>)}
+            {historico.map(l => <Typography key={l.id} variant="body2">v{l.versao} · {l.nome} · {l.quantidade} {l.unidade} × {l.fator} · {formatarDataHora(l.data)} · usuário #{l.usuarioId}</Typography>)}
         </Box>}
     </Stack>;
 }

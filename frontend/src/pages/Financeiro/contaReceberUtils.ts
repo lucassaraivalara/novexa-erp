@@ -1,3 +1,4 @@
+import { hojeBrasilia, formatarData as dataCivil, formatarDataHora } from "../../utils/dataHora";
 import type { ContaReceber, StatusContaReceber } from "../../types/contaReceber";
 
 export const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -5,11 +6,8 @@ export const rotulosStatus: Record<StatusContaReceber, string> = {
     PENDENTE: "Pendente", PARCIAL: "Parcial", RECEBIDA: "Recebida", CANCELADA: "Cancelada",
 };
 export const formatarData = (valor: string | null, hora = false) => valor
-    ? (hora ? new Date(valor).toLocaleString("pt-BR") : new Date(`${valor}T12:00:00`).toLocaleDateString("pt-BR")) : "—";
-export function hoje() {
-    const data = new Date();
-    return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
-}
+    ? (hora ? formatarDataHora(valor) : dataCivil(valor)) : "—";
+export const hoje = hojeBrasilia;
 export function valorMonetario(texto: string): number | null {
     if (!/^\d+(?:[.,]\d{1,2})?$/.test(texto.trim())) return null;
     const valor = Number(texto.trim().replace(",", "."));

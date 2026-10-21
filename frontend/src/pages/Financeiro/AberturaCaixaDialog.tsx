@@ -1,3 +1,4 @@
+import { formatarDataHora } from "../../utils/dataHora";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
     Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, Divider,
@@ -8,7 +9,6 @@ import type { AberturaContexto, CaixaResumo } from "../../types/caixa";
 import { centavosDinheiro as centavos } from "./cofreFormulario";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const dataHora = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 const dinheiro = (centavos: number) => moeda.format(centavos / 100);
 
 type Props = { onClose: () => void; onSucesso: (sessaoId: number) => void; caixasAtivos: CaixaResumo[]; aviso?: string };
@@ -111,7 +111,7 @@ export default function AberturaCaixaDialog({ onClose, onSucesso, caixasAtivos, 
                         {contexto.sessaoAberta ? <Alert severity="warning">Já existe a sessão #{contexto.sessaoAbertaId} aberta neste Caixa.</Alert> : <>
                             {contexto.trocoAnterior ? <Box>
                                 <Typography variant="subtitle2">Troco disponível da sessão anterior: {dinheiro(herdado)}</Typography>
-                                <Typography variant="body2" color="text.secondary">Sessão #{contexto.trocoAnterior.sessaoId} · fechada em {dataHora.format(new Date(contexto.trocoAnterior.dataFechamento))}</Typography>
+                                <Typography variant="body2" color="text.secondary">Sessão #{contexto.trocoAnterior.sessaoId} · fechada em {formatarDataHora(contexto.trocoAnterior.dataFechamento)}</Typography>
                                 <FormControlLabel label="Usar troco da sessão anterior" control={<Checkbox checked={usarTroco} disabled={processando} onChange={e => setUsarTroco(e.target.checked)} />} />
                             </Box> : <Typography variant="body2" color="text.secondary">Sem troco herdado disponível. Informe a origem de qualquer fundo inicial.</Typography>}
                             <TextField fullWidth name="saldoInicial" autoComplete="off" label="Fundo inicial (R$)" value={saldo} disabled={processando}

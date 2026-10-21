@@ -86,6 +86,7 @@ Os documentos devem distinguir comportamento implementado de arquitetura alvo. U
 
 ## Regras transversais
 
+- Data/hora operacional, regras de hoje/vencido e exibição usam `America/Sao_Paulo` como referência oficial. Fontes centralizadas e semântica dos contratos em [arquitetura.md](arquitetura.md#data-e-hora-oficial--brasília).
 - O frontend não determina a empresa da operação.
 - Movimentações de estoque devem preservar saldo e histórico.
 - Faturamento deve integrar Venda, Estoque e Financeiro com consistência e proteção contra duplicidade.

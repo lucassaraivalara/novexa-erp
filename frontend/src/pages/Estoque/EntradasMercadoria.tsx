@@ -1,3 +1,4 @@
+import { formatarData } from "../../utils/dataHora";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField, Typography } from "@mui/material";
@@ -19,7 +20,7 @@ import EntradaMercadoriaForm from "./EntradaMercadoriaForm";
 import EntradaXmlImportacao from "./EntradaXmlImportacao";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const data = (valor: string) => new Intl.DateTimeFormat("pt-BR").format(new Date(`${valor}T12:00:00`));
+const data = formatarData;
 
 export default function EntradasMercadoria() {
     const [parametros, setParametros] = useSearchParams();

@@ -31,6 +31,10 @@ class NfeXmlParserTest {
         assertThat(i.valorTotal()).isEqualByComparingTo("7.44"); assertThat(p.fornecedorMatch()).isNull(); assertThat(i.produtoMatch()).isNull();
     }
     @Test void nfeProcAceito() { assertThat(ler(NfeXmlTeste.processado()).chaveAcessoNfe()).isEqualTo(NfeXmlTeste.CHAVE); }
+    @Test void dataComOffsetUsaDiaCivilDeBrasilia() {
+        assertThat(ler(NfeXmlTeste.xml().replace("2026-10-02T23:30:00-03:00", "2026-10-03T01:30:00Z")).dataEmissao())
+                .hasToString("2026-10-02");
+    }
     @Test void namespaceComPrefixoIndependente() {
         String xml = NfeXmlTeste.xml().replace("xmlns=", "xmlns:n=").replaceAll("<(\\/?)([A-Za-z][A-Za-z0-9]*)", "<$1n:$2");
         assertThat(ler(xml).itens()).hasSize(1);

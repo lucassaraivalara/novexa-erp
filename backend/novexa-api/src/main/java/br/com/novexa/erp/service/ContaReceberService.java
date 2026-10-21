@@ -1,5 +1,7 @@
 package br.com.novexa.erp.service;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import br.com.novexa.erp.dto.*;
 import br.com.novexa.erp.entity.*;
 import br.com.novexa.erp.repository.*;
@@ -109,7 +111,7 @@ public class ContaReceberService {
         return detalhe(contas.saveAndFlush(conta));
     }
     public ResumoContasReceberDTO resumo(Long empresaId) {
-        var hoje = LocalDate.now();
+        var hoje = TempoNovexa.hoje();
         return new ResumoContasReceberDTO(total(contas.resumirAbertas(empresaId, null, hoje.minusDays(1))),
                 total(contas.resumirAbertas(empresaId, hoje, hoje.plusDays(7))),
                 total(contas.resumirAbertas(empresaId, hoje, hoje.plusDays(30))),

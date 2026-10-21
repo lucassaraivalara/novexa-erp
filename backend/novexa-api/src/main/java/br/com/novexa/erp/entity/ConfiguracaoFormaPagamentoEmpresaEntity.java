@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -35,14 +37,14 @@ public class ConfiguracaoFormaPagamentoEmpresaEntity {
         this.empresa = empresa;
         this.formaPagamento = forma;
         this.tipo = forma.getTipo();
-        this.dataCriacao = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        this.dataCriacao = TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS);
         atualizar(nome, ativo, destino);
     }
     public void atualizar(String nome, boolean ativo, ContaFinanceiraEntity destino) {
         this.nomeExibicao = nome;
         this.ativo = ativo;
         this.contaFinanceiraDestino = destino;
-        this.dataAtualizacao = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        this.dataAtualizacao = TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS);
     }
     public Long getId() { return id; }
     public void atualizarCondicoesCartao(BigDecimal percentual, BigDecimal fixa, Integer prazo) {

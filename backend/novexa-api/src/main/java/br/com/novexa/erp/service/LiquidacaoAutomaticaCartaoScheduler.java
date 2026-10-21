@@ -1,5 +1,7 @@
 package br.com.novexa.erp.service;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import br.com.novexa.erp.entity.ModoRecebimentoFinanceiro;
 import br.com.novexa.erp.entity.StatusRecebivel;
 import br.com.novexa.erp.repository.RecebivelRepository;
@@ -9,7 +11,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
 
 @Component
 public class LiquidacaoAutomaticaCartaoScheduler {
@@ -26,7 +27,7 @@ public class LiquidacaoAutomaticaCartaoScheduler {
     public void processarVencidos() {
         long limiteId = recebiveis.findMaxId();
         long aposId = 0;
-        var hoje = LocalDate.now();
+        var hoje = TempoNovexa.hoje();
         while (aposId < limiteId) {
             var lote = recebiveis.buscarVencidosAutomaticos(aposId, limiteId, StatusRecebivel.PENDENTE,
                     ModoRecebimentoFinanceiro.SIMPLIFICADO, hoje, PageRequest.of(0, 100));

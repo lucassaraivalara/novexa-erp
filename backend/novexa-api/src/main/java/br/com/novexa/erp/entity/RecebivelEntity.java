@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -61,7 +63,7 @@ public class RecebivelEntity {
         this.dataVenda = pagamento.getDataHora();
         this.dataPrevistaRecebimento = dataVenda.toLocalDate().plusDays(prazoRecebimentoDiasSnapshot);
         this.status = StatusRecebivel.PENDENTE;
-        this.criadoEm = LocalDateTime.now();
+        this.criadoEm = TempoNovexa.agora();
         var configuracao = pagamento.getConfiguracaoFormaPagamento();
         this.configuracaoFormaPagamentoId = configuracao == null ? null : configuracao.getId();
         this.configuracaoNomeExibicao = pagamento.getConfiguracaoNomeExibicao();
@@ -80,7 +82,7 @@ public class RecebivelEntity {
     public void cancelar(UsuarioEntity usuario) {
         if (status == StatusRecebivel.CANCELADO) return;
         status = StatusRecebivel.CANCELADO;
-        dataCancelamento = LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        dataCancelamento = TempoNovexa.agora().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         usuarioCancelamento = usuario;
     }
     public LocalDateTime getDataLiquidacao() { return dataLiquidacao; }

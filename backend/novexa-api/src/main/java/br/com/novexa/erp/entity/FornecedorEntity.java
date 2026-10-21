@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ForeignKey;
@@ -85,14 +87,14 @@ public class FornecedorEntity {
         }
 
         if (dataCadastro == null) {
-            dataCadastro = LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+            dataCadastro = TempoNovexa.agora().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         }
         dataAtualizacao = dataCadastro;
     }
 
     @PreUpdate
     private void atualizarData() {
-        dataAtualizacao = LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        dataAtualizacao = TempoNovexa.agora().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
     }
 
     public TipoPessoa getTipoPessoa() { return tipoPessoa; }

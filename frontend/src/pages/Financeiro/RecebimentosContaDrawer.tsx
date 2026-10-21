@@ -1,3 +1,4 @@
+import { formatarData, formatarDataHora } from "../../utils/dataHora";
 import { useEffect, useRef, useState } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Drawer,
@@ -14,7 +15,7 @@ import { podeExecutarAcaoGerencial } from "../../utils/auth/perfis";
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const formas = { PIX: "PIX", CARTAO_DEBITO: "Débito", CARTAO_CREDITO: "Crédito" };
 const data = (valor: string | null, hora = false) => valor
-    ? new Date(hora ? valor : `${valor}T12:00:00`).toLocaleString("pt-BR", hora ? undefined : { dateStyle: "short" })
+    ? (hora ? formatarDataHora(valor) : formatarData(valor))
     : "Não informada";
 
 type Props = { contaId?: number; nome?: string; semDestino?: boolean; onFechar: () => void; onAlterado: () => void };

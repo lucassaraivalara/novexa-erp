@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -84,7 +86,7 @@ public class AberturaCaixaOrigemEntity {
         this.valorRetiradoCofre = valorRetiradoCofre != null ? valorRetiradoCofre : BigDecimal.ZERO;
         this.valorAporteExterno = valorAporteExterno != null ? valorAporteExterno : BigDecimal.ZERO;
         this.observacaoAporte = observacaoAporte;
-        this.dataCriacao = dataCriacao != null ? dataCriacao : LocalDateTime.now();
+        this.dataCriacao = dataCriacao != null ? dataCriacao : TempoNovexa.agora();
     }
 
     public Long getId() { return id; }

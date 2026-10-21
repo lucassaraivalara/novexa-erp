@@ -1,3 +1,4 @@
+import { formatarDataHora } from "../../utils/dataHora";
 import { useEffect, useState, type FormEvent } from "react";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Paper, Stack, Tab, Tabs, TextField, Typography } from "@mui/material";
 import SavingsOutlinedIcon from "@mui/icons-material/SavingsOutlined";
@@ -15,7 +16,7 @@ import EntregaCofreCampos from "./EntregaCofreCampos";
 import { lerEntregaCofre, novaEntregaCofre } from "./cofreFormulario";
 
 const moeda = (n: number) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const data = (s: string | null) => s ? new Date(s).toLocaleString("pt-BR") : "—";
+const data = formatarDataHora;
 const vazio = <T,>(): PaginaResponse<T> => ({ items: [], page: 0, size: 20, totalItems: 0, totalPages: 0 });
 
 export default function CofrePainel({ versao, onAlterado }: { versao: number; onAlterado: () => void }) {

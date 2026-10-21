@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -56,7 +58,7 @@ public class MovimentacaoFinanceiraEntity {
         this.dataMovimento = dataMovimento;
         this.observacao = observacao;
         this.usuario = usuario;
-        this.dataCriacao = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        this.dataCriacao = TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS);
     }
     public static MovimentacaoFinanceiraEntity daTransferencia(TransferenciaFinanceiraEntity transferencia,
             TipoMovimentacaoFinanceira tipo) {
@@ -107,7 +109,7 @@ public class MovimentacaoFinanceiraEntity {
             ContaFinanceiraEntity conta, UsuarioEntity usuario) {
         var movimento = new MovimentacaoFinanceiraEntity(conta, TipoMovimentacaoFinanceira.ENTRADA,
                 OrigemMovimentacaoFinanceira.PAGAMENTO_PIX, "Recebimento PIX", pagamento.getValor(),
-                LocalDate.now(), null, usuario);
+                TempoNovexa.hoje(), null, usuario);
         movimento.pagamento = pagamento;
         return movimento;
     }
@@ -122,13 +124,13 @@ public class MovimentacaoFinanceiraEntity {
         var movimento = new MovimentacaoFinanceiraEntity(conta, TipoMovimentacaoFinanceira.ENTRADA,
                 OrigemMovimentacaoFinanceira.RECEBIVEL_LIQUIDACAO,
                 automatico ? "Liquidacao automatica de recebivel de cartao" : "Liquidacao de recebivel de cartao",
-                recebivel.getValorLiquidoPrevisto(), LocalDate.now(), null, usuario);
+                recebivel.getValorLiquidoPrevisto(), TempoNovexa.hoje(), null, usuario);
         movimento.recebivel = recebivel;
         return movimento;
     }
     public void estornar(UsuarioEntity usuario, String motivo) {
         this.estornada = true;
-        this.dataEstorno = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        this.dataEstorno = TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS);
         this.usuarioEstorno = usuario;
         this.motivoEstorno = motivo;
     }

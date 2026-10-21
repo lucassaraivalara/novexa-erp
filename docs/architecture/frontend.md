@@ -17,6 +17,10 @@ Publicar o frontend não atualiza a API. As novas telas e a conferência exigem 
 
 # Frontend — padrões de cadastros, buscas e formulários
 
+## Data/hora de Brasília
+
+`utils/dataHora.ts` centraliza formatação com `Intl.DateTimeFormat` e `America/Sao_Paulo`, interpretação do `LocalDateTime` civil retornado pela API, datas de calendário, hoje, saudação e soma de dias. Venda/Central, sessões/fechamento/timeline, estoque/entradas, contas/extratos, PIX/cartões/cofre, composição e impressão usam essa fonte. Filtros continuam enviando `YYYY-MM-DD`, sem converter um dia civil em UTC pelo navegador. Timestamp com `Z`/offset é convertido para Brasília; sem offset já representa horário civil de Brasília. Valores inválidos aparecem como `—`. Autenticação conserva instantes absolutos e prazos em milissegundos. Não corrigir fuso por soma/subtração fixa de horas. Sem mudança de layout, permissões ou contrato HTTP.
+
 ## Contas e saldos — PIX e cartões por destino
 
 A listagem mostra saldo disponível e previsão a liquidar separadamente. A ação “PIX e cartões” da conta abre consulta paginada no drawer; “Ver PIX e cartões” consulta todos os destinos. O resumo inclui todas as páginas, separa históricos sem destino e sinaliza previsão incompleta quando faltar líquido histórico. Falha de consulta apresenta erro e retry, sem substituir indisponibilidade por saldo zero.

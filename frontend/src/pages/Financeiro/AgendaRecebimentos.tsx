@@ -1,3 +1,4 @@
+import { formatarData } from "../../utils/dataHora";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Link, Stack, Typography } from "@mui/material";
 import AppTable, { type Coluna } from "../../components/ui/AppTable";
@@ -7,7 +8,7 @@ import { podeExecutarAcaoGerencial } from "../../utils/auth/perfis";
 import { obterSessao } from "../../utils/auth/sessao";
 import type { GrupoAgenda, ItemAgenda } from "../../types/recebivel";
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const data = (valor: string | null) => valor ? new Date(`${valor}T12:00:00`).toLocaleDateString("pt-BR") : "Sem data prevista";
+const data = (valor: string | null) => valor ? formatarData(valor) : "Sem data prevista";
 export default function AgendaRecebimentos({ onFechar, onAlterado }: { onFechar: () => void; onAlterado: () => void }) {
     const [grupos, setGrupos] = useState<GrupoAgenda[]>([]);
     const [pagina, setPagina] = useState(0);

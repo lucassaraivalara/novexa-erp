@@ -1,5 +1,7 @@
 package br.com.novexa.erp.entity;
 
+import br.com.novexa.erp.time.TempoNovexa;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -26,7 +28,7 @@ public class MovimentacaoCaixaEntity {
             UUID chave, TipoMovimentacaoCaixa tipo, BigDecimal valor, String observacao) {
         this.empresa = sessao.getEmpresa(); this.sessao = sessao; this.usuario = usuario;
         this.pagamento = pagamento; this.chaveRequisicao = chave; this.tipo = tipo;
-        this.valor = valor; this.observacao = observacao; this.dataHora = LocalDateTime.now();
+        this.valor = valor; this.observacao = observacao; this.dataHora = TempoNovexa.agora();
     }
     public Long getId() { return id; }
     public SessaoCaixaEntity getSessao() { return sessao; }
