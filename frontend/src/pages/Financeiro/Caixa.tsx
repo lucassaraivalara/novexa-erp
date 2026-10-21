@@ -2,7 +2,7 @@ import { formatarDataHora } from "../../utils/dataHora";
 import { consultarConfiguracaoRecebimentos, type ConfiguracaoRecebimentos } from "../../services/configuracaoRecebimentosService";
 import { conferenciaMeios } from "./conferenciaMeios";
 import ConferenciaMeiosPagamento from "./ConferenciaMeiosPagamento";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import axios from "axios";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
@@ -10,7 +10,10 @@ import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
 import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import BlockRoundedIcon from "@mui/icons-material/BlockRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import PaymentsRoundedIcon from "@mui/icons-material/PaymentsRounded";
+import QrCode2RoundedIcon from "@mui/icons-material/QrCode2Rounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import {
@@ -495,21 +498,33 @@ function Atual({ abertas, sessaoId, onSessao, resumo, timeline, podeMovimentar, 
     podeMovimentar: boolean; podeFechar: boolean;
     onSuprimento: () => void; onSangria: () => void; onFechar: () => void;
 }) {
+    const [filtroTimeline, setFiltroTimeline] = useState("TODOS");
     const formasEletronicas = resumo.totaisPorFormaPagamento.filter((forma) => forma.tipo !== "DINHEIRO");
     const vendasEmDinheiro = resumo.totaisPorFormaPagamento
         .filter((forma) => forma.tipo === "DINHEIRO")
         .reduce((total, forma) => total + forma.total, 0);
-    const linhaForma = (chave: string | number, descricao: string, valor: number) => (
-        <Box key={chave} sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 2,
-            py: 1.5, borderBottom: 1, borderColor: "divider" }}>
-            <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{descricao}</Typography>
-            <Typography variant="body2" align="right" sx={{ fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>{dinheiro(valor)}</Typography>
-        </Box>
+    const timelineFiltrada = filtroTimeline === "TODOS" ? timeline : timeline.filter((movimento) =>
+        filtroTimeline === "VENDA" ? movimento.tipo === "VENDA"
+            : filtroTimeline === "SUPRIMENTO" ? movimento.tipo === "SUPRIMENTO"
+                : movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA");
+    const iconeForma = (tipo: string) => tipo === "DINHEIRO" ? <PaymentsRoundedIcon fontSize="small" aria-hidden="true" />
+        : tipo === "PIX" ? <QrCode2RoundedIcon fontSize="small" aria-hidden="true" />
+            : tipo.startsWith("CARTAO") ? <CreditCardRoundedIcon fontSize="small" aria-hidden="true" />
+                : <AccountBalanceWalletRoundedIcon fontSize="small" aria-hidden="true" />;
+    const linhaForma = (chaveLinha: string | number, descricao: string, valor: number, icone: ReactNode) => (
+        <Stack key={chaveLinha} direction="row" spacing={1.25} sx={{ alignItems: "center", py: 1.25 }}>
+            <Box sx={{ width: 30, height: 30, flexShrink: 0, borderRadius: 1, display: "grid", placeItems: "center",
+                bgcolor: "action.hover", color: "text.secondary" }}>
+                {icone}
+            </Box>
+            <Typography variant="body2" sx={{ flex: "1 1 auto", minWidth: 0, overflowWrap: "anywhere" }}>{descricao}</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>{dinheiro(valor)}</Typography>
+        </Stack>
     );
     return <Stack spacing={0} sx={{ minWidth: 0, fontVariantNumeric: "tabular-nums", ...focoOperacional }}>
-        <Box sx={{ display: "grid", gap: { xs: 0, md: 3 },
+        <Box sx={{ display: "grid", gap: { xs: 2, md: 2.5 },
             gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) minmax(0, 1fr)", xl: "minmax(0, 0.95fr) minmax(0, 1.05fr) minmax(0, 1.15fr)" } }}>
-            <Box component="section" aria-labelledby="resumo-caixa-titulo" sx={{ minWidth: 0, py: 3 }}>
+            <Paper component="section" variant="outlined" aria-labelledby="resumo-caixa-titulo" sx={{ minWidth: 0, p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
                 <Stack direction="row" sx={{ gap: 1.5, alignItems: "center", flexWrap: "wrap" }}>
                     <Typography id="resumo-caixa-titulo" component="h2" variant="h6" sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>
                         {resumo.descricaoCaixa}
@@ -527,11 +542,23 @@ function Atual({ abertas, sessaoId, onSessao, resumo, timeline, podeMovimentar, 
                         {abertas.map((sessao) => <MenuItem key={sessao.sessaoId} value={sessao.sessaoId}>{sessao.descricaoCaixa}</MenuItem>)}
                     </Select>
                 </FormControl>}
+                <Box sx={{ mt: 2.5, p: 2, borderRadius: 1.5, bgcolor: "success.light" }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center", color: "success.main" }}>
+                        <AccountBalanceWalletRoundedIcon fontSize="small" aria-hidden="true" />
+                        <Typography variant="body2" component="h3" sx={{ fontWeight: 600 }}>Saldo esperado em dinheiro</Typography>
+                    </Stack>
+                    <Typography sx={{ mt: 0.5, fontSize: { xs: 26, sm: 30 }, lineHeight: 1.2, fontWeight: 750, color: "success.main", overflowWrap: "anywhere" }}>
+                        {dinheiro(resumo.saldoEsperadoDinheiro)}
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: "block", mt: 0.5, color: "success.main" }}>
+                        Saldo inicial + vendas em dinheiro + suprimentos − sangrias
+                    </Typography>
+                </Box>
                 <Box component="dl" sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", m: 0, mt: 2.5, gap: 2 }}>
-                    <Metric titulo="Saldo inicial" valor={resumo.saldoInicial} />
-                    <Metric titulo="Total de vendas" valor={resumo.totalVendas} />
-                    <Metric titulo="Suprimentos" valor={resumo.suprimentos} cor="success.main" />
-                    <Metric titulo="Sangrias" valor={resumo.sangrias} cor="error.main" />
+                    <Metric titulo="Saldo inicial" valor={resumo.saldoInicial} icone={<AccountBalanceWalletRoundedIcon sx={{ fontSize: 15 }} aria-hidden="true" />} />
+                    <Metric titulo="Total de vendas" valor={resumo.totalVendas} icone={<PaymentsRoundedIcon sx={{ fontSize: 15 }} aria-hidden="true" />} />
+                    <Metric titulo="Suprimentos" valor={resumo.suprimentos} cor="success.main" icone={<ArrowDownwardRoundedIcon sx={{ fontSize: 15 }} aria-hidden="true" />} />
+                    <Metric titulo="Sangrias" valor={resumo.sangrias} cor="error.main" icone={<ArrowUpwardRoundedIcon sx={{ fontSize: 15 }} aria-hidden="true" />} />
                 </Box>
                 {podeMovimentar && <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1, mt: 2.5 }}>
                     <Button type="button" variant="outlined" color="inherit" startIcon={<ArrowDownwardRoundedIcon />}
@@ -539,11 +566,11 @@ function Atual({ abertas, sessaoId, onSessao, resumo, timeline, podeMovimentar, 
                     <Button type="button" variant="outlined" color="inherit" startIcon={<ArrowUpwardRoundedIcon />}
                         aria-label="Registrar sangria" onClick={onSangria}>Sangria</Button>
                 </Box>}
-            </Box>
+            </Paper>
 
-            <Box component="section" aria-labelledby="pagamentos-caixa-titulo"
-                sx={{ minWidth: 0, py: 3, borderTop: { xs: 1, md: 0 }, borderLeft: { md: 1 }, borderColor: "divider" }}>
-                <Typography id="pagamentos-caixa-titulo" component="h3" variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
+            <Paper component="section" variant="outlined" aria-labelledby="pagamentos-caixa-titulo"
+                sx={{ minWidth: 0, p: { xs: 2, sm: 2.5 }, borderRadius: 2, display: "flex", flexDirection: "column" }}>
+                <Typography id="pagamentos-caixa-titulo" component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
                     Meios de pagamento
                 </Typography>
                 {resumo.totaisPorFormaPagamento.length === 0
@@ -551,12 +578,12 @@ function Atual({ abertas, sessaoId, onSessao, resumo, timeline, podeMovimentar, 
                         Nenhuma venda registrada nesta sessão.
                     </Typography>
                     : <>
-                        {linhaForma("dinheiro", "Vendas em dinheiro", vendasEmDinheiro)}
-                        {formasEletronicas.length > 0 && <Typography variant="caption" color="text.secondary" sx={{ display: "block", pt: 1.5, pb: 0.5 }}>
-                            Meios eletrônicos
-                        </Typography>}
-                        {formasEletronicas.map((forma) => linhaForma(forma.formaPagamentoId, forma.descricao, forma.total))}
-                        <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 2, pt: 1.5 }}>
+                        <Stack divider={<Divider flexItem />} sx={{ mt: 0.5 }}>
+                            {linhaForma("dinheiro", "Vendas em dinheiro", vendasEmDinheiro, iconeForma("DINHEIRO"))}
+                            {formasEletronicas.map((forma) => linhaForma(forma.formaPagamentoId, forma.descricao, forma.total, iconeForma(forma.tipo)))}
+                        </Stack>
+                        <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 2,
+                            mt: "auto", pt: 1.5, borderTop: 1, borderColor: "divider" }}>
                             <Typography variant="body2" sx={{ fontWeight: 700 }}>Total vendido</Typography>
                             <Typography variant="body2" align="right" sx={{ fontWeight: 700 }}>{dinheiro(resumo.totalVendas)}</Typography>
                         </Box>
@@ -564,78 +591,84 @@ function Atual({ abertas, sessaoId, onSessao, resumo, timeline, podeMovimentar, 
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
                     Vendas em dinheiro compõem o saldo físico do caixa. Meios eletrônicos seguem para as contas financeiras configuradas.
                 </Typography>
-            </Box>
+            </Paper>
 
-            <Box component="section" aria-labelledby="movimentos-caixa-titulo"
-                sx={{ minWidth: 0, py: 3, pr: { md: 0.5 }, gridColumn: { md: "1 / -1", xl: "auto" },
-                    borderTop: { xs: 1, xl: 0 }, borderLeft: { xl: 1 }, borderColor: "divider",
-                    maxHeight: { md: 340, xl: 520 }, overflowY: { md: "auto" } }}>
-                <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", gap: 2, mb: 2.5 }}>
-                    <Typography id="movimentos-caixa-titulo" component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        Movimentações da sessão
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>{timeline.length} registros</Typography>
+            <Paper component="section" variant="outlined" aria-labelledby="movimentos-caixa-titulo"
+                sx={{ minWidth: 0, p: { xs: 2, sm: 2.5 }, pr: { xs: 2, sm: 1.5 }, borderRadius: 2, gridColumn: { md: "1 / -1", xl: "auto" },
+                    display: "flex", flexDirection: "column" }}>
+                <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", gap: 2, mb: 1.5, flexWrap: "wrap" }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "baseline", minWidth: 0 }}>
+                        <Typography id="movimentos-caixa-titulo" component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
+                            Movimentações da sessão
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                            {timelineFiltrada.length} {timelineFiltrada.length === 1 ? "registro" : "registros"}
+                        </Typography>
+                    </Stack>
+                    <FormControl size="small" sx={{ minWidth: 165 }}>
+                        <Select aria-label="Filtrar movimentações" value={filtroTimeline}
+                            onChange={(e) => setFiltroTimeline(e.target.value)}>
+                            <MenuItem value="TODOS">Todos</MenuItem>
+                            <MenuItem value="VENDA">Vendas</MenuItem>
+                            <MenuItem value="SUPRIMENTO">Suprimentos</MenuItem>
+                            <MenuItem value="SANGRIA">Sangrias e estornos</MenuItem>
+                        </Select>
+                    </FormControl>
                 </Stack>
                 {timeline.length === 0
                     ? <Box role="status" sx={{ py: 3 }}>
                         <Typography variant="body2" color="text.secondary">Nenhuma movimentação registrada nesta sessão.</Typography>
                         <Typography variant="caption" color="text.secondary">Vendas, suprimentos e sangrias aparecerão aqui.</Typography>
                     </Box>
-                    : <Box component="ol" aria-label="Histórico de movimentações da sessão" sx={{ listStyle: "none", p: 0, m: 0 }}>
-                        {timeline.map((movimento) => <Box component="li" key={movimento.chave}
-                            sx={{ position: "relative", display: "grid", gridTemplateColumns: "32px minmax(0, 1fr)", columnGap: 1.5, pb: 2.5,
-                                contentVisibility: "auto", containIntrinsicSize: "auto 88px",
-                                "&:not(:last-child)::before": { content: '""', position: "absolute", top: 32, bottom: 0, left: 15,
-                                    borderLeft: "1px solid", borderColor: "divider" } }}>
-                            <Box sx={{ width: 32, height: 32, borderRadius: "50%", display: "grid", placeItems: "center",
-                                bgcolor: "action.hover", color: movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? "error.main" : movimento.tipo === "SUPRIMENTO" ? "success.main" : "text.secondary" }}>
-                                {movimento.tipo === "VENDA" ? <AccountBalanceWalletRoundedIcon fontSize="small" aria-hidden="true" />
-                                    : movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? <ArrowUpwardRoundedIcon fontSize="small" aria-hidden="true" />
-                                        : <ArrowDownwardRoundedIcon fontSize="small" aria-hidden="true" />}
-                            </Box>
-                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "minmax(0, 1fr) minmax(0, 0.8fr)" }, gap: 0.5 }}>
-                                <Box sx={{ minWidth: 0 }}>
-                                    <Typography variant="body2" sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>{movimento.descricao}</Typography>
-                                    {movimento.formaPagamento && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                                        {movimento.formaPagamento}
-                                    </Typography>}
-                                    <Typography component="time" dateTime={movimento.dataHora} variant="caption" color="text.secondary">
-                                        {data(movimento.dataHora)}
+                    : timelineFiltrada.length === 0
+                        ? <Typography role="status" variant="body2" color="text.secondary" sx={{ py: 3 }}>
+                            Nenhuma movimentação deste tipo nesta sessão.
+                        </Typography>
+                        : <Box component="ol" aria-label="Histórico de movimentações da sessão"
+                            sx={{ listStyle: "none", p: 0, m: 0, pr: { sm: 1 }, maxHeight: { md: 340, xl: 520 }, overflowY: { md: "auto" } }}>
+                            {timelineFiltrada.map((movimento) => <Box component="li" key={movimento.chave}
+                                sx={{ position: "relative", display: "grid", gridTemplateColumns: "32px minmax(0, 1fr)", columnGap: 1.5, pb: 2.5,
+                                    contentVisibility: "auto", containIntrinsicSize: "auto 88px",
+                                    "&:not(:last-child)::before": { content: '""', position: "absolute", top: 32, bottom: 0, left: 15,
+                                        borderLeft: "1px solid", borderColor: "divider" } }}>
+                                <Box sx={{ width: 32, height: 32, borderRadius: "50%", display: "grid", placeItems: "center",
+                                    bgcolor: "action.hover", color: movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? "error.main" : movimento.tipo === "SUPRIMENTO" ? "success.main" : "text.secondary" }}>
+                                    {movimento.tipo === "VENDA" ? <AccountBalanceWalletRoundedIcon fontSize="small" aria-hidden="true" />
+                                        : movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? <ArrowUpwardRoundedIcon fontSize="small" aria-hidden="true" />
+                                            : <ArrowDownwardRoundedIcon fontSize="small" aria-hidden="true" />}
+                                </Box>
+                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "minmax(0, 1fr) minmax(0, 0.8fr)" }, gap: 0.5 }}>
+                                    <Box sx={{ minWidth: 0 }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>{movimento.descricao}</Typography>
+                                        {movimento.formaPagamento && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                            {movimento.formaPagamento}
+                                        </Typography>}
+                                        <Typography component="time" dateTime={movimento.dataHora} variant="caption" color="text.secondary">
+                                            {data(movimento.dataHora)}
+                                        </Typography>
+                                    </Box>
+                                    <Typography variant="body2" sx={{ textAlign: { sm: "right" }, fontWeight: 700, overflowWrap: "anywhere" }}
+                                        color={movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? "error.main" : "text.primary"}>
+                                        {movimento.sinal}{dinheiro(movimento.valor)}
                                     </Typography>
                                 </Box>
-                                <Typography variant="body2" sx={{ textAlign: { sm: "right" }, fontWeight: 700, overflowWrap: "anywhere" }}
-                                    color={movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? "error.main" : "text.primary"}>
-                                    {movimento.sinal}{dinheiro(movimento.valor)}
-                                </Typography>
-                            </Box>
-                        </Box>)}
-                    </Box>}
-            </Box>
-        </Box>
-
-        <Box component="section" aria-label="Fechamento do caixa"
-            sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center", justifyContent: "space-between",
-                borderTop: 1, borderColor: "divider", py: 2.5 }}>
-            <Box sx={{ minWidth: 0 }}>
-                <Stack direction="row" spacing={1} sx={{ alignItems: "center", color: "text.secondary" }}>
-                    <AccountBalanceWalletRoundedIcon fontSize="small" aria-hidden="true" />
-                    <Typography variant="body2" component="h3">Saldo esperado em dinheiro</Typography>
-                </Stack>
-                <Typography sx={{ mt: 0.5, fontSize: 28, lineHeight: 1.25, fontWeight: 750, overflowWrap: "anywhere" }}>
-                    {dinheiro(resumo.saldoEsperadoDinheiro)}
-                </Typography>
-            </Box>
-            {podeFechar && <Button type="button" variant="contained" size="large" onClick={onFechar}
-                aria-label="Fechar Caixa" startIcon={<BlockRoundedIcon />} sx={{ minHeight: 48, px: 4 }}>
-                Fechar Caixa
-            </Button>}
+                            </Box>)}
+                        </Box>}
+                {podeFechar && <Button type="button" variant="contained" size="large" fullWidth onClick={onFechar}
+                    aria-label="Fechar Caixa" startIcon={<BlockRoundedIcon />} sx={{ mt: 2, minHeight: 48 }}>
+                    Fechar Caixa
+                </Button>}
+            </Paper>
         </Box>
     </Stack>;
 }
 
-function Metric({ titulo, valor, cor = "text.primary" }: { titulo: string; valor: number; cor?: string }) {
+function Metric({ titulo, valor, cor = "text.primary", icone }: { titulo: string; valor: number; cor?: string; icone?: ReactNode }) {
     return <Box sx={{ minWidth: 0 }}>
-        <Typography component="dt" variant="caption" color="text.secondary">{titulo}</Typography>
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", color: "text.secondary" }}>
+            {icone}
+            <Typography component="dt" variant="caption">{titulo}</Typography>
+        </Stack>
         <Typography component="dd" sx={{ m: 0, mt: 0.5, fontSize: 20, fontWeight: 650, color: cor, overflowWrap: "anywhere" }}>
             {dinheiro(valor)}
         </Typography>
