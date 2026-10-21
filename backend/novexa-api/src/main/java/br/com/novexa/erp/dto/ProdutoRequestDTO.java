@@ -52,6 +52,15 @@ public class ProdutoRequestDTO {
     @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isFornecedorInformado() { return fornecedorInformado; }
 
+    @jakarta.validation.Valid @jakarta.validation.constraints.Size(max = 50)
+    private java.util.List<@NotNull @jakarta.validation.Valid FornecedorVinculoDTO> fornecedoresAdicionais;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private boolean fornecedoresAdicionaisInformado;
+    public java.util.List<FornecedorVinculoDTO> getFornecedoresAdicionais() { return fornecedoresAdicionais; }
+    public void setFornecedoresAdicionais(java.util.List<FornecedorVinculoDTO> valor) { this.fornecedoresAdicionais = valor; this.fornecedoresAdicionaisInformado = true; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public boolean isFornecedoresAdicionaisInformado() { return fornecedoresAdicionaisInformado; }
+
     @NotBlank(message = "O nome do produto é obrigatório.")
     @Size(max = 150, message = "O nome do produto deve ter no máximo 150 caracteres.")
     private String nome;

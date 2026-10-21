@@ -14,7 +14,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.Locale;
 
 @Service
@@ -32,6 +37,7 @@ public class ProdutoService {
     private final br.com.novexa.erp.repository.CategoriaProdutoRepository categorias;
     private final br.com.novexa.erp.repository.SubcategoriaProdutoRepository subcategorias;
     private final br.com.novexa.erp.repository.MarcaRepository marcas;
+    private final br.com.novexa.erp.repository.ProdutoFornecedorRepository vinculosFornecedores;
 
     public ProdutoService(
             ProdutoRepository produtoRepository,
@@ -40,13 +46,15 @@ public class ProdutoService {
             br.com.novexa.erp.repository.FornecedorRepository fornecedorRepository,
             br.com.novexa.erp.repository.CategoriaProdutoRepository categorias,
             br.com.novexa.erp.repository.SubcategoriaProdutoRepository subcategorias,
-            br.com.novexa.erp.repository.MarcaRepository marcas
+            br.com.novexa.erp.repository.MarcaRepository marcas,
+            br.com.novexa.erp.repository.ProdutoFornecedorRepository vinculosFornecedores
     ) {
         this.produtoRepository = produtoRepository;
         this.empresaService = empresaService;
         this.arquivoStorageService = arquivoStorageService;
         this.fornecedorRepository = fornecedorRepository;
         this.categorias = categorias; this.subcategorias = subcategorias; this.marcas = marcas;
+        this.vinculosFornecedores = vinculosFornecedores;
     }
 
     @Transactional
@@ -71,8 +79,10 @@ public class ProdutoService {
         if (classificacao != null && classificacao.getComponentes() != null)
             composicoes.bloquearEdicao(null, empresaId, classificacao.getComponentes());
 
+        if (classificacao != null) validarVinculos(produto, empresaId, classificacao);
         var salvo=produtoRepository.save(produto);
         if (classificacao != null) composicoes.gravar(salvo, classificacao);
+        if (classificacao != null) gravarVinculos(salvo, empresaId, classificacao);
         return salvo;
     }
 
@@ -229,7 +239,58 @@ public class ProdutoService {
         produtoExistente.setAtivo(dadosNovos.getAtivo());
 
         if (classificacao != null) composicoes.gravar(produtoExistente, classificacao);
-        return produtoRepository.save(produtoExistente);
+        if (classificacao != null) validarVinculos(produtoExistente, empresaId, classificacao);
+        var salvo = produtoRepository.save(produtoExistente);
+        if (classificacao != null) gravarVinculos(salvo, empresaId, classificacao);
+        return salvo;
+    }
+
+    @Transactional(readOnly = true)
+    public List<br.com.novexa.erp.entity.ProdutoFornecedorEntity> vinculosFornecedores(Long produtoId, Long empresaId) {
+        return vinculosFornecedores.findByProdutoIdAndEmpresaId(produtoId, empresaId);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, List<br.com.novexa.erp.entity.ProdutoFornecedorEntity>> vinculosFornecedoresPorProdutos(
+            Collection<Long> produtoIds, Long empresaId) {
+        if (produtoIds == null || produtoIds.isEmpty()) return Map.of();
+        return vinculosFornecedores.findByProdutoIdInAndEmpresaId(produtoIds, empresaId).stream()
+                .collect(Collectors.groupingBy(v -> v.getProduto().getId()));
+    }
+
+    private List<br.com.novexa.erp.dto.FornecedorVinculoDTO> validarVinculos(
+            ProdutoEntity produto, Long empresaId, br.com.novexa.erp.dto.ProdutoRequestDTO dados) {
+        if (dados == null || !dados.isFornecedoresAdicionaisInformado()) return List.of();
+        var lista = dados.getFornecedoresAdicionais() == null
+                ? List.<br.com.novexa.erp.dto.FornecedorVinculoDTO>of()
+                : dados.getFornecedoresAdicionais();
+        Set<Long> vistos = new HashSet<>();
+        for (var v : lista) {
+            if (v.getFornecedorId() == null)
+                throw new ProdutoInvalidoException("Informe o fornecedor de cada vínculo adicional.");
+            if (!vistos.add(v.getFornecedorId()))
+                throw new ProdutoInvalidoException("Fornecedor repetido na lista de vínculos adicionais.");
+            if (produto.getFornecedorPrincipal() != null
+                    && produto.getFornecedorPrincipal().getId().equals(v.getFornecedorId()))
+                throw new ProdutoInvalidoException("O fornecedor principal não pode constar como fornecedor adicional.");
+            buscarFornecedor(v.getFornecedorId(), empresaId);
+        }
+        return lista;
+    }
+
+    private void gravarVinculos(ProdutoEntity produto, Long empresaId, br.com.novexa.erp.dto.ProdutoRequestDTO dados) {
+        var lista = validarVinculos(produto, empresaId, dados);
+        if (dados == null || !dados.isFornecedoresAdicionaisInformado()) return;
+        vinculosFornecedores.deleteByProdutoIdAndEmpresaId(produto.getId(), empresaId);
+        for (var v : lista) {
+            var vinculo = new br.com.novexa.erp.entity.ProdutoFornecedorEntity();
+            vinculo.setEmpresa(produto.getEmpresa());
+            vinculo.setProduto(produto);
+            vinculo.setFornecedor(buscarFornecedor(v.getFornecedorId(), empresaId));
+            vinculo.setCodigoReferencia(v.getCodigoReferencia() == null || v.getCodigoReferencia().isBlank()
+                    ? null : v.getCodigoReferencia().trim());
+            vinculosFornecedores.save(vinculo);
+        }
     }
 
     @Transactional

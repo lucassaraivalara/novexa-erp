@@ -45,6 +45,10 @@ Indice unico parcial por empresa e documento normalizado no banco impede duplici
 
 tipoPessoa e dataAtualizacao legados permanecem null ate atualizacao explicita; dataCadastro, endereco e documentos historicos nao sao reescritos pela migration. Novos registros recebem dataCadastro/dataAtualizacao, e edicoes/inativacao atualizam dataAtualizacao. DELETE nao apaga dados nem referencias historicas. Empresa e imutavel na atualizacao JPA; todas as consultas e alteracoes operacionais usam tenant.
 
+## Fornecedores adicionais do Produto — V51
+
+Além do fornecedor principal, um produto pode ter múltiplos fornecedores adicionais com código de referência/fabricante por vínculo (tabela `produto_fornecedor`, constraints com sufixo `_vinc`). Contrato: `fornecedoresAdicionais[{fornecedorId, codigoReferencia}]` no POST/PUT — omissão preserva, lista substitui, vazia remove; resposta inclui os vínculos com o resumo do fornecedor, em lote e sem N+1. Validações antes de persistir: linha sem fornecedor, fornecedor repetido, igual ao principal ou de outro tenant (404). Na duplicação de produto os vínculos adicionais não são copiados. Detalhes em [produtos.md](produtos.md#cadastro-em-abas-e-vínculo-múltiplo-de-fornecedores--v51).
+
 ## Fornecedor principal do Produto
 
 Implementação local na `main`, sobre `4e71b92`: a V40 aditiva acrescenta `produtos.fornecedor_principal_id` opcional e FK composta com `empresa_id` para `fornecedores(id,empresa_id)`, reutilizando a unicidade da V17. Cada produto possui no máximo um fornecedor principal; um fornecedor pode atender vários produtos. Não há tabela intermediária, inferência pelos dados existentes ou preenchimento automático. Produtos anteriores permanecem sem fornecedor, com preços, custos e saldos preservados.

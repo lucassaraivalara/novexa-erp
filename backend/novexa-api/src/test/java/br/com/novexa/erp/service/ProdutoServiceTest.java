@@ -39,7 +39,7 @@ class ProdutoServiceTest {
 
     @BeforeEach
     void configurar() {
-                produtoService = new ProdutoService(produtoRepository, empresaService, arquivoStorageService, fornecedorRepository, org.mockito.Mockito.mock(br.com.novexa.erp.repository.CategoriaProdutoRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.SubcategoriaProdutoRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.MarcaRepository.class));
+                produtoService = new ProdutoService(produtoRepository, empresaService, arquivoStorageService, fornecedorRepository, org.mockito.Mockito.mock(br.com.novexa.erp.repository.CategoriaProdutoRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.SubcategoriaProdutoRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.MarcaRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.ProdutoFornecedorRepository.class));
     }
 
     @Test

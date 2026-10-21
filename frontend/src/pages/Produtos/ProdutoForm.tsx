@@ -11,13 +11,18 @@ import {
     CircularProgress,
     Divider,
     FormControlLabel,
+    IconButton,
     Radio,
     RadioGroup,
     Stack,
     Switch,
+    Tab,
+    Tabs,
     TextField,
     Typography,
 } from "@mui/material";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import type {Produto, ProdutoInput} from "../../types/produto";
 import {cadastrarProduto, obterMensagemDaApi} from "../../services/produtoService";
@@ -62,6 +67,14 @@ type EstadoFormulario = {
     controlaEstoque: boolean;
     ativo: boolean;
 };
+
+type LinhaVinculo = {
+    fornecedor: FornecedorOpcao | null;
+    codigoReferencia: string;
+};
+
+// Abas do cadastro completo, por responsabilidade: padrão reutilizável para futuros cadastros.
+const ABAS = ["Dados gerais", "Preços e estoque", "Fornecedores", "Kit/Combo", "Fiscal"] as const;
 
 const estadoInicial: EstadoFormulario = {
     codigoInterno: "",
@@ -160,6 +173,17 @@ function ProdutoForm({
     const [fornecedor, setFornecedor] = useState<FornecedorOpcao | null>(produto?.fornecedor ?? null);
     const [classificacao, setClassificacao] = useState<ClassificacaoProduto>({ categoria: produto?.categoria ?? null, subcategoria: produto?.subcategoria ?? null, marca: produto?.marca ?? null });
     const [erroRapido, setErroRapido] = useState("");
+    const [abaAtual, setAbaAtual] = useState(0);
+    // Duplicação não copia os vínculos adicionais: o código de referência é específico do vínculo original.
+    const [vinculos, setVinculos] = useState<LinhaVinculo[]>(() =>
+        !rapido && !duplicando
+            ? (produto?.fornecedoresAdicionais ?? []).map((v) => ({
+                fornecedor: v.fornecedor,
+                codigoReferencia: v.codigoReferencia ?? "",
+            }))
+            : []
+    );
+    const [erroVinculos, setErroVinculos] = useState("");
     const ocupado = useRef(false);
     const salvando = salvandoExterno || salvandoRapido;
     const mensagemErro = erroExterno || erroRapido;
@@ -218,6 +242,20 @@ function ProdutoForm({
         setArquivoImagem(null);
         setPreviewImagem(null);
         setImagemRemovida(true);
+    }
+
+    function atualizarVinculo(indice: number, parte: Partial<LinhaVinculo>) {
+        setVinculos((atual) => atual.map((linha, i) => (i === indice ? { ...linha, ...parte } : linha)));
+        setErroVinculos("");
+    }
+
+    function adicionarVinculo() {
+        setVinculos((atual) => [...atual, { fornecedor: null, codigoReferencia: "" }]);
+    }
+
+    function removerVinculo(indice: number) {
+        setVinculos((atual) => atual.filter((_, i) => i !== indice));
+        setErroVinculos("");
     }
 
     function validar(): ProdutoInput | null {
@@ -295,15 +333,59 @@ function ProdutoForm({
             (formulario.controlaEstoque &&
                 estoqueMinimo === null)
         ) {
+            if (!rapido) {
+                if (novosErros.ncm || novosErros.cest) setAbaAtual(4);
+                else if ((["unidadeMedida", "precoCusto", "precoVenda", "estoqueMinimo"] as const).some((c) => novosErros[c])) setAbaAtual(1);
+                else setAbaAtual(0);
+            }
             return null;
         }
 
         let composicao;
         try { if (composto && componentes !== null) composicao=prepararComposicao(componentes); }
-        catch (e) { setErroRapido(e instanceof Error ? e.message : "Composicao invalida."); return null; }
+        catch (e) {
+            if (!rapido) setAbaAtual(3);
+            setErroRapido(e instanceof Error ? e.message : "Composicao invalida.");
+            return null;
+        }
+
+        const vinculosValidos: { fornecedorId: number; codigoReferencia: string | null }[] = [];
+        if (!rapido) {
+            const vistos = new Set<number>();
+            for (const linha of vinculos) {
+                if (!linha.fornecedor) {
+                    setErroVinculos("Informe o fornecedor de cada vínculo adicional ou remova a linha.");
+                    setAbaAtual(2);
+                    return null;
+                }
+                if (vistos.has(linha.fornecedor.id)) {
+                    setErroVinculos("O mesmo fornecedor aparece mais de uma vez nos vínculos adicionais.");
+                    setAbaAtual(2);
+                    return null;
+                }
+                vistos.add(linha.fornecedor.id);
+                if (fornecedor?.id === linha.fornecedor.id) {
+                    setErroVinculos("O fornecedor principal não pode constar como fornecedor adicional.");
+                    setAbaAtual(2);
+                    return null;
+                }
+                if (linha.codigoReferencia.length > 60) {
+                    setErroVinculos("Use no máximo 60 caracteres no código de referência.");
+                    setAbaAtual(2);
+                    return null;
+                }
+                vinculosValidos.push({
+                    fornecedorId: linha.fornecedor.id,
+                    codigoReferencia: linha.codigoReferencia.trim() || null,
+                });
+            }
+            setErroVinculos("");
+        }
+
         return {
             ...(!rapido ? { composto, ...(composicao ? { componentes: composicao } : {}) } : {}),
             ...(!rapido ? { fornecedorId: fornecedor?.id ?? null, categoriaId: classificacao.categoria?.id ?? null, subcategoriaId: classificacao.subcategoria?.id ?? null, marcaId: classificacao.marca?.id ?? null } : {}),
+            ...(!rapido ? { fornecedoresAdicionais: vinculosValidos } : {}),
             codigoInterno: duplicando && codigoAutomatico ? null : formulario.codigoInterno.trim() || null,
             codigoBarras:
                 formulario.codigoBarras.trim() || null,
@@ -361,12 +443,22 @@ function ProdutoForm({
             }
             onFechar={onFechar}
             onSubmit={enviar}
+            navegacao={rapido ? undefined : (
+                <Tabs
+                    value={abaAtual}
+                    onChange={(_, valor) => setAbaAtual(valor)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    aria-label="Seções do cadastro de produto"
+                    sx={{ px: { xs: 2, sm: 4 } }}
+                >
+                    {ABAS.map((rotulo, indice) => (
+                        <Tab key={rotulo} label={rotulo} id={`produto-aba-${indice}`}
+                            aria-controls={`produto-painel-${indice}`} />
+                    ))}
+                </Tabs>
+            )}
         >
-            {!rapido && <Stack spacing={1.5} sx={{ mb: 2 }}>
-                <FormControlLabel control={<Switch checked={composto} disabled={(!!produto && !duplicando) || salvando || !suportaKit} onChange={(_, v) => setComposto(v)} />} label="Produto composto (Kit/Combo)" />
-                {duplicando && produto?.composto && <Alert severity="info">A composição e o custo calculado do Kit/Combo original não são copiados. Configure os componentes antes de criar um novo Kit/Combo.</Alert>}
-                {!suportaKit && !produto && <Typography variant="caption" color="text.secondary">Kit/Combo requer API atualizada e disponível. Reabra o formulário após a atualização.</Typography>}
-            </Stack>}
             {carregandoProduto ? (
                 <Box
                     sx={{
@@ -385,9 +477,9 @@ function ProdutoForm({
                         </Alert>
                     )}
 
-                    <Stack spacing={1.5}>
+                    {(rapido || abaAtual === 0) && <Stack spacing={1.5}>
                         <Typography variant="subtitle2">
-                            Identificação
+                            {rapido ? "Cadastro rápido" : "Identificação"}
                         </Typography>
 
                         <Divider/>
@@ -482,7 +574,7 @@ function ProdutoForm({
                                     label="Nome"
                                     name="nome"
                                     autoComplete="off"
-                                    autoFocus={!carregandoProduto}
+                                    autoFocus={!carregandoProduto && (rapido || abaAtual === 0)}
                                     value={formulario.nome}
                                     onChange={(e) =>
                                         alterarCampo(
@@ -500,12 +592,6 @@ function ProdutoForm({
                                 />
 
                                 {!rapido && <ClassificacaoProdutoCampos valor={classificacao} onChange={setClassificacao} disabled={salvando} />}
-                                {!rapido && composto && <ComposicaoProdutoCampos produtoId={duplicando ? undefined : produto?.id} valor={componentes} onChange={setComponentes} disabled={salvando} />}
-                                {!rapido && <FornecedorAutocomplete value={fornecedor} onChange={setFornecedor}
-                                    label="Fornecedor principal" disabled={salvando} mostrarErroConsulta
-                                    helperText={produto?.fornecedor?.id === fornecedor?.id && produto?.fornecedor?.ativo === false
-                                        ? "Fornecedor inativo. O vínculo atual pode ser mantido ou removido."
-                                        : "Opcional. Pesquise um fornecedor cadastrado ou limpe para remover o vínculo."} />}
 
                                 {!rapido && <TextField
                                     label="Descrição"
@@ -533,10 +619,6 @@ function ProdutoForm({
                                         },
                                     }}
                                 />}
-                                {!rapido && <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
-                                    <TextField label="NCM" name="ncm" autoComplete="off" value={formulario.ncm} onChange={e => alterarCampo("ncm", e.target.value)} error={Boolean(erros.ncm)} helperText={erros.ncm} slotProps={{ htmlInput: { maxLength: 8, inputMode: "numeric" } }} />
-                                    <TextField label="CEST" name="cest" autoComplete="off" value={formulario.cest} onChange={e => alterarCampo("cest", e.target.value)} error={Boolean(erros.cest)} helperText={erros.cest} slotProps={{ htmlInput: { maxLength: 7, inputMode: "numeric" } }} />
-                                </Box>}
                             </Stack>
 
                             {!rapido && <Stack spacing={0.75}>
@@ -632,11 +714,11 @@ function ProdutoForm({
                                 )}
                             </Stack>}
                         </Box>
-                    </Stack>
+                    </Stack>}
 
-                    <Stack spacing={1.5}>
+                    {(rapido || abaAtual === 1) && <><Stack spacing={1.5}>
                         <Typography variant="subtitle2">
-                            Preços
+                            {rapido ? "Preços" : "Preços"}
                         </Typography>
 
                         <Divider/>
@@ -739,7 +821,7 @@ function ProdutoForm({
                         </Box>
                     </Stack>
 
-                    {!rapido && <><Stack spacing={1.5}>
+                    {!rapido && <Stack spacing={1.5}>
                         <Typography variant="subtitle2">
                             Estoque
                         </Typography>
@@ -863,9 +945,9 @@ function ProdutoForm({
                                 exclusivamente pela tela de Estoque.
                             </Typography>
                         </Box>
-                    </Stack>
+                    </Stack>}
 
-                    <Stack spacing={1.5}>
+                    {!rapido && <Stack spacing={1.5}>
                         <Typography variant="subtitle2">
                             Status
                         </Typography>
@@ -911,15 +993,129 @@ function ProdutoForm({
                                     )
                                 }
                                 slotProps={{
-                                        input: {
-                                            name: "ativo",
-                                            "aria-label":
-                                                "Produto ativo",
+                                    input: {
+                                        name: "ativo",
+                                        "aria-label":
+                                            "Produto ativo",
                                     },
                                 }}
                             />
                         </Box>
-                    </Stack></>}
+                    </Stack>}
+                    </>}
+
+                    {abaAtual === 2 && !rapido && <Stack spacing={1.5}>
+                        <Typography variant="subtitle2">
+                            Fornecedores
+                        </Typography>
+
+                        <Divider/>
+
+                        <FornecedorAutocomplete value={fornecedor} onChange={(f) => { setFornecedor(f); setErroVinculos(""); }}
+                            label="Fornecedor principal" disabled={salvando} mostrarErroConsulta
+                            helperText={produto?.fornecedor?.id === fornecedor?.id && produto?.fornecedor?.ativo === false
+                                ? "Fornecedor inativo. O vínculo atual pode ser mantido ou removido."
+                                : "Opcional. Pesquise um fornecedor cadastrado ou limpe para remover o vínculo."} />
+
+                        <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                                Fornecedores adicionais
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Vínculos extras com o código de referência/fabricante que cada fornecedor usa para este produto.
+                            </Typography>
+                        </Box>
+
+                        {vinculos.length === 0 && (
+                            <Typography variant="body2" color="text.secondary">
+                                Nenhum fornecedor adicional vinculado.
+                            </Typography>
+                        )}
+
+                        {vinculos.map((linha, indice) => (
+                            <Box key={indice}
+                                sx={{
+                                    display: "grid",
+                                    gridTemplateColumns: {
+                                        xs: "1fr",
+                                        sm: "minmax(0, 1fr) 210px 40px",
+                                    },
+                                    gap: 1.5,
+                                    alignItems: "start",
+                                }}>
+                                <FornecedorAutocomplete
+                                    value={linha.fornecedor}
+                                    onChange={(f) => atualizarVinculo(indice, { fornecedor: f })}
+                                    label={`Fornecedor adicional ${indice + 1}`}
+                                    disabled={salvando}
+                                    mostrarErroConsulta
+                                />
+                                <TextField
+                                    label="Cód. referência/fabricante"
+                                    name={`codigoReferencia-${indice}`}
+                                    autoComplete="off"
+                                    value={linha.codigoReferencia}
+                                    onChange={(e) => atualizarVinculo(indice, { codigoReferencia: e.target.value })}
+                                    disabled={salvando}
+                                    slotProps={{ htmlInput: { maxLength: 60 } }}
+                                />
+                                <IconButton
+                                    aria-label={`Remover fornecedor adicional ${indice + 1}`}
+                                    onClick={() => removerVinculo(indice)}
+                                    disabled={salvando}
+                                    sx={{ mt: 0.25 }}
+                                >
+                                    <DeleteOutlineRoundedIcon />
+                                </IconButton>
+                            </Box>
+                        ))}
+
+                        <Box>
+                            <Button
+                                type="button"
+                                variant="outlined"
+                                size="small"
+                                startIcon={<AddRoundedIcon />}
+                                onClick={adicionarVinculo}
+                                disabled={salvando}
+                                sx={{ textTransform: "none" }}
+                            >
+                                Adicionar fornecedor
+                            </Button>
+                        </Box>
+
+                        {erroVinculos && (
+                            <Alert severity="error">
+                                {erroVinculos}
+                            </Alert>
+                        )}
+                    </Stack>}
+
+                    {abaAtual === 3 && !rapido && <Stack spacing={1.5}>
+                        <Typography variant="subtitle2">
+                            Kit/Combo
+                        </Typography>
+
+                        <Divider/>
+
+                        <FormControlLabel control={<Switch checked={composto} disabled={(!!produto && !duplicando) || salvando || !suportaKit} onChange={(_, v) => setComposto(v)} />} label="Produto composto (Kit/Combo)" />
+                        {duplicando && produto?.composto && <Alert severity="info">A composição e o custo calculado do Kit/Combo original não são copiados. Configure os componentes antes de criar um novo Kit/Combo.</Alert>}
+                        {!suportaKit && !produto && <Typography variant="caption" color="text.secondary">Kit/Combo requer API atualizada e disponível. Reabra o formulário após a atualização.</Typography>}
+                        {composto && <ComposicaoProdutoCampos produtoId={duplicando ? undefined : produto?.id} valor={componentes} onChange={setComponentes} disabled={salvando} />}
+                    </Stack>}
+
+                    {abaAtual === 4 && !rapido && <Stack spacing={1.5}>
+                        <Typography variant="subtitle2">
+                            Fiscal
+                        </Typography>
+
+                        <Divider/>
+
+                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+                            <TextField label="NCM" name="ncm" autoComplete="off" value={formulario.ncm} onChange={e => alterarCampo("ncm", e.target.value)} error={Boolean(erros.ncm)} helperText={erros.ncm} slotProps={{ htmlInput: { maxLength: 8, inputMode: "numeric" } }} />
+                            <TextField label="CEST" name="cest" autoComplete="off" value={formulario.cest} onChange={e => alterarCampo("cest", e.target.value)} error={Boolean(erros.cest)} helperText={erros.cest} slotProps={{ htmlInput: { maxLength: 7, inputMode: "numeric" } }} />
+                        </Box>
+                    </Stack>}
                 </Stack>
             )}
         </CadastroDialog>

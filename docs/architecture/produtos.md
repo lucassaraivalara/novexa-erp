@@ -1,5 +1,15 @@
 # Produtos
 
+## Cadastro em abas e vínculo múltiplo de fornecedores — V51
+
+O cadastro completo de Produto foi reorganizado em abas por responsabilidade — **Dados gerais**, **Preços e estoque**, **Fornecedores**, **Kit/Combo** e **Fiscal** — usando o slot de navegação do `CadastroDialog` (Tabs MUI), sem alterar rotas, contratos de salvamento ou o modo de cadastro rápido (que permanece sem abas). A validação do formulário leva o foco para a aba do primeiro campo com erro. O padrão é reutilizável para futuros cadastros; os demais cadastros não foram reformulados.
+
+Além do fornecedor principal (`produtos.fornecedor_principal_id`, V40), um produto pode ter **múltiplos fornecedores adicionais**, cada um com seu código de referência/fabricante. A V51 cria a tabela `produto_fornecedor` (empresa, produto, fornecedor, `codigo_referencia`), com FKs compostas `(id, empresa_id)` no padrão das migrations anteriores e unicidade `(produto_id, fornecedor_id)`. Os nomes das constraints usam o sufixo `_vinc` para não colidir com a V40. Nenhuma migration aplicada foi alterada.
+
+`ProdutoRequestDTO` aceita `fornecedoresAdicionais[{fornecedorId, codigoReferencia}]`. Na criação e na edição, a omissão do campo preserva os vínculos existentes (flag por setter, mesmo padrão do fornecedor principal); lista explícita substitui a anterior; lista vazia remove todos. Validações no backend, antes de persistir: fornecedor obrigatório por linha, sem duplicidade, não pode repetir o principal e deve pertencer à empresa do JWT (404 caso contrário). A resposta passa a incluir `fornecedoresAdicionais[{fornecedor, codigoReferencia}]`, carregados em lote com join fetch, sem N+1 na listagem e na busca.
+
+Na **duplicação**, o fornecedor principal segue o comportamento atual de ser copiado para revisão; os vínculos adicionais não são copiados, pois o código de referência é específico do vínculo original. Não há impacto em estoque, PDV, financeiro ou nas regras de Kit/Combo.
+
 ## Duplicação e código interno — V50
 
 A ação **Duplicar** na listagem consulta o produto da empresa autenticada e abre o mesmo formulário de cadastro com dados cadastrais para revisão. Salvar utiliza o `POST /produtos` existente: cria outro ID com estoque inicial zero, sem copiar código interno, EAN, imagem, saldo, movimentos, auditoria ou histórico. Produto inativo pode servir de base, mas o novo nasce ativo. Kit/Combo não copia composição nem custo calculado; o novo inicia simples e os componentes devem ser configurados explicitamente se o usuário optar por criar outro composto. NCM/CEST e demais dados cadastrais aceitos pelo formulário podem ser revisados. O produto de origem permanece intacto. Não há endpoint de duplicação que grave automaticamente.

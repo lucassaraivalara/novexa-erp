@@ -149,6 +149,7 @@ async function abrir(estado, largura = 1440, rota = "/__entrada") {
             return responder(200, { items, page: 0, size: 25, totalItems: items.length, totalPages: items.length ? 1 : 0 });
         }
         if (u.pathname === "/produtos/buscar") return responder(200, [produto]);
+        if (u.pathname === "/produtos/composicao/capacidade") return responder(200, { habilitado: true });
         if (u.pathname === "/produtos" && req.method() === "POST") {
             if (estado.atrasarProduto) await new Promise(r => setTimeout(r, 500));
             if (estado.erroProduto) return responder(estado.erroProduto, estado.erroProduto === 409
@@ -818,15 +819,22 @@ test("Produto completo: API anterior, campos e callback de criacao permanecem", 
     const estado = novoEstado(), page = await abrir(estado, 1440, "/__produto");
     try {
         const form = page.getByRole("dialog", { name: /^Novo produto/ });
-        for (const campo of ["Código interno", "Código de barras", "Nome", "Descrição", "Unidade de medida", "Preço de custo", "Preço de venda", "Estoque mínimo", "Controla estoque", "Produto ativo"])
+        const aba = (nome) => form.getByRole("tab", { name: nome, exact: true }).click();
+        for (const campo of ["Código interno", "Código de barras", "Nome", "Descrição"])
             assert.ok(await form.getByLabel(campo, { exact: false }).count(), campo);
         assert.ok(await form.getByRole("button", { name: "Selecionar imagem do produto" }).count());
+        await aba("Preços e estoque");
+        for (const campo of ["Unidade de medida", "Preço de custo", "Preço de venda", "Estoque mínimo", "Controla estoque", "Produto ativo"])
+            assert.ok(await form.getByLabel(campo, { exact: false }).count(), campo);
+        await aba("Dados gerais");
         await form.getByLabel("Nome", { exact: false }).fill("Produto completo novo");
         await form.getByLabel("Código interno").fill("COD1");
         await form.getByLabel("Descrição").fill("Descricao completa");
+        await aba("Preços e estoque");
         await form.getByLabel("Preço de custo").fill("4");
         await form.getByLabel("Preço de venda").fill("8");
         await form.getByLabel("Estoque mínimo").fill("2,500");
+        await aba("Dados gerais");
         for (const [campo, nome] of [["Categoria", "Categoria teste"], ["Subcategoria", "Subcategoria teste"], ["Marca", "Marca teste"]]) {
             await form.getByRole("combobox", { name: campo, exact: true }).fill(nome);
             await page.getByRole("option", { name: nome, exact: true }).click();
@@ -845,9 +853,12 @@ test("Produto completo: edicao preserva dados, saldo somente leitura e callback 
     const estado = novoEstado(), page = await abrir(estado, 1440, "/__produto?editar");
     try {
         const form = page.getByRole("dialog", { name: /^Editar produto/ });
+        const aba = (nome) => form.getByRole("tab", { name: nome, exact: true }).click();
         assert.equal(await form.getByLabel("Nome", { exact: false }).inputValue(), "Produto existente");
+        await aba("Preços e estoque");
         assert.equal(await form.getByLabel("Preço de custo").inputValue(), "4,50");
         assert.match(await form.innerText(), /Saldo atual:\s*17,250/);
+        await aba("Dados gerais");
         await form.getByLabel("Nome", { exact: false }).fill("Produto atualizado");
         await form.getByRole("button", { name: "Salvar alterações", exact: true }).click();
         await page.waitForFunction(() => window.__produtoSalvo?.id === 55);

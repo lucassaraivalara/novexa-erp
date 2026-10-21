@@ -73,6 +73,7 @@ async function abrir(e, viewport = { width: 1440, height: 900 }) {
     await p.goto(`${url}/produtos?origem=consulta`); await expect(p.getByRole("cell", { name: /Produto teste/ })).toBeVisible(); return p;
 }
 async function editar(p) { await p.getByRole("row").filter({ has: p.getByRole("cell", { name: /Produto teste/ }) }).getByRole("button", { name: "Editar produto", exact: true }).click(); return p.getByRole("dialog"); }
+const aba = (d, nome) => d.getByRole("tab", { name: nome, exact: true }).click();
 const categorias = [{ id: 10, nome: "Bebidas", ativo: true }, { id: 11, nome: "Alimentos", ativo: true }];
 const subcategorias = [{ id: 20, nome: "Sucos", ativo: true, categoria: categorias[0] }, { id: 21, nome: "Massas", ativo: true, categoria: categorias[1] }];
 const marcas = [{ id: 30, nome: "Marca teste", ativo: true }];
@@ -89,10 +90,13 @@ test("duplicar revisa dados, limpa identificadores e cria novo produto sem tocar
         const d = p.getByRole("dialog");
         await expect(d.getByText("Duplicar produto")).toBeVisible();
         await expect(d.getByRole("textbox", { name: "Código de barras" })).toHaveValue("");
+        await aba(d, "Fiscal");
         await expect(d.getByRole("textbox", { name: "NCM" })).toHaveValue("12345678");
         await expect(d.getByRole("textbox", { name: "CEST" })).toHaveValue("1234567");
+        await aba(d, "Dados gerais");
         await expect(d.getByRole("radio", { name: "Gerar automaticamente" })).toBeChecked();
         await expect(d.getByRole("textbox", { name: "Código interno" })).toHaveCount(0);
+        await aba(d, "Preços e estoque");
         await expect(d.getByText("Saldo atual:")).toBeVisible();
         await d.getByRole("button", { name: "Criar produto" }).click();
         await expect(d).toHaveCount(0);
@@ -134,7 +138,9 @@ test("duplicar Kit não herda composição, custo calculado nem saldo", async ()
         const linha = p.getByRole("row").filter({ has: p.getByRole("cell", { name: /Produto teste/ }) });
         await linha.getByRole("button", { name: "Criar novo produto baseado neste" }).click();
         const d = p.getByRole("dialog");
+        await aba(d, "Kit/Combo");
         await expect(d.getByText(/A composição e o custo calculado/)).toBeVisible();
+        await aba(d, "Preços e estoque");
         await expect(d.getByRole("textbox", { name: "Preço de custo" })).toHaveValue("0,00");
         await d.getByRole("button", { name: "Criar produto" }).click();
         await expect(d).toHaveCount(0);
@@ -157,6 +163,7 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:480}]) {
             await expect(codigo).toHaveAccessibleDescription("Opcional: gerado automaticamente ao cadastrar.");
             await codigo.fill("   ");
             await d.getByRole("textbox",{name:"Nome",exact:true}).fill("Produto com código automático");
+            await aba(d, "Preços e estoque");
             await d.getByRole("textbox",{name:"Preço de venda",exact:true}).fill("10");
             await d.getByRole("button",{name:"Cadastrar produto",exact:true}).click();
             await expect(d).toHaveCount(0);
@@ -187,8 +194,11 @@ test("Kit/Combo aguarda suporte da API sem bloquear cadastro simples",async()=>{
     const e=novoEstado();e.kitIndisponivel=true;const p=await abrir(e);
     try {
         await p.getByRole("button",{name:"Novo produto",exact:true}).click();const d=p.getByRole("dialog");
+        await aba(d, "Kit/Combo");
         await expect(d.getByRole("switch",{name:"Produto composto (Kit/Combo)"})).toBeDisabled();
+        await aba(d, "Dados gerais");
         await d.getByRole("textbox",{name:"Nome",exact:true}).fill("Produto simples");
+        await aba(d, "Preços e estoque");
         await d.getByRole("textbox",{name:"Preço de venda",exact:true}).fill("10");
         await d.getByRole("button",{name:"Cadastrar produto",exact:true}).click();await expect(d).toHaveCount(0);
         assert.equal(gravacoes(e).at(-1).body.composto,false);assert.equal("componentes" in gravacoes(e).at(-1).body,false);
@@ -200,7 +210,9 @@ test("Kit/Combo cadastra componentes, valida quantidade e preserva campos após 
     try {
         await p.getByRole("button",{name:"Novo produto",exact:true}).click();const d=p.getByRole("dialog");
         await d.getByRole("textbox",{name:"Nome",exact:true}).fill("Kit teste");
+        await aba(d, "Preços e estoque");
         await d.getByRole("textbox",{name:"Preço de venda",exact:true}).fill("10");
+        await aba(d, "Kit/Combo");
         await d.getByRole("switch",{name:"Produto composto (Kit/Combo)"}).check();
         const busca=d.getByRole("combobox",{name:"Adicionar componente por nome, código ou EAN"});
         await busca.fill("Produto");await p.getByRole("option",{name:/Produto teste/}).click();
@@ -210,6 +222,7 @@ test("Kit/Combo cadastra componentes, valida quantidade e preserva campos após 
         await d.getByRole("textbox",{name:"Quantidade",exact:true}).fill("2");e.erroSalvar=true;
         await mkdir("node_modules/kit-validacao",{recursive:true});await p.screenshot({path:"node_modules/kit-validacao/cadastro-390.png"});
         await d.getByRole("button",{name:"Cadastrar produto",exact:true}).click();await expect(d.getByRole("alert")).toBeVisible();
+        await aba(d, "Dados gerais");
         await expect(d.getByRole("textbox",{name:"Nome",exact:true})).toHaveValue("Kit teste");
         e.erroSalvar=false;await d.getByRole("button",{name:"Cadastrar produto",exact:true}).click();await expect(d).toHaveCount(0);
         const body=gravacoes(e).at(-1).body;assert.equal(body.composto,true);assert.deepEqual(body.componentes,[{produtoId:10,quantidade:2,fator:1,unidade:"UN"}]);
@@ -221,13 +234,13 @@ test("consulta identifica fornecedor e edição troca ou remove somente o fornec
     const e = novoEstado(), p = await abrir(e);
     try {
         await expect(p.getByText("Fornecedor: Distribuidora inicial", { exact: true })).toBeVisible();
-        const d = await editar(p); const campo = d.getByRole("combobox", { name: "Fornecedor principal", exact: true });
+        const d = await editar(p); await aba(d, "Fornecedores"); const campo = d.getByRole("combobox", { name: "Fornecedor principal", exact: true });
         await expect(campo).toHaveValue("Distribuidora inicial");
         await campo.fill("Outra"); await p.getByRole("option", { name: "Outra distribuidora", exact: true }).click();
         await d.getByRole("button", { name: "Salvar alterações", exact: true }).click(); await expect(d).toHaveCount(0);
         assert.equal(gravacoes(e).at(-1).body.fornecedorId, 2); assert.ok(!("empresaId" in gravacoes(e).at(-1).body));
         await expect(p.getByText("Fornecedor: Outra distribuidora", { exact: true })).toBeVisible();
-        await editar(p); await d.getByRole("combobox", { name: "Fornecedor principal", exact: true }).focus();
+        await editar(p); await aba(d, "Fornecedores"); await d.getByRole("combobox", { name: "Fornecedor principal", exact: true }).focus();
         await d.getByRole("button", { name: /Limpar|Clear/ }).click();
         await d.getByRole("button", { name: "Salvar alterações", exact: true }).click(); await expect(d).toHaveCount(0);
         assert.equal(gravacoes(e).at(-1).body.fornecedorId, null);
@@ -244,8 +257,9 @@ test("cadastro aceita produto sem fornecedor e permite selecionar fornecedor cad
         for (const selecionar of [false, true]) {
             await p.getByRole("button", { name: "Novo produto", exact: true }).click(); const d = p.getByRole("dialog");
             await d.getByRole("textbox", { name: "Nome", exact: true }).fill(selecionar ? "Com fornecedor" : "Sem fornecedor");
+            await aba(d, "Preços e estoque");
             await d.getByRole("textbox", { name: "Preço de venda", exact: true }).fill("10,00");
-            if (selecionar) { await d.getByRole("combobox", { name: "Fornecedor principal", exact: true }).fill("Outra"); await p.getByRole("option", { name: "Outra distribuidora", exact: true }).click(); }
+            if (selecionar) { await aba(d, "Fornecedores"); await d.getByRole("combobox", { name: "Fornecedor principal", exact: true }).fill("Outra"); await p.getByRole("option", { name: "Outra distribuidora", exact: true }).click(); }
             await d.getByRole("button", { name: "Cadastrar produto", exact: true }).click(); await expect(d).toHaveCount(0);
             assert.equal(gravacoes(e).at(-1).body.fornecedorId, selecionar ? 2 : null);
         }
@@ -254,7 +268,7 @@ test("cadastro aceita produto sem fornecedor e permite selecionar fornecedor cad
 
 test("edição usa fornecedor atualizado do detalhe, sem restaurar informação antiga da lista", async () => {
     const e = novoEstado(); e.detalhe = { ...e.produtos[0], fornecedor: e.fornecedores[1] }; const p = await abrir(e);
-    try { const d = await editar(p); await expect(d.getByRole("combobox", { name: "Fornecedor principal", exact: true })).toHaveValue("Outra distribuidora"); }
+    try { const d = await editar(p); await aba(d, "Fornecedores"); await expect(d.getByRole("combobox", { name: "Fornecedor principal", exact: true })).toHaveValue("Outra distribuidora"); }
     finally { await p.close(); }
 });
 
@@ -262,7 +276,7 @@ test("fornecedor inativo permanece selecionado e falha de busca oferece retry se
     const e = novoEstado(); e.fornecedores[0].ativo = false; e.produtos[0].fornecedor = e.fornecedores[0]; e.erroBusca = true;
     const p = await abrir(e);
     try {
-        const d = await editar(p); const campo = d.getByRole("combobox", { name: "Fornecedor principal", exact: true });
+        const d = await editar(p); await aba(d, "Fornecedores"); const campo = d.getByRole("combobox", { name: "Fornecedor principal", exact: true });
         await expect(campo).toHaveValue("Distribuidora inicial"); await expect(d.getByText(/Fornecedor inativo/)).toBeVisible();
         await expect(d.getByRole("alert")).toContainText("Não foi possível consultar");
         e.erroBusca = false; await d.getByRole("button", { name: "Tentar novamente", exact: true }).click();
@@ -279,6 +293,7 @@ test("referência rejeitada mantém formulário, nome digitado e seleção para 
         e.erroSalvar = true; await d.getByRole("button", { name: "Salvar alterações", exact: true }).click();
         await expect(d.getByRole("alert")).toContainText("Fornecedor não encontrado");
         await expect(d.getByRole("textbox", { name: "Nome", exact: true })).toHaveValue("Produto editado");
+        await aba(d, "Fornecedores");
         await expect(d.getByRole("combobox", { name: "Fornecedor principal", exact: true })).toHaveValue("Distribuidora inicial");
         e.erroSalvar = false; await d.getByRole("button", { name: "Salvar alterações", exact: true }).click(); await expect(d).toHaveCount(0);
     } finally { await p.close(); }
@@ -288,7 +303,7 @@ test("fornecedor e ações do formulário ficam acessíveis em desktop, notebook
     for (const [width, height] of [[1440,900],[1366,768],[390,844],[390,320]]) {
         const e = novoEstado(), p = await abrir(e, { width, height }); const erros = []; p.on("pageerror", error => erros.push(error.message));
         try {
-            const d = await editar(p); const campo = d.getByRole("combobox", { name: "Fornecedor principal", exact: true });
+            const d = await editar(p); await aba(d, "Fornecedores"); const campo = d.getByRole("combobox", { name: "Fornecedor principal", exact: true });
             await campo.scrollIntoViewIfNeeded(); await campo.focus(); await expect(campo).toBeFocused();
             assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
             assert.ok(await d.evaluate(el => el.scrollWidth <= el.getBoundingClientRect().width + 1));
@@ -314,7 +329,9 @@ test("classificação cria três vínculos, filtra subcategorias e mostra os nom
         await p.getByRole("button", { name: "Novo produto", exact: true }).click(); const d = p.getByRole("dialog");
         await expect(d.getByRole("combobox", { name: "Subcategoria", exact: true })).toBeDisabled();
         await d.getByRole("textbox", { name: "Nome", exact: true }).fill("Classificado");
+        await aba(d, "Preços e estoque");
         await d.getByRole("textbox", { name: "Preço de venda", exact: true }).fill("10,00");
+        await aba(d, "Dados gerais");
         await selecionarClassificacao(p, d);
         assert.ok(e.chamadas.some(c => c.path === "/produtos/subcategorias" && c.params.get("categoriaId") === "10"));
         await d.getByRole("button", { name: "Cadastrar produto", exact: true }).click(); await expect(d).toHaveCount(0);

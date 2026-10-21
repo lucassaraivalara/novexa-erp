@@ -77,7 +77,8 @@ public class ProdutoController {
         var pagina=produtoService.listarPagina(usuario.empresaId(),
                 busca, campoBusca, situacao, situacaoEstoque, page, size, sort, categoriaId, subcategoriaId, marcaId);
         var consulta=composicoes.consultas(usuario.empresaId(),pagina.getContent().stream().filter(ProdutoEntity::isComposto).map(ProdutoEntity::getId).toList());
-        return br.com.novexa.erp.dto.PaginaResponseDTO.de(pagina,p->resposta(p,consulta));
+        var vinculos=produtoService.vinculosFornecedoresPorProdutos(pagina.getContent().stream().map(ProdutoEntity::getId).toList(),usuario.empresaId());
+        return br.com.novexa.erp.dto.PaginaResponseDTO.de(pagina,p->resposta(p,consulta,vinculos));
     }
 
     @GetMapping("/buscar")
@@ -87,7 +88,8 @@ public class ProdutoController {
 
         var encontrados=produtoService.buscarPorTermo(usuario.empresaId(),termo);
         var consulta=composicoes.consultas(usuario.empresaId(),encontrados.stream().filter(ProdutoEntity::isComposto).map(ProdutoEntity::getId).toList());
-        var produtos=encontrados.stream().map(p->resposta(p,consulta)).toList();
+        var vinculos=produtoService.vinculosFornecedoresPorProdutos(encontrados.stream().map(ProdutoEntity::getId).toList(),usuario.empresaId());
+        var produtos=encontrados.stream().map(p->resposta(p,consulta,vinculos)).toList();
 
         return ResponseEntity.ok(produtos);
     }
@@ -145,10 +147,22 @@ public class ProdutoController {
     }
 
     private ProdutoResponseDTO resposta(ProdutoEntity p) {
-        return resposta(p,composicoes.consultas(p.getEmpresa().getId(),p.isComposto()?List.of(p.getId()):List.of()));
+        var consulta=composicoes.consultas(p.getEmpresa().getId(),p.isComposto()?List.of(p.getId()):List.of());
+        var vinculos=produtoService.vinculosFornecedoresPorProdutos(List.of(p.getId()),p.getEmpresa().getId());
+        return resposta(p,consulta,vinculos);
     }
     private ProdutoResponseDTO resposta(ProdutoEntity p,java.util.Map<Long,List<ProdutoResponseDTO.Componente>> consulta) {
-        var dto=produtoMapper.toResponse(p);dto.setComponentes(consulta.getOrDefault(p.getId(),List.of()));return dto;
+        return resposta(p,consulta,java.util.Map.of());
+    }
+    private ProdutoResponseDTO resposta(ProdutoEntity p,java.util.Map<Long,List<ProdutoResponseDTO.Componente>> consulta,
+                                        java.util.Map<Long,List<br.com.novexa.erp.entity.ProdutoFornecedorEntity>> vinculos) {
+        var dto=produtoMapper.toResponse(p);dto.setComponentes(consulta.getOrDefault(p.getId(),List.of()));
+        dto.setFornecedoresAdicionais(vinculos.getOrDefault(p.getId(),List.of()).stream().map(this::vinculoResposta).toList());
+        return dto;
+    }
+    private ProdutoResponseDTO.FornecedorVinculo vinculoResposta(br.com.novexa.erp.entity.ProdutoFornecedorEntity v) {
+        return new ProdutoResponseDTO.FornecedorVinculo(
+                br.com.novexa.erp.dto.FornecedorProdutoResponseDTO.de(v.getFornecedor()), v.getCodigoReferencia());
     }
 
     @org.springframework.web.bind.annotation.ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
@@ -159,7 +173,7 @@ public class ProdutoController {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Já existe um produto com este código interno na empresa informada.");
             }
             if (causa instanceof org.hibernate.exception.ConstraintViolationException restricao
-                    && java.util.Set.of("fk_produto_fornecedor_empresa", "fk_produto_categoria_empresa", "fk_produto_subcategoria_empresa", "fk_produto_marca_empresa", "ck_produto_subcategoria_categoria").contains(restricao.getConstraintName())) {
+                    && java.util.Set.of("fk_produto_fornecedor_empresa", "fk_produto_fornecedor_vinc_empresa", "fk_produto_fornecedor_vinc_produto", "fk_produto_fornecedor_vinc_fornecedor", "fk_produto_categoria_empresa", "fk_produto_subcategoria_empresa", "fk_produto_marca_empresa", "ck_produto_subcategoria_categoria").contains(restricao.getConstraintName())) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Cadastro indisponível ou vínculo inválido. Atualize a consulta e tente novamente.");
             }
         }

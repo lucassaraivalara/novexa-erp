@@ -26,6 +26,12 @@ export type Produto = {
     subcategoria?: SubcategoriaProduto | null;
     marca?: Marca | null;
     fornecedor?: { id: number; razaoSocial: string; nomeFantasia: string | null; ativo: boolean } | null;
+    fornecedoresAdicionais?: { fornecedor: { id: number; razaoSocial: string; nomeFantasia: string | null; ativo: boolean }; codigoReferencia: string | null }[];
+};
+
+export type ProdutoFornecedorVinculoInput = {
+    fornecedorId: number;
+    codigoReferencia?: string | null;
 };
 
 export type ProdutoInput = {
@@ -35,6 +41,7 @@ export type ProdutoInput = {
     subcategoriaId?: number | null;
     marcaId?: number | null;
     fornecedorId?: number | null;
+    fornecedoresAdicionais?: ProdutoFornecedorVinculoInput[];
     ncm?: string | null;
     cest?: string | null;
     codigoInterno: string | null;
