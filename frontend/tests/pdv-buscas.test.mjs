@@ -38,6 +38,14 @@ before(async () => {
 });
 after(async () => { await browser?.close(); await server?.close(); });
 const consultas = (estado, dominio) => estado.requests.filter(r => r.path === `/${dominio}/buscar`);
+const consultasAvancadas = estado => estado.requests.filter(r => r.path === "/produtos");
+async function abrirBuscaAvancada(page) {
+    await page.keyboard.press("Control+b");
+    const dialogo = page.getByRole("dialog", { name: "Busca avançada de produtos" });
+    await esperarFoco(page, dialogo.getByRole("textbox", { name: "Pesquisar produtos" }));
+    await dialogo.getByRole("button", { name: "Adicionar produto", exact: true }).first().waitFor();
+    return dialogo;
+}
 async function esperar(condicao) {
     for (let i = 0; i < 120 && !condicao(); i++) await new Promise(r => setTimeout(r, 25));
     assert.ok(condicao(), "Request esperado nao chegou");
@@ -83,6 +91,22 @@ async function abrir({ hasTouch = false, adiarRender = false, sessoes, caixas = 
             { id: 4, tipo: "CREDITO", nomeExibicao: "Crédito Loja", ativo: true },
             { id: 5, tipo: "CREDITO", nomeExibicao: "Cartão inativo", ativo: false },
         ];
+        else if (["/produtos/categorias", "/produtos/marcas"].includes(u.pathname)) {
+            dados = { items: [{ id: 12, nome: u.pathname.endsWith("marcas") ? "Marca teste" : "Categoria teste", ativo: true }], totalItems: 1, page: 0, size: 25, totalPages: 1 };
+        }
+        else if (u.pathname === "/produtos") {
+            if (estado.atrasarAvancada && u.searchParams.get("busca") === "antiga") await new Promise(r => setTimeout(r, 900));
+            if (estado.erroAvancada) return route.fulfill({ status: 500, headers: cors, contentType: "application/json", body: JSON.stringify({ detail: "Consulta temporariamente indisponível." }) });
+            const lista = estado.produtosAvancados ?? Array.from({ length: 23 }, (_, i) => ({ ...produto(`Produto avançado ${i + 1}`, String(1001 + i)),
+                id: i + 1, codigoBarras: `789000${i + 1}`, controlaEstoque: true, estoqueAtual: i === 0 ? 0 : 20,
+                categoria: { id: 12, nome: "Categoria teste", ativo: true }, marca: { id: 12, nome: "Marca teste", ativo: true } }));
+            const termo = (u.searchParams.get("busca") ?? "").toLowerCase();
+            const campo = u.searchParams.get("campoBusca");
+            const filtrada = lista.filter(p => (!termo || (campo ? [p[campo]] : [p.nome, p.codigoInterno, p.codigoBarras]).some(v => String(v).toLowerCase().includes(termo)))
+                && (u.searchParams.get("situacao") === "todos" || p.ativo === (u.searchParams.get("situacao") !== "inativos")));
+            const page = Number(u.searchParams.get("page")), size = Number(u.searchParams.get("size"));
+            dados = { items: filtrada.slice(page * size, (page + 1) * size), totalItems: filtrada.length, page, size, totalPages: Math.ceil(filtrada.length / size) };
+        }
         else if (u.pathname.endsWith("/buscar")) {
             if (estado.atrasar && registro.termo === "antiga") await new Promise(r => setTimeout(r, 1000));
             if (estado.atrasarScanner && registro.termo === "7890001") await new Promise(r => setTimeout(r, 700));
@@ -110,6 +134,151 @@ async function abrir({ hasTouch = false, adiarRender = false, sessoes, caixas = 
         assert.equal(await busca.isEnabled(), true);
     }
     return { page, estado, busca };
+}
+
+test("busca avançada reutiliza carrinho por mouse e teclado, preserva rascunho e não grava venda", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        assert.equal(consultasAvancadas(estado).length, 0);
+        await busca.fill("7890001"); await busca.press("Enter");
+        await conferirQuantidade(page, "Produto remoto", "1");
+        const dialogo = await abrirBuscaAvancada(page);
+        assert.match(await dialogo.getByRole("row").filter({ hasText: "Produto avançado 1" }).first().innerText(), /R\$\s*10,00/);
+        const pesquisa = dialogo.getByRole("textbox", { name: "Pesquisar produtos" });
+        await pesquisa.press("ArrowDown");
+        const primeiro = dialogo.getByRole("button", { name: "Adicionar produto", exact: true }).first();
+        await esperarFoco(page, primeiro); await primeiro.press("Enter");
+        await dialogo.getByRole("status").filter({ hasText: "Produto avançado 1 adicionado" }).waitFor();
+        await esperarFoco(page, primeiro);
+        await primeiro.press("ArrowDown");
+        const segundo = dialogo.getByRole("button", { name: "Adicionar produto", exact: true }).nth(1);
+        await esperarFoco(page, segundo); await segundo.press("Space");
+        await segundo.click();
+        await page.keyboard.press("F2");
+        assert.equal(await page.getByRole("dialog", { name: "Pagamento da venda" }).count(), 0);
+        await page.keyboard.press("Escape"); await esperarFoco(page, busca);
+        assert.equal(await page.getByLabel("Quantidade de Produto avançado 1").inputValue(), "2");
+        assert.equal(await page.getByLabel("Quantidade de Produto avançado 2").inputValue(), "2");
+        const salvo = JSON.parse(await page.evaluate(() => sessionStorage.getItem("novexa-pdv:1:1:10")));
+        assert.equal(salvo.itens.length, 2);
+        assert.equal(consultasAvancadas(estado).length, 1);
+        assert.equal(estado.requests.some(r => r.method === "POST"), false);
+    } finally { await page.close(); }
+});
+
+test("busca avançada envia filtros, paginação e ordenação ao servidor sem tenant ou consultas por linha", async () => {
+    const { page, estado } = await abrir();
+    try {
+        const dialogo = await abrirBuscaAvancada(page);
+        assert.deepEqual(consultasAvancadas(estado)[0].params, { situacao: "ativos", page: "0", size: "10", sort: "nome,asc" });
+        await dialogo.getByRole("button", { name: "Próxima página" }).click();
+        await dialogo.getByText("Produto avançado 11", { exact: true }).waitFor();
+        assert.equal(consultasAvancadas(estado).at(-1).params.page, "1");
+        await dialogo.getByRole("button", { name: "Preço" }).click();
+        await esperar(() => consultasAvancadas(estado).at(-1)?.params.sort === "precoVenda,asc");
+        await dialogo.getByRole("combobox", { name: "Categoria", exact: true }).fill("Categoria");
+        await page.getByRole("option", { name: "Categoria teste", exact: true }).click();
+        await dialogo.getByRole("combobox", { name: "Marca", exact: true }).fill("Marca");
+        await page.getByRole("option", { name: "Marca teste", exact: true }).click();
+        await dialogo.getByRole("combobox", { name: "Estoque", exact: true }).click();
+        await page.getByRole("option", { name: "Zerado", exact: true }).click();
+        await esperar(() => consultasAvancadas(estado).at(-1)?.params.situacaoEstoque === "zerado");
+        assert.equal(consultasAvancadas(estado).at(-1).params.page, "0");
+        assert.equal(consultasAvancadas(estado).at(-1).params.categoriaId, "12");
+        assert.equal(consultasAvancadas(estado).at(-1).params.marcaId, "12");
+        await dialogo.getByRole("button", { name: "Limpar filtros" }).click();
+        await esperar(() => !consultasAvancadas(estado).at(-1)?.params.categoriaId);
+        assert.ok(estado.requests.every(r => !r.params.empresaId && !/^\/produtos\/\d+$/.test(r.path)));
+        assert.equal(estado.requests.some(r => r.method === "POST"), false);
+    } finally { await page.close(); }
+});
+
+test("busca avançada busca nome/código/EAN com debounce, cancela respostas antigas e trata vazio/erro/retry", async () => {
+    const { page, estado } = await abrir();
+    try {
+        const dialogo = await abrirBuscaAvancada(page);
+        const pesquisa = dialogo.getByRole("textbox", { name: "Pesquisar produtos" });
+        await pesquisa.fill("78900"); await page.waitForTimeout(80); await pesquisa.fill("7890002");
+        await esperar(() => consultasAvancadas(estado).at(-1)?.params.busca === "7890002");
+        await dialogo.getByRole("button", { name: "Adicionar produto", exact: true }).first().waitFor();
+        assert.equal(consultasAvancadas(estado).filter(r => r.params.busca === "78900").length, 0);
+        assert.equal(consultasAvancadas(estado).at(-1).params.busca, "7890002");
+        await dialogo.getByRole("combobox", { name: "Pesquisar por", exact: true }).click();
+        await page.getByRole("option", { name: "Código interno", exact: true }).click();
+        await pesquisa.fill("1002"); await pesquisa.press("Enter");
+        await esperar(() => consultasAvancadas(estado).at(-1)?.params.busca === "1002");
+        assert.equal(consultasAvancadas(estado).at(-1).params.campoBusca, "codigoInterno");
+        estado.atrasarAvancada = true;
+        await pesquisa.fill("antiga"); await esperar(() => consultasAvancadas(estado).at(-1)?.params.busca === "antiga");
+        await pesquisa.fill("1003"); await dialogo.getByText("Produto avançado 3", { exact: true }).waitFor();
+        await page.waitForTimeout(1000);
+        assert.equal(await dialogo.getByText("Produto avançado 3", { exact: true }).count(), 1);
+        await pesquisa.fill("não existe"); await dialogo.getByText("Nenhum produto encontrado", { exact: true }).waitFor();
+        estado.erroAvancada = true;
+        await dialogo.getByRole("button", { name: "Buscar", exact: true }).click();
+        await dialogo.getByRole("alert").filter({ hasText: "Consulta temporariamente indisponível." }).waitFor();
+        assert.equal(await pesquisa.inputValue(), "não existe");
+        estado.erroAvancada = false;
+        await dialogo.getByRole("button", { name: "Tentar novamente", exact: true }).click();
+        await dialogo.getByText("Nenhum produto encontrado", { exact: true }).waitFor();
+        await pesquisa.fill("   ");
+        await dialogo.getByText("Produto avançado 1", { exact: true }).waitFor();
+        assert.equal("busca" in consultasAvancadas(estado).at(-1).params, false);
+        estado.produtosAvancados = [];
+        await dialogo.getByRole("button", { name: "Buscar", exact: true }).click();
+        await dialogo.getByText("Nenhum produto encontrado", { exact: true }).waitFor();
+        const antesDeFechar = consultasAvancadas(estado).length;
+        await pesquisa.fill("cancelar consulta pendente"); await pesquisa.press("Escape");
+        await page.waitForTimeout(450);
+        assert.equal(consultasAvancadas(estado).length, antesDeFechar);
+        assert.equal(estado.requests.some(r => r.method === "POST"), false);
+    } finally { await page.close(); }
+});
+
+test("busca avançada bloqueia produto inativo e preserva kit com estoque zerado sem baixa antecipada", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        estado.produtosAvancados = [{ ...produto("Kit disponível", "KIT-1"), composto: true, controlaEstoque: true, estoqueAtual: 0,
+            componentes: [{ produtoId: 20, nome: "Componente", unidade: "UN", quantidadePorKit: 2, estoqueAtual: 0 }] },
+            { ...produto("Produto inativo", "P2"), id: 2, ativo: false }];
+        const dialogo = await abrirBuscaAvancada(page);
+        await dialogo.getByRole("combobox", { name: "Situação", exact: true }).click();
+        await page.getByRole("option", { name: "Todos", exact: true }).click();
+        const inativo = dialogo.getByRole("row").filter({ hasText: "Produto inativo" });
+        await inativo.waitFor();
+        assert.equal(await inativo.getByRole("button", { name: "Adicionar produto" }).isDisabled(), true);
+        await dialogo.getByRole("row").filter({ hasText: "Kit disponível" }).getByRole("button", { name: "Adicionar produto" }).click();
+        await dialogo.getByRole("button", { name: "Voltar à venda" }).click(); await esperarFoco(page, busca);
+        await page.getByLabel("Quantidade de Kit disponível").waitFor();
+        const salvo = JSON.parse(await page.evaluate(() => sessionStorage.getItem("novexa-pdv:1:1:10")));
+        assert.equal(salvo.itens[0].produto.composto, true);
+        assert.equal(salvo.itens[0].produto.componentes[0].quantidadePorKit, 2);
+        assert.equal(estado.requests.some(r => r.method === "POST"), false);
+    } finally { await page.close(); }
+});
+
+for (const [largura, altura, tema, colorScheme] of [[1440, 900, "light", "light"], [1280, 650, "dark", "dark"], [390, 844, "system", "dark"], [1024, 480, "system", "light"]]) {
+    test(`busca avançada visual/foco ${largura}x${altura} ${tema}`, async () => {
+        const { page, estado, busca } = await abrir({ tema, colorScheme });
+        try {
+            await page.setViewportSize({ width: largura, height: altura });
+            await page.getByRole("button", { name: "Busca avançada · Ctrl+B", exact: true }).click();
+            const dialogo = page.getByRole("dialog", { name: "Busca avançada de produtos" });
+            const pesquisa = dialogo.getByRole("textbox", { name: "Pesquisar produtos" });
+            await esperarFoco(page, pesquisa);
+            await dialogo.getByRole("button", { name: "Adicionar produto", exact: true }).first().waitFor();
+            await pesquisa.press("Tab"); await page.keyboard.press("Shift+Tab"); await esperarFoco(page, pesquisa);
+            await page.keyboard.press("Control+b"); await page.keyboard.press("F5"); await esperarFoco(page, pesquisa);
+            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+            const fechar = dialogo.getByRole("button", { name: "Voltar à venda" });
+            await fechar.focus(); await fechar.press("Tab");
+            assert.equal(await dialogo.evaluate(el => el.contains(document.activeElement)), true);
+            await mkdir("node_modules/busca-avancada-validacao", { recursive: true });
+            await page.screenshot({ path: `node_modules/busca-avancada-validacao/${largura}-${altura}-${tema}.png`, animations: "disabled" });
+            await page.keyboard.press("Escape"); await esperarFoco(page, busca);
+            assert.equal(estado.requests.some(r => r.method === "POST"), false);
+        } finally { await page.close(); }
+    });
 }
 
 for (const largura of [1440,390]) test(`Kit/Combo no PDV recalcula consumo sem movimentar antes de finalizar em ${largura}px`, async () => {

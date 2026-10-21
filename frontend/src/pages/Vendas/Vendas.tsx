@@ -27,6 +27,7 @@ import type { Produto } from "../../types/produto";
 import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
 import { carregarRascunhoSalvo, salvarRascunho, encontrarProdutoPorCodigo, criarPedido, decimal, moeda, moverIndiceProduto, novoRascunho, subtotalItem, totais, type RascunhoPDV } from "./pdv";
 import PagamentoVendaDialog from "./PagamentoVendaDialog";
+import BuscaAvancadaProdutoDialog from "./BuscaAvancadaProdutoDialog";
 import SessaoCaixaPDVDialog from "./SessaoCaixaPDVDialog";
 import VendaFinalizacaoDialog, { type EstadoFinalizacao } from "./VendaFinalizacaoDialog";
 import PdvActionButton from "./PdvActionButton";
@@ -63,6 +64,7 @@ export default function Vendas() {
     const chaveRascunho = chaveOperador + ":" + rascunho.sessaoCaixaId;
     const [limpezaAberta, setLimpezaAberta] = useState(false);
     const [pagamentoAberto, setPagamentoAberto] = useState(false);
+    const [buscaAvancadaAberta, setBuscaAvancadaAberta] = useState(false);
     const [estoqueConfirmado, setEstoqueConfirmado] = useState(false);
     const formaPagamentoRef = useRef<HTMLButtonElement>(null);
     const confirmarPagamentoRef = useRef<HTMLButtonElement>(null);
@@ -102,7 +104,7 @@ export default function Vendas() {
     const t = totais(rascunho);
     const bloqueado = !sessaoCaixaResolvida || salvando || !!rascunho.pendente;
     const { term: busca, setTerm, loading, cancel, refresh } = useRemoteSearch<Produto>({
-        enabled: !bloqueado, search: pesquisarProdutos,
+        enabled: !bloqueado && !buscaAvancadaAberta, search: pesquisarProdutos,
         onResults: lista => { setResultados(lista); setBuscaConcluida(true); setErroCatalogo(""); },
         onError: e => { setResultados([]); setErroCatalogo(obterMensagemDaApi(e, "Não foi possível buscar os produtos.")); },
         onInvalidTerm: () => setResultados([]),
@@ -117,6 +119,7 @@ export default function Vendas() {
         || t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))));
 
     useLayoutEffect(() => {
+        if (buscaAvancadaAberta) return;
         const id = quantidadeFocoPendenteRef.current;
         if (id === null) return;
         const campo = quantidadesRef.current[id];
@@ -125,7 +128,7 @@ export default function Vendas() {
         quantidadeFocoPendenteRef.current = null;
         campo.focus();
         campo.select();
-    }, [rascunho.itens]);
+    }, [rascunho.itens, buscaAvancadaAberta]);
 
     useEffect(() => {
         if (bloqueado) { cancel(); scannerRef.current?.abort(); }
@@ -222,6 +225,14 @@ export default function Vendas() {
     }
     function fecharOpcional() { setOpcional(null); if (!pagamentoAberto) focarBusca(); }
     function fecharLimpeza() { setLimpezaAberta(false); focarBusca(); }
+    function abrirBuscaAvancada() {
+        if (bloqueado || pagamentoAberto || opcional || limpezaAberta || finalizacao || confirmacaoEstoque) return;
+        cancel(); scannerRef.current?.abort(); setListaAberta(false); setErro(""); setBuscaAvancadaAberta(true);
+    }
+    function fecharBuscaAvancada() {
+        quantidadeFocoPendenteRef.current = null;
+        setBuscaAvancadaAberta(false); focarBusca();
+    }
     function alterar(patch: Partial<RascunhoPDV>) {
         if (!bloqueado) {
             if (patch.itens || patch.desconto !== undefined) setEstoqueConfirmado(false);
@@ -257,10 +268,10 @@ export default function Vendas() {
         setSelecionado(id); focarBusca();
     }
     function adicionar(produto: Produto) {
-        if (bloqueado) return;
+        if (bloqueado) return false;
         setEstoqueConfirmado(false);
         if (rascunho.itens.length >= 200 && !rascunho.itens.some(i => i.produto.id === produto.id)) {
-            setErro("O limite é de 200 produtos diferentes por venda."); return;
+            setErro("O limite é de 200 produtos diferentes por venda."); return false;
         }
         quantidadeFocoPendenteRef.current = produto.id;
         setRascunho(r => {
@@ -270,6 +281,7 @@ export default function Vendas() {
             return { ...r, itens: [...r.itens, { produto, quantidade: "1" }] };
         });
         setBusca(""); setListaAberta(false); setIndice(0); setSelecionado(produto.id); setErro("");
+        return true;
     }
     function remover(id: number) {
         alterar({ itens: rascunho.itens.filter(i => i.produto.id !== id) });
@@ -366,6 +378,10 @@ export default function Vendas() {
         } finally { emEnvio.current = false; setSalvando(false); }
     }
     function atalhos(e: KeyboardEvent) {
+        if (e.ctrlKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === "b") {
+            e.preventDefault(); if (!e.repeat) abrirBuscaAvancada(); return;
+        }
+        if (buscaAvancadaAberta) return;
         if (e.altKey || e.ctrlKey && e.key !== "Delete" || e.metaKey) return;
         if (["F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9"].includes(e.key)) e.preventDefault();
         if (confirmacaoEstoque || pagamentoAberto) return;
@@ -411,6 +427,7 @@ export default function Vendas() {
     </Box>;
 
     return <Box sx={{ height: { xs: "auto", md: "100dvh" }, minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: cores.canvas }}>
+        {buscaAvancadaAberta && <BuscaAvancadaProdutoDialog termoInicial={busca} erroInclusao={erro} onAdicionar={adicionar} onFechar={fecharBuscaAvancada} />}
         <PagamentoVendaDialog open={pagamentoAberto} rascunho={rascunho} t={t} configuracoes={configuracoes}
             carregando={carregandoConfig} erroConfig={erroConfig} erro={erro} estoqueConfirmado={estoqueConfirmado}
             bloqueado={bloqueado} salvando={salvando} confirmarDesabilitado={pagarDesabilitado}
@@ -470,7 +487,10 @@ export default function Vendas() {
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) 320px", xl: "minmax(0, 1fr) 360px" }, gap: 1, p: 1, flex: 1, minHeight: 0, minWidth: 0 }}>
             <Stack spacing={1} sx={{ minHeight: 0, minWidth: 0, display: { xs: "contents", md: "flex" } }}>
                 <Box role="group" aria-label="Inclusão de produto" sx={{ order: { xs: 0 }, bgcolor: "background.paper", p: 1.25, border: 1, borderColor: cores.border }}>
-                    <Typography variant="caption" sx={{ display: "block", color: cores.title, fontWeight: 800, mb: 1 }}>INCLUSÃO DE PRODUTO</Typography>
+                    <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", gap: 1, mb: 1, flexWrap: "wrap" }}>
+                        <Typography variant="caption" sx={{ color: cores.title, fontWeight: 800 }}>INCLUSÃO DE PRODUTO</Typography>
+                        <Button size="small" startIcon={<SearchIcon />} disabled={bloqueado} onClick={abrirBuscaAvancada} aria-keyshortcuts="Control+b">Busca avançada · Ctrl+B</Button>
+                    </Stack>
                     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr) 100px", sm: "minmax(0, 1fr) 110px 100px 90px" }, gap: 1, alignItems: "start" }}>
                     <Box sx={{ position: "relative", minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
                     <TextField fullWidth size="small" autoFocus inputRef={buscaRef} disabled={!sessaoCaixaResolvida || salvando} value={busca}

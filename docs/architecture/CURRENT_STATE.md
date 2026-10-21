@@ -1,5 +1,11 @@
 Empresa ........ funcional
 
+## Busca avançada de produtos no PDV — 2026-10-21
+
+Implementação frontend com botão/Ctrl+B, modal MUI, tabela paginada e filtros reais de Produtos. Reutilizados serviço paginado, seletores de classificação e inclusão existente do carrinho; busca rápida, scanner, kits, rascunho, pagamentos e regras de estoque preservados. Sem alteração de backend/migrations. Descrição não integra a busca disponível; situações de estoque seguem os valores existentes da API. Detalhes em [frontend.md](frontend.md#busca-avançada-de-produtos-no-pdv-2026-10-21).
+
+Validação local: oito cenários específicos de interface em Chromium com HTTP simulado e regressões direcionadas do PDV, sem operação financeira real. Layouts 1440×900, 1280×650, 390×844 e 1024×480 em claro/escuro/automático; foco, teclado, paginação/filtros/ordenação, erro/retry, vazio, cancelamento de respostas e inclusão consecutiva. Build frontend, lint dos arquivos afetados e diff check aprovados; aviso de chunk acima de 500 kB permanece. Commit `a4a064b` publicado na main; deploy frontend via Vercel. Evidência simulada não substitui homologação com a API real.
+
 ## Pagamento do PDV por configurações visíveis — 2026-10-21
 
 Implementação local exclusivamente frontend: `PagamentoVendaDialog` exibe configurações ativas diretamente, resumo e produtos, distribuição mista, valor aplicado separado do entregue em dinheiro e troco. Reutilizados os cálculos em centavos, parcelas/clientes, rascunho, validações, POST existente e UUID. F2 abre a etapa a partir do carrinho e conclui dentro dela somente com valores válidos; Enter no valor apenas avança o foco. Sem alteração de backend, políticas financeiras, estoque ou contratos. Não publicado nem implantado nesta tarefa; validação de interface usa HTTP simulado. Detalhes em [frontend.md](frontend.md#configuracoes-empresariais-no-pdv).

@@ -1,4 +1,12 @@
 
+## Busca avançada de produtos no PDV (2026-10-21)
+
+O botão em Inclusão de produto e Ctrl+B abrem `BuscaAvancadaProdutoDialog`, sem navegação ou gravação. A pesquisa rápida/leitor permanece existente. O diálogo reutiliza `listarProdutosPaginado`, `AppTable`, os seletores remotos de categoria/marca e a mesma função de inclusão do carrinho. Permite adicionar produtos consecutivamente, incluindo repetidos e kits, sem perder o rascunho; inativos são consultáveis, mas não adicionáveis. Estoque zerado não cria bloqueio adicional: a validação de finalização existente permanece autoridade.
+
+Pesquisa por nome, código interno ou código de barras/EAN; categoria, marca, situação e estoque conforme o contrato atual (acima do mínimo, baixo, zerado, sem controle). Descrição não é pesquisável pelo endpoint atual; não foi criado filtro fictício nem alterado o backend. Filtros, ordenação e paginação são remotos, com debounce, cancelamento e proteção contra respostas antigas; consultas de classificação são limitadas e pesquisáveis. Não há pré-carga do catálogo nem consulta individual por linha.
+
+MUI Dialog mantém foco contido: busca inicial, setas entre ações de inclusão, Enter/Space adicionam, Escape fecha e devolve foco à busca rápida. Atalhos operacionais não atuam sobre o carrinho enquanto o diálogo está aberto. Estados de loading, vazio e erro/retry preservam os critérios; tabela tem rolagem local e colunas secundárias ocultas em telas menores. Validação em Chromium com HTTP simulado cobre interface e requisições, não comprova integração com banco nem homologação em produção.
+
 ## Pagamento misto e teclado do PDV (2026-10-21)
 
 O diálogo mantém no topo Total da venda, Pago agora (recebido bruto imediato), Falta a pagar e Troco quando positivo. Valores a prazo continuam separados em A receber. O cálculo existente em centavos preserva a alocação e aceita troco apenas na parcela em dinheiro; excesso eletrônico e saldo pendente bloqueiam a confirmação. Adicionar forma preenche o restante e foca a nova seleção. Enter no valor inclui a próxima forma quando falta pagar ou foca Confirmar pagamento quando quitado; somente o botão final envia a venda. Valores, rascunho, contrato e regras de recebimento permanecem reutilizados. Regressões de interface com HTTP simulado cobrem dinheiro parcial de R$ 6,90 em venda de R$ 7,90 complementado por PIX/débito/crédito, teclado, dupla submissão e layouts/temas; não constituem homologação financeira em produção.

@@ -8,6 +8,7 @@ import type { Marca } from "../../types/marca";
 import type { ClassificacaoProduto } from "./classificacaoProdutoUtils";
 
 type Opcao = CategoriaProduto | SubcategoriaProduto | Marca;
+export { Seletor as SeletorClassificacaoProduto };
 function Seletor({ tipo, value, categoriaId, onChange, disabled }: {
     tipo: "categoria" | "subcategoria" | "marca"; value: Opcao | null; categoriaId?: number;
     onChange: (valor: Opcao | null) => void; disabled?: boolean;

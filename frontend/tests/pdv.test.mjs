@@ -131,7 +131,7 @@ test("setas navegam pela lista sem ultrapassar seus limites", () => {
 test("PDV conecta seleção, sequência de foco, Escape, F2 e atalhos sem conflito com o navegador", () => {
     assert.match(fontePDV, /void adicionarPorCodigo\(\)/);
     assert.match(fontePDV, /quantidadeFocoPendenteRef\.current = produto\.id/);
-    assert.match(fontePDV, /useLayoutEffect\(\(\) => \{[\s\S]*quantidadesRef\.current\[id\][\s\S]*campo\.focus\(\);\s*campo\.select\(\);[\s\S]*\}, \[rascunho\.itens\]\)/);
+    assert.match(fontePDV, /useLayoutEffect\(\(\) => \{[\s\S]*quantidadesRef\.current\[id\][\s\S]*campo\.focus\(\);\s*campo\.select\(\);[\s\S]*\}, \[rascunho\.itens, buscaAvancadaAberta\]\)/);
     assert.match(fontePDV, /if \(e\.key === "Enter"\) \{ e\.preventDefault\(\); focarBusca\(\); \}/);
     assert.match(fontePDV, /if \(listaAberta\).*setListaAberta\(false\)/s);
     assert.match(fontePDV, /if \(opcional\).*fecharOpcional\(\)/s);
