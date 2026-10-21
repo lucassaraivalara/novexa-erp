@@ -893,6 +893,26 @@ test("erros reais de PIX e estoque recebem mensagem acionavel sem inventar confl
 });
 
 const valorMeio = (page, nome) => page.getByLabel(`Valor de ${nome} (R$)`, { exact: true });
+test("quantidade do PDV rejeita letras e colagem inválida nos dois editores, preservando fracionados", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        await busca.fill("P1"); await busca.press("Enter"); await conferirQuantidade(page, "Produto remoto", "1");
+        await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+        for (const campo of [page.getByLabel("Quantidade de Produto remoto", { exact: true }), page.getByLabel("Quantidade do item selecionado", { exact: true })]) {
+            await campo.fill("2,5"); await campo.press("End"); await campo.pressSequentially("abc");
+            assert.equal(await campo.inputValue(), "2,5");
+            for (const invalido of ["abc", "1e3", "-2", "1,2345", "1.2.3"]) { await campo.fill(invalido); assert.equal(await campo.inputValue(), "2,5"); }
+            await page.evaluate(() => navigator.clipboard.writeText("3x4"));
+            await campo.focus(); await campo.press("Control+a"); await campo.press("Control+v");
+            assert.equal(await campo.inputValue(), "2,5");
+            await campo.fill("1.234"); assert.equal(await campo.inputValue(), "1.234");
+            await campo.fill(""); assert.equal(await campo.inputValue(), "");
+            await campo.fill("3"); await campo.press("Enter"); await esperarFoco(page, busca);
+            assert.equal(await page.getByLabel("Quantidade de Produto remoto", { exact: true }).inputValue(), "3");
+        }
+        assert.equal(gravacoes(estado).length, 0);
+    } finally { await page.close(); }
+});
 const concluir = page => page.getByRole("button", { name: "Concluir pagamento \u00b7 F2", exact: true });
 const gravacoes = estado => estado.requests.filter(r => r.path === "/vendas" && r.method === "POST");
 async function meio(page, nome, valor) {

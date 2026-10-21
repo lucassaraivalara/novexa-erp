@@ -244,6 +244,10 @@ export default function Vendas() {
         retornandoPagamento.current = true;
         setPagamentoAberto(false);
     }
+    function informarQuantidade(id: number, quantidade: string) {
+        if (!/^\d{0,9}(?:[.,]\d{0,3})?$/.test(quantidade)) return;
+        alterar({ itens: rascunho.itens.map(item => item.produto.id === id ? { ...item, quantidade } : item) });
+    }
     function ajustarQuantidade(id: number, passo: number) {
         const item = rascunho.itens.find(i => i.produto.id === id);
         if (!item) return;
@@ -509,7 +513,7 @@ export default function Vendas() {
                         <TextField size="small" label="Quantidade" value={emInclusao ? "1" : itemAtual?.quantidade ?? ""} disabled={bloqueado || !emInclusao && !itemAtual}
                             slotProps={{ input: { readOnly: emInclusao }, htmlInput: { "aria-label": "Quantidade do item selecionado", inputMode: "decimal" } }}
                             onFocus={e => { quantidadeAntesRef.current = itemAtual?.quantidade ?? ""; e.target.select(); }}
-                            onChange={e => { if (itemAtual) alterar({ itens: rascunho.itens.map(i => i === itemAtual ? { ...i, quantidade: e.target.value } : i) }); }}
+                            onChange={e => { if (itemAtual) informarQuantidade(itemAtual.produto.id, e.target.value); }}
                             onKeyDown={e => {
                                 if (e.key === "Enter") { e.preventDefault(); focarBusca(); }
                                 if (e.key === "Escape") {
@@ -563,7 +567,7 @@ export default function Vendas() {
                                         focarBusca();
                                     }
                                 }}
-                                onChange={e => alterar({ itens: rascunho.itens.map(x => x === item ? { ...x, quantidade: e.target.value } : x) })} />
+                                onChange={e => informarQuantidade(item.produto.id, e.target.value)} />
                                 <Tooltip title="Aumentar quantidade"><span><IconButton tabIndex={-1} aria-label={"Aumentar uma unidade: " + item.produto.nome} size="small" disabled={bloqueado || decimal(item.quantidade, 3) === null}
                                     sx={{ width: 26, height: 28, borderRadius: "4px", bgcolor: cores.addSurface, color: cores.add }} onClick={e => { e.stopPropagation(); ajustarQuantidade(item.produto.id, 1); }}><AddRoundedIcon sx={{ fontSize: 16 }} /></IconButton></span></Tooltip>
                                 </Stack></TableCell>

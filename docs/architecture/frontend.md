@@ -139,6 +139,8 @@ F2 abre a etapa de pagamento, inclusive para conferir uma tentativa pendente; F3
 
 Controles +/- editam a mesma quantidade do carrinho em passos de uma unidade, preservando fracionados e sem permitir passo que resulte em zero/negativo. O editor aceita os mesmos valores e validacoes existentes. Os controles nao entram na sequencia de Tab: Quantidade continua seguida por Remover, mantendo o teclado operacional. Esc no editor em linha restaura o valor anterior e devolve foco a busca. F2 no topo e Finalizar venda no painel abrem o mesmo pagamento. Confirmar pagamento envia o pedido pelos bloqueios existentes.
 
+Os dois editores de quantidade do PDV aceitam somente dígitos e um separador decimal (vírgula ou ponto), com até três casas e nove dígitos inteiros. Digitação ou colagem incompatível é rejeitada integralmente, sem converter letras em uma quantidade diferente. Limpar temporariamente o campo continua permitido para edição; as validações de quantidade positiva e finalização permanecem.
+
 ## PDV - sessao de Caixa
 
 O dialogo consulta GET `/financeiro/caixas/sessoes/abertas`, cujo contrato ja inclui operadorAbertura.id/nome, e compara o titular com `obterSessao().id`. Somente sessoes proprias participam da selecao automatica ou manual. Sem sessao propria, apresenta "Nao ha sessao de caixa aberta para o seu usuario" e mantem o PDV bloqueado ate resolver a abertura existente; opcoes de abertura incluem apenas Caixas ativos sem sessao aberta. Nenhuma mudanca no endpoint empresarial, autenticacao, pagamento ou regra de titularidade do backend.
