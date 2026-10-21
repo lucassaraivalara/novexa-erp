@@ -277,7 +277,7 @@ export default function Caixa() {
             acaoPrincipal={<Button variant="contained" startIcon={<AccountBalanceWalletRoundedIcon />} onClick={() => setModalAbertura(true)} disabled={abertas.length > 0}>Abrir Caixa</Button>}
             acoesSecundarias={<Button variant="outlined" startIcon={<SettingsRoundedIcon />} onClick={() => setGerenciando(true)}>Cadastro de caixas</Button>} />
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void recarregar()}>Tentar novamente</Button>}>{erro}</Alert>}
-        <Paper variant="outlined"><Tabs value={aba} onChange={(_, valor) => setAba(valor)} aria-label="Sessões do caixa físico" variant="scrollable" scrollButtons="auto" sx={{ minHeight: 44 }}><Tab id="caixa-atual-tab" aria-controls="caixa-atual-painel" label="Sessão aberta" sx={{ minHeight: 44, py: 1 }} /><Tab id="caixas-anteriores-tab" aria-controls="caixas-anteriores-painel" label="Histórico de sessões" sx={{ minHeight: 44, py: 1 }} /></Tabs></Paper>
+        <Paper variant="outlined"><Tabs value={aba} onChange={(_, valor) => setAba(valor)} aria-label="Sessões do caixa físico" variant="scrollable" scrollButtons="auto" sx={{ minHeight: 44 }}><Tab id="caixa-atual-tab" aria-controls="caixa-atual-painel" label="Caixa Atual" sx={{ minHeight: 44, py: 1 }} /><Tab id="caixas-anteriores-tab" aria-controls="caixas-anteriores-painel" label="Caixas Anteriores" sx={{ minHeight: 44, py: 1 }} /></Tabs></Paper>
         {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} podeMovimentar={podeMovimentar} podeFechar={podeFecharSessao(usuarioAtual?.perfil, usuarioAtual?.id, resumo.operadorAbertura.id)} onSuprimento={() => { setErroModal(""); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setObservacaoFechamento(""); setValoresConferidos({}); setDestinarAoCofre(false); setSaldo(""); setEntregaCofre({ ...novaEntregaCofre(), troco: valorEditavel(Math.min(resumo.saldoInicial, Math.max(0, resumo.saldoEsperadoDinheiro))), valor: valorEditavel(Math.max(0, resumo.saldoEsperadoDinheiro - resumo.saldoInicial)) }); setChaveMovimento(chave()); setPoliticaFechamento(null); setErroPolitica(""); setTotalConferido(""); setModalFechamento(true); }} /></Box>)}
         {aba === 1 && <Box id="caixas-anteriores-painel" role="tabpanel" aria-labelledby="caixas-anteriores-tab"><AppTable colunas={[
             { campo: "descricaoCaixa", cabecalho: "Caixa", largura: 180 }, { campo: "dataHoraAbertura", cabecalho: "Abertura", largura: 170, render: (valor) => data(valor as string) },
@@ -495,21 +495,31 @@ function Atual({ abertas, sessaoId, onSessao, resumo, timeline, podeMovimentar, 
     podeMovimentar: boolean; podeFechar: boolean;
     onSuprimento: () => void; onSangria: () => void; onFechar: () => void;
 }) {
+    const formasEletronicas = resumo.totaisPorFormaPagamento.filter((forma) => forma.tipo !== "DINHEIRO");
+    const vendasEmDinheiro = resumo.totaisPorFormaPagamento
+        .filter((forma) => forma.tipo === "DINHEIRO")
+        .reduce((total, forma) => total + forma.total, 0);
+    const linhaForma = (chave: string | number, descricao: string, valor: number) => (
+        <Box key={chave} sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 2,
+            py: 1.5, borderBottom: 1, borderColor: "divider" }}>
+            <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{descricao}</Typography>
+            <Typography variant="body2" align="right" sx={{ fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>{dinheiro(valor)}</Typography>
+        </Box>
+    );
     return <Stack spacing={0} sx={{ minWidth: 0, fontVariantNumeric: "tabular-nums", ...focoOperacional }}>
-        <Box component="section" aria-labelledby="resumo-caixa-titulo" sx={{ py: 3 }}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ justifyContent: "space-between", alignItems: { sm: "flex-start" } }}>
-                <Box sx={{ minWidth: 0 }}>
-                    <Stack direction="row" sx={{ gap: 1.5, alignItems: "center", flexWrap: "wrap" }}>
-                        <Typography id="resumo-caixa-titulo" component="h2" variant="h6" sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>
-                            {resumo.descricaoCaixa}
-                        </Typography>
-                        <Chip label={resumo.status} color="success" size="small" variant="outlined" />
-                    </Stack>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, overflowWrap: "anywhere" }}>
-                        Abertura {data(resumo.dataHoraAbertura)} · {resumo.operadorAbertura.nome}
+        <Box sx={{ display: "grid", gap: { xs: 0, md: 3 },
+            gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) minmax(0, 1fr)", xl: "minmax(0, 0.95fr) minmax(0, 1.05fr) minmax(0, 1.15fr)" } }}>
+            <Box component="section" aria-labelledby="resumo-caixa-titulo" sx={{ minWidth: 0, py: 3 }}>
+                <Stack direction="row" sx={{ gap: 1.5, alignItems: "center", flexWrap: "wrap" }}>
+                    <Typography id="resumo-caixa-titulo" component="h2" variant="h6" sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>
+                        {resumo.descricaoCaixa}
                     </Typography>
-                </Box>
-                {abertas.length > 1 && <FormControl size="small" sx={{ width: { xs: "100%", sm: 240 }, flexShrink: 0 }}>
+                    <Chip label={resumo.status} color="success" size="small" variant="outlined" />
+                </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, overflowWrap: "anywhere" }}>
+                    Sessão #{resumo.sessaoId} · Abertura {data(resumo.dataHoraAbertura)} · {resumo.operadorAbertura.nome}
+                </Typography>
+                {abertas.length > 1 && <FormControl size="small" fullWidth sx={{ mt: 2 }}>
                     <InputLabel id="sessao-atual-label">Sessão de caixa</InputLabel>
                     <Select labelId="sessao-atual-label" label="Sessão de caixa" name="sessaoAtual"
                         inputProps={{ "aria-label": "Selecionar sessão de caixa" }} value={sessaoId ?? ""}
@@ -517,65 +527,49 @@ function Atual({ abertas, sessaoId, onSessao, resumo, timeline, podeMovimentar, 
                         {abertas.map((sessao) => <MenuItem key={sessao.sessaoId} value={sessao.sessaoId}>{sessao.descricaoCaixa}</MenuItem>)}
                     </Select>
                 </FormControl>}
-            </Stack>
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) auto" },
-                alignItems: "center", gap: 3, mt: 3, py: 3, px: { xs: 2, sm: 3 },
-                bgcolor: "action.hover", borderLeft: 3, borderColor: "success.main" }}>
-                <Box sx={{ minWidth: 0 }}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: "center", color: "text.secondary" }}>
-                        <AccountBalanceWalletRoundedIcon fontSize="small" aria-hidden="true" />
-                        <Typography variant="body2" component="h3">Saldo esperado em dinheiro</Typography>
-                    </Stack>
-                    <Typography sx={{ mt: 1, fontSize: 32, lineHeight: 1.25, fontWeight: 750, overflowWrap: "anywhere" }}>
-                        {dinheiro(resumo.saldoEsperadoDinheiro)}
-                    </Typography>
+                <Box component="dl" sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", m: 0, mt: 2.5, gap: 2 }}>
+                    <Metric titulo="Saldo inicial" valor={resumo.saldoInicial} />
+                    <Metric titulo="Total de vendas" valor={resumo.totalVendas} />
+                    <Metric titulo="Suprimentos" valor={resumo.suprimentos} cor="success.main" />
+                    <Metric titulo="Sangrias" valor={resumo.sangrias} cor="error.main" />
                 </Box>
-                {(podeFechar || podeMovimentar) && <Stack spacing={1.5} sx={{ width: { xs: "100%", md: 292 }, minWidth: 0 }}>
-                    {podeFechar && <Button type="button" variant="contained" size="large" onClick={onFechar}
-                        aria-label="Fechar Caixa" startIcon={<BlockRoundedIcon />} sx={{ minHeight: 44 }}>
-                        Fechar Caixa
-                    </Button>}
-                    {podeMovimentar && <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1 }}>
-                        <Button type="button" variant="outlined" color="inherit" startIcon={<ArrowDownwardRoundedIcon />}
-                            aria-label="Registrar suprimento" onClick={onSuprimento}>Suprimento</Button>
-                        <Button type="button" variant="outlined" color="inherit" startIcon={<ArrowUpwardRoundedIcon />}
-                            aria-label="Registrar sangria" onClick={onSangria}>Sangria</Button>
-                    </Box>}
-                </Stack>}
+                {podeMovimentar && <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1, mt: 2.5 }}>
+                    <Button type="button" variant="outlined" color="inherit" startIcon={<ArrowDownwardRoundedIcon />}
+                        aria-label="Registrar suprimento" onClick={onSuprimento}>Suprimento</Button>
+                    <Button type="button" variant="outlined" color="inherit" startIcon={<ArrowUpwardRoundedIcon />}
+                        aria-label="Registrar sangria" onClick={onSangria}>Sangria</Button>
+                </Box>}
             </Box>
-            <Box component="dl" sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
-                m: 0, mt: 2, gap: { xs: 2, md: 3 }, py: 1.5 }}>
-                <Metric titulo="Saldo inicial" valor={resumo.saldoInicial} />
-                <Metric titulo="Total de vendas" valor={resumo.totalVendas} />
-                <Metric titulo="Suprimentos" valor={resumo.suprimentos} cor="success.main" />
-                <Metric titulo="Sangrias" valor={resumo.sangrias} cor="error.main" />
-            </Box>
-        </Box>
 
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 0.85fr) minmax(0, 1.4fr)" },
-            borderTop: 1, borderColor: "divider" }}>
             <Box component="section" aria-labelledby="pagamentos-caixa-titulo"
-                sx={{ minWidth: 0, py: 3, pr: { md: 3 }, borderRight: { md: 1 }, borderColor: "divider" }}>
+                sx={{ minWidth: 0, py: 3, borderTop: { xs: 1, md: 0 }, borderLeft: { md: 1 }, borderColor: "divider" }}>
                 <Typography id="pagamentos-caixa-titulo" component="h3" variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>
-                    Totais por forma de pagamento
+                    Meios de pagamento
                 </Typography>
                 {resumo.totaisPorFormaPagamento.length === 0
-                    ? <Typography role="status" variant="body2" color="text.secondary" sx={{ py: 3 }}>
+                    ? <Typography role="status" variant="body2" color="text.secondary" sx={{ py: 2 }}>
                         Nenhuma venda registrada nesta sessão.
                     </Typography>
-                    : <Box component="dl" sx={{ m: 0 }}>
-                        {resumo.totaisPorFormaPagamento.map((forma) => <Box key={forma.formaPagamentoId}
-                            sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 2,
-                                py: 1.75, borderBottom: 1, borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
-                            <Typography component="dt" variant="body2" sx={{ overflowWrap: "anywhere" }}>{forma.descricao}</Typography>
-                            <Typography component="dd" variant="body2" sx={{ m: 0, textAlign: "right", fontWeight: 700, overflowWrap: "anywhere" }}>
-                                {dinheiro(forma.total)}
-                            </Typography>
-                        </Box>)}
-                    </Box>}
+                    : <>
+                        {linhaForma("dinheiro", "Vendas em dinheiro", vendasEmDinheiro)}
+                        {formasEletronicas.length > 0 && <Typography variant="caption" color="text.secondary" sx={{ display: "block", pt: 1.5, pb: 0.5 }}>
+                            Meios eletrônicos
+                        </Typography>}
+                        {formasEletronicas.map((forma) => linhaForma(forma.formaPagamentoId, forma.descricao, forma.total))}
+                        <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 2, pt: 1.5 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>Total vendido</Typography>
+                            <Typography variant="body2" align="right" sx={{ fontWeight: 700 }}>{dinheiro(resumo.totalVendas)}</Typography>
+                        </Box>
+                    </>}
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
+                    Vendas em dinheiro compõem o saldo físico do caixa. Meios eletrônicos seguem para as contas financeiras configuradas.
+                </Typography>
             </Box>
-            <Box component="section" aria-labelledby="movimentos-caixa-titulo" sx={{ minWidth: 0, py: 3, pl: { md: 3 },
-                borderTop: { xs: 1, md: 0 }, borderColor: "divider" }}>
+
+            <Box component="section" aria-labelledby="movimentos-caixa-titulo"
+                sx={{ minWidth: 0, py: 3, pr: { md: 0.5 }, gridColumn: { md: "1 / -1", xl: "auto" },
+                    borderTop: { xs: 1, xl: 0 }, borderLeft: { xl: 1 }, borderColor: "divider",
+                    maxHeight: { md: 340, xl: 520 }, overflowY: { md: "auto" } }}>
                 <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", gap: 2, mb: 2.5 }}>
                     <Typography id="movimentos-caixa-titulo" component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
                         Movimentações da sessão
@@ -617,6 +611,24 @@ function Atual({ abertas, sessaoId, onSessao, resumo, timeline, podeMovimentar, 
                         </Box>)}
                     </Box>}
             </Box>
+        </Box>
+
+        <Box component="section" aria-label="Fechamento do caixa"
+            sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center", justifyContent: "space-between",
+                borderTop: 1, borderColor: "divider", py: 2.5 }}>
+            <Box sx={{ minWidth: 0 }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center", color: "text.secondary" }}>
+                    <AccountBalanceWalletRoundedIcon fontSize="small" aria-hidden="true" />
+                    <Typography variant="body2" component="h3">Saldo esperado em dinheiro</Typography>
+                </Stack>
+                <Typography sx={{ mt: 0.5, fontSize: 28, lineHeight: 1.25, fontWeight: 750, overflowWrap: "anywhere" }}>
+                    {dinheiro(resumo.saldoEsperadoDinheiro)}
+                </Typography>
+            </Box>
+            {podeFechar && <Button type="button" variant="contained" size="large" onClick={onFechar}
+                aria-label="Fechar Caixa" startIcon={<BlockRoundedIcon />} sx={{ minHeight: 48, px: 4 }}>
+                Fechar Caixa
+            </Button>}
         </Box>
     </Stack>;
 }
