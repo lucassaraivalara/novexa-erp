@@ -9,7 +9,7 @@ import { Box, List, ListItemButton, ListItemIcon, ListItemText, Paper, Typograph
 import { Link } from "react-router-dom";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
-import { podeGerenciarUsuarios } from "../../utils/auth/perfis";
+import { podeGerenciarUsuarios, podeExecutarAcaoGerencial } from "../../utils/auth/perfis";
 import { obterSessao } from "../../utils/auth/sessao";
 
 export default function Configuracoes() {
@@ -21,6 +21,7 @@ export default function Configuracoes() {
             { titulo: "Usuários", descricao: "Gerencie usuários e seus perfis de acesso.", caminho: "/usuarios", icone: <PeopleAltRoundedIcon /> },
         ] : [] },
         { id: "financeiro", titulo: "Financeiro", links: [
+            ...(podeExecutarAcaoGerencial(obterSessao()?.perfil) ? [{ titulo: "Recebimentos e Caixa", descricao: "Defina a política de recebimentos e a conferência do fechamento.", caminho: "/configuracoes/recebimentos-caixa", icone: <PaymentsRoundedIcon /> }] : []),
             { titulo: "Formas de pagamento", descricao: "Configure as formas de pagamento da empresa.", caminho: "/financeiro/formas-pagamento", icone: <PaymentsRoundedIcon /> },
             { titulo: "Dados bancários", descricao: "Organize bancos, agências e contas bancárias.", caminho: "/financeiro/dados-bancarios", icone: <AccountBalanceRoundedIcon /> },
         ] },

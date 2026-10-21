@@ -27,6 +27,7 @@ import SavingsRoundedIcon from "@mui/icons-material/SavingsRounded";
 import ContasFinanceiras from "../pages/Financeiro/ContasFinanceiras";
 import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
 import Recebiveis from "../pages/Financeiro/Recebiveis";
+import ConfiguracaoRecebimentos from "../pages/Configuracoes/ConfiguracaoRecebimentos";
 import Configuracoes from "../pages/Configuracoes/Configuracoes";
 import CategoriasProdutos from "../pages/Produtos/CategoriasProdutos";
 import Marcas from "../pages/Produtos/Marcas";
@@ -48,6 +49,7 @@ export const rotaPdv: RotaInterna = {
 };
 
 export const rotasInternas: RotaInterna[] = [
+    { caminho: "configuracoes/recebimentos-caixa", titulo: "Recebimentos e Caixa", icone: <PaymentsRoundedIcon />, elemento: <ConfiguracaoRecebimentos /> },
     {
         caminho: "configuracoes/marcas-produtos",
         titulo: "Marcas",
@@ -212,7 +214,7 @@ export const menuPrincipal: AreaMenu[] = [
 ];
 
 export function ehRotaConfiguracao(pathname: string): boolean {
-    return ["/configuracoes", "/configuracoes/categorias-produtos", "/configuracoes/marcas-produtos", "/empresa", "/usuarios", "/financeiro/formas-pagamento", "/financeiro/dados-bancarios"].includes(pathname);
+    return ["/configuracoes/recebimentos-caixa", "/configuracoes", "/configuracoes/categorias-produtos", "/configuracoes/marcas-produtos", "/empresa", "/usuarios", "/financeiro/formas-pagamento", "/financeiro/dados-bancarios"].includes(pathname);
 }
 
 export function itemMenuAtivo(item: ItemMenu, pathname: string, search = ""): boolean {

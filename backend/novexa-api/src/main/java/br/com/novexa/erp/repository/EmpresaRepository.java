@@ -6,6 +6,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface EmpresaRepository extends JpaRepository<EmpresaEntity, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_READ)
+    @org.springframework.data.jpa.repository.Query("select e from EmpresaEntity e where e.id = :id")
+    java.util.Optional<EmpresaEntity> politicaComLock(Long id);
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select e from EmpresaEntity e where e.id = :id")
+    java.util.Optional<EmpresaEntity> politicaParaAlterar(Long id);
+
 
     // Busca ausente vira null no service; o cast evita lower(bytea) no PostgreSQL.
     @Query("select e from EmpresaEntity e where e.id = :empresaId " +

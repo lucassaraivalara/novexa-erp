@@ -8,6 +8,7 @@ export type PagamentoVenda = {
     id: number; vendaId: number; formaPagamento: FormaPagamento; valor: number;
     status: "REGISTRADO" | "CANCELADO"; configuracaoNomeExibicao: string | null;
     configuracaoTipo: string | null; configuracaoContaFinanceiraDestinoNome: string | null;
+    modoRecebimentoSnapshot?: "CONTROLADO" | "SIMPLIFICADO" | null;
     confirmadoFinanceiramente: boolean; dataConfirmacaoFinanceira: string | null;
     usuarioConfirmacaoFinanceiraId: number | null; movimentacaoFinanceiraId: number | null;
 };

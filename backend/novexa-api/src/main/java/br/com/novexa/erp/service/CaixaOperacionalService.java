@@ -220,10 +220,18 @@ public class CaixaOperacionalService {
     public ResumoSessaoCaixaDTO calcular(SessaoCaixaEntity sessao) {
         var registros = pagamentos.findByEmpresaIdAndVendaSessaoCaixaIdOrderByIdAsc(sessao.getEmpresa().getId(), sessao.getId());
         Map<Long, ResumoSessaoCaixaDTO.TotalForma> porForma = new LinkedHashMap<>();
+        Map<String, ResumoSessaoCaixaDTO.TotalConfiguracao> porConfiguracao = new LinkedHashMap<>();
         BigDecimal total = BigDecimal.ZERO;
         for (var p : registros) {
             if (p.getStatus() == StatusPagamento.CANCELADO) continue;
             total = total.add(p.getValor());
+            Long configId=p.getConfiguracaoFormaPagamento()==null?null:p.getConfiguracaoFormaPagamento().getId();
+            String chave=configId==null?"f:"+p.getForma().getId():"c:"+configId;
+            var grupo=porConfiguracao.get(chave);
+            String nome=grupo!=null?grupo.descricao():p.getConfiguracaoNomeExibicao()!=null?p.getConfiguracaoNomeExibicao():p.getFormaPagamento().name();
+            String tipoConfig=p.getConfiguracaoTipo()!=null?p.getConfiguracaoTipo().name():p.getForma().getTipo().name();
+            porConfiguracao.put(chave,new ResumoSessaoCaixaDTO.TotalConfiguracao(configId,p.getForma().getId(),nome,tipoConfig,
+                    p.getValor().add(grupo==null?BigDecimal.ZERO:grupo.total())));
             var anterior = porForma.get(p.getForma().getId());
             String tipo = switch (p.getFormaPagamento()) {
                 case DINHEIRO -> "DINHEIRO"; case PIX -> "PIX";
@@ -248,7 +256,15 @@ public class CaixaOperacionalService {
                 sessao.getSaldoInicial(), total, List.copyOf(porForma.values()), suprimentos, sangrias,
             esperado, sessao.getSaldoFinal(), sessao.getSaldoFinal() == null ? null : sessao.getSaldoFinal().subtract(esperado),
             sessao.getCaixa().getDescricao(), sessao.getDataAbertura(),
-            new ResumoSessaoCaixaDTO.Operador(sessao.getUsuarioAbertura().getId(), sessao.getUsuarioAbertura().getNomeUsuario()));
+            new ResumoSessaoCaixaDTO.Operador(sessao.getUsuarioAbertura().getId(), sessao.getUsuarioAbertura().getNomeUsuario()), List.copyOf(porConfiguracao.values()));
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void bloquearParaCancelamento(VendaEntity venda) {
+        if (venda.getSessaoCaixa() == null) return;
+        caixas.buscarComLock(venda.getSessaoCaixa().getCaixa().getId(), venda.getEmpresa().getId())
+                .orElseThrow(() -> conflito("Caixa indisponível."));
+        exigirAberta(bloquear(venda.getSessaoCaixa().getId(), venda.getEmpresa().getId()));
     }
 
     private void exigirAberta(SessaoCaixaEntity sessao) {

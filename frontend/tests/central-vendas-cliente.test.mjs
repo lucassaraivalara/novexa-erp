@@ -528,3 +528,14 @@ test("Central reutiliza autocomplete sem lista completa ou filtro/paginacao loca
     assert.match(fonte, /ClienteAutocomplete/); assert.match(fonte, /alterarFiltro\("clienteId"/);
     assert.match(fonte, /setPagina\(0\)/); assert.match(fonte, /ordenacaoRemota/);
 });
+
+test("PIX simplificado usa origem histórica Registrado no PDV sem nova confirmação", async () => {
+    const { page, estado } = await abrir(false, { detalhe: { contasReceber: [] },
+        pagamentos: [pagamentoResumo(1, "PIX", 200, { confirmadoFinanceiramente: true, modoRecebimentoSnapshot: "SIMPLIFICADO" })] });
+    try {
+        await page.getByRole("button", { name: "Visualizar detalhes", exact: true }).click();
+        await page.getByText("Registrado no PDV", { exact: true }).waitFor();
+        assert.equal(await page.getByRole("button", { name: "Confirmar recebimento", exact: true }).count(), 0);
+        assert.ok(estado.requests.every(r => r.method === "GET"));
+    } finally { await page.close(); }
+});

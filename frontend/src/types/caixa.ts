@@ -37,6 +37,7 @@ export type ResumoSessaoCaixa = {
     saldoInicial: number;
     totalVendas: number;
     totaisPorFormaPagamento: TotalFormaPagamento[];
+    totaisPorConfiguracao?: { configuracaoId: number | null; formaPagamentoId: number; descricao: string; tipo: string; total: number }[];
     suprimentos: number;
     sangrias: number;
     saldoEsperadoDinheiro: number;
@@ -77,16 +78,17 @@ export type ComposicaoAbertura = {
 export type SessaoCaixaDetalhe = {
     sessao: SessaoCaixaHistorico;
     resumo: ResumoSessaoCaixa;
-    modalidadeConferencia: "LEGADA" | "POR_FORMA" | null;
+    modalidadeConferencia: "LEGADA" | "POR_FORMA" | "POR_CONFIGURACAO" | "TOTAL_MEIOS" | null;
     observacaoFechamento: string | null;
     conferencias: {
-        escopo: "DINHEIRO_FISICO" | "FORMA_PAGAMENTO";
+        escopo: "DINHEIRO_FISICO" | "FORMA_PAGAMENTO" | "CONFIGURACAO" | "TOTAL_MEIOS";
         formaPagamentoId: number | null;
         descricao: string;
-        tipo: string;
+        configuracaoId?: number | null;
+        tipo: string | null;
         valorEsperado: number;
-        valorInformado: number;
-        diferenca: number;
+        valorInformado: number | null;
+        diferenca: number | null;
     }[];
     movimentacoes: {
         tipo: "ABERTURA" | "VENDA" | "VENDA_CANCELADA" | "SUPRIMENTO" | "SANGRIA" | "ESTORNO_VENDA" | "FECHAMENTO";
@@ -162,6 +164,12 @@ export type FechamentoCaixaInput = {
     cofre?: import("../services/cofreService").EntregaCofre;
     saldoFinal: number;
     conferencia?: ConferenciaFechamentoInput;
+    conferenciaMeios?: {
+        modo: "POR_FORMA_PAGAMENTO" | "TOTAL";
+        meios: { configuracaoId: number | null; formaPagamentoId: number | null; valorInformado: number | null }[];
+        totalInformado?: number | null;
+        observacao?: string | null;
+    };
 };
 
 export type SessaoCaixaResponse = {

@@ -25,6 +25,8 @@ public interface RecebivelRepository extends JpaRepository<RecebivelEntity, Long
     interface Vinculos { Long getVendaId(); Long getPagamentoId(); }
     @Query("select r.venda.id as vendaId, r.pagamento.id as pagamentoId from RecebivelEntity r where r.id = :id and r.empresa.id = :empresaId")
     Optional<Vinculos> buscarVinculos(Long id, Long empresaId);
+    @Query("select r.venda.id as vendaId, r.pagamento.id as pagamentoId from RecebivelEntity r where r.id in :ids and r.empresa.id = :empresaId")
+    List<Vinculos> buscarVinculosLote(List<Long> ids, Long empresaId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from RecebivelEntity r where r.id = :id and r.empresa.id = :empresaId")
     Optional<RecebivelEntity> buscarParaLiquidar(Long id, Long empresaId);

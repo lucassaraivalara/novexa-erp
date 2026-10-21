@@ -69,7 +69,8 @@ async function ambiente(t, op = {}) {
             if (path.endsWith("abertura-contexto")) {
                 if (falhasContexto-- > 0) { status = 500; data = "Falha de consulta"; }
                 else data = contexto(op.contexto);
-            } else if (path === "/financeiro/caixas") data = [{ id: 1, descricao: "Caixa 01", ativo: true }];
+            } else if (path === "/financeiro/configuracoes/recebimentos") data = { modo: "CONTROLADO", conferencia: "POR_FORMA_PAGAMENTO", exigirValoresInformadosNoFechamento: true };
+            else if (path === "/financeiro/caixas") data = [{ id: 1, descricao: "Caixa 01", ativo: true }];
             else if (path.endsWith("sessoes/abertas")) data = op.completo ? [sessao] : [];
             else if (path.endsWith("sessoes/fechadas")) data = op.historico ? [op.historico] : [];
             else if (path.endsWith("/detalhe")) data = op.detalhe;
@@ -194,7 +195,7 @@ test("fechamento exige classificação completa e mantém entrega pendente expl�
     await expect(a.dialog.getByLabel("Recolher ao cofre (R$)")).toHaveValue("55,30");
     await a.dialog.getByLabel("Valor mantido para troco (R$)").fill("90");
     await a.dialog.getByRole("button", { name: "Confirmar fechamento", exact: true }).click();
-    await expect(a.dialog.getByRole("alert")).toContainText("devem corresponder"); assert.equal(a.posts.length, 0);
+    await expect(a.dialog.getByRole("alert").filter({hasText:"devem corresponder"})).toContainText("devem corresponder"); assert.equal(a.posts.length, 0);
     await a.dialog.getByLabel("Valor mantido para troco (R$)").fill("100");
     await a.dialog.getByLabel("Conta COFRE").click(); await a.page.getByRole("option", { name: "Cofre Principal", exact: true }).click();
     await a.dialog.getByLabel("Responsável pelo recebimento").fill("Responsável local");

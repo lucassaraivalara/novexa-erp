@@ -10,6 +10,7 @@ import jakarta.persistence.Table;
 import java.util.ArrayList;
 import java.util.List;
 
+@org.hibernate.annotations.DynamicUpdate
 @Entity
 @Table(name = "empresas")
 public class EmpresaEntity {
@@ -17,6 +18,23 @@ public class EmpresaEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @jakarta.persistence.Column(nullable = false, length = 20)
+    private ModoRecebimentoFinanceiro modoRecebimentoFinanceiro = ModoRecebimentoFinanceiro.CONTROLADO;
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @jakarta.persistence.Column(nullable = false, length = 30)
+    private ModoConferenciaFechamento modoConferenciaFechamento = ModoConferenciaFechamento.POR_FORMA_PAGAMENTO;
+    @jakarta.persistence.Column(nullable = false)
+    private boolean exigirValoresInformadosNoFechamento = true;
+    public ModoRecebimentoFinanceiro getModoRecebimentoFinanceiro() { return modoRecebimentoFinanceiro; }
+    public ModoConferenciaFechamento getModoConferenciaFechamento() { return modoConferenciaFechamento; }
+    public boolean isExigirValoresInformadosNoFechamento() { return exigirValoresInformadosNoFechamento; }
+    public void configurarRecebimentos(ModoRecebimentoFinanceiro modo, ModoConferenciaFechamento conferencia, boolean exigir) {
+        modoRecebimentoFinanceiro = java.util.Objects.requireNonNull(modo);
+        modoConferenciaFechamento = java.util.Objects.requireNonNull(conferencia);
+        exigirValoresInformadosNoFechamento = exigir;
+    }
+
 
     private String razaoSocial;
 

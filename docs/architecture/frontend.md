@@ -1,3 +1,16 @@
+
+## Recebimentos e conferência — V49 (2026-10-20)
+
+Configurações → Financeiro → Recebimentos e Caixa usa formulário compacto MUI para políticas independentes de recebimento e fechamento. ADMIN/GERENTE podem salvar; demais perfis consultam sem ações administrativas. Erro preserva seleção; há carregamento/retry e retorno à central. Empresa vem do JWT. A rota `/configuracoes/recebimentos-caixa` destaca Configurações.
+
+PDV conserva pagamento simples/misto e um único POST final, sem confirmação extra de PIX nos dois modos. O backend decide o registro conforme a política; Central de Vendas identifica o snapshot SIMPLIFICADO como “Registrado no PDV”, sem alegar conciliação bancária.
+
+Recebimentos de cartão oferece Agenda de recebimentos paginada por grupo histórico, com bruto/taxas/líquido/data/destino. No SIMPLIFICADO gerencial, a confirmação protege foco em diálogo MUI e mostra os IDs/vendas e valor do lote (até 200 itens). Abrir/cancelar não grava; dupla submissão é bloqueada. Falha mantém seleção para retry; a consulta é atualizada após sucesso. Não há liquidação por data nem por fechamento.
+
+Caixa reutiliza `ConferenciaMeiosPagamento` e `conferenciaMeios.ts`: configurações de PIX/cartão separadas ou total dos meios não dinheiro. Política é consultada ao abrir o fechamento; erro impede enviar uma conferência desconhecida. Dinheiro físico continua em saldoFinal, troco/COFRE no componente existente. Campos não conferidos permanecem vazios; diferenças informadas exigem observação. O detalhe usa snapshots salvos para as novas modalidades e preserva leitura legada. Temas/tokens, foco e layouts existentes são reutilizados, com rolagem local de tabelas/diálogos em janela pequena.
+
+Publicar o frontend não atualiza a API. As novas telas e a conferência exigem backend V49 implantado; deploy manual na Oracle é necessário. Evidência de navegador com HTTP simulado valida interface, não integração financeira; persistência/rollback/concurrency são validados em PostgreSQL descartável.
+
 # Frontend — padrões de cadastros, buscas e formulários
 
 ## Contas e saldos — PIX e cartões por destino
@@ -30,7 +43,7 @@ Este documento define os padrões do frontend do Novexa ERP, preservando a densi
 
 Sidebar organiza Visão geral (acesso direto ao Dashboard), Cadastros (Produtos, Clientes, Fornecedores), Estoque (Saldo e Entradas de mercadoria), Vendas (PDV e Central de Vendas), Financeiro e Configurações. Financeiro preserva as operações Caixas, Contas e saldos (ContaFinanceira), Contas a Pagar, Contas a Receber e Recebimentos de cartão. Configurações substitui Administração e abre diretamente a central `/configuracoes` pelo rodapé, tanto na coluna principal quanto na faixa compacta, com rolagem em janelas baixas.
 
-A central reutiliza PageContainer, PageHeader e listas de links compactas, sem consultas HTTP, busca ou formulários próprios. Empresa contém Empresas; Usuários e acesso contém Usuários somente para ADMIN, usando a mesma verificação da rota existente e omitindo a seção para os demais perfis; Financeiro contém Formas de pagamento e Dados bancários; Produtos contém Categorias e subcategorias e Marcas. Os destinos destacam Configurações mesmo no acesso direto e oferecem retorno à central no AppHeader. As telas anteriores mantêm suas URLs e regras de acesso, inclusive `/financeiro/`, abas, parâmetros e histórico.
+A central reutiliza PageContainer, PageHeader e listas de links compactas, sem consultas HTTP, busca ou formulários próprios. Empresa contém Empresas; Usuários e acesso contém Usuários somente para ADMIN, usando a mesma verificação da rota existente e omitindo a seção para os demais perfis; Financeiro contém Formas de pagamento, Dados bancários e Recebimentos e Caixa (gerencial); Produtos contém Categorias e subcategorias e Marcas. Os destinos destacam Configurações mesmo no acesso direto e oferecem retorno à central no AppHeader. As telas anteriores mantêm suas URLs e regras de acesso, inclusive `/financeiro/`, abas, parâmetros e histórico.
 
 Os cabeçalhos usam os mesmos nomes da central. Empresas identifica dados cadastrais e fiscais; Usuários, os perfis de acesso; Formas de pagamento, nomes, tipos e condições de recebimento. O formulário existente distingue destino do recebimento e destino da liquidação de cartão, orientando o cadastro em Financeiro → Contas e saldos; taxas percentual/fixa e prazo continuam nos mesmos campos de cartão. Dados bancários identifica bancos, agências e contas como identidade bancária, com saldo/extrato em Contas e saldos. Ajuste textual na branch `feat/central-configuracoes`, sobre `7bebd24`; testes, build, lint e homologação desta etapa pendentes por orientação explícita.
 

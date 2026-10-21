@@ -34,10 +34,10 @@ class CicloDinheiroFisicoPostgresTest extends CicloDinheiroFisicoCaixaTest {
         p.add("spring.flyway.schemas", () -> SCHEMA);
     }
 
-    @Test void flywayCompletoAteV48EHibernateValidate() {
+    @Test void flywayCompletoAteV49EHibernateValidate() {
         flyway.validate();
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("48");
-        assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success and type='SQL'", Integer.class)).isEqualTo(48);
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("49");
+        assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where success and type='SQL'", Integer.class)).isEqualTo(49);
     }
 
     @Test void bancoImpedeDuploConsumoVinculoDeOutroCaixaEOutroTenant() {

@@ -12,10 +12,25 @@ public class ConferenciaFechamentoCaixaEntity {
     @ManyToOne @JoinColumn(name = "forma_pagamento_id", updatable = false) private FormaPagamentoEntity forma;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20, updatable = false) private EscopoConferenciaCaixa escopo;
     @Column(nullable = false, length = 150, updatable = false) private String descricaoSnapshot;
-    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20, updatable = false) private TipoFormaPagamento tipoSnapshot;
+    @Enumerated(EnumType.STRING) @Column(length = 20, updatable = false) private TipoFormaPagamento tipoSnapshot;
     @Column(nullable = false, precision = 19, scale = 2, updatable = false) private BigDecimal valorEsperado;
-    @Column(nullable = false, precision = 19, scale = 2, updatable = false) private BigDecimal valorInformado;
+    @Column(precision = 19, scale = 2, updatable = false) private BigDecimal valorInformado;
 
+    @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="configuracao_forma_pagamento_id",updatable=false)
+    private ConfiguracaoFormaPagamentoEmpresaEntity configuracao;
+    public Long getConfiguracaoId() { return configuracao==null?null:configuracao.getId(); }
+    public SessaoCaixaEntity getSessao() { return sessao; }
+    public static ConferenciaFechamentoCaixaEntity configuracao(SessaoCaixaEntity sessao,
+            ConfiguracaoFormaPagamentoEmpresaEntity configuracao, FormaPagamentoEntity forma, String nome,TipoFormaPagamento tipo,
+            BigDecimal esperado,BigDecimal informado) {
+        var linha=new ConferenciaFechamentoCaixaEntity(sessao,forma,nome,tipo,esperado,informado);
+        if (configuracao!=null) { linha.configuracao=configuracao; linha.forma=null; linha.escopo=EscopoConferenciaCaixa.CONFIGURACAO; }
+        return linha;
+    }
+    public static ConferenciaFechamentoCaixaEntity total(SessaoCaixaEntity sessao,BigDecimal esperado,BigDecimal informado) {
+        var linha=new ConferenciaFechamentoCaixaEntity(sessao,null,"Total dos meios não dinheiro",null,esperado,informado);
+        linha.escopo=EscopoConferenciaCaixa.TOTAL_MEIOS; return linha;
+    }
     protected ConferenciaFechamentoCaixaEntity() { }
 
     public ConferenciaFechamentoCaixaEntity(SessaoCaixaEntity sessao, FormaPagamentoEntity forma,
@@ -27,7 +42,7 @@ public class ConferenciaFechamentoCaixaEntity {
         this.descricaoSnapshot = descricao;
         this.tipoSnapshot = tipo;
         this.valorEsperado = esperado.setScale(2);
-        this.valorInformado = informado.setScale(2);
+        this.valorInformado = informado==null?null:informado.setScale(2);
     }
 
     public Long getId() { return id; }
@@ -38,5 +53,5 @@ public class ConferenciaFechamentoCaixaEntity {
     public TipoFormaPagamento getTipoSnapshot() { return tipoSnapshot; }
     public BigDecimal getValorEsperado() { return valorEsperado; }
     public BigDecimal getValorInformado() { return valorInformado; }
-    public BigDecimal getDiferenca() { return valorInformado.subtract(valorEsperado); }
+    public BigDecimal getDiferenca() { return valorInformado==null?null:valorInformado.subtract(valorEsperado); }
 }

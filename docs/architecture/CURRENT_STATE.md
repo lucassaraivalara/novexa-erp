@@ -1,5 +1,18 @@
 Empresa ........ funcional
 
+## Políticas de recebimento, agenda e conferência — V49 (2026-10-20)
+
+Implementados modos empresariais CONTROLADO (default compatível) e SIMPLIFICADO. PIX simplificado é registrado no único faturamento, com snapshot de política e sem confirmação extra no PDV; manual gerencial permanece. Cartão continua Recebível PENDENTE até evento explícito, com núcleo individual/lote compartilhado. Agenda usa paginação no banco, agrupamento histórico e lotes explícitos de até 200 IDs, um movimento por recebível e atomicidade integral. Mudança de política não reinterpreta histórico.
+
+Conferência de fechamento é configuração independente, por configuração de pagamento ou total dos meios não dinheiro. Reutiliza tabela de auditoria existente; valor opcional ausente não vira zero. Saldo físico, troco/COFRE e custódia V48 permanecem. Configurações e liquidação em lote são gerenciais, tenant pelo JWT. Contratos, locks e limites em [financeiro.md](financeiro.md#políticas-de-recebimento-e-conferência-de-caixa--v49).
+
+Validação local: 462 casos backend aprovados nos grupos direcionados/regressões (186 em PostgreSQL 18 descartável); dois testes concorrentes de Venda já desabilitados para H2 continuam ignorados, sem novos skips. O package final executou 177 casos de políticas/liquidação sem falhas. Cobertos PIX automático/manual, misto dinheiro + duas configurações PIX + cartão + prazo, taxa/líquido/destino históricos, retries, rollback após crédito/segundo item, lotes concorrentes com operadores distintos, inativação concorrente de destino, cancelamento e conferência sem efeitos financeiros. Flyway V1–V49, upgrade V48→V49/default CONTROLADO, validate e Hibernate validate aprovados; regras físicas V48 preservadas em regressão PostgreSQL.
+
+Frontend: 236 casos distintos aprovados após ajustes e regressões, sem falhas/ignorados. Inclui PDV e teclado, rascunho/um único POST, central, agenda, configuração, conferência, claro/escuro/automático e larguras 1440/1024/390 com janela de 400px. Evidência de interface usa HTTP simulado, separada da integração PostgreSQL. Build backend/frontend, lint (zero erros; dois avisos preexistentes de React Hook Form) e diff check aprovados. Build mantém aviso preexistente de chunk acima de 500 kB. Capturas locais da confirmação foram revisadas após terminar a transição do diálogo; não são artefatos versionados.
+
+Sem acesso à Oracle ou alteração de dados de produção nesta tarefa. V49 ainda requer aplicação pelo deploy normal da API; nenhum dado/movimento retroativo foi criado. **BACKEND ALTERADO — DEPLOY MANUAL NA ORACLE NECESSÁRIO.** Não há integração bancária/conciliação externa, liquidação por vencimento, nem transferência/boleto acrescentados ao PDV; os limites operacionais existentes permanecem.
+
+
 ## Ciclo físico Caixa → troco → próxima sessão / COFRE — V48 (2026-10-20)
 
 Implementada composição auditável da abertura, sem segunda fonte de saldo: troco explicitamente retido no mesmo Caixa, retirada confirmada de COFRE e aporte externo gerencial com motivo. Contexto consulta/sugere sem reservar; abertura exige confirmação e valida a soma em centavos. Troco pode passar entre operadores e só pode ser consumido uma vez. Débito do cofre, sessão e auditoria são atômicos, com participação em transação externa, locks e UUID contra repetição/concorrência. Novos fechamentos classificam todo o contado em troco + recolhimento; pendência não credita o cofre. Detalhe apresenta composição e mantém legado legível. Abertura de Caixa e abertura acionada no PDV reutilizam o mesmo diálogo; seleção de sessões existentes e regras de venda/pagamento não mudaram. Contratos e limites em [financeiro.md](financeiro.md#custódia-do-fundo-de-abertura-e-troco-entre-sessões--v48).

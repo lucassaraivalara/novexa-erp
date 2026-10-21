@@ -28,7 +28,7 @@ public class SessaoCaixaEntity {
     private LocalDateTime dataFechamento;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 10)
     private StatusSessaoCaixa status;
-    @Enumerated(EnumType.STRING) @Column(length = 10)
+    @Enumerated(EnumType.STRING) @Column(length = 20)
     private ModalidadeConferencia modalidadeConferencia;
     @Column(length = 500)
     private String observacaoFechamento;

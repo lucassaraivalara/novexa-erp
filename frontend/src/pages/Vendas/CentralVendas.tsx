@@ -485,13 +485,13 @@ export default function CentralVendas() {
                                 const confirmado = pix && pagamento.confirmadoFinanceiramente === true;
                                 return <Chip key={pagamento.id} size="small" variant="outlined"
                                     color={pendente ? "warning" : confirmado ? "success" : "default"}
-                                    label={`${rotulosPagamento[pagamento.formaPagamento]}${pendente ? " pendente" : confirmado ? " confirmado" : ""} · ${moedaVenda(pagamento.valor)}`}
+                                    label={`${rotulosPagamento[pagamento.formaPagamento]}${pendente ? " pendente" : confirmado ? (pagamento.modoRecebimentoSnapshot === "SIMPLIFICADO" ? " registrado no PDV" : " confirmado") : ""} · ${moedaVenda(pagamento.valor)}`}
                                     sx={{ maxWidth: "100%", height: "auto", minHeight: 24, "& .MuiChip-label": { whiteSpace: "normal", py: 0.25, overflowWrap: "anywhere" } }} />;
                             })}
                             {!!detalhe.contasReceber?.length && <Chip size="small" variant="outlined" label="A prazo" />}
                         </Stack>}
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                            Venda faturada não confirma recebimento financeiro. Pagamentos registrados podem aguardar confirmação de PIX ou liquidação de cartão. A receber mostra o saldo das contas a prazo.
+                            Registro operacional não é conciliação bancária. Consulte os pagamentos e as contas a prazo abaixo para acompanhar cada efeito financeiro.
                         </Typography>
                     </Box>
                     <Stack component="section" aria-labelledby="itens-venda-titulo" spacing={1.25}>
@@ -546,7 +546,7 @@ export default function CentralVendas() {
                                         : <Typography variant="body2" color="text.secondary">Recebível não localizado</Typography>)}
                             {pagamento.configuracaoContaFinanceiraDestinoNome && <Typography variant="body2" color="text.secondary">Conta de destino: {pagamento.configuracaoContaFinanceiraDestinoNome}</Typography>}
                             {pix && <Box><Chip size="small" variant="outlined" color={cancelado ? "default" : pagamento.confirmadoFinanceiramente ? "success" : "warning"}
-                                label={cancelado ? "Pagamento cancelado" : pagamento.confirmadoFinanceiramente ? "Recebimento confirmado" : "Aguardando confirmação"} /></Box>}
+                                label={cancelado ? "Pagamento cancelado" : pagamento.confirmadoFinanceiramente ? (pagamento.modoRecebimentoSnapshot === "SIMPLIFICADO" ? "Registrado no PDV" : "Recebimento confirmado") : "Aguardando confirmação"} /></Box>}
                             {pix && pagamento.confirmadoFinanceiramente && <Typography variant="caption" color="text.secondary">
                                 Confirmado em {pagamento.dataConfirmacaoFinanceira ? dataHoraVenda(pagamento.dataConfirmacaoFinanceira) : "—"} · Movimento #{pagamento.movimentacaoFinanceiraId}
                             </Typography>}

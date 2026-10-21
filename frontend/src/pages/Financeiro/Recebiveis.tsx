@@ -1,3 +1,4 @@
+import AgendaRecebimentos from "./AgendaRecebimentos";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
@@ -33,6 +34,7 @@ function formatarData(valor: string | null, comHora = false) {
 }
 
 export default function Recebiveis() {
+    const [agendaAberta, setAgendaAberta] = useState(false);
     const [parametros, setParametros] = useSearchParams();
     const vendaIdParametro = parametros.get("vendaId");
     const vendaIdInvalido = vendaIdParametro !== null && (!/^[1-9]\d*$/.test(vendaIdParametro) || !Number.isSafeInteger(Number(vendaIdParametro)));
@@ -170,7 +172,7 @@ export default function Recebiveis() {
     const formaConfirmacao = confirmacao ? tipos[confirmacao.tipo] : "";
 
     return <PageContainer>
-        <PageHeader titulo="Recebimentos de cartão" descricao="Valores previstos não são saldo disponível. A liquidação registra o crédito; registros cancelados preservam o histórico." />
+        <PageHeader titulo="Recebimentos de cartão" descricao="Valores previstos não são saldo disponível. A liquidação registra o crédito; registros cancelados preservam o histórico." acoesSecundarias={<Button variant="outlined" onClick={() => setAgendaAberta(true)}>Agenda de recebimentos</Button>} />
         {erro && <Alert severity="error" sx={{ mb: 2 }} action={items.length === 0
             ? <Button color="inherit" onClick={() => { setCarregando(true); setTentativa((atual) => atual + 1); }}>Tentar novamente</Button>
             : undefined}>{erro}</Alert>}
@@ -255,5 +257,6 @@ export default function Recebiveis() {
             </Box>
         </Dialog>
         <Snackbar open={Boolean(sucesso)} autoHideDuration={4000} onClose={() => setSucesso("")} message={sucesso} />
+        {agendaAberta && <AgendaRecebimentos onFechar={() => setAgendaAberta(false)} onAlterado={() => { setCarregando(true); setTentativa(v => v + 1); }} />}
     </PageContainer>;
 }

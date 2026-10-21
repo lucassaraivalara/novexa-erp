@@ -36,6 +36,30 @@ public class ConfirmacaoPagamentoPixService {
                 .orElseThrow(() -> erro(HttpStatus.NOT_FOUND, "Venda nao encontrada."));
         var pagamento = pagamentos.buscarParaConfirmar(id, empresaId)
                 .orElseThrow(() -> erro(HttpStatus.NOT_FOUND, "Pagamento nao encontrado."));
+        if (pagamento.getConfiguracaoContaFinanceiraDestinoId()==null)
+            throw erro(HttpStatus.CONFLICT,"Pagamento sem destino financeiro histórico.");
+        var conta = contas.buscarParaAlterar(pagamento.getConfiguracaoContaFinanceiraDestinoId(), empresaId)
+                .orElseThrow(() -> erro(HttpStatus.NOT_FOUND,"Conta financeira historica nao encontrada."));
+        em.refresh(conta);
+        var usuario = usuarios.findByIdAndEmpresaId(usuarioId,empresaId).orElseThrow(() -> erro(HttpStatus.NOT_FOUND,"Usuário não encontrado."));
+        return registrar(pagamento,conta,usuario,false);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void registrarNoFaturamento(java.util.List<PagamentoEntity> registros, UsuarioEntity usuario) {
+        var destinos = new java.util.TreeMap<Long,ContaFinanceiraEntity>();
+        var pix = registros.stream().filter(p -> p.getConfiguracaoTipo()==TipoFormaPagamento.PIX
+                && p.getModoRecebimentoSnapshot()==ModoRecebimentoFinanceiro.SIMPLIFICADO).toList();
+        for (var id : pix.stream().map(PagamentoEntity::getConfiguracaoContaFinanceiraDestinoId).distinct().sorted().toList()) {
+            var conta=contas.buscarParaAlterar(id,usuario.getEmpresa().getId())
+                    .orElseThrow(() -> erro(HttpStatus.CONFLICT,"Destino financeiro PIX indisponível."));
+            em.refresh(conta); destinos.put(id,conta);
+        }
+        for (var p : pix) registrar(p,destinos.get(p.getConfiguracaoContaFinanceiraDestinoId()),usuario,true);
+    }
+
+    private PagamentoResponseDTO registrar(PagamentoEntity pagamento, ContaFinanceiraEntity conta, UsuarioEntity usuario, boolean novoFaturamento) {
+        var empresaId=pagamento.getEmpresa().getId();
         if (pagamento.getStatus() == StatusPagamento.CANCELADO)
             throw erro(HttpStatus.CONFLICT, "Pagamento cancelado nao pode ser confirmado.");
         if (pagamento.getConfiguracaoTipo() != TipoFormaPagamento.PIX)
@@ -44,13 +68,12 @@ public class ConfirmacaoPagamentoPixService {
             throw erro(HttpStatus.CONFLICT, "Pagamento sem destino financeiro historico.");
         if (pagamento.getValor() == null || pagamento.getValor().signum() <= 0)
             throw erro(HttpStatus.CONFLICT, "Pagamento deve possuir valor positivo.");
-        var conta = contas.buscarParaAlterar(pagamento.getConfiguracaoContaFinanceiraDestinoId(), empresaId)
-                .orElseThrow(() -> erro(HttpStatus.NOT_FOUND, "Conta financeira historica nao encontrada."));
-        em.refresh(conta);
-        if (movimentos.findByPagamentoIdAndEmpresaId(id, empresaId).isPresent())
+
+        if (movimentos.findByPagamentoIdAndEmpresaId(pagamento.getId(), empresaId).isPresent())
             return PagamentoResponseDTO.de(pagamento);
-        var usuario = usuarios.findByIdAndEmpresaId(usuarioId, empresaId)
-                .orElseThrow(() -> erro(HttpStatus.NOT_FOUND, "Usuario nao encontrado."));
+        if (novoFaturamento && (!conta.isAtivo()
+                || (conta.getTipo()!=TipoContaFinanceira.BANCO && conta.getTipo()!=TipoContaFinanceira.CARTEIRA_DIGITAL)))
+            throw erro(HttpStatus.CONFLICT,"Conta de destino PIX indisponível. Revise a configuração de pagamento.");
         var saldo = conta.getSaldoAtual().add(pagamento.getValor());
         if (saldo.precision() - saldo.scale() > 17)
             throw erro(HttpStatus.CONFLICT, "Saldo excede o limite permitido.");

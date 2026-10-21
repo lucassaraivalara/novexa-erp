@@ -20,6 +20,7 @@ import java.util.*;
 @Service
 @Transactional(readOnly = true)
 public class SessaoCaixaService {
+    @org.springframework.beans.factory.annotation.Autowired private ConferenciaMeiosService conferenciaMeios;
     private final CofreService cofre;
     private final TransactionTemplate aberturaTransacao;
     private final CaixaRepository caixas;
@@ -291,6 +292,15 @@ public class SessaoCaixaService {
         if (autenticado.perfil() != PerfilUsuario.ADMIN && autenticado.perfil() != PerfilUsuario.GERENTE
                 && !sessao.getUsuarioAbertura().getId().equals(autenticado.usuarioId()))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Somente quem abriu o Caixa pode fechar esta sessão.");
+        if (pedido.conferenciaMeios()!=null) {
+            var resultado=conferenciaMeios.preparar(sessao,pedido);
+            if (sessao.getStatus()==StatusSessaoCaixa.ABERTO) {
+                sessao.fechar(usuario,saldoFinal,resultado.modalidade(),resultado.observacao());
+                sessoes.saveAndFlush(sessao); conferencias.saveAllAndFlush(resultado.linhas());
+            }
+            cofre.fechamento(sessao,usuario,pedido.cofre());
+            return resposta(sessao,resultado.linhas());
+        }
         var modalidade = pedido.conferencia() == null ? ModalidadeConferencia.LEGADA : ModalidadeConferencia.POR_FORMA;
         var informados = validarInformados(pedido.conferencia());
         String observacao = normalizarObservacao(pedido.conferencia());

@@ -1,8 +1,43 @@
 FINANCEIRO NOVEXA
 
+## Políticas de recebimento e conferência de Caixa — V49
+
+**Registro operacional ≠ conciliação bancária. Fechamento de Caixa ≠ liquidação financeira. Data prevista ≠ dinheiro recebido.**
+
+A empresa possui políticas independentes: `modoRecebimentoFinanceiro=CONTROLADO|SIMPLIFICADO`, `modoConferenciaFechamento=POR_FORMA_PAGAMENTO|TOTAL` e `exigirValoresInformadosNoFechamento`. V49 aditiva mantém empresas existentes em CONTROLADO, conferência por forma e valores exigidos. Não há confirmação, liquidação ou recálculo retroativo. O modo é capturado em `Pagamento.modoRecebimentoSnapshot`; legado permanece nulo.
+
+`GET /financeiro/configuracoes/recebimentos` consulta a própria empresa do JWT. `PUT` é ADMIN/GERENTE: `{modo, conferencia?, exigirValoresInformadosNoFechamento?}`; omitir os dois últimos preserva a configuração. Nenhum `empresaId` é autoridade no payload. A tela fica em Configurações → Financeiro → Recebimentos e Caixa.
+
+- CONTROLADO: PIX mantém o movimento pendente até o POST gerencial existente `/financeiro/pagamentos/{id}/confirmar-recebimento`. Cartão mantém Recebível PENDENTE até liquidação.
+- SIMPLIFICADO: somente concluir a venda registra cada PIX na conta do snapshot, na mesma transação de Venda/Estoque/Pagamentos. Não existe segunda confirmação, segundo POST financeiro ou novo modal no PDV. OPERADOR pode provocar esse efeito apenas pelo faturamento válido; não ganha acesso ao endpoint gerencial. A apresentação histórica é “Registrado no PDV”, sem alegar confirmação bancária.
+- Cartão continua Recebível nos dois modos. Bruto, taxas percentual/fixa, líquido, prazo e destino históricos não usam o cadastro atual. Data prevista não dispara liquidação. Dinheiro, prazo, rascunho, kits/combos e atalhos do PDV mantêm seus contratos.
+
+### Agenda e liquidação em lote
+
+`GET /financeiro/recebiveis/agenda?page=0&size=25` pagina grupos pendentes por data prevista, configuração, tipo e conta de destino históricos. Nomes são representativos dos snapshots do grupo, nunca do cadastro atual. Inclui quantidade/bruto/taxas/líquido conhecido e quantidade sem previsão líquida. `GET /financeiro/recebiveis/agenda/itens` recebe `data`, `configuracaoId`, `tipo`, `contaDestinoId`, `page`, `size` (máximo 200), e retorna IDs, venda de origem e valores históricos de cada item. Filtros nulos selecionam o grupo legado sem esse snapshot; não o reinterpretam. Consultas agrupadas/paginadas no banco, sem N+1 na agenda.
+
+`POST /financeiro/recebiveis/liquidar-lote` recebe somente `{recebivelIds:[...]}`, entre 1 e 200 IDs distintos. Restrito a ADMIN/GERENTE da empresa SIMPLIFICADO; conta/valores/taxas são determinados pelos snapshots. O núcleo é o mesmo da liquidação individual: N recebíveis continuam com N movimentos `RECEBIVEL_LIQUIDACAO`, sem lançamento agregado. Todos ou nenhum, inclusive em falha posterior a um crédito. Retry devolve liquidações existentes e não credita novamente. Cancelamento individual da Venda continua revertendo exatamente seus movimentos originais, independentemente do lote.
+
+A agenda oferece confirmação explícita e lista as vendas em nova aba. Grupos maiores são apresentados em parcelas de até 200 itens por confirmação, com quantidade e valor dessa seleção; o restante continua pendente. Pendências sem destino/líquido não são inferidas. O modo Controlado preserva a liquidação individual.
+
+### Conferência operacional por configuração ou por total
+
+O fechamento aceita adicionalmente `conferenciaMeios: {modo, meios:[{configuracaoId, formaPagamentoId, valorInformado}], totalInformado?, observacao?}`. Enviar uma configuração **ou** uma forma legada por linha, nunca ambas; o backend deriva quais linhas/esperados pertencem à sessão. Não aceitar listas arbitrárias. Contratos antigos `conferencia`/LEGADA/POR_FORMA permanecem compatíveis; não misturar os dois contratos no mesmo pedido. O frontend novo usa exclusivamente `conferenciaMeios`.
+
+POR_FORMA_PAGAMENTO mantém PIX Nubank, PIX Sicredi e cartões/configurações separados, a partir de pagamentos não cancelados e snapshots. TOTAL confere **somente a soma dos meios não dinheiro**: não soma saldo inicial/troco/suprimento ao total operacional. Dinheiro físico continua no único `saldoFinal`; não há outro campo de dinheiro informado. Valores não dinheiro podem ficar nulos quando não exigidos; nulo não vira zero nem valor conferido. Divergência informada exige observação. Retry compara o fechamento salvo e não a política atual da empresa.
+
+A tabela existente `conferencias_fechamento_caixa` recebe escopos CONFIGURACAO/TOTAL_MEIOS, FK tenant-safe, nome/tipo/esperado/informado e diferença derivada. Operador/data vêm do fechamento da sessão. Histórico exibe os snapshots persistidos; legado continua legível. **Nenhuma linha de conferência cria movimento, ajusta saldo, confirma PIX ou liquida recebível.** Troco, COFRE e custódia V48 não mudam.
+
+### Transações e locks
+
+Venda mantém lock do operador e agregados existentes; a leitura compartilhada da política empresarial estabiliza a decisão sem serializar todas as vendas. Configurações e contas múltiplas são bloqueadas em ordem crescente de ID. Faturamento PIX usa o núcleo financeiro compartilhado em transação MANDATORY; revalida destino ativo sob lock. Cancelamento bloqueia Caixa/sessão antes de contas financeiras e antecipa a união ordenada de destinos de PIX/cartão/prazo, sem mudar as regras de reversão. Lotes bloqueiam operador → todas as Vendas ordenadas → Pagamentos ordenados → Recebíveis ordenados → contas ordenadas. Nenhum lote adquire outra Venda depois de bloquear uma conta.
+
+Vínculos/UNIQUE existentes de pagamento e recebível continuam protegendo idempotência. Falha desfaz Venda, estoque, pagamentos, saldo e movimentos. Estorno marca o movimento original; não apaga nem cria compensação extra. Restrições existentes de saldo e sessão continuam aplicáveis. V49 não altera migrations anteriores nem movimentos históricos.
+
+
 ## PIX e cartões por conta de destino (2026-10-20)
 
-Contas e saldos distingue **saldo disponível**, **A LIQUIDAR** e **LIQUIDADO**. A venda já registra a previsão: Pagamento para PIX e Recebível para cartão. A consulta reúne esses registros pelo destino histórico, sem criar saldo paralelo ou creditar a conta no faturamento/fechamento. O saldo disponível continua exclusivamente em ContaFinanceira; o total liquidado é histórico de entradas e não desconta saídas/transferências posteriores.
+Contas e saldos distingue **saldo disponível**, **A LIQUIDAR** e **LIQUIDADO**. A venda já registra a previsão: Pagamento para PIX e Recebível para cartão. A consulta reúne esses registros pelo destino histórico, sem criar saldo paralelo. No CONTROLADO não credita a conta no faturamento; no SIMPLIFICADO o PIX é registrado na mesma transação. Fechamento não credita pagamentos. O saldo disponível continua exclusivamente em ContaFinanceira; o total liquidado é histórico de entradas e não desconta saídas/transferências posteriores.
 
 Contratos adicionais, autenticados e somente de leitura:
 
@@ -170,7 +205,7 @@ Nenhum destino cadastrado gera lançamento financeiro neste bloco. Venda, Pagame
 
 O contrato anterior (formaPagamento/formaPagamentoId, configuracaoFormaPagamentoId opcional, valorRecebido) permanece aceito, convertido em uma unica parcela pelo mesmo processamento. Nao misturar campos singulares com pagamentos[]. Os formatos legados do hash permanecem intactos. Reenvio identico nao repete efeitos; alteracao do payload na mesma chave retorna conflito.
 
-Venda -> N Pagamentos em sequencias 1..N conforme payload, dentro de uma unica transacao: baixa de estoque uma vez, DINHEIRO no Caixa pelo valor aplicado, PIX pendente de confirmacao posterior, DEBITO/CREDITO com Recebivel individual e snapshots existentes de destino/taxas/prazo. Dinheiro aplicado 40 e recebido 50 gera movimento 40 e troco 10; recebido omitido assume o aplicado. Troco nunca integra a soma das parcelas. A ordem de locks do Caixa continua Operador -> Caixa -> Sessao; configuracoes usam os locks existentes por ID crescente.
+Venda -> N Pagamentos em sequencias 1..N conforme payload, dentro de uma unica transacao: baixa de estoque uma vez, DINHEIRO no Caixa pelo valor aplicado, PIX conforme política empresarial (CONTROLADO pendente; SIMPLIFICADO registrado no faturamento), DEBITO/CREDITO com Recebivel individual e snapshots existentes de destino/taxas/prazo. Dinheiro aplicado 40 e recebido 50 gera movimento 40 e troco 10; recebido omitido assume o aplicado. Troco nunca integra a soma das parcelas. A ordem de locks do Caixa continua Operador -> Caixa -> Sessao; configuracoes usam os locks existentes por ID crescente.
 
 Na venda mista, forma/configuracao singulares de Venda ficam nulas; a fonte de detalhe e `GET /vendas/{id}/pagamentos`. Venda conserva total recebido operacional e troco agregado. Cada Pagamento preserva seu proprio valor/configuracao/snapshot. Cancelamento percorre todos os pagamentos/recebiveis pela infraestrutura existente, incluindo PIX confirmado e cartao liquidado pelo liquido, com estorno de dinheiro e estoque uma vez. Qualquer falha desfaz toda a operacao; historico permanece.
 

@@ -11,6 +11,14 @@ import java.util.UUID;
         name = "uk_pagamento_venda_sequencia", columnNames = {"venda_id", "sequencia"}))
 public class PagamentoEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+    @Enumerated(EnumType.STRING) @Column(length=20, updatable=false)
+    private ModoRecebimentoFinanceiro modoRecebimentoSnapshot;
+    public ModoRecebimentoFinanceiro getModoRecebimentoSnapshot() { return modoRecebimentoSnapshot; }
+    public void registrarPoliticaRecebimento(ModoRecebimentoFinanceiro modo) {
+        if (modoRecebimentoSnapshot != null) throw new IllegalStateException("Política já registrada.");
+        modoRecebimentoSnapshot=java.util.Objects.requireNonNull(modo);
+    }
+
     @ManyToOne(optional = false) @JoinColumn(nullable = false) private EmpresaEntity empresa;
     @ManyToOne(optional = false) @JoinColumn(nullable = false) private VendaEntity venda;
     @ManyToOne(optional = false) @JoinColumn(nullable = false) private UsuarioEntity usuario;

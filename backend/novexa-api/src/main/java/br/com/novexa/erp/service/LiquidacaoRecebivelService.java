@@ -28,17 +28,50 @@ public class LiquidacaoRecebivelService {
 
     @Transactional
     public RecebivelResponseDTO liquidar(Long id, Long empresaId, Long usuarioId) {
-        var vinculos = recebiveis.buscarVinculos(id, empresaId).orElseThrow(() -> naoEncontrado("Recebivel"));
-        // Compatibilidade com PIX/cancelamento: operador -> Venda -> Pagamento -> Recebivel -> Conta.
-        var usuario = vendas.bloquearOperador(usuarioId, empresaId).orElseThrow(() -> naoEncontrado("Usuario"));
+        return liquidarRegistros(java.util.List.of(id),empresaId,usuarioId,false).getFirst();
+    }
+
+    @Transactional
+    public java.util.List<RecebivelResponseDTO> liquidarLote(java.util.List<Long> ids, Long empresaId, Long usuarioId) {
+        return liquidarRegistros(ids,empresaId,usuarioId,true);
+    }
+
+    private java.util.List<RecebivelResponseDTO> liquidarRegistros(java.util.List<Long> ids,Long empresaId,Long usuarioId,boolean lote) {
+        if (ids==null || ids.isEmpty() || ids.size()>200 || ids.stream().anyMatch(id -> id==null || id<=0)
+                || ids.stream().distinct().count()!=ids.size())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Selecione entre 1 e 200 recebíveis distintos.");
+        var usuario=vendas.bloquearOperador(usuarioId,empresaId).orElseThrow(() -> naoEncontrado("Usuário"));
         if (!Boolean.TRUE.equals(usuario.getAtivo()) || !Boolean.TRUE.equals(usuario.getEmpresa().getAtivo()))
-            throw conflito("Operador indisponivel para liquidacao.");
-        var venda = vendas.findByIdAndEmpresaIdWithLock(vinculos.getVendaId(), empresaId).orElseThrow(() -> naoEncontrado("Venda"));
-        em.refresh(venda);
-        var pagamento = pagamentos.buscarParaConfirmar(vinculos.getPagamentoId(), empresaId).orElseThrow(() -> naoEncontrado("Pagamento"));
-        em.refresh(pagamento);
-        var r = recebiveis.buscarParaLiquidar(id, empresaId).orElseThrow(() -> naoEncontrado("Recebivel"));
-        em.refresh(r);
+            throw conflito("Operador indisponível para liquidação.");
+        if (lote && usuario.getPerfil()!=PerfilUsuario.ADMIN && usuario.getPerfil()!=PerfilUsuario.GERENTE)
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Somente administradores e gestores podem liquidar lotes.");
+        if (lote && usuario.getEmpresa().getModoRecebimentoFinanceiro()!=ModoRecebimentoFinanceiro.SIMPLIFICADO)
+            throw conflito("A liquidação agrupada está disponível no modo Simplificado.");
+        var ordenados=ids.stream().sorted().toList();
+        var vinculos=recebiveis.buscarVinculosLote(ordenados,empresaId);
+        if (vinculos.size()!=ordenados.size()) throw naoEncontrado("Recebível");
+        // All aggregates before any financial account. Deterministic ordering also for overlapping batches.
+        for (var vendaId : vinculos.stream().map(RecebivelRepository.Vinculos::getVendaId).distinct().sorted().toList()) {
+            var venda=vendas.findByIdAndEmpresaIdWithLock(vendaId,empresaId).orElseThrow(() -> naoEncontrado("Venda")); em.refresh(venda);
+        }
+        for (var pagamentoId : vinculos.stream().map(RecebivelRepository.Vinculos::getPagamentoId).distinct().sorted().toList()) {
+            var pagamento=pagamentos.buscarParaConfirmar(pagamentoId,empresaId).orElseThrow(() -> naoEncontrado("Pagamento")); em.refresh(pagamento);
+        }
+        var registros=new java.util.ArrayList<RecebivelEntity>();
+        for (var id : ordenados) {
+            var r=recebiveis.buscarParaLiquidar(id,empresaId).orElseThrow(() -> naoEncontrado("Recebível")); em.refresh(r); registros.add(r);
+        }
+        var destinos=new java.util.TreeMap<Long,ContaFinanceiraEntity>();
+        for (var destinoId : registros.stream().map(r -> r.getPagamento().getConfiguracaoContaFinanceiraDestinoId())
+                .filter(java.util.Objects::nonNull).distinct().sorted().toList()) {
+            var conta=contas.buscarParaAlterar(destinoId,empresaId).orElseThrow(() -> conflito("Destino financeiro histórico inválido."));
+            em.refresh(conta); destinos.put(destinoId,conta);
+        }
+        return registros.stream().map(r -> liquidarBloqueado(r,usuario,destinos)).toList();
+    }
+
+    private RecebivelResponseDTO liquidarBloqueado(RecebivelEntity r, UsuarioEntity usuario,Map<Long,ContaFinanceiraEntity> destinos) {
+        var id=r.getId(); var empresaId=r.getEmpresa().getId(); var venda=r.getVenda(); var pagamento=r.getPagamento();
         if (venda.getStatus() != StatusVenda.FATURADA || pagamento.getStatus() != StatusPagamento.REGISTRADO
                 || r.getStatus() == StatusRecebivel.CANCELADO)
             throw conflito("Recebivel ou venda cancelados nao podem ser liquidados.");
@@ -50,8 +83,7 @@ public class LiquidacaoRecebivelService {
         if (anterior != null) throw conflito("Recebivel pendente possui movimentacao financeira.");
         var destinoId = pagamento.getConfiguracaoContaFinanceiraDestinoId();
         if (destinoId == null) throw conflito("Pagamento sem destino financeiro historico.");
-        var conta = contas.buscarParaAlterar(destinoId, empresaId).orElseThrow(() -> conflito("Destino financeiro historico invalido."));
-        em.refresh(conta);
+        var conta = destinos.get(destinoId);
         var valor = r.getValorLiquidoPrevisto();
         if (valor == null || valor.signum() <= 0 || valor.compareTo(r.getValorBruto()) > 0)
             throw conflito("Valor liquido previsto invalido para liquidacao integral.");

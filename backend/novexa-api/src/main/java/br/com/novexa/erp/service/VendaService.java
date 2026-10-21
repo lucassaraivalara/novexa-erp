@@ -26,6 +26,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class VendaService {
+    @org.springframework.beans.factory.annotation.Autowired private EmpresaRepository politicasEmpresa;
+    @org.springframework.beans.factory.annotation.Autowired private ConfirmacaoPagamentoPixService pixRecebimentos;
     @org.springframework.beans.factory.annotation.Autowired private ComposicaoProdutoService composicoes;
     private final VendaRepository vendas;
     private final ClienteRepository clientes;
@@ -317,6 +319,8 @@ public class VendaService {
         boolean permitido = Boolean.TRUE.equals(operador.getEmpresa().getPermitirVendaEstoqueNegativo());
         if (!insuficientes.isEmpty() && (!permitido || !Boolean.TRUE.equals(pedido.confirmarEstoqueInsuficiente())))
             throw new br.com.novexa.erp.exception.ConfirmacaoEstoqueException(permitido, insuficientes);
+        var empresaPolitica = politicasEmpresa.politicaComLock(autenticado.empresaId()).orElseThrow(() -> conflito("Empresa indisponível."));
+        entityManager.refresh(empresaPolitica);
         var parcelas = prepararPagamentos(pedido, autenticado.empresaId(), total);
         contasReceber.validarParcelasVenda(venda, pedido.parcelasPrazo());
         BigDecimal recebido = parcelas.stream().map(p -> p.recebido() == null ? p.valor() : p.recebido())
@@ -339,13 +343,16 @@ public class VendaService {
                 unico == null ? null : unico.forma().getTipo().contratoVenda(), recebido,
                 recebido.subtract(parcelas.stream().map(PagamentoPreparado::valor).reduce(BigDecimal.ZERO, BigDecimal::add)),
                 total.subtract(parcelas.stream().map(PagamentoPreparado::valor).reduce(BigDecimal.ZERO, BigDecimal::add)));
+        var pagamentosCriados = new java.util.ArrayList<PagamentoEntity>();
         for (int i = 0; i < parcelas.size(); i++) {
             var parcela = parcelas.get(i);
             var pagamento = pagamentos.registrarFaturamento(venda, operador, parcela.forma(), parcela.configuracao(),
                     i + 1, parcela.valor(), parcela.recebido());
+            pagamentosCriados.add(pagamento);
             recebiveis.gerar(pagamento);
             caixaOperacional.registrarVenda(pagamento);
         }
+        pixRecebimentos.registrarNoFaturamento(pagamentosCriados, operador);
         contasReceber.gerarDaVenda(venda, pedido.parcelasPrazo());
         return VendaResponseDTO.de(venda);
     }

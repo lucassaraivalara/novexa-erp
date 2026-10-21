@@ -1,5 +1,17 @@
 # Regras oficiais do Financeiro
 
+## Políticas de recebimento e conferência — V49
+
+- **REGISTRO OPERACIONAL ≠ CONCILIAÇÃO BANCÁRIA. FECHAMENTO DE CAIXA ≠ LIQUIDAÇÃO FINANCEIRA. DATA PREVISTA ≠ DINHEIRO RECEBIDO.**
+- Empresas existentes iniciam CONTROLADO. SIMPLIFICADO vale para novas operações e registra PIX na transação do faturamento, sem interação financeira extra no PDV. Política histórica fica no pagamento; mudança de modo não confirma antigos nem estorna registrados.
+- O mesmo núcleo PIX atende confirmação manual e registro interno MANDATORY. Manual permanece ADMIN/GERENTE. OPERADOR só provoca registro pela Venda válida SIMPLIFICADO. Cada pagamento credita exclusivamente seu destino histórico; retry/rollback/cancelamento preservam as constraints atuais.
+- Cartão permanece Recebível PENDENTE em ambos os modos, sem saldo bancário na venda ou por chegada da data prevista. Lote SIMPLIFICADO exige ação ADMIN/GERENTE, usa valores/destinos históricos e cria um movimento por recebível. Máximo 200 por confirmação; todos ou nenhum. Liquidação individual e lote compartilham núcleo, e cancelamento por Venda não depende do tipo de liquidação.
+- Configuração de conferência é independente: POR_FORMA_PAGAMENTO separa configurações históricas; TOTAL agrega apenas meios não dinheiro. `saldoFinal` continua o único dinheiro físico informado, com destinação troco/COFRE V48 intacta.
+- Conferência persiste auditoria esperada/informada/diferença, operador e data da sessão. Valores não exigidos podem permanecer não informados; nunca inventar conferência. Divergência exige motivo e não gera qualquer efeito em ContaFinanceira, PIX ou Recebível.
+- Segurança pelo JWT; configurações/lote só ADMIN/GERENTE. Política lida sob lock compartilhado; lotes adquirem agregados por IDs crescentes antes de contas. Cancelamento obtém Caixa/sessão antes de destinos financeiros para compatibilidade com faturamento PIX. Unicidades/FKs não foram enfraquecidas.
+- Contratos e semântica de TOTAL em [financeiro.md](financeiro.md#políticas-de-recebimento-e-conferência-de-caixa--v49). Não há integração bancária/gateway ou liquidação automática.
+
+
 ## Dinheiro físico, troco e COFRE — V48
 
 - Dinheiro físico é controlado por Caixa/SessaoCaixa/MovimentacaoCaixa; dinheiro financeiro por ContaFinanceira/MovimentacaoFinanceira. Não são saldos intercambiáveis. O tipo financeiro CAIXA permanece legado.
@@ -13,7 +25,7 @@
 
 ## Apresentação de recebimentos por conta
 
-- A previsão de PIX/cartão é consultada nos registros da venda e não aumenta `ContaFinanceira.saldoAtual`. A LIQUIDAR e LIQUIDADO são estados de apresentação derivados da ausência/presença de movimento financeiro ativo vinculado; não substituem os status persistidos nem o histórico de cancelamento.
+- A previsão de cartão e o PIX CONTROLADO pendente não aumentam `ContaFinanceira.saldoAtual`; PIX SIMPLIFICADO registrado no faturamento possui movimento ativo e integra o saldo operacional. A LIQUIDAR e LIQUIDADO são estados de apresentação derivados da ausência/presença de movimento financeiro ativo vinculado; não substituem os status persistidos nem o histórico de cancelamento.
 - Fechar Caixa não liquida recebimentos. Confirmar PIX/liquidar cartão continuam ações explícitas, com destino histórico, permissões, idempotência e reversões existentes.
 - A previsão soma líquidos conhecidos de pagamentos não cancelados. Destino ou valor histórico ausente deve ser sinalizado, sem inferir conta pelo nome, reutilizar configuração atual ou apresentar valor desconhecido como zero.
 - Total liquidado histórico não é saldo disponível: saídas, transferências e outros movimentos permanecem refletidos exclusivamente no saldo da conta. Gateway identificado no cadastro não implica integração automática com provedor.
@@ -21,13 +33,13 @@
 ## PIX antes do faturamento
 
 - Nova venda com PIX exige configuracao empresarial ativa com destino BANCO/CARTEIRA_DIGITAL ativo do mesmo tenant. Vale tambem para o payload singular legado: PIX sem configuracao retorna 409 antes dos efeitos de Venda/estoque/pagamentos. Cadastro ja exige destino; faturamento revalida sua disponibilidade.
-- Leitura e retry historicos permanecem; inativacao do destino depois do faturamento nao redireciona nem impede a confirmacao historica existente. PIX continua sem credito automatico: somente confirmar recebimento gera o movimento financeiro.
+- Leitura e retry historicos permanecem; inativacao do destino depois do faturamento nao redireciona nem impede a confirmacao historica existente. No CONTROLADO, somente a confirmação financeira explícita gera o movimento PIX; no SIMPLIFICADO, a conclusão da Venda registra o movimento atomicamente.
 - PDV omite PIX sabidamente invalido, preserva alocacoes editadas ao adicionar/remover formas e mostra Total da venda, Pago agora, A receber e Falta distribuir somente quando ha diferenca. Cliente e solicitado ao escolher A prazo; vencimento obrigatorio tem feedback inline. Nao altera regras de Caixa, cartao, prazo ou cancelamento.
 
 ## Venda a prazo - Bloco 3
 
 - Faturamento aloca o total em pagamentos imediatos + parcelasPrazo, com soma exata em centavos. Uma venda pode ser 100% a prazo; cliente ativo do tenant e obrigatorio. A prazo e opcao sistemica do PDV, nunca configuracao financeira nem PagamentoEntity.
-- Cada parcela gera ContaReceber VENDA_A_PRAZO/PENDENTE, mesmo cliente/empresa/venda, numero 1..N e total N (maximo 120), valor e vencimento proprios. Nao credita ContaFinanceira nem gera MovimentacaoFinanceira. Baixas posteriores usam o dominio existente; cartao continua Recebivel, dinheiro continua Caixa e PIX continua pendente de confirmacao.
+- Cada parcela gera ContaReceber VENDA_A_PRAZO/PENDENTE, mesmo cliente/empresa/venda, numero 1..N e total N (maximo 120), valor e vencimento proprios. Nao credita ContaFinanceira nem gera MovimentacaoFinanceira. Baixas posteriores usam o dominio existente; cartao continua Recebivel, dinheiro continua Caixa e PIX segue a política empresarial.
 - Venda fica FATURADA e baixa estoque uma unica vez. Pagamentos imediatos e contas a receber sao criados na mesma transacao; idempotencia da Venda e UNIQUE venda/parcela impedem duplicidade. Valor recebido inclui somente as partes imediatas e o troco; V36 registra valorPrazo, ajusta CHECKs de recebido/troco e preserva historico com valorPrazo=0.
 - Contas originadas de venda nao aceitam edicao/cancelamento individual. Cancelar a Venda estorna cada baixa ativa pelo mecanismo oficial e cancela todas as parcelas, junto de Caixa/PIX/cartao/estoque, atomicamente e sem apagar historico. Saldo insuficiente ou falha intermediaria reverte tudo.
 - Cancelamento bloqueia operador -> Venda -> produtos ordenados -> ContasReceber ordenadas -> uniao dos destinos financeiros de PIX/cartao/prazo ordenada por ID, antes dos estornos existentes. Baixa e estorno individual continuam ContaReceber -> ContaFinanceira -> movimento. Locks Operador -> Caixa -> Sessao do dinheiro permanecem.
@@ -106,7 +118,7 @@
 - Conta histórica inativada após o faturamento permite confirmação e estorno; nunca redirecionar o destino. A confirmação financeira e sua auditoria derivam do movimento vinculado (ID, dataCriacao e usuário), não do status REGISTRADO. Faturamento e fechamento do Caixa não confirmam PIX automaticamente.
 - No Bloco 4C-A2, cancelar Venda/Pagamento reverte o crédito PIX e marca o movimento original estornado, com data/usuário/motivo, na mesma transação dos efeitos legados. Não exclui nem cria movimento compensatório. Sem confirmação, segue o cancelamento legado. Retry preserva saldos e auditoria. Saldo insuficiente retorna conflito e reverte toda a tentativa, inclusive estoque; nunca saldo negativo. Estorno individual de PAGAMENTO_PIX permanece bloqueado pelo endpoint genérico.
 - Confirmacao de recebimento PIX no MVP e exclusiva de ADMIN/GERENTE, protegida no backend pelo perfil do JWT. OPERADOR/USUARIO recebem 403 e usuario nao autenticado recebe 401. A acao fica na Central de Vendas/detalhe/Pagamentos, nunca na operacao principal do PDV; usa o endpoint existente sem payload. Conta e valor continuam derivados do pagamento historico, sem fallback para PIX antigo sem destino.
-- Pagamento misto: uma Venda possui N Pagamentos com sequencias 1..N; parcelas positivas somam exatamente o total, sem repetir configuracao. A configuracao pertence ao tenant do JWT. DINHEIRO movimenta Caixa somente pelo valor aplicado (recebido menos troco); PIX continua pendente e cartao gera Recebivel/snapshot por pagamento. Faturamento, baixa unica de estoque e cancelamento de todos os fluxos sao atomicos. Payload singular continua compativel pelo mesmo processamento; nao existe Conta a Receber ou pagamento parcial neste fluxo. Contrato em [financeiro.md](financeiro.md).
+- Pagamento misto: uma Venda possui N Pagamentos com sequencias 1..N; parcelas positivas somam exatamente o total, sem repetir configuracao. A configuracao pertence ao tenant do JWT. DINHEIRO movimenta Caixa somente pelo valor aplicado (recebido menos troco); PIX segue a política empresarial e cartao gera Recebivel/snapshot por pagamento. Faturamento, baixa unica de estoque e cancelamento de todos os fluxos sao atomicos. Payload singular continua compativel pelo mesmo processamento; nao existe Conta a Receber ou pagamento parcial neste fluxo. Contrato em [financeiro.md](financeiro.md).
 - Fechamento de Caixa é conferência operacional; não liquida banco, PIX ou cartão.
 - Empresa vem exclusivamente da autenticação/JWT. O vínculo bancário tem FK composta por empresa e unicidade no banco de dados.
 - Baixa e estorno de Contas a Pagar continuam alterando ContaFinanceira e MovimentacaoFinanceira atomicamente. Este vínculo cadastral não cria outro saldo nem uma integração com o PDV.

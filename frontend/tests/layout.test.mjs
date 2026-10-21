@@ -34,7 +34,7 @@ before(async () => {
             load(id) { if (id === "\0layout-fixture.js") return fixture; },
             configureServer(vite) {
                 vite.middlewares.use(async (req,res,next) => {
-                    if (!["/dashboard","/pdv","/vendas","/estoque","/clientes","/produtos","/empresa","/usuarios","/configuracoes","/financeiro/contas-pagar","/financeiro/recebiveis","/financeiro/contas-financeiras","/financeiro/formas-pagamento","/financeiro/dados-bancarios","/login"].includes(req.url.split('?')[0])) return next();
+                    if (!["/configuracoes/recebimentos-caixa","/dashboard","/pdv","/vendas","/estoque","/clientes","/produtos","/empresa","/usuarios","/configuracoes","/financeiro/contas-pagar","/financeiro/recebiveis","/financeiro/contas-financeiras","/financeiro/formas-pagamento","/financeiro/dados-bancarios","/login"].includes(req.url.split('?')[0])) return next();
                     res.setHeader("Content-Type","text/html");
                     res.end(await vite.transformIndexHtml(req.url,'<div id="root"></div><script type="module" src="/layout-fixture.js"></script>'));
                 });
@@ -137,7 +137,7 @@ test("Central compacta preserva destinos, teclado e acesso no rodape sem consult
         assert.deepEqual(await main.getByRole("heading",{level:2}).allTextContents(),["Empresa","Usuários e acesso","Financeiro","Produtos"]);
         const links = main.getByRole("link");
         assert.deepEqual(await links.evaluateAll(items => items.map(item => item.getAttribute("href"))),[
-            "/empresa","/usuarios","/financeiro/formas-pagamento","/financeiro/dados-bancarios","/configuracoes/categorias-produtos","/configuracoes/marcas-produtos",
+            "/empresa","/usuarios","/configuracoes/recebimentos-caixa","/financeiro/formas-pagamento","/financeiro/dados-bancarios","/configuracoes/categorias-produtos","/configuracoes/marcas-produtos",
         ]);
         for (const link of await links.all()) {
             await link.focus();

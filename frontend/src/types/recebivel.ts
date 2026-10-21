@@ -27,3 +27,10 @@ export type Recebivel = {
     usuarioCancelamentoId: number | null;
     movimentacaoFinanceiraId: number | null;
 };
+
+export type GrupoAgenda = {
+    dataPrevista: string | null; configuracaoId: number | null; configuracaoNome: string | null;
+    tipo: TipoRecebivel; contaDestinoId: number | null; contaDestinoNome: string | null;
+    quantidade: number; bruto: number; taxas: number | null; liquido: number | null; semPrevisaoLiquida: number;
+};
+export type ItemAgenda = { id: number; vendaId: number; bruto: number; taxas: number | null; liquido: number | null };

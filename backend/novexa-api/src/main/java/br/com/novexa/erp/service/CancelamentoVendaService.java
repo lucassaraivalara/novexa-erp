@@ -16,6 +16,7 @@ import java.util.*;
  */
 @Service
 public class CancelamentoVendaService {
+    @org.springframework.beans.factory.annotation.Autowired private CaixaOperacionalService caixaOperacional;
     private final VendaRepository vendas;
     private final MovimentacaoEstoqueRepository movimentos;
     private final MovimentacaoEstoqueService estoque;
@@ -95,7 +96,8 @@ public class CancelamentoVendaService {
         }
         var direitos = contasReceber.bloquearDaVenda(venda);
         direitos.forEach(em::refresh);
-        if (!direitos.isEmpty()) {
+        caixaOperacional.bloquearParaCancelamento(venda);
+        {
             // Agregados antes dos destinos; uniao PIX/cartao/prazo em ordem de ID como nas transferencias.
             for (var id : movimentosFinanceiros.buscarDestinosCancelamentoVenda(vendaId, autenticado.empresaId())) {
                 var conta = contasFinanceiras.buscarParaAlterar(id, autenticado.empresaId())
