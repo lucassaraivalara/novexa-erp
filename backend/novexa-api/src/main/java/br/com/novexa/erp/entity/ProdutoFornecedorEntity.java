@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.math.BigDecimal;
 
 @Entity
 @Table(
@@ -43,6 +44,10 @@ public class ProdutoFornecedorEntity {
     @Column(name = "codigo_referencia", length = 60)
     private String codigoReferencia;
 
+    // 1 embalagem comprada desse fornecedor = X unidades do produto. NULL = sem conversao (1:1).
+    @Column(name = "fator_conversao", precision = 12, scale = 3)
+    private BigDecimal fatorConversao;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public EmpresaEntity getEmpresa() { return empresa; }
@@ -53,4 +58,6 @@ public class ProdutoFornecedorEntity {
     public void setFornecedor(FornecedorEntity fornecedor) { this.fornecedor = fornecedor; }
     public String getCodigoReferencia() { return codigoReferencia; }
     public void setCodigoReferencia(String codigoReferencia) { this.codigoReferencia = codigoReferencia; }
+    public BigDecimal getFatorConversao() { return fatorConversao; }
+    public void setFatorConversao(BigDecimal fatorConversao) { this.fatorConversao = fatorConversao; }
 }

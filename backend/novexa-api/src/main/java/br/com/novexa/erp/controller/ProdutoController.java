@@ -162,7 +162,7 @@ public class ProdutoController {
     }
     private ProdutoResponseDTO.FornecedorVinculo vinculoResposta(br.com.novexa.erp.entity.ProdutoFornecedorEntity v) {
         return new ProdutoResponseDTO.FornecedorVinculo(
-                br.com.novexa.erp.dto.FornecedorProdutoResponseDTO.de(v.getFornecedor()), v.getCodigoReferencia());
+                br.com.novexa.erp.dto.FornecedorProdutoResponseDTO.de(v.getFornecedor()), v.getCodigoReferencia(), v.getFatorConversao());
     }
 
     @org.springframework.web.bind.annotation.ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)

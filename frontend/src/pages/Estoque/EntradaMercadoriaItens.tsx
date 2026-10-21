@@ -33,8 +33,28 @@ function ProdutoAutocomplete({ value, onChange, disabled }: {
                 {loading && <CircularProgress size={16} />}{params.slotProps.input.endAdornment}</> } }} />} />;
 }
 
-export default function EntradaMercadoriaItens({ itens, onChange, disabled = false, somenteLeitura = false }: {
-    itens: ItemFormularioEntrada[]; onChange: (itens: ItemFormularioEntrada[]) => void; disabled?: boolean; somenteLeitura?: boolean;
+const quantidadeFormatadaIndicador = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
+
+// Memória do produto: mostra o código de fabricante e o fator de conversão já cadastrados para o
+// fornecedor da entrada, sem exigir nada do operador.
+function IndicadorVinculo({ produto, fornecedorId, quantidade }: {
+    produto: ProdutoEntrada; fornecedorId: number; quantidade: string;
+}) {
+    const vinculo = produto.fornecedoresAdicionais?.find(v => v.fornecedor.id === fornecedorId);
+    if (!vinculo) return null;
+    const fator = vinculo.fatorConversao ?? 1;
+    const qtd = numeroEntrada(quantidade);
+    const estoque = Number.isFinite(qtd) && qtd > 0 && fator !== 1
+        ? ` · estoque: ${quantidadeFormatadaIndicador.format(qtd * fator)} un`
+        : "";
+    return <Typography variant="caption" color="text.secondary">
+        Vínculo com fornecedor: cód. fab. {vinculo.codigoReferencia || "não informado"}{fator !== 1 ? ` · 1 emb. = ${fator} un` : ""}{estoque}
+    </Typography>;
+}
+
+export default function EntradaMercadoriaItens({ itens, onChange, fornecedorId = null, disabled = false, somenteLeitura = false }: {
+    itens: ItemFormularioEntrada[]; onChange: (itens: ItemFormularioEntrada[]) => void; fornecedorId?: number | null;
+    disabled?: boolean; somenteLeitura?: boolean;
 }) {
     const [cadastro, setCadastro] = useState<ItemFormularioEntrada | null>(null);
     function alterar(indice: number, dados: Partial<ItemFormularioEntrada>) {
@@ -75,6 +95,7 @@ export default function EntradaMercadoriaItens({ itens, onChange, disabled = fal
             {!somenteLeitura && <Tooltip title="Remover item"><span><IconButton disabled={disabled} aria-label={`Remover item ${indice + 1}`}
                 onClick={() => onChange(itens.flatMap((v, i) => i === indice ? [] : [v]))}><DeleteOutlineRoundedIcon /></IconButton></span></Tooltip>}
             </Box>
+            {!somenteLeitura && item.produto && fornecedorId && <IndicadorVinculo produto={item.produto} fornecedorId={fornecedorId} quantidade={item.quantidade} />}
         </Stack>)}
         {!somenteLeitura && <Button sx={{ alignSelf: "flex-start" }} disabled={disabled || itens.length >= 200}
             startIcon={<AddRoundedIcon />} onClick={() => onChange([...itens, novoItemEntrada()])}>Adicionar item</Button>}

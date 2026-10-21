@@ -18,12 +18,14 @@ public class EntradaXmlService {
     private final EntradaMercadoriaRepository entradas;
     private final FornecedorRepository fornecedores;
     private final ProdutoRepository produtos;
+    private final ProdutoFornecedorRepository vinculosFornecedores;
     private final int limite;
 
     public EntradaXmlService(NfeXmlParser parser, EntradaMercadoriaRepository entradas,
-            FornecedorRepository fornecedores, ProdutoRepository produtos,
+            FornecedorRepository fornecedores, ProdutoRepository produtos, ProdutoFornecedorRepository vinculosFornecedores,
             @Value("${spring.servlet.multipart.max-file-size:2MB}") DataSize tamanhoMaximo) {
         this.parser = parser; this.entradas = entradas; this.fornecedores = fornecedores; this.produtos = produtos;
+        this.vinculosFornecedores = vinculosFornecedores;
         long bytes = tamanhoMaximo.toBytes();
         if (bytes <= 0 || bytes >= Integer.MAX_VALUE) throw new IllegalArgumentException("Limite XML deve ser positivo e finito.");
         this.limite = (int) bytes;
@@ -42,12 +44,31 @@ public class EntradaXmlService {
         var fornecedor = fornecedores.buscarPorDocumentoExato(empresaId, previa.fornecedorXml().cpfCnpj())
                 .map(f -> new EntradaXmlPreviewDTO.FornecedorMatch(f.getId(), f.getRazaoSocial(), Boolean.TRUE.equals(f.getAtivo())))
                 .orElse(null);
-        var itens = previa.itens().stream().map(i -> i.comMatch(i.gtin() == null ? null :
-                produtos.findByEmpresaIdAndCodigoBarrasAndAtivoTrue(empresaId, i.gtin())
-                        .map(p -> new EntradaXmlPreviewDTO.ProdutoMatch(p.getId(), p.getNome(), p.getCodigoBarras())).orElse(null))).toList();
+        Long fornecedorId = fornecedor == null ? null : fornecedor.id();
+        var itens = previa.itens().stream().map(i -> i.comMatch(matchProduto(empresaId, fornecedorId, i))).toList();
         return new EntradaXmlPreviewDTO(previa.fornecedorXml(), fornecedor, previa.numeroNota(), previa.serie(),
                 previa.chaveAcessoNfe(), previa.dataEmissao(), previa.valorProdutos(), previa.valorTotal(), itens);
     }
+    // Match por GTIN; na ausencia, pela carteira de codigos de fabricante do fornecedor (memoria V52).
+    private EntradaXmlPreviewDTO.ProdutoMatch matchProduto(Long empresaId, Long fornecedorId, EntradaXmlPreviewDTO.Item item) {
+        if (item.gtin() != null) {
+            var porGtin = produtos.findByEmpresaIdAndCodigoBarrasAndAtivoTrue(empresaId, item.gtin());
+            if (porGtin.isPresent()) {
+                var p = porGtin.get();
+                return new EntradaXmlPreviewDTO.ProdutoMatch(p.getId(), p.getNome(), p.getCodigoBarras());
+            }
+        }
+        if (fornecedorId != null && item.codigoProdutoFornecedor() != null) {
+            var porCodigo = vinculosFornecedores.findByEmpresaIdAndFornecedorIdAndCodigoReferencia(
+                    empresaId, fornecedorId, item.codigoProdutoFornecedor());
+            if (porCodigo.isPresent()) {
+                var p = porCodigo.get().getProduto();
+                return new EntradaXmlPreviewDTO.ProdutoMatch(p.getId(), p.getNome(), p.getCodigoBarras());
+            }
+        }
+        return null;
+    }
+
     private static ResponseStatusException tamanhoExcedido() {
         return new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Arquivo XML excede o tamanho permitido.");
     }

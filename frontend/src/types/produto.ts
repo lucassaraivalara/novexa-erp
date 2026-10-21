@@ -26,12 +26,15 @@ export type Produto = {
     subcategoria?: SubcategoriaProduto | null;
     marca?: Marca | null;
     fornecedor?: { id: number; razaoSocial: string; nomeFantasia: string | null; ativo: boolean } | null;
-    fornecedoresAdicionais?: { fornecedor: { id: number; razaoSocial: string; nomeFantasia: string | null; ativo: boolean }; codigoReferencia: string | null }[];
+    fornecedoresAdicionais?: { fornecedor: { id: number; razaoSocial: string; nomeFantasia: string | null; ativo: boolean };
+        codigoReferencia: string | null; fatorConversao: number | null }[];
 };
 
 export type ProdutoFornecedorVinculoInput = {
     fornecedorId: number;
     codigoReferencia?: string | null;
+    /** 1 embalagem comprada = X unidades do produto. Nulo = sem conversão (1:1). */
+    fatorConversao?: number | null;
 };
 
 export type ProdutoInput = {

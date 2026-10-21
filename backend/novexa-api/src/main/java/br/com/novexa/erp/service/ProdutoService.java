@@ -270,9 +270,8 @@ public class ProdutoService {
                 throw new ProdutoInvalidoException("Informe o fornecedor de cada vínculo adicional.");
             if (!vistos.add(v.getFornecedorId()))
                 throw new ProdutoInvalidoException("Fornecedor repetido na lista de vínculos adicionais.");
-            if (produto.getFornecedorPrincipal() != null
-                    && produto.getFornecedorPrincipal().getId().equals(v.getFornecedorId()))
-                throw new ProdutoInvalidoException("O fornecedor principal não pode constar como fornecedor adicional.");
+            // O fornecedor principal pode constar nos vínculos: a tabela é a carteira de códigos
+            // de fabricante/fator por fornecedor, alimentada também pela memória da entrada (V52).
             buscarFornecedor(v.getFornecedorId(), empresaId);
         }
         return lista;
@@ -289,6 +288,7 @@ public class ProdutoService {
             vinculo.setFornecedor(buscarFornecedor(v.getFornecedorId(), empresaId));
             vinculo.setCodigoReferencia(v.getCodigoReferencia() == null || v.getCodigoReferencia().isBlank()
                     ? null : v.getCodigoReferencia().trim());
+            vinculo.setFatorConversao(v.getFatorConversao());
             vinculosFornecedores.save(vinculo);
         }
     }

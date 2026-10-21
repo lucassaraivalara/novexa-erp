@@ -122,7 +122,7 @@ export default function EntradaMercadoriaForm({ entrada, previewXml, onFechar, o
             <TextField label="Data de emissão" type="date" value={dataEmissao} disabled={salvando} onChange={e => setDataEmissao(e.target.value)}
                 slotProps={{ inputLabel: { shrink: true }, input: { readOnly: somenteLeitura } }} />
         </Box>
-        <EntradaMercadoriaItens itens={itens} onChange={setItens} disabled={salvando || somenteLeitura} somenteLeitura={somenteLeitura} />
+        <EntradaMercadoriaItens itens={itens} onChange={setItens} fornecedorId={fornecedor?.id ?? null} disabled={salvando || somenteLeitura} somenteLeitura={somenteLeitura} />
         {previewXml && resolucaoPendente && <Alert severity="warning">{!fornecedor && "Selecione um fornecedor ativo. "}
             {pendentes > 0 && `${pendentes} ${pendentes === 1 ? "produto precisa ser vinculado." : "produtos precisam ser vinculados."}`}
             {!itens.length && "Informe pelo menos um item."}</Alert>}

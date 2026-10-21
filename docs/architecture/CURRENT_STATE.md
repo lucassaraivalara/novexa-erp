@@ -1,5 +1,13 @@
 Empresa ........ funcional
 
+## Fator de conversão e memória de código de fabricante — V52 (2026-10-21)
+
+O vínculo produto-fornecedor (`produto_fornecedor`) ganha `fator_conversao` opcional (1 embalagem comprada = X unidades do produto; nulo = 1:1), configurado na aba Fornecedores do cadastro completo, inclusive para o fornecedor principal, que segue sem campo próprio e agora pode constar nos vínculos (a tabela é a carteira de códigos de fabricante/fator por fornecedor). Na entrada de mercadoria, o item guarda o snapshot do fator; a confirmação credita `quantidade × fator` no estoque, atualiza o `precoCusto` com `valorUnitario ÷ fator` e memoriza o código do fabricante no vínculo sem sobrescrever código existente nem alterar fator. O XML de NF-e casa por GTIN ou, na ausência, pelo código de fabricante do fornecedor. A tela de entrada mostra indicador discreto por item, sem campos novos para o operador; cancelamento reverte a quantidade efetiva do snapshot.
+
+Validação: 180 testes backend aprovados (novo `EntradaFatorConversaoHttpTest` com snapshot, crédito × fator, custo por unidade, cancelamento exato, memória sem sobrescrita e matching por código isolado por tenant; testes V51/XML/entrada atualizados) e 67 testes frontend aprovados (fornecedor e entrada, com HTTP simulado), build e lint sem erros. Detalhes em [produtos.md](architecture/produtos.md#fator-de-conversão-e-memória-de-código-de-fabricante--v52), [fornecedores.md](architecture/fornecedores.md) e [entradas-mercadoria.md](architecture/entradas-mercadoria.md).
+
+**BACKEND ALTERADO — DEPLOY MANUAL NA ORACLE NECESSÁRIO** (migration V52 + API); o frontend segue pelo Vercel após o push. Nenhuma produção foi acessada ou alterada nesta tarefa.
+
 ## Central de Vendas com consulta expansível — 2026-10-21
 
 Reformulação exclusivamente frontend: grid compacto com expansão inline de uma venda por vez, itens e pagamentos sob demanda, cache em memória e retry. Mantidos o diálogo completo, cancelamento/permissões, filtros remotos por status/período/cliente, ordenação, paginação e datas de Brasília. Pagamentos mistos mostram valores aplicados; troco fica separado e prazo usa valor original, sem confundir com saldo após baixas. AppTable recebeu um slot opcional para o detalhe da linha. Backend, migrations e regras financeiras não foram alterados.

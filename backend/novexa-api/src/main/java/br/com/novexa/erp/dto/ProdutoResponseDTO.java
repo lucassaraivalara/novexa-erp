@@ -40,7 +40,8 @@ public class ProdutoResponseDTO {
 
     public FornecedorProdutoResponseDTO getFornecedor() { return fornecedor; }
     public void setFornecedor(FornecedorProdutoResponseDTO fornecedor) { this.fornecedor = fornecedor; }
-    public record FornecedorVinculo(FornecedorProdutoResponseDTO fornecedor, String codigoReferencia) { }
+    public record FornecedorVinculo(FornecedorProdutoResponseDTO fornecedor, String codigoReferencia,
+            java.math.BigDecimal fatorConversao) { }
     private java.util.List<FornecedorVinculo> fornecedoresAdicionais = java.util.List.of();
     public java.util.List<FornecedorVinculo> getFornecedoresAdicionais() { return fornecedoresAdicionais; }
     public void setFornecedoresAdicionais(java.util.List<FornecedorVinculo> valor) { fornecedoresAdicionais = valor; }

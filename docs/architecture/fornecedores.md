@@ -47,7 +47,11 @@ tipoPessoa e dataAtualizacao legados permanecem null ate atualizacao explicita; 
 
 ## Fornecedores adicionais do Produto — V51
 
-Além do fornecedor principal, um produto pode ter múltiplos fornecedores adicionais com código de referência/fabricante por vínculo (tabela `produto_fornecedor`, constraints com sufixo `_vinc`). Contrato: `fornecedoresAdicionais[{fornecedorId, codigoReferencia}]` no POST/PUT — omissão preserva, lista substitui, vazia remove; resposta inclui os vínculos com o resumo do fornecedor, em lote e sem N+1. Validações antes de persistir: linha sem fornecedor, fornecedor repetido, igual ao principal ou de outro tenant (404). Na duplicação de produto os vínculos adicionais não são copiados. Detalhes em [produtos.md](produtos.md#cadastro-em-abas-e-vínculo-múltiplo-de-fornecedores--v51).
+Além do fornecedor principal, um produto pode ter múltiplos fornecedores adicionais com código de referência/fabricante por vínculo (tabela `produto_fornecedor`, constraints com sufixo `_vinc`). Contrato: `fornecedoresAdicionais[{fornecedorId, codigoReferencia}]` no POST/PUT — omissão preserva, lista substitui, vazia remove; resposta inclui os vínculos com o resumo do fornecedor, em lote e sem N+1. Validações antes de persistir: linha sem fornecedor, fornecedor repetido ou de outro tenant (404); a partir da V52 o principal pode constar nos vínculos. Na duplicação de produto os vínculos adicionais não são copiados. Detalhes em [produtos.md](produtos.md#cadastro-em-abas-e-vínculo-múltiplo-de-fornecedores--v51).
+
+## Fator de conversão e memória de código de fabricante — V52
+
+A V52 adiciona `fator_conversao` ao vínculo (`NULL` = 1:1) e usa a tabela de vínculos como carteira de códigos de fabricante por fornecedor, inclusive do fornecedor principal, que continua sem campo próprio. Contrato: `fatorConversao?` em `fornecedoresAdicionais`. Na entrada de mercadoria, o item guarda o snapshot do fator; o confirmar credita `quantidade × fator`, atualiza `precoCusto` com `valorUnitario ÷ fator` e memoriza o `codigoProdutoFornecedor` no vínculo sem sobrescrever código existente nem alterar fator. O XML casa por GTIN ou, na ausência, pelo código de fabricante do fornecedor da NF. Detalhes em [produtos.md](produtos.md#fator-de-conversão-e-memória-de-código-de-fabricante--v52) e [entradas-mercadoria.md](entradas-mercadoria.md).
 
 ## Fornecedor principal do Produto
 
@@ -61,4 +65,4 @@ O formulário completo de Produto reutiliza o lookup remoto existente de fornece
 
 V40/Flyway/Hibernate validate, atualização V39→V40 com produto pré-existente, tenant e exclusão física validados em PostgreSQL descartável. Resultados em [CURRENT_STATE.md](CURRENT_STATE.md). Não há efeito em Compras, Entradas, Estoque ou Financeiro.
 
-Ainda não implementados: múltiplos fornecedores por produto, Ordem de Compra, Cotação, histórico/tabela de preços e módulo Compras no frontend. Nenhum novo efeito financeiro.
+Ainda não implementados: Ordem de Compra, Cotação, histórico/tabela de preços e módulo Compras no frontend. Nenhum novo efeito financeiro.

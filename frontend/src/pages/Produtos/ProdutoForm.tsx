@@ -24,7 +24,7 @@ import {
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import CadastroDialog from "../../components/ui/CadastroDialog";
-import type {Produto, ProdutoInput} from "../../types/produto";
+import type {Produto, ProdutoFornecedorVinculoInput, ProdutoInput} from "../../types/produto";
 import {cadastrarProduto, obterMensagemDaApi} from "../../services/produtoService";
 import FornecedorAutocomplete, { type FornecedorOpcao } from "../../components/fornecedores/FornecedorAutocomplete";
 
@@ -71,6 +71,8 @@ type EstadoFormulario = {
 type LinhaVinculo = {
     fornecedor: FornecedorOpcao | null;
     codigoReferencia: string;
+    /** 1 embalagem comprada = X unidades do produto. Vazio = sem conversão (1:1). */
+    fatorConversao: string;
 };
 
 // Abas do cadastro completo, por responsabilidade: padrão reutilizável para futuros cadastros.
@@ -180,6 +182,7 @@ function ProdutoForm({
             ? (produto?.fornecedoresAdicionais ?? []).map((v) => ({
                 fornecedor: v.fornecedor,
                 codigoReferencia: v.codigoReferencia ?? "",
+                fatorConversao: v.fatorConversao != null ? String(v.fatorConversao) : "",
             }))
             : []
     );
@@ -250,7 +253,7 @@ function ProdutoForm({
     }
 
     function adicionarVinculo() {
-        setVinculos((atual) => [...atual, { fornecedor: null, codigoReferencia: "" }]);
+        setVinculos((atual) => [...atual, { fornecedor: null, codigoReferencia: "", fatorConversao: "" }]);
     }
 
     function removerVinculo(indice: number) {
@@ -349,7 +352,7 @@ function ProdutoForm({
             return null;
         }
 
-        const vinculosValidos: { fornecedorId: number; codigoReferencia: string | null }[] = [];
+        const vinculosValidos: ProdutoFornecedorVinculoInput[] = [];
         if (!rapido) {
             const vistos = new Set<number>();
             for (const linha of vinculos) {
@@ -364,19 +367,21 @@ function ProdutoForm({
                     return null;
                 }
                 vistos.add(linha.fornecedor.id);
-                if (fornecedor?.id === linha.fornecedor.id) {
-                    setErroVinculos("O fornecedor principal não pode constar como fornecedor adicional.");
+                if (linha.codigoReferencia.length > 60) {
+                    setErroVinculos("Use no máximo 60 caracteres no código de referência.");
                     setAbaAtual(2);
                     return null;
                 }
-                if (linha.codigoReferencia.length > 60) {
-                    setErroVinculos("Use no máximo 60 caracteres no código de referência.");
+                const fator = linha.fatorConversao.trim();
+                if (fator && (!/^\d+(?:[.,]\d{1,3})?$/.test(fator) || Number(fator.replace(",", ".")) <= 0)) {
+                    setErroVinculos("Informe um fator de conversão maior que zero (ex.: 20 para 1 maço = 20 unidades).");
                     setAbaAtual(2);
                     return null;
                 }
                 vinculosValidos.push({
                     fornecedorId: linha.fornecedor.id,
                     codigoReferencia: linha.codigoReferencia.trim() || null,
+                    fatorConversao: fator ? Number(fator.replace(",", ".")) : null,
                 });
             }
             setErroVinculos("");
@@ -1022,7 +1027,7 @@ function ProdutoForm({
                                 Fornecedores adicionais
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                                Vínculos extras com o código de referência/fabricante que cada fornecedor usa para este produto.
+                                Código de referência/fabricante e fator de conversão que cada fornecedor usa para este produto.
                             </Typography>
                         </Box>
 
@@ -1038,7 +1043,7 @@ function ProdutoForm({
                                     display: "grid",
                                     gridTemplateColumns: {
                                         xs: "1fr",
-                                        sm: "minmax(0, 1fr) 210px 40px",
+                                        sm: "minmax(0, 1fr) 210px 140px 40px",
                                     },
                                     gap: 1.5,
                                     alignItems: "start",
@@ -1058,6 +1063,16 @@ function ProdutoForm({
                                     onChange={(e) => atualizarVinculo(indice, { codigoReferencia: e.target.value })}
                                     disabled={salvando}
                                     slotProps={{ htmlInput: { maxLength: 60 } }}
+                                />
+                                <TextField
+                                    label="Qtd. por embalagem"
+                                    name={`fatorConversao-${indice}`}
+                                    autoComplete="off"
+                                    value={linha.fatorConversao}
+                                    onChange={(e) => atualizarVinculo(indice, { fatorConversao: e.target.value })}
+                                    disabled={salvando}
+                                    helperText="1 emb. = X un."
+                                    slotProps={{ htmlInput: { inputMode: "decimal" } }}
                                 />
                                 <IconButton
                                     aria-label={`Remover fornecedor adicional ${indice + 1}`}

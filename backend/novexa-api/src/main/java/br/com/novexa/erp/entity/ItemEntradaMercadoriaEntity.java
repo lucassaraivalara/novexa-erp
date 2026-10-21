@@ -17,6 +17,7 @@ public class ItemEntradaMercadoriaEntity {
     @Column(length = 255) private String descricaoOriginal;
     @Column(length = 60) private String codigoProdutoFornecedor;
     @Column(nullable = false, precision = 19, scale = 3) private BigDecimal quantidade;
+    @Column(nullable = false, precision = 12, scale = 3) private BigDecimal fatorConversao = BigDecimal.ONE;
     @Column(nullable = false, precision = 19, scale = 2) private BigDecimal valorUnitario;
     @Column(nullable = false, precision = 19, scale = 2) private BigDecimal valorTotal;
     @Column(length = 14) private String gtin;
@@ -41,6 +42,8 @@ public class ItemEntradaMercadoriaEntity {
     public void setCodigoProdutoFornecedor(String v) { codigoProdutoFornecedor = v; }
     public BigDecimal getQuantidade() { return quantidade; }
     public void setQuantidade(BigDecimal v) { quantidade = v; }
+    public BigDecimal getFatorConversao() { return fatorConversao; }
+    public void setFatorConversao(BigDecimal v) { fatorConversao = v; }
     public BigDecimal getValorUnitario() { return valorUnitario; }
     public void setValorUnitario(BigDecimal v) { valorUnitario = v; }
     public BigDecimal getValorTotal() { return valorTotal; }

@@ -117,17 +117,35 @@ class ProdutoFornecedoresAdicionaisHttpTest {
         assertThat(vinculos.findByProdutoIdAndEmpresaId(id, empresaA.getId())).hasSize(1);
     }
 
-    @Test void rejeitaDuplicadoIgualAoPrincipalEFornecedorAusente() throws Exception {
+    @Test void rejeitaDuplicadoEFornecedorAusente() throws Exception {
         mvc.perform(post("/produtos").header("Authorization", tokenA).contentType(MediaType.APPLICATION_JSON)
             .content(json.writeValueAsBytes(dados(Map.of("fornecedoresAdicionais", List.of(
                     Map.of("fornecedorId", fornecedorA2), Map.of("fornecedorId", fornecedorA2)))))))
             .andExpect(status().isBadRequest());
         mvc.perform(post("/produtos").header("Authorization", tokenA).contentType(MediaType.APPLICATION_JSON)
-            .content(json.writeValueAsBytes(dados(Map.of("fornecedorId", fornecedorA,
-                    "fornecedoresAdicionais", List.of(Map.of("fornecedorId", fornecedorA)))))))
+            .content(json.writeValueAsBytes(dados(Map.of("fornecedoresAdicionais", List.of(Map.of("codigoReferencia", "SEM-ID")))))))
+            .andExpect(status().isBadRequest());
+        assertThat(produtos.count()).isZero();
+    }
+
+    @Test void aceitaVinculoDoFornecedorPrincipalComCodigoEFator() throws Exception {
+        long id = criar(tokenA, Map.of("fornecedorId", fornecedorA,
+                "fornecedoresAdicionais", List.of(Map.of("fornecedorId", fornecedorA,
+                        "codigoReferencia", "FAB-123", "fatorConversao", 20))));
+        mvc.perform(get("/produtos/" + id).header("Authorization", tokenA)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.fornecedoresAdicionais[0].fornecedor.id").value(fornecedorA))
+            .andExpect(jsonPath("$.fornecedoresAdicionais[0].codigoReferencia").value("FAB-123"))
+            .andExpect(jsonPath("$.fornecedoresAdicionais[0].fatorConversao").value(20));
+    }
+
+    @Test void rejeitaFatorDeConversaoInvalido() throws Exception {
+        mvc.perform(post("/produtos").header("Authorization", tokenA).contentType(MediaType.APPLICATION_JSON)
+            .content(json.writeValueAsBytes(dados(Map.of("fornecedoresAdicionais", List.of(
+                    Map.of("fornecedorId", fornecedorA2, "fatorConversao", 0)))))))
             .andExpect(status().isBadRequest());
         mvc.perform(post("/produtos").header("Authorization", tokenA).contentType(MediaType.APPLICATION_JSON)
-            .content(json.writeValueAsBytes(dados(Map.of("fornecedoresAdicionais", List.of(Map.of("codigoReferencia", "SEM-ID")))))))
+            .content(json.writeValueAsBytes(dados(Map.of("fornecedoresAdicionais", List.of(
+                    Map.of("fornecedorId", fornecedorA2, "fatorConversao", 1.0001)))))))
             .andExpect(status().isBadRequest());
         assertThat(produtos.count()).isZero();
     }

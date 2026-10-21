@@ -59,7 +59,7 @@ class EntradaMercadoriaHttpTest {
     }
     @AfterEach void limpar() {
         reset(estoque);
-        for (String tabela : List.of("itens_entrada_mercadoria", "entradas_mercadoria", "contas_pagar", "movimentacoes_caixa", "movimentacoes_financeiras", "contas_financeiras",
+        for (String tabela : List.of("produto_fornecedor", "itens_entrada_mercadoria", "entradas_mercadoria", "contas_pagar", "movimentacoes_caixa", "movimentacoes_financeiras", "contas_financeiras",
                 "recebiveis", "pagamentos", "itens_venda", "vendas", "movimentacoes_estoque", "produtos", "fornecedores",
                 "sessoes_caixa", "caixas", "usuario", "empresas")) jdbc.update("delete from " + tabela);
     }

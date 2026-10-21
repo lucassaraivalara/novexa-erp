@@ -22,11 +22,12 @@ public record EntradaMercadoriaResponseDTO(
                 e.getDataConfirmacao(), e.getDataCancelamento(), detalhe ? e.getItens().stream().map(Item::de).toList() : null);
     }
     public record Item(Long id, Long produtoId, String produtoNome, String descricaoOriginal,
-            String codigoProdutoFornecedor, BigDecimal quantidade, BigDecimal valorUnitario, BigDecimal valorTotal,
+            String codigoProdutoFornecedor, BigDecimal quantidade, BigDecimal fatorConversao,
+            BigDecimal valorUnitario, BigDecimal valorTotal,
             String gtin, String ncm, String cfop, String unidade, Long movimentacaoEstoqueId, Long movimentacaoCancelamentoId) {
         static Item de(ItemEntradaMercadoriaEntity i) {
             return new Item(i.getId(), i.getProduto().getId(), i.getProduto().getNome(), i.getDescricaoOriginal(),
-                    i.getCodigoProdutoFornecedor(), i.getQuantidade(), i.getValorUnitario(), i.getValorTotal(),
+                    i.getCodigoProdutoFornecedor(), i.getQuantidade(), i.getFatorConversao(), i.getValorUnitario(), i.getValorTotal(),
                     i.getGtin(), i.getNcm(), i.getCfop(), i.getUnidade(), i.getMovimentacaoEstoqueId(), i.getMovimentacaoCancelamentoId());
         }
     }

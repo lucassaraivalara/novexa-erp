@@ -19,4 +19,10 @@ public interface ProdutoFornecedorRepository extends JpaRepository<ProdutoFornec
                                                                 @Param("empresaId") Long empresaId);
 
     void deleteByProdutoIdAndEmpresaId(Long produtoId, Long empresaId);
+
+    java.util.Optional<ProdutoFornecedorEntity> findByProdutoIdAndFornecedorIdAndEmpresaId(
+            Long produtoId, Long fornecedorId, Long empresaId);
+
+    java.util.Optional<ProdutoFornecedorEntity> findByEmpresaIdAndFornecedorIdAndCodigoReferencia(
+            Long empresaId, Long fornecedorId, String codigoReferencia);
 }

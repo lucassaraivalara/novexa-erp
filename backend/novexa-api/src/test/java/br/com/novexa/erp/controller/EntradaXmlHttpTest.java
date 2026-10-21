@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class EntradaXmlHttpTest extends EntradaMercadoriaHttpTest {
+    @org.springframework.beans.factory.annotation.Autowired br.com.novexa.erp.repository.ProdutoFornecedorRepository vinculos;
     @BeforeEach void dadosXml() {
         fornecedor.setCpfCnpj("11222333000181"); fornecedores.saveAndFlush(fornecedor);
         produto.setCodigoBarras(NfeXmlTeste.GTIN); produtos.saveAndFlush(produto);
@@ -68,6 +69,17 @@ class EntradaXmlHttpTest extends EntradaMercadoriaHttpTest {
         preview(NfeXmlTeste.xml(), authorization).andExpect(status().isOk()).andExpect(jsonPath("$.fornecedorMatch").isEmpty())
                 .andExpect(jsonPath("$.itens[0].produtoMatch").isEmpty());
     }
+    @Test void xmlCasaPorCodigoDeFabricanteQuandoGtinAusenteEIsoladoPorEmpresa() throws Exception {
+        var v = new br.com.novexa.erp.entity.ProdutoFornecedorEntity();
+        v.setEmpresa(empresa); v.setProduto(produto); v.setFornecedor(fornecedor); v.setCodigoReferencia("ABC-01");
+        vinculos.saveAndFlush(v);
+        preview(NfeXmlTeste.xml().replace(NfeXmlTeste.GTIN, "SEM GTIN"), authorization).andExpect(status().isOk())
+                .andExpect(jsonPath("$.itens[0].gtin").isEmpty())
+                .andExpect(jsonPath("$.itens[0].produtoMatch.id").value(produto.getId()));
+        preview(NfeXmlTeste.xml().replace(NfeXmlTeste.GTIN, "SEM GTIN"), authorizationB).andExpect(status().isOk())
+                .andExpect(jsonPath("$.itens[0].produtoMatch").isEmpty());
+    }
+
     @Test void xmlSemGtinNaoFazMatchingPorNome() throws Exception {
         preview(NfeXmlTeste.xml().replace(NfeXmlTeste.GTIN, "SEM GTIN"), authorization).andExpect(status().isOk())
                 .andExpect(jsonPath("$.itens[0].gtin").isEmpty()).andExpect(jsonPath("$.itens[0].produtoMatch").isEmpty());

@@ -32,13 +32,14 @@ public class EntradaMercadoriaService {
     private final MovimentacaoEstoqueService estoque;
     private final EntityManager em;
     private final EntradaContaPagarService obrigacoes;
+    private final ProdutoFornecedorRepository vinculosFornecedores;
 
     public EntradaMercadoriaService(EntradaMercadoriaRepository entradas, FornecedorRepository fornecedores,
             ProdutoRepository produtos, MovimentacaoEstoqueRepository movimentos, MovimentacaoEstoqueService estoque,
-            EntityManager em, EntradaContaPagarService obrigacoes) {
+            EntityManager em, EntradaContaPagarService obrigacoes, ProdutoFornecedorRepository vinculosFornecedores) {
         this.entradas = entradas; this.fornecedores = fornecedores; this.produtos = produtos;
         this.movimentos = movimentos; this.estoque = estoque; this.em = em;
-        this.obrigacoes = obrigacoes;
+        this.obrigacoes = obrigacoes; this.vinculosFornecedores = vinculosFornecedores;
     }
 
     public EntradaMercadoriaResponseDTO criar(EntradaMercadoriaRequestDTO pedido, UsuarioAutenticado usuario) {
@@ -98,11 +99,15 @@ public class EntradaMercadoriaService {
         for (var item : entrada.getItens()) {
             validarProduto(bloqueados.get(item.getProduto().getId()));
             if (item.getMovimentacaoEstoqueId() != null) throw conflito("Rascunho com movimentacao inconsistente.");
+            var quantidadeEstoque = item.getQuantidade().multiply(item.getFatorConversao());
             var movimento = estoque.movimentar(usuario.empresaId(), item.getProduto().getId(), usuario.usuarioId(),
-                    TipoMovimentacaoEstoque.ENTRADA, OrigemMovimentacaoEstoque.COMPRA, item.getQuantidade(),
+                    TipoMovimentacaoEstoque.ENTRADA, OrigemMovimentacaoEstoque.COMPRA, quantidadeEstoque,
                     "Entrada de mercadoria " + entrada.getId());
             item.setMovimentacaoEstoqueId(movimento.getId());
-            bloqueados.get(item.getProduto().getId()).setPrecoCusto(item.getValorUnitario());
+            // Custo unitario vem por embalagem comprada; o custo do produto e por unidade de estoque.
+            bloqueados.get(item.getProduto().getId()).setPrecoCusto(
+                    item.getValorUnitario().divide(item.getFatorConversao(), 2, RoundingMode.HALF_UP));
+            memorizarCodigoFornecedor(entrada, item, usuario.empresaId());
         }
         entrada.confirmar(usuario.usuarioId());
         return detalhe(entradas.saveAndFlush(entrada));
@@ -122,7 +127,7 @@ public class EntradaMercadoriaService {
             if (!Objects.equals(original.getProduto().getId(), item.getProduto().getId())
                     || original.getTipo() != TipoMovimentacaoEstoque.ENTRADA
                     || original.getOrigem() != OrigemMovimentacaoEstoque.COMPRA
-                    || original.getQuantidade().compareTo(item.getQuantidade()) != 0)
+                    || original.getQuantidade().compareTo(item.getQuantidade().multiply(item.getFatorConversao())) != 0)
                 throw conflito("Movimentacao original inconsistente.");
             var reversao = estoque.reverterEntradaCompra(original, usuario.usuarioId(), "Cancelamento da entrada " + id);
             item.setMovimentacaoCancelamentoId(reversao.getId());
@@ -163,6 +168,7 @@ public class EntradaMercadoriaService {
             var item = new ItemEntradaMercadoriaEntity(); item.setEmpresa(entrada.getEmpresa()); item.setEntrada(entrada);
             item.setProduto(produto); item.setOrdem(entrada.getItens().size());
             item.setQuantidade(dados.quantidade().setScale(3, RoundingMode.UNNECESSARY));
+            item.setFatorConversao(fatorConversao(produto, entrada.getFornecedor().getId(), empresaId));
             item.setValorUnitario(dados.valorUnitario().setScale(2, RoundingMode.UNNECESSARY));
             item.setValorTotal(item.getQuantidade().multiply(item.getValorUnitario()).setScale(2, RoundingMode.HALF_UP));
             item.setDescricaoOriginal(limpar(dados.descricaoOriginal())); item.setCodigoProdutoFornecedor(limpar(dados.codigoProdutoFornecedor()));
@@ -198,6 +204,36 @@ public class EntradaMercadoriaService {
         return entradas.bloquear(id, empresaId).orElseThrow(() -> naoEncontrada("Entrada"));
     }
     private EntradaMercadoriaResponseDTO detalhe(EntradaMercadoriaEntity e) { return EntradaMercadoriaResponseDTO.de(e, true); }
+    // Fator do vinculo produto+fornecedor; sem vinculo ou sem fator = 1 (sem conversao).
+    private BigDecimal fatorConversao(ProdutoEntity produto, Long fornecedorId, Long empresaId) {
+        return vinculosFornecedores.findByProdutoIdAndFornecedorIdAndEmpresaId(produto.getId(), fornecedorId, empresaId)
+                .map(v -> v.getFatorConversao() == null ? BigDecimal.ONE : v.getFatorConversao())
+                .orElse(BigDecimal.ONE);
+    }
+
+    // Memoria do vinculo: o codigo de fabricante da NF passa a constar na carteira de codigos do produto,
+    // para o proximo XML ja casar automaticamente. Nunca altera fator nem codigo ja definido.
+    private void memorizarCodigoFornecedor(EntradaMercadoriaEntity entrada, ItemEntradaMercadoriaEntity item, Long empresaId) {
+        var codigo = item.getCodigoProdutoFornecedor();
+        if (codigo == null) return;
+        var existente = vinculosFornecedores.findByProdutoIdAndFornecedorIdAndEmpresaId(
+                item.getProduto().getId(), entrada.getFornecedor().getId(), empresaId);
+        if (existente.isPresent()) {
+            var vinculo = existente.get();
+            if (vinculo.getCodigoReferencia() == null) {
+                vinculo.setCodigoReferencia(codigo);
+                vinculosFornecedores.save(vinculo);
+            }
+            return;
+        }
+        var vinculo = new ProdutoFornecedorEntity();
+        vinculo.setEmpresa(entrada.getEmpresa());
+        vinculo.setProduto(item.getProduto());
+        vinculo.setFornecedor(entrada.getFornecedor());
+        vinculo.setCodigoReferencia(codigo);
+        vinculosFornecedores.save(vinculo);
+    }
+
     private static String limpar(String v) { return v == null || v.isBlank() ? null : v.trim(); }
     private static ResponseStatusException conflito(String mensagem) { return new ResponseStatusException(HttpStatus.CONFLICT, mensagem); }
     private static ResponseStatusException naoEncontrada(String nome) { return new ResponseStatusException(HttpStatus.NOT_FOUND, nome + " nao encontrado(a)."); }

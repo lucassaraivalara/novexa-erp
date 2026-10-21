@@ -1,7 +1,7 @@
 import type { Produto } from "../../types/produto";
 import type { ItemEntradaMercadoriaInput } from "../../types/entradaMercadoria";
 
-export type ProdutoEntrada = Pick<Produto, "id" | "nome"> & Partial<Pick<Produto, "precoCusto" | "ativo" | "controlaEstoque">>;
+export type ProdutoEntrada = Pick<Produto, "id" | "nome"> & Partial<Pick<Produto, "precoCusto" | "ativo" | "controlaEstoque" | "fornecedoresAdicionais">>;
 export type ItemFormularioEntrada = {
     chave: string; produto: ProdutoEntrada | null; quantidade: string; custo: string;
     historico?: ItemEntradaMercadoriaInput;
