@@ -59,12 +59,14 @@ export default function AgendaRecebimentos({ onFechar, onAlterado }: { onFechar:
         { campo: "taxas", cabecalho: "Taxas", alinhar: "right", render: (_, g) => g.taxas == null ? "—" : moeda.format(g.taxas) },
         { campo: "liquido", cabecalho: "Líquido previsto", alinhar: "right", render: (_, g) => g.semPrevisaoLiquida || g.liquido == null ? "Previsão incompleta" : moeda.format(g.liquido) },
         { campo: "tipo", cabecalho: "Ação", render: (_, g) => podeLiquidar ? <Button size="small" disabled={!g.contaDestinoId || !!g.semPrevisaoLiquida}
-            onClick={() => { setPreparando(true); setItens([]); setErroLote(""); setSelecionado(g); }}>Confirmar recebimento</Button> : <Typography variant="caption">Consulta</Typography> },
+            onClick={() => { setPreparando(true); setItens([]); setErroLote(""); setSelecionado(g); }}>Liquidar manualmente</Button> : <Typography variant="caption">Consulta</Typography> },
     ];
     return <Dialog open fullWidth maxWidth="lg" onClose={processando ? undefined : onFechar} aria-labelledby="agenda-recebimentos-titulo">
         <DialogTitle id="agenda-recebimentos-titulo">Agenda de recebimentos</DialogTitle>
         <DialogContent dividers><Stack spacing={2}>
-            <Typography variant="body2" color="text.secondary">Data prevista não é dinheiro recebido. Confirme somente o recebimento efetivo. O fechamento do Caixa não liquida cartões.</Typography>
+            <Typography variant="body2" color="text.secondary">{simples
+                ? "No modo Simplificado, os cartões das novas vendas são liquidados automaticamente no prazo. Use a ação manual apenas para exceções ou recebíveis antigos pendentes."
+                : "Data prevista não é dinheiro recebido. O fechamento do Caixa não liquida cartões."}</Typography>
             {!simples && !carregando && <Alert severity="info">No modo Controlado, use a liquidação individual na consulta de recebimentos de cartão.</Alert>}
             {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => { setCarregando(true); setVersao(v => v + 1); }}>Tentar novamente</Button>}>{erro}</Alert>}
             {aviso && <Alert role="status" severity="success">{aviso}</Alert>}

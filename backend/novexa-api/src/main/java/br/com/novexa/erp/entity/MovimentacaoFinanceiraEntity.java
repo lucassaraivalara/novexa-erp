@@ -115,8 +115,13 @@ public class MovimentacaoFinanceiraEntity {
     public RecebivelEntity getRecebivel() { return recebivel; }
     public static MovimentacaoFinanceiraEntity doRecebivel(RecebivelEntity recebivel,
             ContaFinanceiraEntity conta, UsuarioEntity usuario) {
+        return doRecebivel(recebivel, conta, usuario, false);
+    }
+    public static MovimentacaoFinanceiraEntity doRecebivel(RecebivelEntity recebivel,
+            ContaFinanceiraEntity conta, UsuarioEntity usuario, boolean automatico) {
         var movimento = new MovimentacaoFinanceiraEntity(conta, TipoMovimentacaoFinanceira.ENTRADA,
-                OrigemMovimentacaoFinanceira.RECEBIVEL_LIQUIDACAO, "Liquidacao de recebivel de cartao",
+                OrigemMovimentacaoFinanceira.RECEBIVEL_LIQUIDACAO,
+                automatico ? "Liquidacao automatica de recebivel de cartao" : "Liquidacao de recebivel de cartao",
                 recebivel.getValorLiquidoPrevisto(), LocalDate.now(), null, usuario);
         movimento.recebivel = recebivel;
         return movimento;

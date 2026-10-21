@@ -43,7 +43,7 @@ export default function ConfiguracaoRecebimentos() {
                     <RadioGroup name="modoRecebimento" aria-labelledby="recebimentos-modo" value={dados.modo}
                         onChange={e => setDados({ ...dados, modo: e.target.value as Configuracao["modo"] })}>
                         <FormControlLabel value="SIMPLIFICADO" control={<Radio />} label="Simplificado" />
-                        <Typography variant="body2" color="text.secondary">Indicado para operações rápidas de varejo. Ao concluir uma venda, PIX é registrado diretamente na conta vinculada. Cartões permanecem como recebíveis até a liquidação.</Typography>
+                        <Typography variant="body2" color="text.secondary">Simplificado — PIX movimenta a conta ao concluir a venda. Débito e crédito são liquidados automaticamente na conta vinculada conforme o prazo de recebimento configurado.</Typography>
                         <FormControlLabel value="CONTROLADO" control={<Radio />} label="Controlado" />
                         <Typography variant="body2" color="text.secondary">PIX permanece pendente para confirmação financeira posterior. Cartões permanecem pendentes para liquidação.</Typography>
                     </RadioGroup>
@@ -62,7 +62,7 @@ export default function ConfiguracaoRecebimentos() {
                     <Typography variant="body2" color="text.secondary">Esta conferência não movimenta contas financeiras. Dinheiro físico, troco e cofre são conferidos separadamente.</Typography>
                 </Stack>
                 <Stack spacing={1} sx={{ alignItems: "flex-start" }}>
-                    <Typography variant="body2" color="text.secondary">Registro operacional não é conciliação bancária. Alterar a política não confirma PIX antigo nem liquida cartões.</Typography>
+                    <Typography variant="body2" color="text.secondary">Registro operacional não é conciliação bancária. A mudança de política vale apenas para novas vendas; recebíveis antigos seguem seu modo original.</Typography>
                     {podeEditar ? <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={salvando}>{salvando ? "Salvando…" : "Salvar configurações"}</Button>
                         : <Typography variant="body2">Somente administradores e gestores podem alterar estas configurações.</Typography>}
                 </Stack>

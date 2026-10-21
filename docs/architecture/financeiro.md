@@ -10,7 +10,9 @@ A empresa possui políticas independentes: `modoRecebimentoFinanceiro=CONTROLADO
 
 - CONTROLADO: PIX mantém o movimento pendente até o POST gerencial existente `/financeiro/pagamentos/{id}/confirmar-recebimento`. Cartão mantém Recebível PENDENTE até liquidação.
 - SIMPLIFICADO: somente concluir a venda registra cada PIX na conta do snapshot, na mesma transação de Venda/Estoque/Pagamentos. Não existe segunda confirmação, segundo POST financeiro ou novo modal no PDV. OPERADOR pode provocar esse efeito apenas pelo faturamento válido; não ganha acesso ao endpoint gerencial. A apresentação histórica é “Registrado no PDV”, sem alegar confirmação bancária.
-- Cartão continua Recebível nos dois modos. Bruto, taxas percentual/fixa, líquido, prazo e destino históricos não usam o cadastro atual. Data prevista não dispara liquidação. Dinheiro, prazo, rascunho, kits/combos e atalhos do PDV mantêm seus contratos.
+- Cartão continua Recebível nos dois modos. Bruto, taxas percentual/fixa, líquido, prazo e destino vêm do snapshot da Venda, nunca do cadastro atual. No SIMPLIFICADO, prazo zero liquida na mesma transação do faturamento; prazo positivo é liquidado por rotina horária quando `dataPrevistaRecebimento <= hoje`, inclusive vencidos após indisponibilidade. Cada liquidação credita apenas o líquido histórico na conta de destino e preserva um movimento por recebível. O responsável histórico pelo registro automático é o operador da Venda, mesmo se inativado depois; a descrição do movimento o identifica como automático. No CONTROLADO permanece manual. Dinheiro, prazo, rascunho, kits/combos e atalhos do PDV mantêm seus contratos.
+
+A rotina automática seleciona apenas recebíveis PENDENTE cujo Pagamento capturou `SIMPLIFICADO`. Cada item é processado em transação própria pelo mesmo núcleo da liquidação manual, com locks operador → Venda → Pagamento → Recebível → Conta Financeira. Repetição ou concorrência não gera segunda entrada. Falhas deixam o item pendente para a próxima execução; consultar logs e regularizar vínculos históricos inconsistentes. Mudança posterior da política não altera a elegibilidade histórica. Não há consulta ao extrato real do gateway nem conciliação bancária.
 
 ### Agenda e liquidação em lote
 
@@ -18,7 +20,7 @@ A empresa possui políticas independentes: `modoRecebimentoFinanceiro=CONTROLADO
 
 `POST /financeiro/recebiveis/liquidar-lote` recebe somente `{recebivelIds:[...]}`, entre 1 e 200 IDs distintos. Restrito a ADMIN/GERENTE da empresa SIMPLIFICADO; conta/valores/taxas são determinados pelos snapshots. O núcleo é o mesmo da liquidação individual: N recebíveis continuam com N movimentos `RECEBIVEL_LIQUIDACAO`, sem lançamento agregado. Todos ou nenhum, inclusive em falha posterior a um crédito. Retry devolve liquidações existentes e não credita novamente. Cancelamento individual da Venda continua revertendo exatamente seus movimentos originais, independentemente do lote.
 
-A agenda oferece confirmação explícita e lista as vendas em nova aba. Grupos maiores são apresentados em parcelas de até 200 itens por confirmação, com quantidade e valor dessa seleção; o restante continua pendente. Pendências sem destino/líquido não são inferidas. O modo Controlado preserva a liquidação individual.
+A agenda acompanha pendências e oferece liquidação manual para exceções, sem ser etapa obrigatória do SIMPLIFICADO. Grupos maiores são apresentados em parcelas de até 200 itens por confirmação, com quantidade e valor dessa seleção; o restante continua pendente. Pendências sem destino/líquido não são inferidas. O modo Controlado preserva a liquidação individual.
 
 ### Conferência operacional por configuração ou por total
 
@@ -30,7 +32,7 @@ A tabela existente `conferencias_fechamento_caixa` recebe escopos CONFIGURACAO/T
 
 ### Transações e locks
 
-Venda mantém lock do operador e agregados existentes; a leitura compartilhada da política empresarial estabiliza a decisão sem serializar todas as vendas. Configurações e contas múltiplas são bloqueadas em ordem crescente de ID. Faturamento PIX usa o núcleo financeiro compartilhado em transação MANDATORY; revalida destino ativo sob lock. Cancelamento bloqueia Caixa/sessão antes de contas financeiras e antecipa a união ordenada de destinos de PIX/cartão/prazo, sem mudar as regras de reversão. Lotes bloqueiam operador → todas as Vendas ordenadas → Pagamentos ordenados → Recebíveis ordenados → contas ordenadas. Nenhum lote adquire outra Venda depois de bloquear uma conta.
+Venda mantém lock do operador e agregados existentes; a leitura compartilhada da política empresarial estabiliza a decisão sem serializar todas as vendas. Configurações e contas múltiplas são bloqueadas em ordem crescente de ID; no faturamento com cartão prazo zero, a união dos destinos de PIX/cartão é bloqueada antes dos créditos. PIX e cartão imediato participam da mesma transação de Venda/Estoque. Cancelamento bloqueia Caixa/sessão antes de contas financeiras e antecipa a união ordenada de destinos de PIX/cartão/prazo, sem mudar as regras de reversão. Lotes bloqueiam operador → todas as Vendas ordenadas → Pagamentos ordenados → Recebíveis ordenados → contas ordenadas. Nenhum lote adquire outra Venda depois de bloquear uma conta.
 
 Vínculos/UNIQUE existentes de pagamento e recebível continuam protegendo idempotência. Falha desfaz Venda, estoque, pagamentos, saldo e movimentos. Estorno marca o movimento original; não apaga nem cria compensação extra. Restrições existentes de saldo e sessão continuam aplicáveis. V49 não altera migrations anteriores nem movimentos históricos.
 

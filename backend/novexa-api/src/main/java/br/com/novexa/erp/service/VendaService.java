@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 public class VendaService {
     @org.springframework.beans.factory.annotation.Autowired private EmpresaRepository politicasEmpresa;
     @org.springframework.beans.factory.annotation.Autowired private ConfirmacaoPagamentoPixService pixRecebimentos;
+    @org.springframework.beans.factory.annotation.Autowired private LiquidacaoRecebivelService liquidacaoRecebiveis;
     @org.springframework.beans.factory.annotation.Autowired private ComposicaoProdutoService composicoes;
     private final VendaRepository vendas;
     private final ClienteRepository clientes;
@@ -322,6 +323,10 @@ public class VendaService {
         var empresaPolitica = politicasEmpresa.politicaComLock(autenticado.empresaId()).orElseThrow(() -> conflito("Empresa indisponível."));
         entityManager.refresh(empresaPolitica);
         var parcelas = prepararPagamentos(pedido, autenticado.empresaId(), total);
+        if (empresaPolitica.getModoRecebimentoFinanceiro() == ModoRecebimentoFinanceiro.SIMPLIFICADO
+                && parcelas.stream().anyMatch(p -> (p.forma().getTipo() == TipoFormaPagamento.DEBITO
+                        || p.forma().getTipo() == TipoFormaPagamento.CREDITO) && p.configuracao() == null))
+            throw conflito("Selecione uma configuração de cartão com conta de destino para a liquidação automática.");
         contasReceber.validarParcelasVenda(venda, pedido.parcelasPrazo());
         BigDecimal recebido = parcelas.stream().map(p -> p.recebido() == null ? p.valor() : p.recebido())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -344,14 +349,17 @@ public class VendaService {
                 recebido.subtract(parcelas.stream().map(PagamentoPreparado::valor).reduce(BigDecimal.ZERO, BigDecimal::add)),
                 total.subtract(parcelas.stream().map(PagamentoPreparado::valor).reduce(BigDecimal.ZERO, BigDecimal::add)));
         var pagamentosCriados = new java.util.ArrayList<PagamentoEntity>();
+        var recebiveisCriados = new java.util.ArrayList<RecebivelEntity>();
         for (int i = 0; i < parcelas.size(); i++) {
             var parcela = parcelas.get(i);
             var pagamento = pagamentos.registrarFaturamento(venda, operador, parcela.forma(), parcela.configuracao(),
                     i + 1, parcela.valor(), parcela.recebido());
             pagamentosCriados.add(pagamento);
-            recebiveis.gerar(pagamento);
+            var recebivel = recebiveis.gerar(pagamento);
+            if (recebivel != null) recebiveisCriados.add(recebivel);
             caixaOperacional.registrarVenda(pagamento);
         }
+        liquidacaoRecebiveis.liquidarNoFaturamento(recebiveisCriados, pagamentosCriados, operador);
         pixRecebimentos.registrarNoFaturamento(pagamentosCriados, operador);
         contasReceber.gerarDaVenda(venda, pedido.parcelasPrazo());
         return VendaResponseDTO.de(venda);

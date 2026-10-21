@@ -1,8 +1,12 @@
 Empresa ........ funcional
 
+## Cartões no modo Simplificado (2026-10-20)
+
+Implementado sobre a V49, sem migration adicional: todo cartão continua gerando Recebível; no SIMPLIFICADO, prazo zero liquida pelo núcleo existente na transação da Venda e prazo positivo entra na varredura horária ao atingir a data prevista ou após ela. Conta, taxa, líquido e prazo são os snapshots históricos. O movimento individual identifica a liquidação automática; retries e cancelamento usam as proteções existentes. No CONTROLADO, a liquidação continua manual. A Agenda permanece para consulta e exceções. Não houve alteração no PDV, PIX, Caixa/Troco/Cofre ou conciliação bancária. Compilação backend, build frontend e diff check são as únicas validações previstas nesta etapa; homologação funcional fica pendente.
+
 ## Políticas de recebimento, agenda e conferência — V49 (2026-10-20)
 
-Implementados modos empresariais CONTROLADO (default compatível) e SIMPLIFICADO. PIX simplificado é registrado no único faturamento, com snapshot de política e sem confirmação extra no PDV; manual gerencial permanece. Cartão continua Recebível PENDENTE até evento explícito, com núcleo individual/lote compartilhado. Agenda usa paginação no banco, agrupamento histórico e lotes explícitos de até 200 IDs, um movimento por recebível e atomicidade integral. Mudança de política não reinterpreta histórico.
+Implementados modos empresariais CONTROLADO (default compatível) e SIMPLIFICADO. PIX simplificado é registrado no único faturamento, com snapshot de política e sem confirmação extra no PDV; manual gerencial permanece. Na V49 original, cartão continuava Recebível PENDENTE até evento explícito; a evolução acima automatiza a liquidação das novas vendas SIMPLIFICADO conforme o prazo. Agenda usa paginação no banco, agrupamento histórico e lotes explícitos de até 200 IDs, um movimento por recebível e atomicidade integral. Mudança de política não reinterpreta histórico.
 
 Conferência de fechamento é configuração independente, por configuração de pagamento ou total dos meios não dinheiro. Reutiliza tabela de auditoria existente; valor opcional ausente não vira zero. Saldo físico, troco/COFRE e custódia V48 permanecem. Configurações e liquidação em lote são gerenciais, tenant pelo JWT. Contratos, locks e limites em [financeiro.md](financeiro.md#políticas-de-recebimento-e-conferência-de-caixa--v49).
 
@@ -10,7 +14,7 @@ Validação local: 462 casos backend aprovados nos grupos direcionados/regressõ
 
 Frontend: 236 casos distintos aprovados após ajustes e regressões, sem falhas/ignorados. Inclui PDV e teclado, rascunho/um único POST, central, agenda, configuração, conferência, claro/escuro/automático e larguras 1440/1024/390 com janela de 400px. Evidência de interface usa HTTP simulado, separada da integração PostgreSQL. Build backend/frontend, lint (zero erros; dois avisos preexistentes de React Hook Form) e diff check aprovados. Build mantém aviso preexistente de chunk acima de 500 kB. Capturas locais da confirmação foram revisadas após terminar a transição do diálogo; não são artefatos versionados.
 
-Sem acesso à Oracle ou alteração de dados de produção nesta tarefa. V49 ainda requer aplicação pelo deploy normal da API; nenhum dado/movimento retroativo foi criado. **BACKEND ALTERADO — DEPLOY MANUAL NA ORACLE NECESSÁRIO.** Não há integração bancária/conciliação externa, liquidação por vencimento, nem transferência/boleto acrescentados ao PDV; os limites operacionais existentes permanecem.
+Sem acesso à Oracle ou alteração de dados de produção na etapa V49. V49 ainda requer aplicação pelo deploy normal da API; nenhum dado/movimento retroativo foi criado. **BACKEND ALTERADO — DEPLOY MANUAL NA ORACLE NECESSÁRIO.** Não há integração bancária/conciliação externa nem transferência/boleto acrescentados ao PDV; os limites operacionais existentes permanecem.
 
 
 ## Ciclo físico Caixa → troco → próxima sessão / COFRE — V48 (2026-10-20)
