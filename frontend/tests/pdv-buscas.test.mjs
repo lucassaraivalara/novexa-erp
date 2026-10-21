@@ -950,7 +950,7 @@ test("entrada brasileira em misto dinheiro PIX e parcelas a prazo preserva soma 
         assert.equal(await page.getByLabel("Valor da parcela 1 (R$)").inputValue(), "24,50");
         assert.equal(await page.getByLabel("Valor da parcela 2 (R$)").inputValue(), "24,50");
         assert.match(await grupoPagamento(page, 1).getByLabel("Troco do pagamento 1").innerText(), /20,00/);
-        assert.match(await page.getByLabel("Pago agora", { exact: true }).innerText(), /51,00/);
+        assert.match(await page.getByLabel("Pago agora", { exact: true }).innerText(), /71,00/);
         assert.match(await page.getByLabel("A receber", { exact: true }).innerText(), /49,00/);
         assert.equal(await page.getByRole("button", { name: "Confirmar pagamento" }).isEnabled(), true);
         await confirmarPagamento(page);
@@ -975,7 +975,7 @@ test("dinheiro mostra recebido e aplicado derivado; somente troco positivo sem a
             const troco = dinheiro.getByLabel("Troco do pagamento 1");
             if (valorRecebido === 100) assert.equal(await troco.count(), 0);
             else assert.match(await troco.innerText(), /20,00/);
-            assert.match(await page.getByLabel("Pago agora", { exact: true }).innerText(), /100,00/);
+            assert.match(await page.getByLabel("Pago agora", { exact: true }).innerText(), new RegExp(`${valorRecebido},00`));
             assert.equal(await page.getByRole("button", { name: "Confirmar pagamento" }).isEnabled(), true);
             await confirmarPagamento(page);
             await esperar(() => estado.requests.some(r => r.path === "/vendas"));
@@ -1177,7 +1177,7 @@ test("dinheiro com duas parcelas a prazo mostra soma e troco distintos e preserv
         await page.getByLabel("Vencimento 2", { exact: true }).fill("2026-12-15");
         assert.equal(await page.getByLabel("Valor da parcela 2 (R$)").inputValue(), "20,00");
         await page.getByLabel("Valor da parcela 2 (R$)").fill("30");
-        assert.match(await page.getByLabel("Pago agora", { exact: true }).innerText(), /40,00/);
+        assert.match(await page.getByLabel("Pago agora", { exact: true }).innerText(), /50,00/);
         assert.match(await page.getByLabel("A receber", { exact: true }).innerText(), /60,00/);
         assert.equal(await page.getByLabel("Falta distribuir", { exact: true }).count(), 0);
         assert.match(await grupoPagamento(page, 1).innerText(), /10,00/);
@@ -1444,7 +1444,7 @@ test("pagamento unico automatico envia uma parcela e nao apresenta configuracao 
     } finally { await page.close(); }
 });
 
-test("dinheiro PIX credito envia parcelas, mostra troco sem somar recebido e cabe em desktop/mobile", async () => {
+test("dinheiro PIX credito envia parcelas, mostra recebido e troco separados e cabe em desktop/mobile", async () => {
     const { page, estado, busca } = await abrir();
     try {
         await adicionarCem(page, busca);
@@ -1457,7 +1457,7 @@ test("dinheiro PIX credito envia parcelas, mostra troco sem somar recebido e cab
         await grupoPagamento(page, 3).getByRole("combobox").selectOption("4");
         assert.equal(await grupoPagamento(page, 3).getByLabel("Valor aplicado (R$)").inputValue(), "20,00");
         await grupoPagamento(page, 3).getByLabel("Valor aplicado (R$)").fill("30");
-        assert.match(await page.getByLabel("Pago agora", { exact: true }).innerText(), /100,00/);
+        assert.match(await page.getByLabel("Pago agora", { exact: true }).innerText(), /110,00/);
         assert.equal(await page.getByLabel("Falta distribuir", { exact: true }).count(), 0);
         assert.match(await grupoPagamento(page, 1).innerText(), /10,00/);
         assert.equal(await page.getByRole("button", { name: "Confirmar pagamento" }).isEnabled(), true);
@@ -1521,6 +1521,47 @@ test("erro backend preserva itens e parcelas para corrigir e tentar novamente", 
 
 
 const gravacoes = estado => estado.requests.filter(r => r.method === "POST");
+for (const [configuracao, tema, width, height] of [[2, "light", 1440, 900], [3, "dark", 390, 480], [4, "system", 1024, 600]]) {
+    test(`misto 7,90: Enter complementa 6,90 em dinheiro com configuracao ${configuracao}, sem gravar antes da confirmacao`, async () => {
+        const { page, estado, busca } = await abrir({ tema });
+        try {
+            await page.setViewportSize({ width, height });
+            estado.produtos = [{ ...produto(), precoVenda: 7.90, controlaEstoque: true, estoqueAtual: 100 }];
+            await busca.fill("7890001"); await busca.press("Enter");
+            await conferirQuantidade(page, "Produto remoto", "1");
+            await abrirPagamento(page);
+            const dinheiro = grupoPagamento(page, 1).getByLabel("Recebido em dinheiro (R$)");
+            await dinheiro.fill("6,90");
+            assert.match(await page.getByLabel("Pago agora", { exact: true }).innerText(), /6,90/);
+            assert.match(await page.getByLabel("Falta a pagar", { exact: true }).innerText(), /1,00/);
+            const confirmar = page.getByRole("button", { name: "Confirmar pagamento", exact: true });
+            assert.equal(await confirmar.isDisabled(), true);
+            await dinheiro.press("Enter");
+            const forma = grupoPagamento(page, 2).getByRole("combobox");
+            await esperarFoco(page, forma);
+            await forma.selectOption(String(configuracao));
+            await forma.press("Tab");
+            const valor = grupoPagamento(page, 2).getByLabel("Valor aplicado (R$)");
+            await esperarFoco(page, valor);
+            assert.match(await valor.inputValue(), /1[,.]00/);
+            await valor.press("Enter");
+            await esperarFoco(page, confirmar);
+            assert.match(await page.getByLabel("Falta a pagar", { exact: true }).innerText(), /0,00/);
+            assert.equal(gravacoes(estado).length, 0);
+            const dialogo = page.getByRole("dialog", { name: "Pagamento da venda" });
+            assert.equal(await dialogo.evaluate(el => el.scrollWidth <= el.clientWidth), true);
+            estado.atrasarVenda = true;
+            await confirmar.press("Enter");
+            await page.keyboard.press("Enter");
+            await esperar(() => gravacoes(estado).length === 1);
+            assert.deepEqual(JSON.parse(gravacoes(estado)[0].body).pagamentos, [
+                { configuracaoFormaPagamentoId: 1, valor: 6.9, valorRecebido: 6.9 },
+                { configuracaoFormaPagamentoId: configuracao, valor: 1 },
+            ]);
+        } finally { await page.close(); }
+    });
+}
+
 const finalizarCarrinho = page => page.getByRole("button", { name: "Finalizar venda \u00b7 F2", exact: true });
 
 test("etapas: carrinho vazio nao abre pagamento; voltar, Escape e backdrop nao gravam nem perdem rascunho", async () => {

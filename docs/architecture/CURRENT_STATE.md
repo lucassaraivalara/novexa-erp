@@ -1,5 +1,9 @@
 Empresa ........ funcional
 
+## Pagamento misto no diálogo do PDV (2026-10-21)
+
+Resumo fixo de total, recebido imediato, falta e troco; próxima forma sugere o restante. Enter no valor avança para a próxima inclusão ou foca a confirmação final, preservando o POST único existente. Backend, contratos e modos financeiros não foram alterados. Testes relacionados ao PDV executados; falhas de expectativas do resumo e foco inicial encontradas durante o ajuste foram corrigidas e revalidadas. Build frontend aprovado, lint sem erros (dois avisos preexistentes), layouts 1440x900, 1024x600, 390x844 e 390x480 nos temas claro/escuro/automático validados com HTTP simulado. Publicação e homologação real permanecem pendentes. Detalhes em [frontend.md](frontend.md#pagamento-misto-e-teclado-do-pdv-2026-10-21).
+
 ## Duplicação de Produtos e numerador manual — V50 (2026-10-20)
 
 A listagem oferece Duplicar e reutiliza o formulário e o `POST /produtos`. O novo cadastro não leva ID, saldo, EAN, imagem, histórico ou composição da origem; código interno é manual ou gerado no backend. A V50 preserva o numerador V47 e impede que códigos manuais futuros o avancem, sem renumerar o legado. PostgreSQL local descartável: 15 testes direcionados aprovados com Flyway V1–V50 e Hibernate validate; build backend aprovado. Frontend: 28 testes relacionados aprovados, build e lint dos arquivos alterados sem erros. Detalhes em [produtos.md](produtos.md#duplicação-e-código-interno--v50). Deploy da API na Oracle fica pendente após a publicação; nenhuma produção foi alterada nesta etapa.

@@ -74,6 +74,9 @@ export default function Vendas() {
     const [pagamentoAberto, setPagamentoAberto] = useState(false);
     const [estoqueConfirmado, setEstoqueConfirmado] = useState(false);
     const formaPagamentoRef = useRef<HTMLSelectElement>(null);
+    const formasPagamentoRefs = useRef<(HTMLSelectElement | null)[]>([]);
+    const confirmarPagamentoRef = useRef<HTMLButtonElement>(null);
+    const proximaFormaRef = useRef<number | null>(null);
     const erroPagamentoRef = useRef<HTMLDivElement>(null);
     const retornandoPagamento = useRef(false);
     const [resultados, setResultados] = useState<Produto[]>([]);
@@ -258,6 +261,8 @@ export default function Vendas() {
         alterar({ pagamentos: pagamentosRascunho(rascunho).map((p, i) => i === indice ? { ...p, ...patch } : p) });
     }
     function adicionarForma() {
+        if (bloqueado || t.parcelas.length >= 20) return;
+        proximaFormaRef.current = t.parcelas.length;
         alterar({ ...(t.usaPrazo ? { parcelasPrazo: t.parcelasPrazo.map(p => ({
             valor: p.valor === "" ? ((p.valorCentavos ?? 0) / 100).toFixed(2) : p.valor, vencimento: p.vencimento,
         })) } : {}), pagamentos: [
@@ -266,8 +271,22 @@ export default function Vendas() {
                 recebido: p.formaPagamento === "DINHEIRO" && p.recebido === "" ? ((t.parcelas[i].recebidoCentavos ?? 0) / 100).toFixed(2) : p.recebido,
             })),
             { configuracaoFormaPagamentoId: null, nomeExibicao: null, formaPagamento: "DINHEIRO",
-                valor: (Math.max(0, t.restante) / 100).toFixed(2), recebido: "" },
+                valor: (Math.max(0, t.restante) / 100).toFixed(2), recebido: (Math.max(0, t.restante) / 100).toFixed(2) },
         ] });
+    }
+    useEffect(() => {
+        if (proximaFormaRef.current === null) return;
+        formasPagamentoRefs.current[proximaFormaRef.current]?.focus();
+        proximaFormaRef.current = null;
+    }, [t.parcelas.length]);
+
+    function confirmarLinhaPagamento() {
+        if (bloqueado) return;
+        const incompleta = t.parcelas.findIndex(p => p.formaPagamento !== "A_PRAZO" && p.configuracaoFormaPagamentoId === null);
+        if (incompleta >= 0) { formasPagamentoRefs.current[incompleta]?.focus(); return; }
+        if (!t.pagamentosValidos) return;
+        if (t.restante > 0) adicionarForma();
+        else if (!pagarDesabilitado) confirmarPagamentoRef.current?.focus();
     }
     function alterarParcelaPrazo(indice: number, patch: Partial<{ valor: string; vencimento: string }>) {
         alterar({ parcelasPrazo: (rascunho.parcelasPrazo ?? []).map((p, i) => i === indice ? { ...p, ...patch } : p) });
@@ -434,6 +453,11 @@ export default function Vendas() {
             <DialogTitle id="pdv-pagamento-titulo" sx={{ pb: 0 }}>Pagamento da venda</DialogTitle>
             <Box sx={{ px: 3, flexShrink: 0 }}>
                 <Box sx={{ py: 1, borderBottom: 1, borderColor: "divider" }}><Typography variant="body2" color="text.secondary">Total da venda</Typography><Typography aria-label="Total a pagar" sx={{ fontSize: 40, lineHeight: 1.25, fontWeight: 800, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", color: cores.total }}>{moeda(Math.max(0, t.total))}</Typography></Box>
+                <Stack direction="row" useFlexGap spacing={2} aria-live="polite" sx={{ flexWrap: "wrap", py: 1, fontVariantNumeric: "tabular-nums" }}>
+                    <Box><Typography variant="caption" color="text.secondary">Pago agora</Typography><Typography aria-label="Pago agora">{moeda(t.recebido)}</Typography></Box>
+                    <Box><Typography variant="caption" color="text.secondary">Falta a pagar</Typography><Typography aria-label="Falta a pagar" sx={{ fontWeight: 700 }}>{moeda(Math.max(0, t.restante))}</Typography></Box>
+                    {t.troco > 0 && <Box><Typography variant="caption" color="text.secondary">Troco</Typography><Typography aria-label="Troco total" sx={{ fontWeight: 700 }}>{moeda(t.troco)}</Typography></Box>}
+                </Stack>
             </Box>
             <DialogContent dividers sx={{ minHeight: 0, overscrollBehavior: "contain" }}>
                 <Typography id="pdv-pagamento-descricao" variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -459,7 +483,7 @@ export default function Vendas() {
                         </Stack>}
                         <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, alignItems: "flex-start" }}>
                         <TextField size="small" select sx={{ flex: "1 1 140px", minWidth: 0 }} label={i === 0 ? "Forma de pagamento" : `Forma de pagamento ${i + 1}`} value={p.formaPagamento === "A_PRAZO" ? "A_PRAZO" : p.configuracaoFormaPagamentoId ?? ""} disabled={bloqueado || carregandoConfig}
-                            inputRef={i === 0 ? formaPagamentoRef : undefined}
+                            inputRef={(elemento: HTMLSelectElement | null) => { formasPagamentoRefs.current[i] = elemento; if (i === 0) formaPagamentoRef.current = elemento; }}
                             autoFocus={i === 0} slotProps={{ inputLabel: { shrink: true }, select: { native: true } }}
                             onChange={e => {
                                 if (e.target.value === "A_PRAZO") {
@@ -503,6 +527,11 @@ export default function Vendas() {
                             value={p.formaPagamento === "DINHEIRO" ? p.recebido : p.valor === "" && t.parcelas.length === 1 ? (Math.max(0, t.total) / 100).toFixed(2) : p.valor}
                             placeholder={p.formaPagamento === "DINHEIRO" ? formatarValorMonetario(((p.recebidoCentavos ?? 0) / 100).toFixed(2)) : undefined}
                             disabled={bloqueado} slotProps={{ htmlInput: { inputMode: "decimal" } }}
+                            onKeyDown={evento => {
+                                if (evento.key !== "Enter" || evento.nativeEvent.isComposing) return;
+                                evento.preventDefault(); evento.stopPropagation();
+                                if (!evento.repeat) confirmarLinhaPagamento();
+                            }}
                             onChange={valor => alterarPagamento(i, p.formaPagamento === "DINHEIRO" ? { recebido: valor } : { valor })} />}
                         </Stack>
                         {p.formaPagamento === "A_PRAZO" ? <Stack spacing={1}>
@@ -543,7 +572,6 @@ export default function Vendas() {
                         )}
                         </Stack>)}
                         <Button size="small" startIcon={<AddRoundedIcon />} sx={{ alignSelf: "flex-start" }} disabled={bloqueado || t.parcelas.length >= 20} onClick={adicionarForma}>Adicionar forma</Button>
-                        {t.parcelas.some(p => p.formaPagamento !== "A_PRAZO") && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Pago agora</span><Typography aria-label="Pago agora">{moeda(t.totalImediato)}</Typography></Stack>}
                         {t.usaPrazo && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>A receber</span><Typography aria-label="A receber">{moeda(t.totalPrazo)}</Typography></Stack>}
                     </>
                 )}
@@ -558,6 +586,7 @@ export default function Vendas() {
                     <Typography variant="caption" sx={{ display: "block" }}>{t.restante > 0 ? "Distribua o restante para confirmar o pagamento." : "Reduza o valor aplicado em uma forma de pagamento."}</Typography>
                 </Alert>}
                 <PdvActionButton categoria="confirmacao" icone={<ShoppingCartCheckoutRoundedIcon />} aria-label="Confirmar pagamento"
+                    ref={confirmarPagamentoRef}
                     disabled={pagarDesabilitado} onClick={() => void confirmarPagamento()}>
                     {salvando ? "Finalizando…" : "Confirmar pagamento"}
                 </PdvActionButton>

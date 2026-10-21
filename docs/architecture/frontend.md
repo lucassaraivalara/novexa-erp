@@ -1,4 +1,8 @@
 
+## Pagamento misto e teclado do PDV (2026-10-21)
+
+O diálogo mantém no topo Total da venda, Pago agora (recebido bruto imediato), Falta a pagar e Troco quando positivo. Valores a prazo continuam separados em A receber. O cálculo existente em centavos preserva a alocação e aceita troco apenas na parcela em dinheiro; excesso eletrônico e saldo pendente bloqueiam a confirmação. Adicionar forma preenche o restante e foca a nova seleção. Enter no valor inclui a próxima forma quando falta pagar ou foca Confirmar pagamento quando quitado; somente o botão final envia a venda. Valores, rascunho, contrato e regras de recebimento permanecem reutilizados. Regressões de interface com HTTP simulado cobrem dinheiro parcial de R$ 6,90 em venda de R$ 7,90 complementado por PIX/débito/crédito, teclado, dupla submissão e layouts/temas; não constituem homologação financeira em produção.
+
 ## Recebimentos e conferência — V49 (2026-10-20)
 
 Configurações → Financeiro → Recebimentos e Caixa usa formulário compacto MUI para políticas independentes de recebimento e fechamento. ADMIN/GERENTE podem salvar; demais perfis consultam sem ações administrativas. Erro preserva seleção; há carregamento/retry e retorno à central. Empresa vem do JWT. A rota `/configuracoes/recebimentos-caixa` destaca Configurações.
