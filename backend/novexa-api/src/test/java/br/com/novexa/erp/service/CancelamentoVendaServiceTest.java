@@ -21,7 +21,7 @@ import static org.mockito.Mockito.*;
 @DataJpaTest(showSql = false, properties = {
         "spring.jpa.hibernate.ddl-auto=create-drop", "spring.flyway.enabled=false"
 })
-@Import({CancelamentoVendaService.class, MovimentacaoEstoqueService.class, LiquidacaoRecebivelService.class})
+@Import({CancelamentoVendaService.class, MovimentacaoEstoqueService.class, LiquidacaoRecebivelService.class, CaixaOperacionalService.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class CancelamentoVendaServiceTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean ContaReceberService contasReceber;
