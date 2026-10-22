@@ -1,5 +1,15 @@
 Empresa ........ funcional
 
+## Integridade do caixa e autorização financeira — 2026-10-22
+
+Saldo inicial do caixa identificado pela chave determinística `nameUUIDFromBytes("saldo-inicial:"+sessaoId)` gravada em `chave_requisicao`, em vez da observação textual, em `calcular()` (saldo esperado do fechamento), no detalhe da sessão e na agregação de `GET /dashboard/resumo`. Sem migration: a coluna é `NOT NULL` desde a V10 e todo registro histórico já possui a chave; a observação `Saldo inicial / Abertura de caixa` continua gravada apenas para leitura humana.
+
+Ações gerenciais de dinheiro restritas a ADMIN/GERENTE no `SecurityConfig`: cancelar conta a receber, estornar recebimento, estorno de movimentação financeira (PATCH), estorno de conta a pagar, criar/estornar transferências e editar/excluir caixas. Receber conta a receber permanece liberado para qualquer perfil autenticado. O frontend oculta essas ações de perfil operacional (Cancelar conta, Estornar recebimento, Estornar no extrato, Transferir e Cadastro de caixas), reaproveitando `podeExecutarAcaoGerencial`.
+
+Validação: 288 testes backend aprovados em dez classes (novo `AutorizacaoGerencialHttpTest` cobrindo as sete regras por perfil e o controle positivo do receber; regressões de caixa, dashboard, sessão, contas a receber/pagar, transferências, recebimentos e liquidação; `CaixaHttpTest` ajustado para token gerencial em PUT/DELETE). Frontend com `tsc`, ESLint e 57 testes de interface aprovados. Compilação e diff check aprovados.
+
+Publicação: commit `fdd8e9f` na `main` (o commit `23552c3` da busca de produtos, já validado, foi publicado junto por estar na fila local). Deploy backend realizado na Oracle no mesmo dia: imagem do `fdd8e9f`, Flyway permanece em V57 (sem migration), health UP. Frontend via Vercel. **CAIXA READY vigente em produção.**
+
 ## Produção em V57 e backfill de faturamento — 2026-10-22
 
 Produção estável em Flyway V57, com a Análise de Vendas operando sobre `data_faturamento` (V56 preenche no ato do faturamento; V57 criou `unidade_medida_venda`, restrição de normalização e índice parcial). Validação de CPF/CNPJ duplicado em clientes ativa na aplicação e no banco (V55), e a busca do PDV aceita código interno parcial. Legado de 102 vendas faturadas (19/10–21/10) teve `data_faturamento` preenchido por operação excepcional de dados em 22/10/2026 (implantação; criação = faturamento no cliente), registrada como histórica em `analise-vendas.md` e sem reexecução.
