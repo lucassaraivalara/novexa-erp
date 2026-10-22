@@ -150,6 +150,7 @@ async function abrir(estado, largura = 1440, rota = "/__entrada") {
         }
         if (u.pathname === "/produtos/buscar") return responder(200, [produto]);
         if (u.pathname === "/produtos/composicao/capacidade") return responder(200, { habilitado: true });
+        if (/^\/produtos\/\d+\/kits-dependentes$/.test(u.pathname) && req.method() === "GET") return responder(200, []);
         if (u.pathname === "/produtos" && req.method() === "POST") {
             if (estado.atrasarProduto) await new Promise(r => setTimeout(r, 500));
             if (estado.erroProduto) return responder(estado.erroProduto, estado.erroProduto === 409

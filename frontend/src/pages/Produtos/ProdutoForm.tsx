@@ -202,11 +202,7 @@ function ProdutoForm({
     const [pendencia, setPendencia] = useState<null | { campo: "controlaEstoque" | "ativo"; valor: boolean }>(null);
 
     useEffect(() => {
-        setPendencia(null);
-        if (!aberto || rapido || !editando || !produto) {
-            setKitsDependentes(null);
-            return;
-        }
+        if (!aberto || rapido || !editando || !produto) return;
         const controle = new AbortController();
         listarKitsDependentes(produto.id, controle.signal)
             .then((lista) => { if (!controle.signal.aborted) setKitsDependentes(lista); })

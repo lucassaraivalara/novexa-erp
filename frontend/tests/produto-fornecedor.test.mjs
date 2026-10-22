@@ -39,6 +39,7 @@ async function abrir(e, viewport = { width: 1440, height: 900 }) {
         e.chamadas.push({ path: u.pathname, metodo: req.method(), params: u.searchParams, body, auth: req.headers().authorization });
         const responder = (status, dados) => route.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(dados) });
         if(u.pathname==="/produtos/composicao/capacidade")return responder(e.kitIndisponivel?404:200,{habilitado:!e.kitIndisponivel});
+        if (/^\/produtos\/\d+\/kits-dependentes$/.test(u.pathname)) return responder(200, e.kitsDependentes ?? []);
         if (u.pathname === "/produtos/buscar") return responder(200, [produto]);
         if (/\/produtos\/\d+\/composicoes$/.test(u.pathname)) return responder(200, e.composicoes ?? []);
         const tipo = u.pathname.match(/^\/produtos\/(categorias|subcategorias|marcas)$/)?.[1];
@@ -78,6 +79,48 @@ const categorias = [{ id: 10, nome: "Bebidas", ativo: true }, { id: 11, nome: "A
 const subcategorias = [{ id: 20, nome: "Sucos", ativo: true, categoria: categorias[0] }, { id: 21, nome: "Massas", ativo: true, categoria: categorias[1] }];
 const marcas = [{ id: 30, nome: "Marca teste", ativo: true }];
 const gravacoes = e => e.chamadas.filter(c => ["POST", "PUT"].includes(c.metodo));
+
+test("confirmações críticas preservam campos, cancelamento e reabertura da edição", async () => {
+    const e = novoEstado(); e.kitsDependentes = [{ id: 50, nome: "Kit dependente" }];
+    const p = await abrir(e);
+    try {
+        let d = await editar(p);
+        await aba(d, "Preços e estoque");
+        await expect(d.getByText(/Este produto é componente de/)).toBeVisible();
+        const estoque = d.getByRole("switch", { name: "Controla estoque", exact: true });
+        await estoque.click();
+        let confirmacao = p.getByRole("dialog", { name: "Desativar controle de estoque?", exact: true });
+        await expect(confirmacao).toContainText("Kit dependente");
+        await confirmacao.getByRole("button", { name: "Manter como está" }).click();
+        await expect(estoque).toBeChecked();
+        assert.equal(gravacoes(e).length, 0);
+        await estoque.click();
+        await confirmacao.getByRole("button", { name: "Entendi, desativar controle" }).click();
+        await expect(estoque).not.toBeChecked();
+        const ativo = d.getByRole("switch", { name: "Produto ativo", exact: true });
+        await ativo.click();
+        confirmacao = p.getByRole("dialog", { name: "Inativar produto?", exact: true });
+        await expect(confirmacao).toContainText("Kit dependente");
+        await p.keyboard.press("Escape");
+        await expect(ativo).toBeChecked();
+        await ativo.click();
+        await confirmacao.getByRole("button", { name: "Entendi, inativar" }).click();
+        await expect(ativo).not.toBeChecked();
+        e.erroSalvar = true;
+        await d.getByRole("button", { name: "Salvar alterações" }).click();
+        await expect(d.getByRole("alert").filter({ hasText: /Fornecedor não encontrado/ })).toBeVisible();
+        await expect(estoque).not.toBeChecked();
+        await expect(ativo).not.toBeChecked();
+        assert.equal(gravacoes(e).at(-1).body.controlaEstoque, false);
+        assert.equal(gravacoes(e).at(-1).body.ativo, false);
+        await d.getByRole("button", { name: "Fechar", exact: true }).click();
+        d = await editar(p);
+        await aba(d, "Preços e estoque");
+        await expect(d.getByRole("switch", { name: "Controla estoque", exact: true })).toBeChecked();
+        await expect(d.getByRole("switch", { name: "Produto ativo", exact: true })).toBeChecked();
+        await expect(p.getByRole("dialog")).toHaveCount(1);
+    } finally { await p.close(); }
+});
 
 test("listagem compacta omite descrições repetidas e campos vazios, preservando nomes e metadados", async () => {
     const e = novoEstado();

@@ -1,5 +1,9 @@
 Empresa ........ funcional
 
+## Lint global frontend — correção pontual, 2026-10-22
+
+`ProdutoForm` remove limpezas síncronas redundantes do efeito de consulta de kits dependentes; a remontagem já existente por sessão/produto inicializa os estados. Confirmações críticas, cancelamento, falha ao salvar e reabertura preservados. Validação: 69 testes frontend distintos relacionados aprovados, incluindo nova regressão dos avisos; fixture de Entradas atualizada para a consulta preexistente de kits dependentes e seus 39 casos reexecutados sem falhas. Lint global com zero erros e dois avisos anteriores de React Hook Form; build frontend e diff check aprovados, mantendo o aviso anterior de bundle grande. Sem alteração de regras de produtos/estoque/kits, commit, push ou deploy; não libera publicação nem a composição de migrations e trabalhos paralelos.
+
 ## Refinamento do fechamento de caixa — 2026-10-21
 
 Modal de fechamento reorganizado com resumo da sessão, dinheiro esperado em destaque, contado com foco inicial e diferença em tempo real. Troco/recolhimento usam o componente existente com complemento automático e distribuição explícita; ações permanecem no rodapé. Preservados os contratos, conferência dos meios, observação obrigatória nas divergências, confirmação de entrega e bloqueio de duplo envio. Backend, migrations e dados reais não foram alterados. Detalhes em [frontend.md](frontend.md#fechamento-de-caixa--apresentação-e-conferência-2026-10-21).
