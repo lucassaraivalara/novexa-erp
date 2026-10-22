@@ -36,7 +36,7 @@ class PaginacaoHttpTest {
     String token;
 
     @BeforeEach void preparar() {
-        jdbc.update("insert into empresas(id,razao_social) values (1001,'A'),(1002,'B')");
+        jdbc.update("insert into empresas(id,razao_social,modo_recebimento_financeiro,modo_conferencia_fechamento,exigir_valores_informados_no_fechamento,permitir_venda_estoque_negativo) values (1001,'A','CONTROLADO','POR_FORMA_PAGAMENTO',true,false),(1002,'B','CONTROLADO','POR_FORMA_PAGAMENTO',true,false)");
         jdbc.update("insert into usuario(id,empresa_id,nome_usuario,perfil,ativo) values (1001,1001,'Operador','ADMIN',true),(1002,1002,'Outro','ADMIN',true)");
         token = "Bearer " + jwt.gerarToken(1001L, "02360684663", 1001L, PerfilUsuario.ADMIN);
         for (long empresa : new long[]{1001, 1002}) {
@@ -50,12 +50,12 @@ class PaginacaoHttpTest {
                 jdbc.update("insert into clientes(id,empresa_id,nome,nome_fantasia,tipo_pessoa,ativo,data_cadastro,telefone) values (?,?,?,?,'FISICA',?,CURRENT_TIMESTAMP,?)", id, empresa, nome, "Fantasia " + i, i != 3, "Telefone " + i);
                 jdbc.update("update clientes set cpf_cnpj=? where id=?", "Documento" + i, id);
                 jdbc.update("insert into cliente_enderecos(cliente_id,ordem,logradouro,cidade,uf,principal,entrega) values (?,0,'Rua','Cidade',?, ?,false)", id, i == 1 ? "SP" : i == 2 ? "RJ" : "MG", i != 2);
-                jdbc.update("insert into produtos(id,empresa_id,nome,codigo_interno,codigo_barras,unidade_medida,preco_custo,preco_venda,estoque_atual,estoque_minimo,controla_estoque,ativo,data_cadastro) values (?,?,?,?,?,'UN',0,?, ?,5,true,?,CURRENT_TIMESTAMP)", id, empresa, nome, "COD" + i, "BARRA" + i, i * 10, i == 1 ? 0 : i == 2 ? 3 : 10, i != 3);
+                jdbc.update("insert into produtos(id,empresa_id,nome,codigo_interno,codigo_barras,unidade_medida,preco_custo,preco_venda,estoque_atual,estoque_minimo,controla_estoque,composto,composicao_versao,ativo,data_cadastro) values (?,?,?,?,?,'UN',0,?, ?,5,true,false,0,?,CURRENT_TIMESTAMP)", id, empresa, nome, "COD" + i, "BARRA" + i, i * 10, i == 1 ? 0 : i == 2 ? 3 : 10, i != 3);
                 // SQL direto não executa o inicializador de VendaEntity.valorPrazo.
                 jdbc.update("insert into vendas(id,empresa_id,usuario_id,cliente_id,data_hora,status,subtotal,desconto,total,valor_prazo) values (?,?,?,?,cast(? as timestamp),?, ?,0,?,0)", id, empresa, empresa, id, timestamp, i == 3 ? "CANCELADA" : "ABERTA", i * 10, i * 10);
                 jdbc.update("insert into contas_pagar(id,empresa_id,descricao,documento,categoria,data_emissao,data_vencimento,valor,status) values (?,?,? ,? ,?,cast(? as date),cast(? as date),?,'ABERTA')", id, empresa, nome, "DOC" + i, i == 3 ? "Outra" : "Operacao", dia, dia, i * 10);
                 jdbc.update("insert into movimentacoes_financeiras(id,empresa_id,conta_financeira_id,usuario_id,tipo,origem,descricao,valor,data_movimento,data_criacao,estornada) values (?,?,?,?,?,'MANUAL',?, ?,cast(? as date),CURRENT_TIMESTAMP,false)", id, empresa, empresa, empresa, i == 3 ? "SAIDA" : "ENTRADA", nome, i * 10, dia);
-                jdbc.update("insert into movimentacoes_estoque(id,empresa_id,produto_id,usuario_id,tipo,origem,quantidade,saldo_anterior,saldo_posterior,data_hora) values (?,?,?,?,?,'MANUAL',?,0,?,cast(? as timestamp))", id, empresa, empresa * 10 + 1, empresa, i == 3 ? "SAIDA" : "ENTRADA", i, i, timestamp);
+                jdbc.update("insert into movimentacoes_estoque(id,empresa_id,produto_id,usuario_id,tipo,origem,quantidade,saldo_anterior,saldo_posterior,estoque_insuficiente_confirmado,data_hora) values (?,?,?,?,?,'MANUAL',?,0,?,false,cast(? as timestamp))", id, empresa, empresa * 10 + 1, empresa, i == 3 ? "SAIDA" : "ENTRADA", i, i, timestamp);
                 jdbc.update("insert into transferencias_financeiras(id,empresa_id,conta_origem_id,conta_destino_id,usuario_id,valor,data_movimento,status,chave_requisicao,data_criacao) values (?,?,?,?,?,?,cast(? as date),'CONCLUIDA',?,CURRENT_TIMESTAMP)", id, empresa, empresa, empresa + 10, empresa, i * 10, dia, UUID.randomUUID());
             }
         }
