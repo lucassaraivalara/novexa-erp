@@ -78,6 +78,7 @@ public class VendaService {
                 .filter(i -> i.getProduto().getId().equals(produtoId)).findFirst();
         if (existente.isPresent()) {
             ItemVendaEntity item = existente.get();
+            validarUnidadeItem(item, produto);
             item.setQuantidade(item.getQuantidade().add(quantidade));
             item.setSubtotal(item.getQuantidade().multiply(item.getPrecoUnitario()).setScale(2, RoundingMode.HALF_UP));
             itensVenda.save(item);
@@ -176,6 +177,15 @@ public class VendaService {
     public PaginaResponseDTO<VendaResumoDTO> listarPaginado(Long empresaId, StatusVenda status,
                                                             LocalDate dataInicial, LocalDate dataFinal,
                                                             Long clienteId, int page, int size, String sort) {
+        return listarPaginado(empresaId, status, dataInicial, dataFinal, clienteId, page, size, sort, "CRIACAO");
+    }
+
+    @Transactional(readOnly = true)
+    public PaginaResponseDTO<VendaResumoDTO> listarPaginado(Long empresaId, StatusVenda status,
+            LocalDate dataInicial, LocalDate dataFinal, Long clienteId, int page, int size, String sort,
+            String referenciaData) {
+        if (!java.util.Set.of("CRIACAO", "FATURAMENTO").contains(referenciaData))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Referência de data inválida. Use CRIACAO ou FATURAMENTO.");
         if (dataInicial != null && dataFinal != null && dataInicial.isAfter(dataFinal)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dataInicial não pode ser posterior a dataFinal.");
         }
@@ -188,7 +198,9 @@ public class VendaService {
 
         Pageable pageable = br.com.novexa.erp.util.Paginacao.criar(page, size, sort,
                 java.util.Set.of("id", "dataHora", "total", "status"), org.springframework.data.domain.Sort.Direction.DESC);
-        var pageResult = vendas.listarResumoPaginado(empresaId, status, inicio, fimExclusivo, clienteId, pageable);
+        var pageResult = "FATURAMENTO".equals(referenciaData)
+                ? vendas.listarResumoPaginadoPorFaturamento(empresaId, status, inicio, fimExclusivo, clienteId, pageable)
+                : vendas.listarResumoPaginado(empresaId, status, inicio, fimExclusivo, clienteId, pageable);
         return PaginaResponseDTO.de(pageResult, VendaResumoDTO::de);
     }
 
@@ -299,6 +311,7 @@ public class VendaService {
             if (produto == null || !Boolean.TRUE.equals(produto.getAtivo())) throw conflito("Produto indisponível.");
             if(produto.isComposto() && item.getComposicaoVersao()!=produto.getComposicaoVersao())
                 throw conflito("A composição do Kit/Combo '"+produto.getNome()+"' foi alterada após a inclusão na venda. Remova o item e adicione novamente para conferir os componentes.");
+            validarUnidadeItem(item, produto);
             validarQuantidade(item.getQuantidade());
             if (item.getPrecoUnitario() == null || item.getPrecoUnitario().signum() < 0) throw conflito("Preço inválido.");
             BigDecimal valor = item.getQuantidade().multiply(item.getPrecoUnitario()).setScale(2, RoundingMode.HALF_UP);
@@ -363,6 +376,14 @@ public class VendaService {
         pixRecebimentos.registrarNoFaturamento(pagamentosCriados, operador);
         contasReceber.gerarDaVenda(venda, pedido.parcelasPrazo());
         return VendaResponseDTO.de(venda);
+    }
+
+    private void validarUnidadeItem(ItemVendaEntity item, ProdutoEntity produto) {
+        // Legado sem snapshot permanece explicitamente desconhecido; não o reconstrói pelo cadastro.
+        if (item.getUnidadeMedidaVenda() != null && !item.getUnidadeMedidaVenda().equals(
+                produto.getUnidadeMedida().strip().toUpperCase(java.util.Locale.ROOT)))
+            throw conflito("A unidade do produto '" + item.getNomeProduto()
+                    + "' mudou após a inclusão. Remova o item e adicione novamente para revisar a quantidade.");
     }
 
     private record PagamentoPreparado(FormaPagamentoEntity forma, ConfiguracaoFormaPagamentoEmpresaEntity configuracao,

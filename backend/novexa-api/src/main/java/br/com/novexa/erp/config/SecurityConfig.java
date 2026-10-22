@@ -38,6 +38,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Preserva o status original no despacho interno de erro do servlet.
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/vendas/analise/**").hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.PUT, "/financeiro/configuracoes/recebimentos").hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.POST, "/financeiro/recebiveis/liquidar-lote").hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()

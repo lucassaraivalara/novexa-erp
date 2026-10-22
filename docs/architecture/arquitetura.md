@@ -18,6 +18,10 @@ O bootstrap da aplicação fixa o fuso da JVM, a serialização legada Jackson e
 
 Não há migration, conversão de coluna ou correção de registros antigos. Dados históricos gravados no fuso errado exigem diagnóstico e operação auditada separados; timestamps civis antigos em horas ambíguas de horário de verão não permitem reconstruir o instante original com certeza. Evidências e limites em [auditoria de horário](../audits/HORARIO_BRASILIA_2026-10-21.md).
 
+## Análise comercial de vendas
+
+Primeira evolução gerencial somente leitura: `AnaliseVendasController/Service/Repository` expõem agregados de FATURADAS, filtrados pela empresa do JWT, para ADMIN/GERENTE. Não se alteram fluxos de Venda/Pagamento/Estoque/Caixa. PostgreSQL executa agregações/rateio de descontos; REPEATABLE_READ preserva cada resposta, com ranking paginado e CSV completo. A V56 adiciona a data efetiva de faturamento na Venda; a V57 registra a unidade histórica no ItemVenda e cria o índice por empresa/data de faturamento, utilizando a coluna existente. Ambas são aditivas e não preenchem o legado por inferência. Contratos, exclusão explícita de datas desconhecidas, grupos produto/unidade e limite da classificação atual em [analise-vendas.md](analise-vendas.md). Implementação local não publicada.
+
 ## Consulta de recebimentos por conta
 
 `RecebimentoContaController/Service/Repository` acrescenta projeções somente de leitura de Pagamento, Recebível e Movimentação Financeira. Paginação e agregação acontecem no banco por empresa do JWT, com destino e condições históricos, sem entidade/tabela nova ou outra fonte de saldo. A interface de Contas e saldos apresenta A LIQUIDAR/LIQUIDADO e reutiliza os comandos existentes de confirmação PIX/liquidação de cartão. Contratos, exclusão de cancelados e tratamento de legado em [financeiro.md](financeiro.md#pix-e-cartões-por-conta-de-destino-2026-10-20).

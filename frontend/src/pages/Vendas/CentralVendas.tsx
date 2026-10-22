@@ -25,6 +25,8 @@ import {
     Paper,
     Snackbar,
     Stack,
+    Tab,
+    Tabs,
     Table,
     TableBody,
     TableCell,
@@ -47,6 +49,7 @@ import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppT
 import ClienteAutocomplete from "../../components/clientes/ClienteAutocomplete";
 import StatusChip from "../../components/ui/StatusChip";
 import VendaExpandida, { type ConsultaVenda } from "./VendaExpandida";
+import AnaliseVendas from "./AnaliseVendas";
 import { listarRecebiveis, mensagemRecebivel } from "../../services/recebivelService";
 import type { Recebivel, StatusRecebivel } from "../../types/recebivel";
 import { formatarData, rotulosStatus as rotulosContaReceber } from "../Financeiro/contaReceberUtils";
@@ -86,6 +89,30 @@ const rotulosRecebivel: Record<StatusRecebivel, string> = {
 type CampoOrdenacaoVenda = "id" | "dataHora" | "total" | "status";
 
 export default function CentralVendas() {
+    const [parametros, setParametros] = useSearchParams();
+    const [consultaKey, reiniciarConsulta] = useState(0);
+    const [consultaSolicitada, setConsultaSolicitada] = useState<FiltrosCentralVendas>();
+    const gerencial = podeExecutarAcaoGerencial(obterSessao()?.perfil);
+    const analise = parametros.get("aba") === "analise" && !parametros.has("vendaId");
+    return <PageContainer>
+        <PageHeader titulo={analise ? "Análise de vendas" : "Central de Vendas"}
+            descricao={analise ? "Entenda o resultado da sua loja e o que mais vende." : "Acompanhe suas vendas, itens e pagamentos."}
+            acaoPrincipal={analise ? undefined : <Button component={Link} to="/pdv" variant="contained" startIcon={<AddShoppingCartRoundedIcon />}>Nova venda</Button>}
+            sx={{ "& h1": { fontSize: 28 }, gap: 1.5 }} />
+        <Tabs value={analise ? "analise" : "consulta"} aria-label="Visões da Central de Vendas" sx={{ borderBottom: 1, borderColor: "divider" }}
+            onChange={(_, aba: string) => { const novos = new URLSearchParams(parametros); novos.delete("vendaId"); if (aba === "analise") novos.set("aba", aba); else novos.delete("aba"); setParametros(novos); }}>
+            <Tab id="central-tab-consulta" aria-controls="central-painel-consulta" value="consulta" label="Consulta" />
+            {(gerencial || analise) && <Tab id="central-tab-analise" aria-controls="central-painel-analise" value="analise" label="Análise de vendas" />}
+        </Tabs>
+        <ConsultaVendas key={consultaKey} ativa={!analise} filtrosSolicitados={consultaSolicitada} />
+        {analise && <Box role="tabpanel" id="central-painel-analise" aria-labelledby="central-tab-analise">{gerencial ? <AnaliseVendas onVerVendas={periodo => {
+            setConsultaSolicitada({ ...filtrosIniciais, ...periodo, status: "FATURADA", referenciaData: "FATURAMENTO" });
+            reiniciarConsulta(v => v + 1);
+        }} /> : <Alert severity="warning">A análise de vendas é restrita a administradores e gerentes.</Alert>}</Box>}
+    </PageContainer>;
+}
+
+function ConsultaVendas({ ativa, filtrosSolicitados }: { ativa: boolean; filtrosSolicitados?: FiltrosCentralVendas }) {
     const theme = useTheme();
     const mobile = useMediaQuery(theme.breakpoints.down("md"));
     const compacto = useMediaQuery(theme.breakpoints.down("lg"));
@@ -96,7 +123,11 @@ export default function CentralVendas() {
     const podeCancelar = podeExecutarAcaoGerencial(obterSessao()?.perfil);
     const [vendas, setVendas] = useState<VendaResumo[]>([]);
     const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
-    const [filtros, setFiltros] = useState<FiltrosCentralVendas>(filtrosIniciais);
+    const [filtros, setFiltros] = useState<FiltrosCentralVendas>(() => filtrosSolicitados ?? ({ ...filtrosIniciais,
+        dataInicial: parametros.get("dataInicial") ?? "", dataFinal: parametros.get("dataFinal") ?? "",
+        referenciaData: parametros.get("referenciaData") === "FATURAMENTO" ? "FATURAMENTO" : undefined,
+        status: (["FATURADA", "ABERTA", "CANCELADA"].includes(parametros.get("status") ?? "") ? parametros.get("status") : filtrosIniciais.status) as FiltrosCentralVendas["status"],
+    }));
     const [pagina, setPagina] = useState(0);
     const [porPagina, setPorPagina] = useState(25);
     const [ordenacao, setOrdenacao] = useState<{ campo: CampoOrdenacaoVenda; direcao: "asc" | "desc" }>({
@@ -128,6 +159,7 @@ export default function CentralVendas() {
     const consultaCarregada = useCallback(() => atualizarContagemItens(v => v + 1), []);
 
     const carregarVendas = useCallback(async (signal?: AbortSignal) => {
+        if (!ativa) return;
         setCarregando(true);
         setErro("");
         try {
@@ -147,13 +179,14 @@ export default function CentralVendas() {
         } finally {
             if (!signal?.aborted) setCarregando(false);
         }
-    }, [filtros, pagina, porPagina, ordenacao]);
+    }, [filtros, pagina, porPagina, ordenacao, ativa]);
 
     useEffect(() => {
+        if (!ativa) return;
         const controller = new AbortController();
         const timer = setTimeout(() => void carregarVendas(controller.signal), 0);
         return () => { clearTimeout(timer); controller.abort(); };
-    }, [carregarVendas]);
+    }, [carregarVendas, ativa]);
 
     function alterarFiltro<K extends keyof FiltrosCentralVendas>(campo: K, valor: FiltrosCentralVendas[K]) {
         setExpandida(null);
@@ -363,11 +396,7 @@ export default function CentralVendas() {
     const vazio = { titulo: "Nenhuma venda encontrada", descricao: "Ajuste os filtros ou inicie uma nova venda." };
     const temFiltros = Object.values(filtros).some(Boolean);
 
-    return <PageContainer>
-        <PageHeader titulo="Central de Vendas" descricao="Acompanhe suas vendas, itens e pagamentos."
-            acaoPrincipal={<Button component={Link} to="/pdv" variant="contained"
-                startIcon={<AddShoppingCartRoundedIcon />}>Nova venda</Button>}
-            sx={{ "& h1": { fontSize: 28 }, gap: 1.5 }} />
+    return <Stack role="tabpanel" id="central-painel-consulta" aria-labelledby="central-tab-consulta" spacing={2} sx={{ display: ativa ? "flex" : "none" }}>
 
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void carregarVendas()}>Tentar novamente</Button>}>{erro}</Alert>}
         {erroDetalhe && <Alert severity="error" action={vendaId !== null
@@ -383,10 +412,10 @@ export default function CentralVendas() {
                     <MenuItem value="FATURADA">Faturada</MenuItem>
                     <MenuItem value="CANCELADA">Cancelada</MenuItem>
                 </TextField>
-                <TextField fullWidth size="small" type="date" label="Data inicial" value={filtros.dataInicial}
+                <TextField fullWidth size="small" type="date" label={filtros.referenciaData ? "Faturamento inicial" : "Data inicial"} value={filtros.dataInicial}
                     slotProps={{ inputLabel: { shrink: true } }}
                     onChange={evento => alterarFiltro("dataInicial", evento.target.value)} />
-                <TextField fullWidth size="small" type="date" label="Data final" value={filtros.dataFinal}
+                <TextField fullWidth size="small" type="date" label={filtros.referenciaData ? "Faturamento final" : "Data final"} value={filtros.dataFinal}
                     slotProps={{ inputLabel: { shrink: true } }}
                     onChange={evento => alterarFiltro("dataFinal", evento.target.value)} />
                 <Box sx={{ minWidth: 0, gridColumn: { sm: "1 / -1", md: "1 / 4", lg: "auto" } }}>
@@ -637,5 +666,5 @@ export default function CentralVendas() {
         <Snackbar open={sucesso} autoHideDuration={4000} onClose={() => setSucesso(false)}>
             <Alert severity="success" onClose={() => setSucesso(false)}>Venda cancelada com sucesso.</Alert>
         </Snackbar>
-    </PageContainer>;
+    </Stack>;
 }

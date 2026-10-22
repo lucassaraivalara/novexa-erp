@@ -49,8 +49,9 @@ public class VendaController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size,
             @RequestParam(defaultValue = "dataHora,desc") String sort,
+            @RequestParam(defaultValue = "CRIACAO") String referenciaData,
             @AuthenticationPrincipal UsuarioAutenticado autenticado) {
-        return service.listarPaginado(autenticado.empresaId(), status, dataInicial, dataFinal, clienteId, page, size, sort);
+        return service.listarPaginado(autenticado.empresaId(), status, dataInicial, dataFinal, clienteId, page, size, sort, referenciaData);
     }
 
     @GetMapping("/por-sessao/{sessaoId}")

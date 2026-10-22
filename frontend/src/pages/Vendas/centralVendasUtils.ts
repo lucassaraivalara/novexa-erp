@@ -6,6 +6,7 @@ export type FiltrosCentralVendas = {
     dataInicial: string;
     dataFinal: string;
     clienteId: string;
+    referenciaData?: "FATURAMENTO";
 };
 
 export const filtrosIniciais: FiltrosCentralVendas = {
@@ -17,6 +18,7 @@ export const filtrosIniciais: FiltrosCentralVendas = {
 
 export function criarParametrosVenda(filtros: FiltrosCentralVendas): FiltrosVenda {
     return {
+        ...(filtros.referenciaData ? { referenciaData: filtros.referenciaData } : {}),
         status: filtros.status || undefined,
         dataInicial: filtros.dataInicial || undefined,
         dataFinal: filtros.dataFinal || undefined,

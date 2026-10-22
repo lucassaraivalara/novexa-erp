@@ -36,6 +36,9 @@ public class ItemVendaEntity {
     @Column(name = "nome_produto", nullable = false, length = 150)
     private String nomeProduto;
 
+    @Column(length = 10, updatable = false)
+    private String unidadeMedidaVenda;
+
     @Column(name = "quantidade", nullable = false, precision = 19, scale = 3)
     private BigDecimal quantidade;
 
@@ -65,6 +68,8 @@ public class ItemVendaEntity {
         this.produto = produto;
         this.composicaoVersao=produto.getComposicaoVersao();
         this.nomeProduto = produto.getNome();
+        this.unidadeMedidaVenda = produto.getUnidadeMedida() == null ? null
+                : produto.getUnidadeMedida().strip().toUpperCase(java.util.Locale.ROOT);
         this.quantidade = quantidade;
         this.precoUnitario = precoUnitario;
         this.subtotal = subtotal;
@@ -76,6 +81,7 @@ public class ItemVendaEntity {
     public VendaEntity getVenda() { return venda; }
     public ProdutoEntity getProduto() { return produto; }
     public String getNomeProduto() { return nomeProduto; }
+    public String getUnidadeMedidaVenda() { return unidadeMedidaVenda; }
     public BigDecimal getQuantidade() { return quantidade; }
     public BigDecimal getPrecoUnitario() { return precoUnitario; }
     public BigDecimal getSubtotal() { return subtotal; }
