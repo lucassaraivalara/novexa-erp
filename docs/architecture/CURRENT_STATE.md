@@ -1,5 +1,11 @@
 Empresa ........ funcional
 
+## Clientes — conflito concorrente de documento, 2026-10-22
+
+O tratamento HTTP reconhece exclusivamente a violação Hibernate de unicidade com SQLSTATE `23505` e constraint `uk_cliente_empresa_documento_normalizado` da V55, retornando 409 com orientação para conferir o documento ou utilizar o cadastro existente. A pré-validação permanece; outras violações de integridade continuam no tratamento 500 sanitizado. Nenhuma migration ou regra de cadastro foi alterada por esta tarefa.
+
+Validação local: 35 testes relacionados aprovados, sendo oito PostgreSQL/HTTP real e 27 H2. Três rodadas de oito cadastros simultâneos, sincronizados por bloqueio na tabela do schema descartável sem substituir serviços/repositórios, produziram uma resposta 201, sete 409 e um cliente persistido por rodada; CPF formatado/normalizado, mesmo documento em tenants diferentes, isolamento, outra chave única e FK cobertos. Compilação limpa com Flyway aplicado até V57 sem alvo fixado e Hibernate validate em PostgreSQL 18.6 descartável; V56/V57 incorporadas por trabalho paralelo. Build backend e diff check aprovados. Esta validação de Clientes não libera a composição global, a atualização de bases existentes ou a publicação. Sem acesso a dados reais, commit, push ou deploy nesta tarefa.
+
 ## Lint global frontend — correção pontual, 2026-10-22
 
 `ProdutoForm` remove limpezas síncronas redundantes do efeito de consulta de kits dependentes; a remontagem já existente por sessão/produto inicializa os estados. Confirmações críticas, cancelamento, falha ao salvar e reabertura preservados. Validação: 69 testes frontend distintos relacionados aprovados, incluindo nova regressão dos avisos; fixture de Entradas atualizada para a consulta preexistente de kits dependentes e seus 39 casos reexecutados sem falhas. Lint global com zero erros e dois avisos anteriores de React Hook Form; build frontend e diff check aprovados, mantendo o aviso anterior de bundle grande. Sem alteração de regras de produtos/estoque/kits, commit, push ou deploy; não libera publicação nem a composição de migrations e trabalhos paralelos.

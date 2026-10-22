@@ -1,5 +1,7 @@
 package br.com.novexa.erp.exception;
 
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -96,6 +98,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(exception.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<String> tratarIntegridade(DataIntegrityViolationException exception) throws Exception {
+        for (Throwable causa = exception; causa != null; causa = causa.getCause()) {
+            if (causa instanceof ConstraintViolationException violacao
+                    && "23505".equals(violacao.getSQLState())
+                    && "uk_cliente_empresa_documento_normalizado".equals(violacao.getConstraintName())) {
+                return tratarDocumentoDeClienteDuplicado(new ClienteDocumentoDuplicadoException(
+                        "Já existe um cliente cadastrado com este CPF/CNPJ nesta empresa. "
+                                + "Confira o documento informado ou utilize o cadastro existente."));
+            }
+        }
+        return tratarErroNaoPrevisto(exception);
     }
 
     @ExceptionHandler({
