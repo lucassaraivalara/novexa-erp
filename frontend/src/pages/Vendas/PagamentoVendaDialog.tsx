@@ -29,10 +29,24 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
     confirmarDesabilitado, primeiraFormaRef, recebidoRef, confirmarRef, erroRef, onAlterar, onCliente, onConfirmar, onVoltar }: Props) {
     const campos = useRef<Record<string, HTMLInputElement | null>>({});
     const focoPendente = useRef<string | null>(null);
+    const aberturaInicializada = useRef(false);
     const pagamentos = pagamentosRascunho(rascunho);
+    useLayoutEffect(() => {
+        if (!open) { aberturaInicializada.current = false; focoPendente.current = null; return; }
+        if (aberturaInicializada.current || carregando || erroConfig || bloqueado) return;
+        aberturaInicializada.current = true;
+        const primeira = configuracoes[0];
+        if (!primeira || t.total <= 0 || pagamentos.some(p => p.configuracaoFormaPagamentoId !== null || p.formaPagamento === "A_PRAZO")) return;
+        primeiraFormaRef.current?.blur();
+        focoPendente.current = String(primeira.id);
+        const valor = (t.total / 100).toFixed(2);
+        onAlterar({ pagamentos: [{ configuracaoFormaPagamentoId: primeira.id, nomeExibicao: primeira.nomeExibicao,
+            formaPagamento: meios[primeira.tipo as keyof typeof meios].forma, valor, recebido: primeira.tipo === "DINHEIRO" ? valor : "" }] });
+    }, [open, carregando, erroConfig, bloqueado, configuracoes, pagamentos, t.total, onAlterar, primeiraFormaRef]);
     useLayoutEffect(() => {
         const chave = focoPendente.current;
         if (chave === null) return;
+        if (chave === "prazo" ? !rascunho.parcelasPrazo?.length : !rascunho.pagamentos?.some(p => String(p.configuracaoFormaPagamentoId) === chave)) return;
         focoPendente.current = null;
         campos.current[chave]?.focus(); campos.current[chave]?.select();
     }, [rascunho.pagamentos, rascunho.parcelasPrazo]);
@@ -40,16 +54,17 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
         if (aposPreencher) { focoPendente.current = chave; return; }
         requestAnimationFrame(() => { campos.current[chave]?.focus(); campos.current[chave]?.select(); });
     }
-    function alterarValor(config: ConfiguracaoFormaPagamento, valor: string) {
-        const atual = pagamentos.find(p => p.configuracaoFormaPagamentoId === config.id);
-        const outros = pagamentos.filter(p => p.formaPagamento === "A_PRAZO" || (p.configuracaoFormaPagamentoId !== null && p.configuracaoFormaPagamentoId !== config.id));
+    function alterarValor(config: ConfiguracaoFormaPagamento, valor: string, removerOrigem?: number) {
+        const base = removerOrigem === undefined ? pagamentos : pagamentos.filter(p => p.configuracaoFormaPagamentoId !== removerOrigem);
+        const atual = base.find(p => p.configuracaoFormaPagamentoId === config.id);
+        const outros = base.filter(p => p.formaPagamento === "A_PRAZO" || (p.configuracaoFormaPagamentoId !== null && p.configuracaoFormaPagamentoId !== config.id));
         if (valor === "" || decimal(valor, 2) === 0) { onAlterar({ pagamentos: outros }); return; }
         if (!atual && outros.length >= 20) return;
         const dinheiro = config.tipo === "DINHEIRO";
         const pagamento: PagamentoPDV = { configuracaoFormaPagamentoId: config.id, nomeExibicao: config.nomeExibicao,
             formaPagamento: meios[config.tipo as keyof typeof meios].forma, valor,
             recebido: dinheiro ? valor : "" };
-        onAlterar({ pagamentos: atual ? pagamentos.map(p => p === atual ? pagamento : p) : [...outros, pagamento] });
+        onAlterar({ pagamentos: atual ? base.map(p => p === atual ? pagamento : p) : [...outros, pagamento] });
     }
     function selecionar(config: ConfiguracaoFormaPagamento) {
         const preencher = !pagamentos.some(p => p.configuracaoFormaPagamentoId === config.id) && t.restante > 0 && pagamentos.length < 20;
@@ -63,11 +78,22 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
         onAlterar({ pagamentos: [...outros, { configuracaoFormaPagamentoId: null, nomeExibicao: "A prazo", formaPagamento: "A_PRAZO", valor, recebido: "" }],
             parcelasPrazo: [{ valor, vencimento: t.parcelasPrazo[0]?.vencimento ?? "" }] });
     }
-    function avancar(chave: string, direcao = 1, concluir = true) {
+    function avancar(chave: string, direcao = 1, concluir = true, transferirSelecionado = false) {
         if (concluir && !confirmarDesabilitado) { confirmarRef.current?.focus(); return; }
         if (concluir && t.restante <= 0) return;
         const indice = configuracoes.findIndex(c => String(c.id) === chave);
         const proxima = configuracoes[indice + direcao];
+        const origem = t.parcelas.find(p => String(p.configuracaoFormaPagamentoId) === chave);
+        const valorOrigem = origem ? decimal(origem.formaPagamento === "DINHEIRO" ? origem.recebido || origem.valor : origem.valor, 2) : null;
+        if (transferirSelecionado && proxima && origem?.configuracaoFormaPagamentoId != null && valorOrigem !== null && valorOrigem > 0
+            && !pagamentos.some(p => p.configuracaoFormaPagamentoId === proxima.id)) {
+            const valor = proxima.tipo === "DINHEIRO" ? valorOrigem : Math.min(valorOrigem, Math.max(0, t.restante + (origem.valorCentavos ?? 0)));
+            if (valor > 0) {
+                focoValor(String(proxima.id), true);
+                alterarValor(proxima, (valor / 100).toFixed(2), origem.configuracaoFormaPagamentoId);
+                return;
+            }
+        }
         if (proxima) { if (direcao > 0) selecionar(proxima); else focoValor(String(proxima.id)); }
         else if (direcao > 0) {
             const preencher = !t.usaPrazo && t.restante > 0;
@@ -105,7 +131,12 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
                                 <ValorMonetarioPDV size="small" autoFocus={i === 0} value={config.tipo === "DINHEIRO" ? p?.recebido || p?.valor || "" : p?.valor ?? ""} placeholder="0,00" disabled={bloqueado} inputRef={el => { campos.current[String(config.id)] = el; if (i === 0) primeiraFormaRef.current = el; if (config.id === configuracoes.find(c => c.tipo === "DINHEIRO")?.id) recebidoRef.current = el; }}
                                     slotProps={{ htmlInput: { "aria-label": `Valor de ${config.nomeExibicao} (R$)`, inputMode: "decimal", style: { textAlign: "right", fontWeight: 600 } }, input: { startAdornment: <InputAdornment position="start">R$</InputAdornment> } }}
                                     onClick={() => { if (!p) { campos.current[String(config.id)]?.blur(); selecionar(config); } }} onChange={valor => alterarValor(config, valor)}
-                                    onKeyDown={e => { if (["Enter", "ArrowDown", "ArrowUp"].includes(e.key) && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) avancar(String(config.id), e.key === "ArrowUp" ? -1 : 1, e.key === "Enter"); } }} />
+                                    onKeyDown={e => { if (["Enter", "ArrowDown", "ArrowUp"].includes(e.key) && !e.nativeEvent.isComposing) {
+                                        e.preventDefault(); e.stopPropagation();
+                                        const campo = e.target as HTMLInputElement;
+                                        const selecionado = campo.value.length > 0 && campo.selectionStart === 0 && campo.selectionEnd === campo.value.length;
+                                        if (!e.repeat) avancar(String(config.id), e.key === "ArrowUp" ? -1 : 1, e.key === "Enter", e.key !== "Enter" && selecionado);
+                                    } }} />
                                 {p && p.troco > 0 && <Typography aria-label={`Troco em ${config.nomeExibicao}`} variant="body2" sx={{ gridColumn: "1 / -1", textAlign: "right", color: "primary.main", fontWeight: 700 }} aria-live="polite">Troco: {moeda(p.troco)}</Typography>}
                             </Box>;
                         })}

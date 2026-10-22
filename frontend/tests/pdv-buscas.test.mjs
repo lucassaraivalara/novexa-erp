@@ -1098,7 +1098,8 @@ for (const [nome, id] of [["Dinheiro", 1], ["PIX Loja", 2], ["Débito Loja", 3],
             assert.equal(await page.getByRole("combobox", { name: /Forma de pagamento/ }).count(), 0);
             assert.equal(await page.getByRole("button", { name: "Adicionar forma", exact: true }).count(), 0);
             for (const indisponivel of ["Cartão inativo", "PIX sem destino", "PIX destino inativo", "PIX destino incompatível"]) assert.equal(await page.getByRole("button", { name: `Usar ${indisponivel}`, exact: true }).count(), 0);
-            assert.equal(await concluir(page).isDisabled(), true); assert.equal(gravacoes(estado).length, 0);
+            assert.equal(await concluir(page).isEnabled(), true); assert.equal(gravacoes(estado).length, 0);
+            if (nome !== "Dinheiro") await valorMeio(page, "Dinheiro").fill("");
             await meio(page, nome); await valorMeio(page, nome).press("Tab");
             assert.equal(await valorMeio(page, nome).inputValue(), "10,00");
             estado.atrasarVenda = true;
@@ -1139,6 +1140,55 @@ test("lista direta: dinheiro entregue deriva aplicação e troco, preservando ou
         assert.equal(await page.getByLabel("Valor de Dinheiro (R$)").inputValue(), "60,00");
         await confirmarPagamento(page); await page.getByText("Venda concluída", { exact: true }).waitFor();
         assert.deepEqual(JSON.parse(gravacoes(estado)[0].body).pagamentos, [{ configuracaoFormaPagamentoId: 1, valor: 50, valorRecebido: 60 }, { configuracaoFormaPagamentoId: 2, valor: 30 }, { configuracaoFormaPagamentoId: 4, valor: 20 }]);
+    } finally { await page.close(); }
+});
+
+test("valor selecionado acompanha as setas entre meios e Enter confirma sem duplicar", async () => {
+    const configuracoesPagamento = [
+        { id: 4, tipo: "CREDITO", nomeExibicao: "Crédito primeiro", ativo: true },
+        { id: 3, tipo: "DEBITO", nomeExibicao: "Débito segundo", ativo: true },
+        { id: 1, tipo: "DINHEIRO", nomeExibicao: "Dinheiro", ativo: true },
+        { id: 2, tipo: "PIX", nomeExibicao: "PIX Loja", ativo: true, contaFinanceiraDestino: { id: 3, ativo: true, tipo: "BANCO" } },
+    ];
+    const { page, estado, busca } = await abrir({ configuracoesPagamento, adiarRender: true });
+    try {
+        estado.produtos = [{ ...produto(), precoVenda: 2.5 }];
+        await busca.fill("P1"); await busca.press("Enter"); await conferirQuantidade(page, "Produto remoto", "1");
+        await abrirPagamento(page, false);
+        const credito = valorMeio(page, "Crédito primeiro"), debito = valorMeio(page, "Débito segundo"), dinheiro = valorMeio(page, "Dinheiro"), pix = valorMeio(page, "PIX Loja");
+        await esperarFoco(page, credito);
+        assert.equal(await credito.inputValue(), "2,50");
+        assert.deepEqual(await credito.evaluate(el => [el.selectionStart, el.selectionEnd]), [0, 4]);
+        for (const [origem, destino] of [[credito, debito], [debito, dinheiro], [dinheiro, pix]]) {
+            await origem.press("ArrowDown"); await esperarFoco(page, destino);
+            assert.equal(await origem.inputValue(), ""); assert.equal(await destino.inputValue(), "2,50");
+            assert.deepEqual(await destino.evaluate(el => [el.selectionStart, el.selectionEnd]), [0, 4]);
+            assert.match(await page.getByLabel("Valor aplicado", { exact: true }).innerText(), /2,50/);
+            assert.equal(gravacoes(estado).length, 0);
+        }
+        await pix.press("ArrowUp"); await esperarFoco(page, dinheiro);
+        assert.equal(await pix.inputValue(), ""); assert.equal(await dinheiro.inputValue(), "2,50");
+        await dinheiro.press("Enter"); await esperarFoco(page, concluir(page));
+        assert.equal(await dinheiro.inputValue(), "2,50"); assert.equal(gravacoes(estado).length, 0);
+        estado.atrasarVenda = true;
+        await page.keyboard.press("Enter"); await page.keyboard.press("Enter");
+        await page.getByText("Venda concluída", { exact: true }).waitFor();
+        assert.equal(gravacoes(estado).length, 1);
+        assert.deepEqual(JSON.parse(gravacoes(estado)[0].body).pagamentos, [{ configuracaoFormaPagamentoId: 1, valor: 2.5, valorRecebido: 2.5 }]);
+    } finally { await page.close(); }
+});
+
+test("Enter preserva dinheiro parcial e seta transfere somente o complemento selecionado", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        await adicionarCem(page, busca);
+        const dinheiro = valorMeio(page, "Dinheiro"), pix = valorMeio(page, "PIX Loja"), debito = valorMeio(page, "Débito Loja");
+        await dinheiro.fill("30"); await dinheiro.press("Control+a"); await dinheiro.press("Enter"); await esperarFoco(page, pix);
+        assert.equal(await dinheiro.inputValue(), "30,00"); assert.equal(await pix.inputValue(), "70,00");
+        await pix.press("ArrowDown"); await esperarFoco(page, debito);
+        assert.equal(await dinheiro.inputValue(), "30,00"); assert.equal(await pix.inputValue(), ""); assert.equal(await debito.inputValue(), "70,00");
+        await debito.press("Enter"); await esperarFoco(page, concluir(page));
+        assert.equal(gravacoes(estado).length, 0);
     } finally { await page.close(); }
 });
 
