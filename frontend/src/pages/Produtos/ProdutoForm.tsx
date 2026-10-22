@@ -9,6 +9,10 @@ import {
     Button,
     Box,
     CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     Divider,
     FormControlLabel,
     IconButton,
@@ -25,7 +29,7 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import type {Produto, ProdutoFornecedorVinculoInput, ProdutoInput} from "../../types/produto";
-import {cadastrarProduto, obterMensagemDaApi} from "../../services/produtoService";
+import {cadastrarProduto, listarKitsDependentes, obterMensagemDaApi, type KitDependente} from "../../services/produtoService";
 import FornecedorAutocomplete, { type FornecedorOpcao } from "../../components/fornecedores/FornecedorAutocomplete";
 
 type ProdutoFormProps = {
@@ -190,6 +194,25 @@ function ProdutoForm({
     const ocupado = useRef(false);
     const salvando = salvandoExterno || salvandoRapido;
     const mensagemErro = erroExterno || erroRapido;
+    const editando = produto !== null && !duplicando;
+
+    // Kits/Combos cuja composição vigente usa este produto como componente.
+    const [kitsDependentes, setKitsDependentes] = useState<KitDependente[] | null>(null);
+    // Alteração crítica aguardando confirmação do operador.
+    const [pendencia, setPendencia] = useState<null | { campo: "controlaEstoque" | "ativo"; valor: boolean }>(null);
+
+    useEffect(() => {
+        setPendencia(null);
+        if (!aberto || rapido || !editando || !produto) {
+            setKitsDependentes(null);
+            return;
+        }
+        const controle = new AbortController();
+        listarKitsDependentes(produto.id, controle.signal)
+            .then((lista) => { if (!controle.signal.aborted) setKitsDependentes(lista); })
+            .catch(() => { if (!controle.signal.aborted) setKitsDependentes([]); });
+        return () => controle.abort();
+    }, [aberto, rapido, editando, produto]);
 
     const [erros, setErros] = useState<
         Partial<Record<keyof EstadoFormulario, string>>
@@ -212,6 +235,27 @@ function ProdutoForm({
             ...atual,
             [campo]: undefined,
         }));
+    }
+
+    function confirmarPendencia() {
+        if (pendencia) alterarCampo(pendencia.campo, pendencia.valor);
+        setPendencia(null);
+    }
+
+    function alterarControlaEstoque(ligado: boolean) {
+        if (!ligado && editando && !rapido && formulario.controlaEstoque) {
+            setPendencia({ campo: "controlaEstoque", valor: false });
+            return;
+        }
+        alterarCampo("controlaEstoque", ligado);
+    }
+
+    function alterarAtivo(ligado: boolean) {
+        if (!ligado && editando && !rapido && formulario.ativo) {
+            setPendencia({ campo: "ativo", valor: false });
+            return;
+        }
+        alterarCampo("ativo", ligado);
     }
 
     function selecionarImagem(evento: ChangeEvent<HTMLInputElement>) {
@@ -426,9 +470,8 @@ function ProdutoForm({
         }
     }
 
-    const editando = produto !== null && !duplicando;
-
     return (
+        <>
         <CadastroDialog
             aberto={aberto}
             variante={rapido ? "compact" : "full"}
@@ -882,8 +925,7 @@ function ProdutoForm({
                                         composto || formulario.controlaEstoque
                                     }
                                     onChange={(e) =>
-                                        alterarCampo(
-                                            "controlaEstoque",
+                                        alterarControlaEstoque(
                                             e.target.checked
                                         )
                                     }
@@ -923,6 +965,16 @@ function ProdutoForm({
                                 slotProps={{ htmlInput: { inputMode: "decimal" } }}
                             />
                         </Box>
+
+                        {(kitsDependentes?.length ?? 0) > 0 && formulario.controlaEstoque && (
+                            <Alert severity="warning">
+                                Este produto é componente de {kitsDependentes!.length === 1
+                                    ? "1 Kit/Combo"
+                                    : `${kitsDependentes!.length} Kits/Combos`}:{" "}
+                                {kitsDependentes!.map((k) => k.nome).join(", ")}.
+                                {" "}Desligar o controle de estoque impede a baixa automática desses kits na venda.
+                            </Alert>
+                        )}
 
                         <Box
                             sx={{
@@ -992,8 +1044,7 @@ function ProdutoForm({
                             <Switch
                                 checked={formulario.ativo}
                                 onChange={(e) =>
-                                    alterarCampo(
-                                        "ativo",
+                                    alterarAtivo(
                                         e.target.checked
                                     )
                                 }
@@ -1134,6 +1185,70 @@ function ProdutoForm({
                 </Stack>
             )}
         </CadastroDialog>
+        <DialogoConfirmacaoCritica
+            pendencia={pendencia}
+            kitsDependentes={kitsDependentes}
+            onConfirmar={confirmarPendencia}
+            onCancelar={() => setPendencia(null)}
+        />
+        </>
+    );
+}
+
+function DialogoConfirmacaoCritica({
+    pendencia,
+    kitsDependentes,
+    onConfirmar,
+    onCancelar,
+}: {
+    pendencia: { campo: "controlaEstoque" | "ativo"; valor: boolean } | null;
+    kitsDependentes: KitDependente[] | null;
+    onConfirmar: () => void;
+    onCancelar: () => void;
+}) {
+    const kits = kitsDependentes ?? [];
+    const desligandoEstoque = pendencia?.campo === "controlaEstoque";
+
+    return (
+        <Dialog
+            open={pendencia !== null}
+            onClose={onCancelar}
+            fullWidth
+            maxWidth="sm"
+            aria-labelledby="produto-alerta-critico-titulo"
+        >
+            <DialogTitle id="produto-alerta-critico-titulo">
+                {desligandoEstoque ? "Desativar controle de estoque?" : "Inativar produto?"}
+            </DialogTitle>
+            <DialogContent>
+                <Stack spacing={1.5}>
+                    <Typography variant="body2">
+                        {desligandoEstoque
+                            ? "O produto deixará de controlar saldo e estoque mínimo, e as vendas não vão mais baixar o estoque dele."
+                            : "Produtos inativos deixam de aparecer no PDV, nas buscas e nas novas operações."}
+                    </Typography>
+                    {kits.length > 0 && (
+                        <Alert severity="warning">
+                            Este produto é componente de{" "}
+                            {kits.length === 1 ? "1 Kit/Combo" : `${kits.length} Kits/Combos`}:{" "}
+                            {kits.map((k) => k.nome).join(", ")}.
+                            {desligandoEstoque
+                                ? " Desativar o controle de estoque fará a venda desses kits falhar até que a composição seja revisada."
+                                : " A venda desses kits será bloqueada enquanto o componente estiver inativo."}
+                        </Alert>
+                    )}
+                    <Typography variant="caption" color="text.secondary">
+                        O cadastro pode ser ajustado novamente a qualquer momento.
+                    </Typography>
+                </Stack>
+            </DialogContent>
+            <DialogActions sx={{ flexWrap: "wrap", gap: 1 }}>
+                <Button onClick={onCancelar}>Manter como está</Button>
+                <Button onClick={onConfirmar} color="warning" variant="contained">
+                    {desligandoEstoque ? "Entendi, desativar controle" : "Entendi, inativar"}
+                </Button>
+            </DialogActions>
+        </Dialog>
     );
 }
 

@@ -74,6 +74,16 @@ export async function excluirProduto(id: number): Promise<void> {
     await api.delete(`/produtos/${id}`);
 }
 
+export type KitDependente = {
+    id: number;
+    nome: string;
+};
+
+export async function listarKitsDependentes(id: number, signal?: AbortSignal): Promise<KitDependente[]> {
+    const resposta = await api.get<KitDependente[]>(`/produtos/${id}/kits-dependentes`, { signal });
+    return resposta.data;
+}
+
 export function obterMensagemDaApi(
     erro: unknown,
     mensagemPadrao: string,

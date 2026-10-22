@@ -84,6 +84,11 @@ public class ComposicaoProdutoService {
             throw erro("Componente em uso: preserve a unidade e o controle de estoque; revise primeiro as composições.");
     }
     public record Necessidade(ProdutoEntity produto,BigDecimal quantidade) { }
+    public record Dependente(Long id,String nome) { }
+    @Transactional(readOnly=true)
+    public List<Dependente> kitsDependentes(Long id,Long empresa) {
+        return composicoes.kitsQueUsamAtualmente(empresa,id).stream().map(p->new Dependente(p.getId(),p.getNome())).toList();
+    }
     public Map<Long,Necessidade> necessidades(VendaEntity venda,Map<Long,ProdutoEntity> bloqueados) {
         var linhas=atuais(venda.getEmpresa().getId(),venda.getItens().stream().map(i->i.getProduto().getId()).toList());
         Map<Long,Necessidade> resultado=new TreeMap<>();

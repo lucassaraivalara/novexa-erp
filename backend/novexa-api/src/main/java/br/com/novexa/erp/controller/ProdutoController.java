@@ -35,6 +35,10 @@ public class ProdutoController {
     public java.util.List<br.com.novexa.erp.service.ComposicaoProdutoService.Linha> composicoes(@PathVariable Long id,@AuthenticationPrincipal UsuarioAutenticado usuario) {
         return composicoes.historico(id,usuario.empresaId());
     }
+    @GetMapping("/{id}/kits-dependentes")
+    public java.util.List<br.com.novexa.erp.service.ComposicaoProdutoService.Dependente> kitsDependentes(@PathVariable Long id,@AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return composicoes.kitsDependentes(id,usuario.empresaId());
+    }
 
     private final ProdutoService produtoService;
     private final ProdutoMapper produtoMapper;
