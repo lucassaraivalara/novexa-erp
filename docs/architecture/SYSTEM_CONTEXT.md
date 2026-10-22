@@ -86,6 +86,7 @@ Os documentos devem distinguir comportamento implementado de arquitetura alvo. U
 
 ## Regras transversais
 
+- Toda funcionalidade deve seguir o princípio permanente de [segurança operacional e clareza dos processos](../../AGENTS.md#segurança-operacional-e-clareza-dos-processos), definido no AGENTS.md.
 - Data/hora operacional, regras de hoje/vencido e exibição usam `America/Sao_Paulo` como referência oficial. Fontes centralizadas e semântica dos contratos em [arquitetura.md](arquitetura.md#data-e-hora-oficial--brasília).
 - O frontend não determina a empresa da operação.
 - Movimentações de estoque devem preservar saldo e histórico.

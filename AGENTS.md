@@ -172,6 +172,19 @@ Apresente a decisão antes.
 
 ---
 
+## Segurança operacional e clareza dos processos
+
+Toda funcionalidade deve considerar sua segurança operacional, a clareza para o usuário e o impacto nos processos relacionados, além da execução técnica. O Novexa ERP deve ser robusto em sua arquitetura e simples na operação.
+
+- **Mensagens orientativas:** erros e bloqueios devem explicar a causa específica conhecida e, sempre que possível, orientar a ação necessária para resolver o problema. Evitar mensagens genéricas quando houver diagnóstico disponível.
+- **Prevenção de erros operacionais:** configurações e operações que possam comprometer vendas, estoque, caixa, financeiro ou outros processos devem ter validações adequadas ao risco e, quando necessário, avisos claros sobre suas consequências.
+- **Integridade entre módulos:** considerar os processos relacionados a cada alteração, preservando regras de negócio, consistência dos dados e histórico operacional.
+- **Rastreabilidade proporcional ao risco:** alterações críticas devem permitir identificar o responsável, o momento e o que foi modificado, reutilizando os mecanismos existentes sempre que possível.
+
+Esses cuidados complementam os princípios de simplicidade operacional acima: manter fluxos intuitivos, objetivos e eficientes, sem acrescentar etapas, confirmações ou complexidade desnecessárias.
+
+---
+
 ## Prioridades atuais do produto
 
 A ordem geral é:
