@@ -47,6 +47,11 @@ class PoliticasRecebimentoHttpTest {
     long venda(Map<String,Object> p) throws Exception { return f.json.readTree(enviar(p).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asLong(); }
     Map<String,Object> parte(ConfiguracaoFormaPagamentoEmpresaEntity c,int valor) { return Map.of("configuracaoFormaPagamentoId",c.getId(),"valor",valor); }
     BigDecimal saldo(ConfiguracaoFormaPagamentoEmpresaEntity c) { return contas.findById(c.getContaFinanceiraDestino().getId()).orElseThrow().getSaldoAtual(); }
+    ConfiguracaoFormaPagamentoEmpresaEntity cartaoComPrazo() {
+        var c = f.configuracao(f.empresa, 4, true);
+        c.atualizarCondicoesCartao(BigDecimal.ZERO, BigDecimal.ZERO, 1);
+        return f.configuracoes.saveAndFlush(c);
+    }
     org.springframework.test.web.servlet.ResultActions lote(List<Long> ids) throws Exception { return f.mvc.perform(post("/financeiro/recebiveis/liquidar-lote").header("Authorization",f.authorization).contentType("application/json").content(f.json.writeValueAsBytes(Map.of("recebivelIds",ids)))); }
     @Test void defaultsTrocasNaoReinterpretamHistorico() throws Exception {
         f.mvc.perform(get("/financeiro/configuracoes/recebimentos").header("Authorization",f.authorization)).andExpect(status().isOk()).andExpect(jsonPath("$.modo").value("CONTROLADO"));
@@ -78,13 +83,13 @@ class PoliticasRecebimentoHttpTest {
         long id=venda(p); assertThat(venda(p)).isEqualTo(id);
         assertThat(pagamentos.count()).isEqualTo(4);assertThat(recebiveis.count()).isEqualTo(1);
         assertThat(f.jdbc.queryForObject("select count(*) from contas_receber",Long.class)).isEqualTo(1);
-        assertThat(saldo(nubank)).isEqualByComparingTo(simples?"130":"100");assertThat(saldo(sicredi)).isEqualByComparingTo(simples?"110":"100");assertThat(saldo(debito)).isEqualByComparingTo("100");
-        assertThat(movimentosFinanceiros.count()).isEqualTo(simples?2:0);
+        assertThat(saldo(nubank)).isEqualByComparingTo(simples?"130":"100");assertThat(saldo(sicredi)).isEqualByComparingTo(simples?"110":"100");assertThat(saldo(debito)).isEqualByComparingTo(simples?"140":"100");
+        assertThat(movimentosFinanceiros.count()).isEqualTo(simples?3:0);
         assertThat(movimentosCaixa.findAll()).singleElement().satisfies(m -> assertThat(m.getValor()).isEqualByComparingTo("20"));
-        assertThat(recebiveis.findAll().getFirst().getStatus()).isEqualTo(StatusRecebivel.PENDENTE);
+        assertThat(recebiveis.findAll().getFirst().getStatus()).isEqualTo(simples?StatusRecebivel.LIQUIDADO:StatusRecebivel.PENDENTE);
         if(simples) { f.mvc.perform(post("/vendas/"+id+"/cancelar").header("Authorization",f.authorization)).andExpect(status().isOk());
             f.mvc.perform(post("/vendas/"+id+"/cancelar").header("Authorization",f.authorization)).andExpect(status().isOk());
-            assertThat(saldo(nubank)).isEqualByComparingTo("100");assertThat(movimentosFinanceiros.findAll()).allMatch(MovimentacaoFinanceiraEntity::isEstornada); }
+            assertThat(saldo(nubank)).isEqualByComparingTo("100");assertThat(saldo(sicredi)).isEqualByComparingTo("100");assertThat(saldo(debito)).isEqualByComparingTo("100");assertThat(movimentosFinanceiros.findAll()).hasSize(3).allMatch(MovimentacaoFinanceiraEntity::isEstornada); }
     }
     @Test void falhaPosteriorAoCreditoPixReverteVendaEstoqueESaldo() throws Exception {
         simplificado();var c=f.configuracao(f.empresa,2,true);
@@ -99,7 +104,7 @@ class PoliticasRecebimentoHttpTest {
         enviar(pedido(List.of(parte(c,20)),20)).andExpect(status().isConflict());assertThat(movimentosFinanceiros.count()).isZero();assertThat(f.vendas.count()).isZero();
     }
     @Test void loteUsaSnapshotERetryECancelamentoIndividual() throws Exception {
-        simplificado();var c=f.configuracao(f.empresa,4,true);
+        simplificado();var c=cartaoComPrazo();
         long a=venda(pedido(List.of(parte(c,20)),20));long b=venda(pedido(List.of(parte(c,20)),20));
         var ids=recebiveis.findAll().stream().map(RecebivelEntity::getId).toList();
         assertThat(saldo(c)).isEqualByComparingTo("100");lote(ids).andExpect(status().isOk());lote(ids.reversed()).andExpect(status().isOk());
@@ -109,37 +114,41 @@ class PoliticasRecebimentoHttpTest {
         lote(ids).andExpect(status().isConflict());assertThat(saldo(c)).isEqualByComparingTo("120");
     }
     @Test void falhaNoSegundoItemDoLoteRevertePrimeiro() throws Exception {
-        simplificado();var c=f.configuracao(f.empresa,4,true);venda(pedido(List.of(parte(c,20)),20));venda(pedido(List.of(parte(c,20)),20));
+        simplificado();var c=cartaoComPrazo();venda(pedido(List.of(parte(c,20)),20));venda(pedido(List.of(parte(c,20)),20));
         var ids=recebiveis.findAll().stream().map(RecebivelEntity::getId).toList();var vezes=new java.util.concurrent.atomic.AtomicInteger();
+        assertThat(recebiveis.findAll()).hasSize(2).allMatch(r -> r.getStatus()==StatusRecebivel.PENDENTE);
         doAnswer(i -> { var conta=(ContaFinanceiraEntity)i.getArgument(0);contas.save(conta);contas.flush();if(vezes.incrementAndGet()==2)throw new IllegalStateException("falha no segundo crédito");return conta; })
             .when(contas).saveAndFlush(any(ContaFinanceiraEntity.class));
         lote(ids).andExpect(status().isInternalServerError());assertThat(saldo(c)).isEqualByComparingTo("100");assertThat(movimentosFinanceiros.count()).isZero();
         assertThat(recebiveis.findAll()).allMatch(r -> r.getStatus()==StatusRecebivel.PENDENTE);
     }
     @Test void loteRejeitaIdsRepetidosOutroTenantEOperador() throws Exception {
-        simplificado();var c=f.configuracao(f.empresa,4,true);venda(pedido(List.of(parte(c,20)),20));long id=recebiveis.findAll().getFirst().getId();
+        simplificado();var c=cartaoComPrazo();venda(pedido(List.of(parte(c,20)),20));long id=recebiveis.findAll().getFirst().getId();
         lote(List.of(id,id)).andExpect(status().isBadRequest());lote(List.of(id,Long.MAX_VALUE)).andExpect(status().isNotFound());assertThat(movimentosFinanceiros.count()).isZero();
         f.operador.setPerfil(PerfilUsuario.OPERADOR);f.usuarios.saveAndFlush(f.operador);f.authorization="Bearer "+f.jwt.gerarToken(f.operador);lote(List.of(id)).andExpect(status().isForbidden());
     }
     @Test void agendaAgrupaSnapshotsPaginacaoEListaIds() throws Exception {
-        simplificado();var a=f.configuracao(f.empresa,4,true);var b=f.configuracao(f.empresa,4,true);
+        simplificado();var a=cartaoComPrazo();var b=cartaoComPrazo();
         venda(pedido(List.of(parte(a,20)),20));venda(pedido(List.of(parte(a,20)),20));venda(pedido(List.of(parte(b,20)),20));
         f.mvc.perform(get("/financeiro/recebiveis/agenda?size=1").header("Authorization",f.authorization)).andExpect(status().isOk())
             .andExpect(jsonPath("$.totalItems").value(2)).andExpect(jsonPath("$.items[0].quantidade").value(2)).andExpect(jsonPath("$.items[0].liquido").value(40));
-        f.mvc.perform(get("/financeiro/recebiveis/agenda/itens").param("data",LocalDate.now().toString()).param("configuracaoId",a.getId().toString()).param("tipo","CREDITO")
+        f.mvc.perform(get("/financeiro/recebiveis/agenda/itens").param("data",LocalDate.now().plusDays(1).toString()).param("configuracaoId",a.getId().toString()).param("tipo","CREDITO")
             .param("contaDestinoId",a.getContaFinanceiraDestino().getId().toString()).header("Authorization",f.authorization)).andExpect(status().isOk()).andExpect(jsonPath("$.totalItems").value(2));
     }
     @ParameterizedTest @ValueSource(strings={"POR_FORMA_PAGAMENTO","TOTAL"})
     void conferenciaAuditaSemLiquidarNemAlterarSaldos(String modo) throws Exception {
         simplificado();var a=f.configuracao(f.empresa,2,true);var b=f.configuracao(f.empresa,2,true);var cartao=f.configuracao(f.empresa,4,true);
         venda(pedido(List.of(parte(a,5),parte(b,5),parte(cartao,10)),20));politica("SIMPLIFICADO",modo,true).andExpect(status().isOk());
+        assertThat(saldo(cartao)).isEqualByComparingTo("110");
+        assertThat(movimentosFinanceiros.count()).isEqualTo(3);
+        assertThat(recebiveis.findAll()).singleElement().extracting(RecebivelEntity::getStatus).isEqualTo(StatusRecebivel.LIQUIDADO);
         var sessao=f.sessoes.findAll().getFirst();String url="/financeiro/caixas/"+sessao.getCaixa().getId()+"/sessoes/"+sessao.getId()+"/fechar";
         Object meios=modo.equals("TOTAL")?List.of():List.of(Map.of("configuracaoId",a.getId(),"valorInformado",4),Map.of("configuracaoId",b.getId(),"valorInformado",6),Map.of("configuracaoId",cartao.getId(),"valorInformado",10));
         var conferencia=new HashMap<String,Object>(Map.of("modo",modo,"meios",meios,"observacao","Conferência de teste"));if(modo.equals("TOTAL"))conferencia.put("totalInformado",19);
         var p=Map.of("saldoFinal",0,"conferenciaMeios",conferencia);
         for(int i=0;i<2;i++)f.mvc.perform(post(url).header("Authorization",f.authorization).contentType("application/json").content(f.json.writeValueAsBytes(p))).andExpect(status().isOk());
-        assertThat(saldo(a)).isEqualByComparingTo("105");assertThat(saldo(b)).isEqualByComparingTo("105");assertThat(saldo(cartao)).isEqualByComparingTo("100");
-        assertThat(movimentosFinanceiros.count()).isEqualTo(2);assertThat(recebiveis.findAll().getFirst().getStatus()).isEqualTo(StatusRecebivel.PENDENTE);
+        assertThat(saldo(a)).isEqualByComparingTo("105");assertThat(saldo(b)).isEqualByComparingTo("105");assertThat(saldo(cartao)).isEqualByComparingTo("110");
+        assertThat(movimentosFinanceiros.count()).isEqualTo(3);assertThat(recebiveis.findAll().getFirst().getStatus()).isEqualTo(StatusRecebivel.LIQUIDADO);
         assertThat(f.jdbc.queryForObject("select count(*) from conferencias_fechamento_caixa",Long.class)).isEqualTo(modo.equals("TOTAL")?2:4);
         assertThat(f.jdbc.queryForObject("select count(*) from conferencias_fechamento_caixa where valor_informado<>valor_esperado",Long.class)).isEqualTo(modo.equals("TOTAL")?1:2);
     }
@@ -197,9 +206,9 @@ class PoliticasRecebimentoHttpTest {
         assertThat(movimentosFinanceiros.count()).isZero();
     }
     void concorrentes(boolean pix) throws Exception {
-        simplificado();var c=f.configuracao(f.empresa,pix?2:4,true);var p=pedido(List.of(parte(c,20)),20);
+        simplificado();var c=pix?f.configuracao(f.empresa,2,true):cartaoComPrazo();var p=pedido(List.of(parte(c,20)),20);
         List<Long> ids;
-        if(pix)ids=List.of();else{venda(p);venda(pedido(List.of(parte(c,20)),20));ids=recebiveis.findAll().stream().map(RecebivelEntity::getId).toList();}
+        if(pix)ids=List.of();else{venda(p);venda(pedido(List.of(parte(c,20)),20));ids=recebiveis.findAll().stream().map(RecebivelEntity::getId).toList();assertThat(recebiveis.findAll()).hasSize(2).allMatch(r -> r.getStatus()==StatusRecebivel.PENDENTE);}
         var pool=Executors.newFixedThreadPool(2);var start=new CountDownLatch(1);
         try {var a=pool.submit(() -> {start.await();return pix?enviar(p).andReturn().getResponse().getStatus():lote(ids).andReturn().getResponse().getStatus();});
             var b=pool.submit(() -> {start.await();return pix?enviar(p).andReturn().getResponse().getStatus():lote(ids.reversed()).andReturn().getResponse().getStatus();});

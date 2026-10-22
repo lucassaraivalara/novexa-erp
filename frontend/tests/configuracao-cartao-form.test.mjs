@@ -41,10 +41,10 @@ before(async () => {
 after(async () => { await browser?.close(); await server?.close(); });
 
 async function withEditor(run, options = {}) {
-    const page = await browser.newPage({viewport: {width: 1440, height: 960}});
+    const page = await browser.newPage({viewport: options.viewport ?? {width: 1440, height: 960}});
     page.setDefaultTimeout(5000);
     const requests = [];
-    await page.addInitScript(() => localStorage.setItem("novexa-auth", JSON.stringify({token: "test", empresa: {id: 7}})));
+    await page.addInitScript(perfil => localStorage.setItem("novexa-auth", JSON.stringify({token: "test", perfil, empresa: {id: 7}})), options.perfil ?? "ADMIN");
     await page.route("**/financeiro/contas-financeiras", route => route.fulfill({
         status: options.accountError ? 500 : 200,
         json: options.accountError ? "Falha ao consultar contas." : options.contas ?? [conta, {...conta, id: 6, tipo: "CAIXA"}, {...conta, id: 8, nome: "Conta inativa", ativo: false}],
@@ -62,13 +62,34 @@ async function withEditor(run, options = {}) {
     });
     try {
         await page.goto(`${url}/configuracoes`);
-        if (options.config) await page.getByRole("button", {name: "Editar configuração de pagamento"}).click();
-        else await page.getByRole("button", {name: "Nova Configuração", exact: true}).click();
-        await page.getByRole("dialog").waitFor();
+        if (!options.somenteConsulta) {
+            if (options.config) await page.getByRole("button", {name: "Editar configuração de pagamento"}).click();
+            else await page.getByRole("button", {name: "Nova Configuração", exact: true}).click();
+            await page.getByRole("dialog").waitFor();
+        }
         await run(page, requests);
     } finally { await page.close(); }
 }
 const tipo = page => page.getByRole("combobox", {name: /Tipo \/ Forma de pagamento/});
+
+for (const perfil of ["ADMIN", "GERENTE", "OPERADOR", "USUARIO"]) {
+    test(`${perfil} consulta configurações e acessa somente ações permitidas`, () => withEditor(async (page, requests) => {
+        const gerencial = perfil === "ADMIN" || perfil === "GERENTE";
+        await page.getByText("Crédito autorizado", {exact: true}).waitFor();
+        assert.equal(await page.getByRole("button", {name: "Nova Configuração", exact: true}).count(), gerencial ? 1 : 0);
+        assert.equal(await page.getByRole("button", {name: "Editar configuração de pagamento"}).count(), gerencial ? 1 : 0);
+        await page.getByRole("combobox", {name: /Situação/}).click();
+        await page.getByRole("option", {name: "Todas", exact: true}).click();
+        await page.getByText("Crédito autorizado", {exact: true}).waitFor();
+        if (gerencial) {
+            await page.getByRole("button", {name: "Editar configuração de pagamento"}).click();
+            await page.getByRole("dialog").waitFor();
+        } else {
+            assert.equal(await page.getByRole("dialog").count(), 0);
+        }
+        assert.equal(requests.length, 0);
+    }, {perfil, somenteConsulta: true, viewport: {width: perfil === "GERENTE" || perfil === "USUARIO" ? 390 : 1440, height: 960}, config: {id: 20, formaPagamentoId: 4, tipo: "CREDITO", nomeExibicao: "Crédito autorizado", ativo: true, contaFinanceiraDestino: conta, taxaPercentual: 3, taxaFixa: 0, prazoRecebimentoDias: 1}}));
+}
 const destino = page => page.getByRole("combobox", {name: /Conta Financeira de destino/});
 async function selecionar(page, campo, texto) {
     await campo.click();
@@ -78,11 +99,12 @@ async function salvar(page, editando = false) {
     await page.getByRole("button", {name: editando ? "Atualizar" : "Criar", exact: true}).click();
 }
 function assertPayload(request, forma, id, ativo = true, taxas = {}) {
+    const parcelas = forma === 4 ? {maximoParcelasConsumidor: 1} : {};
     assert.deepEqual(request.payload, {nomeExibicao: "Config teste", formaPagamentoId: forma, ativo,
-        contaFinanceiraDestinoId: id, ...taxas});
+        contaFinanceiraDestinoId: id, ...taxas, ...parcelas});
     assert.equal(request.auth, "Bearer test");
     assert.deepEqual(Object.keys(request.payload).sort(), Object.keys({nomeExibicao: "", formaPagamentoId: 1,
-        ativo: true, contaFinanceiraDestinoId: null, ...taxas}).sort());
+        ativo: true, contaFinanceiraDestinoId: null, ...taxas, ...parcelas}).sort());
 }
 function legado(ativo = true) {
     return {id: 20, nomeExibicao: "Config teste", formaPagamentoId: 3, tipo: "DEBITO", ativo,

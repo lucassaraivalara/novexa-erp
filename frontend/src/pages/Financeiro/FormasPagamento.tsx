@@ -9,6 +9,8 @@ import { listarConfiguracoesFormasPagamento, mensagemConfiguracaoFormaPagamento 
 import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
 import { rotulosTipoFormaPagamento } from "../../types/configuracaoFormaPagamento";
 import ConfiguracaoFormaPagamentoForm from "./ConfiguracaoFormaPagamentoForm";
+import { podeExecutarAcaoGerencial } from "../../utils/auth/perfis";
+import { obterSessao } from "../../utils/auth/sessao";
 
 const colunas: Coluna<ConfiguracaoFormaPagamento>[] = [
     { campo: "nomeExibicao", cabecalho: "Nome", largura: 280 },
@@ -41,6 +43,7 @@ const colunas: Coluna<ConfiguracaoFormaPagamento>[] = [
 ];
 
 export default function FormasPagamento() {
+    const gerencial = podeExecutarAcaoGerencial(obterSessao()?.perfil);
     const [configuracoes, setConfiguracoes] = useState<ConfiguracaoFormaPagamento[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
@@ -62,12 +65,12 @@ export default function FormasPagamento() {
         return () => controller.abort();
     }, [tentativa, situacao]);
 
-    const acoes: AcaoTabela<ConfiguracaoFormaPagamento>[] = [{
+    const acoes: AcaoTabela<ConfiguracaoFormaPagamento>[] = gerencial ? [{
         rotulo: "Editar",
         icone: <EditOutlinedIcon fontSize="small" />,
         onClick: (config) => setEditor({ config }),
         tooltip: "Editar configuração de pagamento",
-    }];
+    }] : [];
 
     function salvo(config: ConfiguracaoFormaPagamento) {
         setConfiguracoes((atuais) => atuais.some((atual) => atual.id === config.id)
@@ -81,8 +84,8 @@ export default function FormasPagamento() {
         <PageContainer>
             <PageHeader
                 titulo="Formas de pagamento"
-                descricao="Defina como a empresa recebe: nomes, tipos e condições de pagamento."
-                acaoPrincipal={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setEditor({ config: null })}>Nova Configuração</Button>}
+                descricao={gerencial ? "Defina como a empresa recebe: nomes, tipos e condições de pagamento." : "Consulte as formas de pagamento disponíveis para a empresa."}
+                acaoPrincipal={gerencial ? <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setEditor({ config: null })}>Nova Configuração</Button> : undefined}
             />
 
             {erro && (
@@ -120,7 +123,7 @@ export default function FormasPagamento() {
                 minWidth={880}
             />
 
-            {editor && <ConfiguracaoFormaPagamentoForm config={editor.config} onFechar={() => setEditor(null)} onSalvo={salvo} />}
+            {gerencial && editor && <ConfiguracaoFormaPagamentoForm config={editor.config} onFechar={() => setEditor(null)} onSalvo={salvo} />}
 
             <Snackbar open={sucesso} autoHideDuration={5000} onClose={() => setSucesso(false)}>
                 <Alert severity="success" onClose={() => setSucesso(false)}>Configuração salva com sucesso.</Alert>

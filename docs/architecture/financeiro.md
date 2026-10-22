@@ -4,6 +4,10 @@ FINANCEIRO NOVEXA
 
 Datas e horas operacionais seguem `America/Sao_Paulo`, via `TempoNovexa`: sessão de Caixa, pagamentos PIX, criação/liquidação/cancelamento de recebíveis, movimentos financeiros, cofre e vencimentos. O scheduler de cartão e a validação da liquidação automática consultam o mesmo dia civil de Brasília, inclusive após indisponibilidade do servidor (`dataPrevista <= hoje`). Prazo de recebimento continua derivado da data histórica do pagamento em Brasília. Valores, locks, idempotência, regras de saldo e confirmações permanecem os mesmos. Não há liquidação ou correção retroativa introduzida por esta padronização. Semântica de armazenamento e exibição em [arquitetura.md](arquitetura.md#data-e-hora-oficial--brasília).
 
+## Autorização das configurações de pagamento — Tarefa 10A
+
+`GET /financeiro/configuracoes-formas-pagamento` e `GET /financeiro/configuracoes-formas-pagamento/{id}` permanecem disponíveis a ADMIN, GERENTE, OPERADOR e USUARIO autenticados, inclusive para seleção no PDV. POST/PUT exigem ADMIN/GERENTE no backend: criar, editar nome/taxa/prazo/destino e ativar/desativar usam a mesma proteção. OPERADOR/USUARIO recebem 403 antes da escrita; sem autenticação retorna 401. Não há endpoint de exclusão. IDs e destinos de outro tenant continuam retornando 404 para usuários autorizados, sem autoridade de empresa no payload. A interface permite consulta operacional e reserva os botões de criação/edição e o formulário aos perfis gerenciais existentes. Não altera valores, snapshots, faturamento, liquidação ou dados históricos. Implementação publicada na main e aplicada em produção.
+
 ## Políticas de recebimento e conferência de Caixa — V49
 
 **Registro operacional ≠ conciliação bancária. Fechamento de Caixa ≠ liquidação financeira. Data prevista ≠ dinheiro recebido.**

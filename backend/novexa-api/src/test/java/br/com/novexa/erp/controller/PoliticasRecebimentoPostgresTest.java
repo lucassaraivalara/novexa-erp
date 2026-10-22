@@ -27,12 +27,17 @@ class PoliticasRecebimentoPostgresTest extends PoliticasRecebimentoHttpTest {
     @RepeatedTest(3) void loteConcorrente() throws Exception { concorrentes(false); }
     @Test void flywayValidadoV49EHistoricoDefaultControlado() {
         var flyway=Flyway.configure().dataSource(URL,USER,PASSWORD).schemas(SCHEMA).defaultSchema(SCHEMA).load();
-        flyway.validate();assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("49");
+        flyway.validate();
+        assertThat(flyway.info().applied()).anyMatch(m -> m.getVersion()!=null && "49".equals(m.getVersion().getVersion()));
+        assertThat(flyway.info().pending()).isEmpty();
+        assertThat(f.empresas.findById(f.empresa.getId()).orElseThrow().getModoRecebimentoFinanceiro())
+                .isEqualTo(br.com.novexa.erp.entity.ModoRecebimentoFinanceiro.CONTROLADO);
     }
 
     @RepeatedTest(3) void lotesSobrepostosPorOperadoresDiferentesNaoInvertemLocks() throws Exception {
-        simplificado();var c=f.configuracao(f.empresa,4,true);venda(pedido(java.util.List.of(parte(c,20)),20));venda(pedido(java.util.List.of(parte(c,20)),20));
+        simplificado();var c=cartaoComPrazo();venda(pedido(java.util.List.of(parte(c,20)),20));venda(pedido(java.util.List.of(parte(c,20)),20));
         var ids=recebiveis.findAll().stream().map(br.com.novexa.erp.entity.RecebivelEntity::getId).toList();
+        assertThat(recebiveis.findAll()).hasSize(2).allMatch(r -> r.getStatus()==br.com.novexa.erp.entity.StatusRecebivel.PENDENTE);
         f.segundo.setPerfil(br.com.novexa.erp.entity.PerfilUsuario.ADMIN);f.usuarios.saveAndFlush(f.segundo);String outro="Bearer "+f.jwt.gerarToken(f.segundo);
         var pool=java.util.concurrent.Executors.newFixedThreadPool(2);var inicio=new java.util.concurrent.CountDownLatch(1);
         try {

@@ -1,5 +1,11 @@
 Empresa ........ funcional
 
+## Configurações de pagamento — autorização local, 2026-10-22
+
+Correção local da Tarefa 10A sobre `6bb3583`: POST/PUT de configurações empresariais exigem ADMIN/GERENTE na cadeia Spring Security. Consultas continuam disponíveis para todos os perfis autenticados, incluindo o PDV; a tela administrativa oculta criação/edição e o formulário de perfis operacionais. Empresa permanece derivada do JWT. Sem alteração de contratos financeiros, taxas/prazos persistidos, snapshots, migrations ou regras de liquidação. Matriz em [financeiro.md](financeiro.md#autorização-das-configurações-de-pagamento--tarefa-10a).
+
+Validação: 155 testes backend aprovados (13 novos HTTP real/PostgreSQL por perfil, 37 de configuração/H2, 35 de políticas/PostgreSQL e 70 de liquidação/PostgreSQL), sem falhas/skips. Os casos antigos de D+0 agora comprovam crédito no faturamento e ausência de nova liquidação no fechamento; lotes/agenda/concorrência que exigem pendência usam D+1, sem mudar regras financeiras. O teste Flyway verifica V49 aplicada e nenhuma migration pendente, em vez de exigir latest V49. Frontend: 22 testes aprovados, incluindo perfis e consulta em desktop/mobile; builds backend/frontend, lint global (zero erros, dois avisos anteriores) e diff check aprovados. PostgreSQL 18.6 descartável, Flyway até V57 e Hibernate validate. Integrada e publicada na main com revalidação direcionada (72 testes HTTP/H2 por classe, TypeScript, lint e 20 testes frontend) e deploy em produção sem migration nova.
+
 ## Integridade do caixa e autorização financeira — 2026-10-22
 
 Saldo inicial do caixa identificado pela chave determinística `nameUUIDFromBytes("saldo-inicial:"+sessaoId)` gravada em `chave_requisicao`, em vez da observação textual, em `calcular()` (saldo esperado do fechamento), no detalhe da sessão e na agregação de `GET /dashboard/resumo`. Sem migration: a coluna é `NOT NULL` desde a V10 e todo registro histórico já possui a chave; a observação `Saldo inicial / Abertura de caixa` continua gravada apenas para leitura humana.

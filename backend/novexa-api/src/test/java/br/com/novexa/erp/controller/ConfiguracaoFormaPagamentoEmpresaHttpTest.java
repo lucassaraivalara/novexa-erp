@@ -73,7 +73,7 @@ class ConfiguracaoFormaPagamentoEmpresaHttpTest {
 
     @BeforeEach void preparar() {
         empresa = empresa(); outra = empresa();
-        token = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwt, empresa, PerfilUsuario.USUARIO, "02360684663");
+        token = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwt, empresa, PerfilUsuario.ADMIN, "02360684663");
         tokenOutro = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwt, outra, PerfilUsuario.ADMIN, "11144477735");
         banco = conta(empresa, TipoContaFinanceira.BANCO);
         carteira = conta(empresa, TipoContaFinanceira.CARTEIRA_DIGITAL);
