@@ -63,3 +63,7 @@ Validação histórica desta correção no worktree real (V54 local, anterior à
 - API e PostgreSQL de validação encerrados e banco sintético removido. Nenhum acesso a produção/VM/Supabase. Nenhum commit/push/deploy executado por esta tarefa; um commit paralelo (`ebc42ae`, Caixa) incorporou os trechos compartilhados de VendaRepository e services/vendaService.ts durante o trabalho. Eles foram preservados; a seleção final de publicação exige revisão integrada.
 
  Limites restantes: dados anteriores sem snapshots não podem ser reconstruídos com segurança; categorias atuais; cancelamentos recalculam períodos anteriores; comparação de hoje incompleto com dias anteriores completos é explicitamente sinalizada. Seções usam transações de leitura independentes; divergência de totais entre respostas orienta atualizar. Não há certificação de desempenho para bases de grande volume nem alteração de histórico fiscal/financeiro.
+
+## Backfill de implantação (22/10/2026)
+
+Operação excepcional de dados, autorizada pelo gestor e executada fora do Flyway: `UPDATE vendas SET data_faturamento = data_hora WHERE status = 'FATURADA' AND data_faturamento IS NULL` (102 vendas de 19/10–21/10, transação única com validação prévia e posterior). Justificativa: cliente em fase de implantação e vendas sempre faturadas no ato, o que torna `data_hora` evidência válida de faturamento para o legado. Esta operação é histórica e não deve ser reexecutada; vendas novas preenchem `data_faturamento` no ato do faturamento (V56 em diante).

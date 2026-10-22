@@ -1,5 +1,9 @@
 Empresa ........ funcional
 
+## Produção em V57 e backfill de faturamento — 2026-10-22
+
+Produção estável em Flyway V57, com a Análise de Vendas operando sobre `data_faturamento` (V56 preenche no ato do faturamento; V57 criou `unidade_medida_venda`, restrição de normalização e índice parcial). Validação de CPF/CNPJ duplicado em clientes ativa na aplicação e no banco (V55), e a busca do PDV aceita código interno parcial. Legado de 102 vendas faturadas (19/10–21/10) teve `data_faturamento` preenchido por operação excepcional de dados em 22/10/2026 (implantação; criação = faturamento no cliente), registrada como histórica em `analise-vendas.md` e sem reexecução.
+
 ## Clientes — conflito concorrente de documento, 2026-10-22
 
 O tratamento HTTP reconhece exclusivamente a violação Hibernate de unicidade com SQLSTATE `23505` e constraint `uk_cliente_empresa_documento_normalizado` da V55, retornando 409 com orientação para conferir o documento ou utilizar o cadastro existente. A pré-validação permanece; outras violações de integridade continuam no tratamento 500 sanitizado. Nenhuma migration ou regra de cadastro foi alterada por esta tarefa.
