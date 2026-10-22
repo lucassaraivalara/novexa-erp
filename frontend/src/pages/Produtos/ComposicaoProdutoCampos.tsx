@@ -4,13 +4,19 @@ import { Alert, Autocomplete, Box, Button, Stack, TextField, Typography } from "
 import type { Produto } from "../../types/produto";
 import api from "../../services/api";
 import { obterMensagemDaApi, pesquisarProdutos } from "../../services/produtoService";
+import { useRemoteSearch } from "../../hooks/useRemoteSearch";
 import type { LinhaComposicao } from "./composicaoProduto";
 
 type Historico = { id: number; versao: number; produtoId: number; nome: string; quantidade: number; fator: number; unidade: string; unidadeEstoque: string; data: string; usuarioId: number };
 export default function ComposicaoProdutoCampos({ produtoId, valor, onChange, disabled }: {
     produtoId?: number; valor: LinhaComposicao[] | null; onChange: (linhas: LinhaComposicao[]) => void; disabled: boolean;
 }) {
-    const [busca, setBusca] = useState("");
+    const { term: busca, setTerm: setBusca } = useRemoteSearch<Produto>({
+        enabled: !disabled,
+        search: (termo, signal) => pesquisarProdutos(termo, signal),
+        onResults: lista => setOpcoes(lista.filter(p => !p.composto && p.controlaEstoque && p.ativo && p.id !== produtoId)),
+        onError: e => setErro(obterMensagemDaApi(e, "Não foi possível buscar os componentes.")),
+    });
     const [opcoes, setOpcoes] = useState<Produto[]>([]);
     const [historico, setHistorico] = useState<Historico[]>([]);
     const [erro, setErro] = useState("");
@@ -26,14 +32,6 @@ export default function ComposicaoProdutoCampos({ produtoId, valor, onChange, di
         }).catch(e => { if (!c.signal.aborted) setErro(obterMensagemDaApi(e, "Não foi possível consultar a composição. Tente novamente antes de editá-la.")); });
         return () => c.abort();
     }, [produtoId, tentativa, onChange]);
-    useEffect(() => {
-        const c = new AbortController();
-        const timer = setTimeout(() => {
-            pesquisarProdutos(busca, c.signal).then(r => { if (!c.signal.aborted) setOpcoes(r.filter(p => !p.composto && p.controlaEstoque && p.ativo && p.id !== produtoId)); })
-                .catch(e => { if (!c.signal.aborted) setErro(obterMensagemDaApi(e, "Não foi possível buscar os componentes.")); });
-        }, 300);
-        return () => { clearTimeout(timer); c.abort(); };
-    }, [busca, produtoId]);
     function alterar(indice: number, patch: Partial<LinhaComposicao>) { onChange((valor ?? []).map((l, i) => i === indice ? { ...l, ...patch } : l)); }
     return <Stack component="section" spacing={1.5} sx={{ minWidth: 0 }} aria-label="Composição do Kit/Combo">
         <Typography component="h3" variant="subtitle1">Composição do Kit/Combo</Typography>

@@ -12,12 +12,6 @@ export async function listarProdutosPaginado(params: FiltrosProduto, signal?: Ab
     return (await api.get<PaginaResponse<Produto>>("/produtos", { params, signal })).data;
 }
 
-export async function listarProdutos(signal?: AbortSignal): Promise<Produto[]> {
-    const resposta = await api.get<Produto[]>("/produtos/buscar", { params: { termo: "" }, signal });
-
-    return resposta.data;
-}
-
 export async function pesquisarProdutos(
     termo: string,
     signal?: AbortSignal,

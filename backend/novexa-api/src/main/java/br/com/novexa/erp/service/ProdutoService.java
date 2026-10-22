@@ -126,11 +126,6 @@ public class ProdutoService {
                 busca == null ? "" : busca.trim(), campoBusca, situacaoEstoque, categoriaId, subcategoriaId, marcaId, pageable);
     }
 
-    public List<ProdutoEntity> listar(Long empresaId) {
-        buscarEmpresa(empresaId);
-        return produtoRepository.findAllByEmpresaIdOrderByNomeAsc(empresaId);
-    }
-
     public ProdutoEntity buscarPorId(Long id, Long empresaId) {
         buscarEmpresa(empresaId);
 
@@ -225,9 +220,10 @@ public class ProdutoService {
     public ProdutoEntity atualizar(Long id, ProdutoEntity dadosNovos, Long empresaId,
                                   Long fornecedorId, boolean fornecedorInformado, br.com.novexa.erp.dto.ProdutoRequestDTO classificacao,
                                   Long usuarioAuditoriaId) {
+        // Ownership antes de qualquer validacao de composicao: produto de outra empresa deve 404.
+        ProdutoEntity produtoExistente = buscarPorId(id, empresaId);
         if (classificacao != null && classificacao.getComponentes() != null) composicoes.bloquearEdicao(id, empresaId, classificacao.getComponentes());
         else if (composicoes != null) composicoes.bloquearEdicao(id,empresaId,java.util.List.of());
-        ProdutoEntity produtoExistente = buscarPorId(id, empresaId);
         var controlaEstoqueAntes = produtoExistente.getControlaEstoque();
         var ativoAntes = produtoExistente.getAtivo();
         var composicaoVersaoAntes = produtoExistente.getComposicaoVersao();
