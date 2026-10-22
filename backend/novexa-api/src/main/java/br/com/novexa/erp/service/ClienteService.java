@@ -4,6 +4,7 @@ import br.com.novexa.erp.dto.ClienteResponseDTO;
 import br.com.novexa.erp.dto.PaginaResponseDTO;
 import br.com.novexa.erp.entity.ClienteEntity;
 import br.com.novexa.erp.entity.EmpresaEntity;
+import br.com.novexa.erp.exception.ClienteDocumentoDuplicadoException;
 import br.com.novexa.erp.exception.ClienteNotFoundException;
 import br.com.novexa.erp.mapper.ClienteMapper;
 import br.com.novexa.erp.repository.ClienteRepository;
@@ -35,6 +36,7 @@ public class ClienteService {
     public ClienteEntity salvar(ClienteEntity cliente, Long empresaId) {
         cliente.setEmpresa(buscarEmpresa(empresaId));
         prepararDados(cliente, true);
+        validarDocumentoDuplicado(cliente, empresaId, null);
 
         return clienteRepository.save(cliente);
     }
@@ -126,6 +128,7 @@ public class ClienteService {
 
         ClienteEntity clienteExistente = buscarPorId(id, empresaId);
         prepararDados(dadosNovos, clienteExistente.getAtivo());
+        validarDocumentoDuplicado(dadosNovos, empresaId, id);
 
         clienteExistente.setNome(dadosNovos.getNome());
         clienteExistente.setTipoPessoa(dadosNovos.getTipoPessoa());
@@ -162,6 +165,23 @@ public class ClienteService {
 
         if (cliente.getAtivo() == null) {
             cliente.setAtivo(ativoPadrao);
+        }
+    }
+
+    private void validarDocumentoDuplicado(ClienteEntity cliente, Long empresaId, Long clienteId) {
+        if (cliente.getCpfCnpj() == null) {
+            return;
+        }
+
+        boolean documentoDuplicado = clienteId == null
+                ? clienteRepository.existsByEmpresaIdAndCpfCnpj(empresaId, cliente.getCpfCnpj())
+                : clienteRepository.existsByEmpresaIdAndCpfCnpjAndIdNot(
+                        empresaId, cliente.getCpfCnpj(), clienteId);
+
+        if (documentoDuplicado) {
+            throw new ClienteDocumentoDuplicadoException(
+                    "Já existe um cliente cadastrado com este CPF/CNPJ na empresa informada."
+            );
         }
     }
 }

@@ -28,6 +28,10 @@ public interface ClienteRepository extends JpaRepository<ClienteEntity, Long> {
 
     Optional<ClienteEntity> findByIdAndEmpresaId(Long id, Long empresaId);
 
+    boolean existsByEmpresaIdAndCpfCnpj(Long empresaId, String cpfCnpj);
+
+    boolean existsByEmpresaIdAndCpfCnpjAndIdNot(Long empresaId, String cpfCnpj, Long id);
+
     long countByEmpresaIdAndAtivoTrue(Long empresaId);
 
     @Query("""

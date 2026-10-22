@@ -89,6 +89,15 @@ public class GlobalExceptionHandler {
                 .body(exception.getMessage());
     }
 
+    @ExceptionHandler(ClienteDocumentoDuplicadoException.class)
+    public ResponseEntity<String> tratarDocumentoDeClienteDuplicado(
+            ClienteDocumentoDuplicadoException exception) {
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(exception.getMessage());
+    }
+
     @ExceptionHandler({
             DocumentoInvalidoException.class,
             EmpresaInvalidaException.class,

@@ -84,6 +84,38 @@ class ClienteHttpTest {
     }
 
     @Test
+    void bloqueiaCpfCnpjDuplicadoNaCriacaoEEdicao() throws Exception {
+        var criado = chamar(HttpMethod.POST, "/clientes", dados("Cliente A"));
+        assertThat(criado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        long idA = json.readTree(criado.getBody()).get("id").asLong();
+
+        // criação com documento já cadastrado
+        assertThat(chamar(HttpMethod.POST, "/clientes", dados("Cliente B")).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+
+        // formatação diferente normaliza para o mesmo documento e também bloqueia
+        var formatado = new java.util.HashMap<String, Object>(dados("Cliente C"));
+        formatado.put("cpfCnpj", "529.982.247-25");
+        assertThat(chamar(HttpMethod.POST, "/clientes", formatado).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+
+        // manter o próprio documento na edição continua permitido
+        assertThat(chamar(HttpMethod.PUT, "/clientes/" + idA, dados("Cliente A atualizado")).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+
+        // assumir na edição o documento de outro cliente é bloqueado
+        var outro = chamar(HttpMethod.POST, "/clientes", Map.of(
+                "nome", "Cliente D", "tipoPessoa", "FISICA", "cpfCnpj", "11144477735",
+                "enderecos", List.of(), "contatos", List.of()));
+        assertThat(outro.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        long idD = json.readTree(outro.getBody()).get("id").asLong();
+        var conflitoEdicao = new java.util.HashMap<String, Object>(dados("Cliente D atualizado"));
+        conflitoEdicao.put("cpfCnpj", "52998224725");
+        assertThat(chamar(HttpMethod.PUT, "/clientes/" + idD, conflitoEdicao).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
     void falhaInternaNaoVira401EOutraRotaContinuaAcessivel() {
         var falha = chamar(HttpMethod.GET, "/teste/falha", null);
         assertThat(falha.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
