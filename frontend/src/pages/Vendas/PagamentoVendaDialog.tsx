@@ -1,4 +1,4 @@
-import { useRef, type RefObject } from "react";
+import { useLayoutEffect, useRef, type RefObject } from "react";
 import { Alert, alpha, Box, Button, ButtonBase, Dialog, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, TextField, Typography } from "@mui/material";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import PixIcon from "@mui/icons-material/Pix";
@@ -28,8 +28,18 @@ const meios = { DINHEIRO: { forma: "DINHEIRO", Icone: PaymentsOutlinedIcon }, PI
 export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes, carregando, erroConfig, erro, estoqueConfirmado, bloqueado, salvando,
     confirmarDesabilitado, primeiraFormaRef, recebidoRef, confirmarRef, erroRef, onAlterar, onCliente, onConfirmar, onVoltar }: Props) {
     const campos = useRef<Record<string, HTMLInputElement | null>>({});
+    const focoPendente = useRef<string | null>(null);
     const pagamentos = pagamentosRascunho(rascunho);
-    const focoValor = (chave: string) => requestAnimationFrame(() => { campos.current[chave]?.focus(); campos.current[chave]?.select(); });
+    useLayoutEffect(() => {
+        const chave = focoPendente.current;
+        if (chave === null) return;
+        focoPendente.current = null;
+        campos.current[chave]?.focus(); campos.current[chave]?.select();
+    }, [rascunho.pagamentos, rascunho.parcelasPrazo]);
+    function focoValor(chave: string, aposPreencher = false) {
+        if (aposPreencher) { focoPendente.current = chave; return; }
+        requestAnimationFrame(() => { campos.current[chave]?.focus(); campos.current[chave]?.select(); });
+    }
     function alterarValor(config: ConfiguracaoFormaPagamento, valor: string) {
         const atual = pagamentos.find(p => p.configuracaoFormaPagamentoId === config.id);
         const outros = pagamentos.filter(p => p.formaPagamento === "A_PRAZO" || (p.configuracaoFormaPagamentoId !== null && p.configuracaoFormaPagamentoId !== config.id));
@@ -42,8 +52,9 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
         onAlterar({ pagamentos: atual ? pagamentos.map(p => p === atual ? pagamento : p) : [...outros, pagamento] });
     }
     function selecionar(config: ConfiguracaoFormaPagamento) {
-        if (!pagamentos.some(p => p.configuracaoFormaPagamentoId === config.id) && t.restante > 0) alterarValor(config, (t.restante / 100).toFixed(2));
-        focoValor(String(config.id));
+        const preencher = !pagamentos.some(p => p.configuracaoFormaPagamentoId === config.id) && t.restante > 0 && pagamentos.length < 20;
+        focoValor(String(config.id), preencher);
+        if (preencher) alterarValor(config, (t.restante / 100).toFixed(2));
     }
     function selecionarPrazo(valor = (Math.max(0, t.restante) / 100).toFixed(2)) {
         const outros = pagamentos.filter(p => p.configuracaoFormaPagamentoId !== null && p.formaPagamento !== "A_PRAZO");
@@ -58,7 +69,10 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
         const indice = configuracoes.findIndex(c => String(c.id) === chave);
         const proxima = configuracoes[indice + direcao];
         if (proxima) { if (direcao > 0) selecionar(proxima); else focoValor(String(proxima.id)); }
-        else if (direcao > 0) { if (!t.usaPrazo && t.restante > 0) selecionarPrazo(); focoValor("prazo"); }
+        else if (direcao > 0) {
+            const preencher = !t.usaPrazo && t.restante > 0;
+            focoValor("prazo", preencher); if (preencher) selecionarPrazo();
+        }
     }
     return <Dialog open={open} onClose={onVoltar} fullWidth maxWidth="md" aria-labelledby="pdv-pagamento-titulo" aria-describedby="pdv-pagamento-descricao"
         onKeyDown={e => { if (e.key !== "Escape") e.stopPropagation(); if (e.key === "F2") { e.preventDefault(); if (!e.repeat && !e.nativeEvent.isComposing && !confirmarDesabilitado) onConfirmar(); } }}

@@ -1142,6 +1142,27 @@ test("lista direta: dinheiro entregue deriva aplicação e troco, preservando ou
     } finally { await page.close(); }
 });
 
+test("seta para baixo preenche o restante antes de focar mesmo com render adiado", async () => {
+    const { page, estado, busca } = await abrir({ adiarRender: true });
+    try {
+        await adicionarCem(page, busca);
+        const dinheiro = valorMeio(page, "Dinheiro"), pix = valorMeio(page, "PIX Loja");
+        await dinheiro.fill("30");
+        await page.getByLabel("Falta a pagar", { exact: true }).filter({ hasText: "70,00" }).waitFor();
+        // Força o callback de foco antes do commit para reproduzir a corrida de renderização.
+        await page.evaluate(() => {
+            const original = window.requestAnimationFrame;
+            window.requestAnimationFrame = callback => { window.requestAnimationFrame = original; callback(performance.now()); return 0; };
+        });
+        await dinheiro.press("ArrowDown"); await esperarFoco(page, pix);
+        assert.equal(await pix.inputValue(), "70,00");
+        await page.waitForTimeout(250);
+        assert.equal(await pix.inputValue(), "70,00");
+        assert.deepEqual(await pix.evaluate(el => [el.selectionStart, el.selectionEnd]), [0, 5]);
+        assert.equal(gravacoes(estado).length, 0);
+    } finally { await page.close(); }
+});
+
 test("correção pagamento: foco numérico, setas e Enter completam misto sem sobrescrever ou duplicar", async () => {
     const { page, estado, busca } = await abrir();
     try {
