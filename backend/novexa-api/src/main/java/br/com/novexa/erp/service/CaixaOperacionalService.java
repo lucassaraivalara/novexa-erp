@@ -72,10 +72,11 @@ public class CaixaOperacionalService {
                     venda.getDataHora(), venda.getTotal(), venda.getId(), null,
                     venda.getUsuario().getNomeUsuario(), true));
         }
+        var chaveAbertura = chaveSaldoInicial(sessaoId);
         for (var movimento : movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessaoId, usuario.empresaId())) {
             if (movimento.getTipo() == TipoMovimentacaoCaixa.VENDA ||
                     (movimento.getTipo() == TipoMovimentacaoCaixa.SUPRIMENTO
-                            && "Saldo inicial / Abertura de caixa".equals(movimento.getObservacao()))) continue;
+                            && chaveAbertura.equals(movimento.getChaveRequisicao()))) continue;
             eventos.add(new SessaoCaixaDetalheDTO.Evento(movimento.getTipo().name(), movimento.getDataHora(),
                     movimento.getValor(), movimento.getPagamento() == null ? null : movimento.getPagamento().getVenda().getId(),
                     movimento.getObservacao(), movimento.getUsuario().getNomeUsuario(),
@@ -152,7 +153,7 @@ public class CaixaOperacionalService {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void registrarSaldoInicial(SessaoCaixaEntity sessao, UsuarioEntity usuario, BigDecimal valor) {
-        UUID chave = UUID.nameUUIDFromBytes(("saldo-inicial:" + sessao.getId()).getBytes(StandardCharsets.UTF_8));
+        UUID chave = chaveSaldoInicial(sessao.getId());
         movimentos.save(new MovimentacaoCaixaEntity(sessao, usuario, null, chave,
                 TipoMovimentacaoCaixa.SUPRIMENTO, valor, "Saldo inicial / Abertura de caixa"));
     }
@@ -245,9 +246,10 @@ public class CaixaOperacionalService {
                     p.getForma().getDescricao(), tipo, p.getValor().add(anterior == null ? BigDecimal.ZERO : anterior.total())));
         }
         BigDecimal dinheiro = BigDecimal.ZERO, suprimentos = BigDecimal.ZERO, sangrias = BigDecimal.ZERO;
+        var chaveAbertura = chaveSaldoInicial(sessao.getId());
         for (var m : movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao.getId(), sessao.getEmpresa().getId())) {
             if (m.getTipo() == TipoMovimentacaoCaixa.SUPRIMENTO
-                    && "Saldo inicial / Abertura de caixa".equals(m.getObservacao())) continue;
+                    && chaveAbertura.equals(m.getChaveRequisicao())) continue;
             switch (m.getTipo()) {
                 case VENDA -> dinheiro = dinheiro.add(m.getValor());
                 case ESTORNO_VENDA -> dinheiro = dinheiro.subtract(m.getValor());
@@ -269,6 +271,10 @@ public class CaixaOperacionalService {
         caixas.buscarComLock(venda.getSessaoCaixa().getCaixa().getId(), venda.getEmpresa().getId())
                 .orElseThrow(() -> conflito("Caixa indisponível."));
         exigirAberta(bloquear(venda.getSessaoCaixa().getId(), venda.getEmpresa().getId()));
+    }
+
+    public static UUID chaveSaldoInicial(Long sessaoId) {
+        return UUID.nameUUIDFromBytes(("saldo-inicial:" + sessaoId).getBytes(StandardCharsets.UTF_8));
     }
 
     private void exigirAberta(SessaoCaixaEntity sessao) {

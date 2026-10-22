@@ -8,12 +8,15 @@ import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppT
 import { estornarMovimentacaoFinanceira, estornarTransferenciaFinanceira, listarMovimentacoesFinanceiras,
     mensagemContaFinanceira } from "../../services/contaFinanceiraService";
 import { descricaoMovimentacaoFinanceira, rotulosOrigemMovimentacaoFinanceira, type ContaFinanceira, type MovimentacaoFinanceira } from "../../types/contaFinanceira";
+import { podeExecutarAcaoGerencial } from "../../utils/auth/perfis";
+import { obterSessao } from "../../utils/auth/sessao";
 
 type Props = { conta: ContaFinanceira; onFechar: () => void; onSaldoAlterado: () => void };
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const data = formatarData;
 
 export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAlterado }: Props) {
+    const gerencial = podeExecutarAcaoGerencial(obterSessao()?.perfil);
     const [movimentos, setMovimentos] = useState<MovimentacaoFinanceira[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
@@ -78,12 +81,12 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
             ? <Tooltip title={`Estornada por ${item.usuarioEstornoNome ?? "—"}: ${item.motivoEstorno ?? ""}`}><Chip label="Estornada" size="small" variant="outlined" /></Tooltip>
             : <Chip label="Efetivada" color="success" size="small" variant="outlined" /> },
     ];
-    const acoes: AcaoTabela<MovimentacaoFinanceira>[] = [
+    const acoes: AcaoTabela<MovimentacaoFinanceira>[] = gerencial ? [
         { rotulo: "Estornar", tooltip: "Estornar movimentação", icone: <UndoRoundedIcon fontSize="small" />,
             onClick: (item) => { setErro(""); setMotivo(""); setEstorno(item); },
             desabilitado: (item) => item.estornada || (item.origem !== "MANUAL"
                 && !(item.origem === "TRANSFERENCIA" && item.transferenciaId)) },
-    ];
+    ] : [];
 
     return <Drawer anchor="right" open onClose={processando ? undefined : onFechar}
         slotProps={{ paper: { "aria-labelledby": "extrato-financeiro-titulo", sx: { width: { xs: "100%", md: 900 }, maxWidth: "100vw" } } }}>

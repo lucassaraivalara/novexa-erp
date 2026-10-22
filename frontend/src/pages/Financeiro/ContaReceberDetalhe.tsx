@@ -10,11 +10,14 @@ import { buscarContaReceber, cancelarContaReceber, estornarRecebimentoConta, men
 import type { ContaReceber } from "../../types/contaReceber";
 import type { MovimentacaoFinanceira } from "../../types/contaFinanceira";
 import { formatarData, moeda, podeCancelarConta, podeEditarConta, podeReceberConta, rotulosStatus } from "./contaReceberUtils";
+import { podeExecutarAcaoGerencial } from "../../utils/auth/perfis";
+import { obterSessao } from "../../utils/auth/sessao";
 
 type Props = { id: number; revisao: number; onFechar: () => void; onEditar: (conta: ContaReceber) => void;
     onReceber: (conta: ContaReceber) => void; onAlterada: (mensagem: string) => void };
 
 export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, onReceber, onAlterada }: Props) {
+    const gerencial = podeExecutarAcaoGerencial(obterSessao()?.perfil);
     const [conta, setConta] = useState<ContaReceber | null>(null);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
@@ -91,7 +94,7 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                     <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap", pt: 0.5 }}>
                         {podeReceberConta(conta) && <Button variant="contained" disableElevation onClick={() => onReceber(conta)}>Receber</Button>}
                         {podeEditarConta(conta) && <Button variant="outlined" startIcon={<EditOutlinedIcon />} onClick={() => onEditar(conta)}>Editar</Button>}
-                        {podeCancelarConta(conta) && <Button color="error" onClick={() => { setErroAcao(""); setAcao({ tipo: "cancelar" }); }}>Cancelar conta</Button>}
+                        {gerencial && podeCancelarConta(conta) && <Button color="error" onClick={() => { setErroAcao(""); setAcao({ tipo: "cancelar" }); }}>Cancelar conta</Button>}
                     </Stack>
                     <Divider />
                     <Typography variant="h6">Histórico de recebimentos</Typography>
@@ -108,7 +111,7 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                         {m.observacao && <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{m.observacao}</Typography>}
                         {m.estornada ? <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
                             Estorno: {formatarData(m.dataEstorno, true)} · {m.usuarioEstornoNome}<br />{m.motivoEstorno}
-                        </Typography> : conta.status !== "CANCELADA" && <Box><Tooltip title={`Estornar recebimento de ${moeda.format(m.valor)}`}><Button size="small" startIcon={<UndoRoundedIcon />}
+                        </Typography> : gerencial && conta.status !== "CANCELADA" && <Box><Tooltip title={`Estornar recebimento de ${moeda.format(m.valor)}`}><Button size="small" startIcon={<UndoRoundedIcon />}
                             aria-label={`Estornar recebimento de ${moeda.format(m.valor)}`}
                             onClick={() => { setMotivo(""); setErroAcao(""); setAcao({ tipo: "estornar", movimento: m }); }}>Estornar recebimento</Button></Tooltip></Box>}
                     </Stack>)}

@@ -58,6 +58,18 @@ public class SecurityConfig {
                             .hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.POST, "/financeiro/caixas/sessoes/{sessaoId}/movimentacoes")
                             .hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.POST, "/financeiro/contas-receber/{id}/cancelar")
+                            .hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.POST, "/financeiro/contas-receber/{id}/recebimentos/{recebimentoId}/estornar")
+                            .hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.PATCH, "/financeiro/movimentacoes-financeiras/{id}/estorno")
+                            .hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.POST, "/financeiro/contas-pagar/{id}/estornar")
+                            .hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.POST, "/financeiro/transferencias", "/financeiro/transferencias/**")
+                            .hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.PUT, "/financeiro/caixas/**").hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.DELETE, "/financeiro/caixas/**").hasAnyRole("ADMIN", "GERENTE")
                         .anyRequest().authenticated())
                 // Registrado apenas na cadeia do Spring Security, evitando execução dupla pelo servlet container.
                 .addFilterBefore(new JwtAuthenticationFilter(jwtService, errorHandler, usuarios),

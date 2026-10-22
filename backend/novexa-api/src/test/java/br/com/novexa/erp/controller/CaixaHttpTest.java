@@ -66,6 +66,7 @@ class CaixaHttpTest {
     private CaixaEntity caixaA;
     private CaixaEntity caixaB;
     private String authorizationA;
+    private String authorizationGerente;
 
     @BeforeEach
     void preparar() {
@@ -74,6 +75,7 @@ class CaixaHttpTest {
         caixaA = caixa(empresaA, "Caixa A");
         caixaB = caixa(empresaB, "Caixa B");
         authorizationA = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwt, empresaA, PerfilUsuario.USUARIO, "02360684663");
+        authorizationGerente = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwt, empresaA, PerfilUsuario.GERENTE, "11144477735");
     }
 
     @Test
@@ -154,7 +156,7 @@ class CaixaHttpTest {
     void empresaNaoAcessaCaixaDeOutraEmpresa(String metodo) throws Exception {
         String url = "/financeiro/caixas/" + caixaB.getId();
         var requisicao = request(HttpMethod.valueOf(metodo), url)
-                .header(HttpHeaders.AUTHORIZATION, authorizationA);
+                .header(HttpHeaders.AUTHORIZATION, authorizationGerente);
 
         if ("PUT".equals(metodo)) {
             requisicao.contentType(MediaType.APPLICATION_JSON)
@@ -173,7 +175,7 @@ class CaixaHttpTest {
     @Test
     void atualizarDescricaoDoCaixaProprio() throws Exception {
         mvc.perform(put("/financeiro/caixas/" + caixaA.getId())
-                        .header(HttpHeaders.AUTHORIZATION, authorizationA)
+                        .header(HttpHeaders.AUTHORIZATION, authorizationGerente)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsBytes(Map.of("descricao", "Caixa atualizado"))))
                 .andExpect(status().isOk())
@@ -191,7 +193,7 @@ class CaixaHttpTest {
         CaixaEntity outro = caixa(empresaA, "Caixa destino");
 
         mvc.perform(put("/financeiro/caixas/" + caixaA.getId())
-                        .header(HttpHeaders.AUTHORIZATION, authorizationA)
+                        .header(HttpHeaders.AUTHORIZATION, authorizationGerente)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsBytes(Map.of("descricao", "Caixa destino"))))
                 .andExpect(status().isConflict());
@@ -207,7 +209,7 @@ class CaixaHttpTest {
     @Test
     void inativacaoLogicaMantemCaixaPersistido() throws Exception {
         mvc.perform(delete("/financeiro/caixas/" + caixaA.getId())
-                        .header(HttpHeaders.AUTHORIZATION, authorizationA))
+                        .header(HttpHeaders.AUTHORIZATION, authorizationGerente))
                 .andExpect(status().isNoContent());
 
         entityManager.flush();

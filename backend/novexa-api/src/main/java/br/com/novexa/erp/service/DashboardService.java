@@ -55,6 +55,7 @@ public class DashboardService {
                 : movimentos.resumirSaldos(
                         empresaId,
                         abertas.stream().map(sessao -> sessao.getId()).toList(),
+                        abertas.stream().map(sessao -> CaixaOperacionalService.chaveSaldoInicial(sessao.getId())).toList(),
                         java.util.List.of(TipoMovimentacaoCaixa.VENDA, TipoMovimentacaoCaixa.SUPRIMENTO),
                         java.util.List.of(TipoMovimentacaoCaixa.ESTORNO_VENDA, TipoMovimentacaoCaixa.SANGRIA))
                     .stream()

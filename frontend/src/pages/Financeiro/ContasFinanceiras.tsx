@@ -23,10 +23,13 @@ import CofrePainel from "./CofrePainel";
 import RecebimentosContaDrawer from "./RecebimentosContaDrawer";
 import { resumirRecebimentosContas } from "../../services/recebimentoContaService";
 import type { RecebimentoContaResumo } from "../../types/recebimentoConta";
+import { podeExecutarAcaoGerencial } from "../../utils/auth/perfis";
+import { obterSessao } from "../../utils/auth/sessao";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function ContasFinanceiras() {
+    const gerencial = podeExecutarAcaoGerencial(obterSessao()?.perfil);
     const [contas, setContas] = useState<ContaFinanceira[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
@@ -147,7 +150,7 @@ export default function ContasFinanceiras() {
             <Chip size="small" variant="outlined" label={conta.ativo ? "Ativa" : "Inativa"}
                 color={conta.ativo ? "success" : "default"} /> },
     ];
-    const acoes: AcaoTabela<ContaFinanceira>[] = [
+    const acoesTodas: AcaoTabela<ContaFinanceira>[] = [
         { rotulo: "PIX e cartões", icone: <PaymentsOutlinedIcon fontSize="small" />,
             onClick: conta => setRecebimentos({ contaId: conta.id, nome: conta.nome }), tooltip: "Consultar valores a liquidar e liquidados" },
         { rotulo: "Extrato", icone: <ReceiptLongOutlinedIcon fontSize="small" />, onClick: (conta) => setExtratoId(conta.id),
@@ -160,6 +163,7 @@ export default function ContasFinanceiras() {
         { rotulo: "Alterar situação", icone: <PowerSettingsNewRoundedIcon fontSize="small" />,
             onClick: (conta) => { setErro(""); setSituacao(conta); }, tooltip: "Ativar ou inativar conta" },
     ];
+    const acoes = gerencial ? acoesTodas : acoesTodas.filter(acao => acao.rotulo !== "Transferir");
     const contaMovimentar = contas.find((conta) => conta.id === movimentarId);
     const contaExtrato = contas.find((conta) => conta.id === extratoId);
     const aLiquidar = recebimentosResumo?.filter(r => r.contaDestinoId !== null).reduce((soma, r) => soma + r.aLiquidar, 0);
