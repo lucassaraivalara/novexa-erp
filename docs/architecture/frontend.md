@@ -103,6 +103,10 @@ O formulário completo permite categoria, subcategoria e marca opcionais. Os sel
 
 Consulta e relatório mostram os nomes da classificação junto ao produto, sem consultas por linha. Filtros por categoriaId, subcategoriaId e marcaId são remotos e retornam à página zero. A impressão inclui a classificação abaixo do nome, preserva os filtros capturados e carrega todas as páginas antes de liberar impressão. Não há alteração de preço, custo, estoque ou permissões.
 
+## Listagem de Fornecedores
+
+A aba Fornecedores reúne razão social e nome fantasia na coluna Fornecedor; nomes equivalentes em maiúsculas, espaços e pontuação não são repetidos, e campos vazios não reservam linha. Nomes longos podem quebrar linha. CPF/CNPJ reutiliza o formatador existente; telefone recebe máscara apenas quando possui 10 ou 11 dígitos nacionais completos, preservando números incompletos, internacionais e ramais. Larguras locais deixam o nome absorver o espaço disponível, com mínimo de 960px para a tabela: sem rolagem horizontal em 1440×900 e com rolagem restrita à tabela em 1024×600, verificadas com a sidebar expandida. StatusChip, ações, formulário, filtros e consultas paginadas permanecem existentes; a tabela compartilhada não foi alterada.
+
 ## Fornecedor principal do Produto
 
 O formulário completo de Produto oferece Fornecedor principal opcional pelo FornecedorAutocomplete e lookup `/fornecedores/buscar`, sem carregar o cadastro inteiro. Salva apenas `fornecedorId`; limpar o campo envia `null`. Fornecedor inativo previamente vinculado permanece selecionado e identificado pela orientação do campo. Falhas do lookup têm feedback/retry no formulário de Produto, preservando seleção e dados; demais usos do componente mantêm o comportamento anterior. Cadastro rápido não ganha campo nem etapa adicional.

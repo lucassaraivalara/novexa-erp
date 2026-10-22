@@ -1,8 +1,8 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { createServer } from "vite";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 
 let server;
 let browser;
@@ -10,6 +10,10 @@ let url;
 
 const fixtures = {
     "/__area": "import ProdutosArea from '/src/pages/Produtos/ProdutosArea.tsx'; const Pagina = ProdutosArea;",
+    "/__listagem": `import AppRoutes from '/src/routes/AppRoutes.tsx';
+        import {ThemeModeProvider} from '/src/theme/ThemeModeProvider.tsx';
+        history.replaceState(null, '', '/produtos?aba=fornecedores');
+        const Pagina = () => React.createElement(ThemeModeProvider, null, React.createElement(CssBaseline), React.createElement(AppRoutes));`,
     "/__rapido": `import { useState } from 'react';
         import FornecedorForm from '/src/components/fornecedores/FornecedorForm.tsx';
         import FornecedorAutocomplete from '/src/components/fornecedores/FornecedorAutocomplete.tsx';
@@ -128,8 +132,63 @@ test("aba Produtos continua padrão, aba Fornecedores usa listagem paginada do b
         assert.equal(primeira.get("page"), "0"); assert.equal(primeira.get("size"), "25");
         assert.equal(primeira.get("sort"), "razaoSocial,asc");
         assert.equal(await page.getByText("Fornecedor 26").count(), 0);
-        for (const coluna of ["Nome / Razão Social", "Nome Fantasia", "CPF/CNPJ", "Telefone", "Cidade/UF", "Status"])
+        for (const coluna of ["Fornecedor", "CPF/CNPJ", "Telefone", "Cidade/UF", "Status"])
             assert.ok(await page.getByRole("columnheader", { name: new RegExp(coluna) }).count() > 0, coluna);
+    } finally { await page.close(); }
+});
+
+test("listagem agrupa nomes e formata contatos, sem rolagem desnecessária no desktop", async () => {
+    const estado = novoEstado(0);
+    const razaoLonga = "Distribuidora de Bebidas e Alimentos de Minas Gerais Comércio Atacadista Ltda";
+    estado.fornecedores = [
+        completo(1, { razaoSocial: "Bebidas Minas Distribuidora Ltda", nomeFantasia: "Bebidas Minas", cpfCnpj: "11222333000181", telefone: "3133331002", cidade: "Belo Horizonte", uf: "MG" }),
+        completo(2, { razaoSocial: "Fornecedor exemplo", nomeFantasia: " FORNECEDOR — EXEMPLO!!! ", cpfCnpj: "52998224725", telefone: "31999991002" }),
+        completo(3, { razaoSocial: razaoLonga, nomeFantasia: "Distribuidora Minas", telefone: "33331002", cidade: "São José dos Pinhais", ativo: false }),
+        completo(4, { razaoSocial: "Sem nome fantasia", nomeFantasia: "  ", telefone: " +55 (31) 3333-1002 ", cidade: null, uf: null }),
+        completo(5, { razaoSocial: "Contato com ramal", telefone: "3133331002 ramal 1" }),
+    ];
+    const originais = structuredClone(estado.fornecedores), page = await abrir("listagem", estado);
+    try {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.getByText("Bebidas Minas Distribuidora Ltda", { exact: true }).waitFor();
+        await mkdir("node_modules/fornecedores-listagem-validacao", { recursive: true });
+        await page.screenshot({ path: "node_modules/fornecedores-listagem-validacao/desktop.png", fullPage: true });
+        const tabela = page.getByRole("table"), contenedor = tabela.locator("..");
+        const dimensoes = () => contenedor.evaluate(el => ({ largura: el.clientWidth, conteudo: el.scrollWidth, pagina: document.documentElement.scrollWidth, viewport: innerWidth }));
+        let tamanho = await dimensoes();
+        assert.ok(tamanho.conteudo <= tamanho.largura, `Desktop não deve precisar rolar: ${JSON.stringify(tamanho)}`);
+        assert.deepEqual(await tabela.getByRole("columnheader").allTextContents(), ["Fornecedor", "CPF/CNPJ", "Telefone", "Cidade/UF", "Status", "Ações"]);
+        const nome = tabela.getByRole("cell").filter({ hasText: "Fornecedor exemplo" });
+        await expect(nome.locator("p")).toHaveCount(1);
+        await expect(tabela.getByRole("cell", { name: "Sem nome fantasia", exact: true }).locator("p")).toHaveCount(1);
+        await expect(tabela.getByText("Bebidas Minas", { exact: true })).toBeVisible();
+        for (const contato of ["11.222.333/0001-81", "529.982.247-25", "(31) 3333-1002", "(31) 99999-1002", "33331002", "+55 (31) 3333-1002", "3133331002 ramal 1"]) {
+            await expect(tabela.getByRole("cell", { name: contato, exact: true })).toBeVisible();
+        }
+        const linha = tabela.getByRole("row").filter({ hasText: "Fornecedor exemplo" });
+        const acoes = linha.getByRole("button");
+        await expect(acoes).toHaveCount(3);
+        await expect(linha.getByRole("button", { name: "Editar fornecedor" })).toBeEnabled();
+        await expect(linha.getByRole("button", { name: "Inativar fornecedor" })).toBeEnabled();
+        await expect(linha.getByRole("button", { name: "Reativar fornecedor" })).toBeDisabled();
+        await expect(linha.locator(".MuiChip-root")).toHaveCSS("height", "24px");
+        await expect(tabela.getByRole("row").filter({ hasText: razaoLonga }).getByText("Inativo", { exact: true })).toBeVisible();
+        assert.ok((await linha.boundingBox()).height <= 50, "Fornecedor sem nome fantasia deve ter linha compacta");
+        for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 600 }]) {
+            await page.setViewportSize(viewport);
+            tamanho = await dimensoes();
+            assert.ok(tamanho.pagina <= tamanho.viewport, "Somente a tabela pode rolar horizontalmente");
+            assert.equal(tamanho.conteudo > tamanho.largura, viewport.width === 1024);
+            const legibilidade = await tabela.getByText(razaoLonga, { exact: true }).evaluate(el => ({ largura: el.clientWidth, conteudo: el.scrollWidth, altura: el.clientHeight, linha: parseFloat(getComputedStyle(el).lineHeight) }));
+            assert.ok(legibilidade.altura > legibilidade.linha, "Razão social longa deve poder quebrar linha");
+            assert.ok(legibilidade.conteudo <= legibilidade.largura);
+            for (const celula of await tabela.getByRole("cell", { name: /^(11\.222\.333\/0001-81|529\.982\.247-25)$/ }).all()) {
+                assert.ok(await celula.evaluate(el => el.scrollWidth <= el.clientWidth), "Documento deve caber por inteiro na coluna");
+            }
+            await page.screenshot({ path: `node_modules/fornecedores-listagem-validacao/${viewport.width}.png`, fullPage: true });
+        }
+        assert.deepEqual(estado.fornecedores, originais);
+        assert.ok(estado.chamadas.every(c => c.metodo === "GET"), "Refinamento visual não deve gravar dados");
     } finally { await page.close(); }
 });
 
@@ -147,7 +206,7 @@ test("busca, status, paginação e ordenação são enviados ao backend", async 
         await page.getByLabel("Status").click();
         await page.getByRole("option", { name: "Ativos", exact: true }).click();
         await esperar(() => listagens(estado).some((c) => c.params.get("ativo") === "true" && c.params.get("page") === "0"));
-        await page.getByRole("columnheader", { name: /Nome \/ Razão Social/ }).getByText("Nome / Razão Social").click();
+        await page.getByRole("columnheader", { name: /Fornecedor/ }).getByText("Fornecedor").click();
         await esperar(() => listagens(estado).some((c) => c.params.get("sort") === "razaoSocial,desc"));
     } finally { await page.close(); }
 });

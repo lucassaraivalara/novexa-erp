@@ -18,6 +18,16 @@ import { formatarDocumentoEmpresa } from "../../utils/validators/documentoEmpres
 
 type Notificacao = { mensagem: string; tipo: "success" | "error" };
 const filtroAtivo = { todos: undefined, ativos: true, inativos: false } as const;
+const normalizarNome = (nome: string) => nome.normalize("NFKC").toLocaleLowerCase("pt-BR").replace(/[\p{P}\s]/gu, "");
+
+function formatarTelefone(valor: string | null) {
+    const telefone = valor?.trim();
+    if (!telefone) return "—";
+    const digitos = telefone.replace(/\D/g, "");
+    return /^[\d\s().-]+$/.test(telefone) && /^\d{10,11}$/.test(digitos)
+        ? digitos.replace(/^(\d{2})(\d{4,5})(\d{4})$/, "($1) $2-$3")
+        : telefone;
+}
 
 export default function Fornecedores() {
     const [fornecedores, setFornecedores] = useState<FornecedorCompleto[]>([]);
@@ -67,15 +77,23 @@ export default function Fornecedores() {
     }
 
     const colunas: Coluna<FornecedorCompleto>[] = [
-        { campo: "razaoSocial", cabecalho: "Nome / Razão Social", largura: 280, ordenavel: true,
-            render: (valor) => <Typography sx={{ fontSize: "0.875rem", fontWeight: 650 }}>{String(valor)}</Typography> },
-        { campo: "nomeFantasia", cabecalho: "Nome Fantasia", largura: 200, ordenavel: true, render: (valor) => String(valor ?? "—") },
-        { campo: "cpfCnpj", cabecalho: "CPF/CNPJ", largura: 170, ordenavel: true,
+        { campo: "razaoSocial", cabecalho: "Fornecedor", ordenavel: true,
+            render: (_, f) => {
+                const fantasia = f.nomeFantasia?.trim();
+                return <Stack sx={{ gap: 0.125, minWidth: 0, whiteSpace: "normal", overflowWrap: "anywhere" }}>
+                    <Typography sx={{ fontSize: "0.875rem", fontWeight: 650, lineHeight: 1.4 }}>{f.razaoSocial}</Typography>
+                    {fantasia && normalizarNome(fantasia) !== normalizarNome(f.razaoSocial) && (
+                        <Typography color="text.secondary" sx={{ fontSize: "0.75rem", lineHeight: 1.4 }}>{fantasia}</Typography>
+                    )}
+                </Stack>;
+            } },
+        { campo: "cpfCnpj", cabecalho: "CPF/CNPJ", largura: 178, ordenavel: true,
             render: (valor) => valor ? formatarDocumentoEmpresa(String(valor), true) : "—" },
-        { campo: "telefone", cabecalho: "Telefone", largura: 140, render: (valor) => String(valor ?? "—") },
-        { campo: "cidade", cabecalho: "Cidade/UF", largura: 160,
-            render: (_, f) => [f.cidade, f.uf].filter(Boolean).join("/") || "—" },
-        { campo: "ativo", cabecalho: "Status", largura: 110, ordenavel: true,
+        { campo: "telefone", cabecalho: "Telefone", largura: 150,
+            render: (_, f) => <span title={f.telefone?.trim() || undefined}>{formatarTelefone(f.telefone)}</span> },
+        { campo: "cidade", cabecalho: "Cidade/UF", largura: 140,
+            render: (_, f) => <span style={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>{[f.cidade?.trim(), f.uf?.trim()].filter(Boolean).join("/") || "—"}</span> },
+        { campo: "ativo", cabecalho: "Status", largura: 100, ordenavel: true,
             render: (valor) => <StatusChip status={valor ? "Ativo" : "Inativo"} /> },
     ];
 
@@ -105,7 +123,7 @@ export default function Fornecedores() {
                 </TextField>
             </PageFilters>
             <AppTable colunas={colunas} linhas={fornecedores} acoes={acoes} carregando={carregando && !fornecedores.length}
-                obterChaveLinha={(f) => f.id} compacta minWidth={1100} ordenacaoRemota
+                obterChaveLinha={(f) => f.id} compacta minWidth={960} ordenacaoRemota
                 vazio={{ titulo: filtrado ? "Nenhum fornecedor encontrado" : "Nenhum fornecedor cadastrado",
                     descricao: filtrado ? "Tente ajustar a busca ou o filtro de status." : "Use “Novo fornecedor” para começar.",
                     acao: filtrado ? undefined : botaoNovo }}
