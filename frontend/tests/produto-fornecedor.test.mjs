@@ -79,6 +79,52 @@ const subcategorias = [{ id: 20, nome: "Sucos", ativo: true, categoria: categori
 const marcas = [{ id: 30, nome: "Marca teste", ativo: true }];
 const gravacoes = e => e.chamadas.filter(c => ["POST", "PUT"].includes(c.metodo));
 
+test("listagem compacta omite descrições repetidas e campos vazios, preservando nomes e metadados", async () => {
+    const e = novoEstado();
+    const descricaoLonga = "Água mineral natural sem gás, envasada na fonte e indicada para consumo diário. ".repeat(4).trim();
+    const nomeLongo = "Produto com nome extenso para conferir a leitura completa sem encobrir as colunas vizinhas da listagem";
+    e.produtos = [
+        { ...produto, descricao: "  PRODUTO — TESTE!!!  " },
+        { ...produto, id: 11, nome: "Água Mineral 500ml", descricao: descricaoLonga, marca: marcas[0], categoria: categorias[0], subcategoria: subcategorias[0], fornecedor: fornecedor(1, "Distribuidora inicial", false) },
+        { ...produto, id: 12, nome: "Amendoim Torrado 100g", descricao: "  AMENDOIM, torrado   100g. " },
+        { ...produto, id: 13, nome: "Sem informações adicionais", descricao: "   ", marca: { id: 31, nome: " " }, fornecedor: fornecedor(2, " "), ativo: false },
+        { ...produto, id: 14, nome: nomeLongo, composto: true },
+    ];
+    const originais = structuredClone(e.produtos), p = await abrir(e);
+    try {
+        const simples = p.getByRole("row").filter({ has: p.getByRole("cell", { name: "Produto teste", exact: true }) });
+        const detalhado = p.getByRole("row").filter({ hasText: "Água Mineral 500ml" });
+        await expect(simples.getByRole("cell").nth(1).locator("p")).toHaveCount(1);
+        await expect(p.getByRole("cell", { name: "Amendoim Torrado 100g", exact: true })).toBeVisible();
+        await expect(p.getByRole("cell", { name: "Sem informações adicionais", exact: true }).locator("p")).toHaveCount(1);
+        await expect(detalhado.getByText(descricaoLonga, { exact: true })).toHaveAttribute("title", descricaoLonga);
+        await expect(detalhado.getByText("Marca teste · Bebidas · Sucos · Distribuidora inicial (inativo)", { exact: true })).toBeVisible();
+        await expect(p.getByText(/Categoria: —|Marca: —|Fornecedor: Não informado/)).toHaveCount(0);
+        await expect(simples.locator(".MuiChip-root").filter({ hasText: "Ativo" })).toHaveClass(/MuiChip-filled/);
+        await expect(p.getByRole("row").filter({ hasText: "Sem informações adicionais" }).locator(".MuiChip-root")).toHaveClass(/MuiChip-outlined/);
+        for (const acao of ["Editar produto", "Criar novo produto baseado neste", "Inativar produto"]) {
+            await expect(simples.getByRole("button", { name: acao, exact: true })).toBeEnabled();
+        }
+        await mkdir("node_modules/produtos-listagem-validacao", { recursive: true });
+        for (const [nome, viewport] of [["desktop", { width: 1440, height: 900 }], ["notebook", { width: 1024, height: 600 }]]) {
+            await p.setViewportSize(viewport);
+            const medidas = await simples.evaluate(row => ({ altura: row.getBoundingClientRect().height, overflow: document.documentElement.scrollWidth > innerWidth }));
+            assert.ok(medidas.altura <= 50, `Linha sem metadados deve ser compacta: ${medidas.altura}px`);
+            assert.equal(medidas.overflow, false, "A tabela deve rolar dentro do próprio contêiner");
+            const nomeCompleto = p.getByText(`${nomeLongo} (Kit/Combo)`, { exact: true });
+            await expect(nomeCompleto).toHaveCSS("white-space", "normal");
+            const texto = await nomeCompleto.evaluate(el => ({ altura: el.clientHeight, linha: parseFloat(getComputedStyle(el).lineHeight), largura: el.clientWidth, conteudo: el.scrollWidth }));
+            assert.ok(texto.altura > texto.linha, "O nome longo deve poder quebrar linha");
+            assert.ok(texto.conteudo <= texto.largura, "O nome não deve invadir outras colunas");
+            await expect(detalhado.getByText(descricaoLonga, { exact: true })).toHaveCSS("text-overflow", "ellipsis");
+            await p.screenshot({ path: `node_modules/produtos-listagem-validacao/${nome}.png`, fullPage: true });
+        }
+        assert.deepEqual(e.produtos, originais, "A apresentação não deve alterar os dados originais");
+        assert.equal(gravacoes(e).length, 0);
+        assert.ok(!e.chamadas.some(c => /^\/produtos\/\d+$/.test(c.path)), "A listagem não deve consultar cada produto");
+    } finally { await p.close(); }
+});
+
 test("duplicar revisa dados, limpa identificadores e cria novo produto sem tocar na origem", async () => {
     const e = novoEstado();
     e.produtos[0] = { ...e.produtos[0], codigoBarras: "7890000000011", estoqueAtual: 12, ativo: false, ncm: "12345678", cest: "1234567" };
@@ -233,18 +279,19 @@ test("Kit/Combo cadastra componentes, valida quantidade e preserva campos após 
 test("consulta identifica fornecedor e edição troca ou remove somente o fornecedor principal", async () => {
     const e = novoEstado(), p = await abrir(e);
     try {
-        await expect(p.getByText("Fornecedor: Distribuidora inicial", { exact: true })).toBeVisible();
+        await expect(p.getByText("Distribuidora inicial", { exact: true })).toBeVisible();
         const d = await editar(p); await aba(d, "Fornecedores"); const campo = d.getByRole("combobox", { name: "Fornecedor principal", exact: true });
         await expect(campo).toHaveValue("Distribuidora inicial");
         await campo.fill("Outra"); await p.getByRole("option", { name: "Outra distribuidora", exact: true }).click();
         await d.getByRole("button", { name: "Salvar alterações", exact: true }).click(); await expect(d).toHaveCount(0);
         assert.equal(gravacoes(e).at(-1).body.fornecedorId, 2); assert.ok(!("empresaId" in gravacoes(e).at(-1).body));
-        await expect(p.getByText("Fornecedor: Outra distribuidora", { exact: true })).toBeVisible();
+        await expect(p.getByText("Outra distribuidora", { exact: true })).toBeVisible();
         await editar(p); await aba(d, "Fornecedores"); await d.getByRole("combobox", { name: "Fornecedor principal", exact: true }).focus();
         await d.getByRole("button", { name: /Limpar|Clear/ }).click();
         await d.getByRole("button", { name: "Salvar alterações", exact: true }).click(); await expect(d).toHaveCount(0);
         assert.equal(gravacoes(e).at(-1).body.fornecedorId, null);
-        await expect(p.getByText("Fornecedor: Não informado", { exact: true })).toBeVisible();
+        await expect(p.getByText("Fornecedor: Não informado", { exact: true })).toHaveCount(0);
+        await expect(p.getByRole("row").filter({ hasText: "Produto teste" })).not.toContainText("Outra distribuidora");
         assert.ok(e.chamadas.every(c => c.auth === "Bearer teste" && !c.params.has("empresaId")));
         assert.ok(!e.chamadas.some(c => c.path === "/fornecedores"));
         assert.equal(new URL(p.url()).searchParams.get("origem"), "consulta");
@@ -336,7 +383,7 @@ test("classificação cria três vínculos, filtra subcategorias e mostra os nom
         assert.ok(e.chamadas.some(c => c.path === "/produtos/subcategorias" && c.params.get("categoriaId") === "10"));
         await d.getByRole("button", { name: "Cadastrar produto", exact: true }).click(); await expect(d).toHaveCount(0);
         assert.deepEqual([gravacoes(e).at(-1).body.categoriaId,gravacoes(e).at(-1).body.subcategoriaId,gravacoes(e).at(-1).body.marcaId], [10,20,30]);
-        await expect(p.getByRole("row").filter({ hasText: "Classificado" })).toContainText("Categoria: Bebidas · Subcategoria: Sucos · Marca: Marca teste");
+        await expect(p.getByRole("row").filter({ hasText: "Classificado" })).toContainText("Marca teste · Bebidas · Sucos");
     } finally { await p.close(); }
 });
 test("troca de categoria limpa subcategoria e remoção envia null sem apagar fornecedor", async () => {

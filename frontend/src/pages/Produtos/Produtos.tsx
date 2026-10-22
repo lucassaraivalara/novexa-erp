@@ -1,5 +1,5 @@
 import ClassificacaoProdutoCampos from "./ClassificacaoProdutoCampos";
-import { semClassificacao, filtrosClassificacao, descricaoClassificacao } from "./classificacaoProdutoUtils";
+import { semClassificacao, filtrosClassificacao } from "./classificacaoProdutoUtils";
 import { useEffect, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
@@ -27,6 +27,7 @@ import RelatorioPrecosDialog from "./RelatorioPrecosDialog";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const quantidade = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
+const normalizarTextoProduto = (texto: string) => texto.normalize("NFKC").toLocaleLowerCase("pt-BR").replace(/[\p{P}\s]/gu, "");
 type CampoBuscaProduto = "codigoInterno" | "nome" | "codigoBarras";
 const camposBusca = {
     codigoInterno: { rotulo: "Código interno", placeholder: "Pesquisar por código interno…" },
@@ -200,16 +201,31 @@ function Produtos() {
         </Stack>
     );
 
-    const renderNome = (_: unknown, linha: Produto): React.ReactNode => (
-        <Stack sx={{ gap: 0.125, minWidth: 0 }}>
-            <Typography sx={{ fontSize: "0.875rem", fontWeight: 650 }}>{linha.nome}{linha.composto ? " (Kit/Combo)" : ""}</Typography>
-            {linha.descricao && <Typography color="text.secondary" noWrap sx={{ fontSize: "0.75rem" }}>{linha.descricao}</Typography>}
-            <Typography color="text.secondary" variant="caption" sx={{ overflowWrap: "anywhere" }}>{descricaoClassificacao({ categoria: linha.categoria ?? null, subcategoria: linha.subcategoria ?? null, marca: linha.marca ?? null })}</Typography>
-            <Typography color="text.secondary" noWrap title={linha.fornecedor?.razaoSocial ?? undefined} sx={{ fontSize: "0.75rem" }}>
-                Fornecedor: {linha.fornecedor?.razaoSocial ?? "Não informado"}{linha.fornecedor?.ativo === false ? " (inativo)" : ""}
-            </Typography>
-        </Stack>
-    );
+    const renderNome = (_: unknown, linha: Produto): React.ReactNode => {
+        const descricao = linha.descricao?.trim();
+        const descricaoNormalizada = normalizarTextoProduto(descricao ?? "");
+        const fornecedor = linha.fornecedor?.razaoSocial?.trim();
+        const metadados = [
+            linha.marca?.nome?.trim(),
+            linha.categoria?.nome?.trim(),
+            linha.subcategoria?.nome?.trim(),
+            fornecedor ? `${fornecedor}${linha.fornecedor?.ativo === false ? " (inativo)" : ""}` : null,
+        ].filter(Boolean).join(" · ");
+
+        return (
+            <Stack sx={{ gap: 0.125, minWidth: 0 }}>
+                <Typography sx={{ fontSize: "0.875rem", fontWeight: 650, lineHeight: 1.4, whiteSpace: "normal", overflowWrap: "anywhere" }}>
+                    {linha.nome}{linha.composto ? " (Kit/Combo)" : ""}
+                </Typography>
+                {descricaoNormalizada && descricaoNormalizada !== normalizarTextoProduto(linha.nome) && (
+                    <Typography color="text.secondary" noWrap title={descricao} sx={{ fontSize: "0.75rem", lineHeight: 1.4 }}>{descricao}</Typography>
+                )}
+                {metadados && (
+                    <Typography color="text.secondary" noWrap title={metadados} sx={{ fontSize: "0.75rem", lineHeight: 1.4 }}>{metadados}</Typography>
+                )}
+            </Stack>
+        );
+    };
 
     const renderPreco = (valor: unknown): React.ReactNode => <span style={{ fontVariantNumeric: "tabular-nums" }}>{moeda.format(Number(valor))}</span>;
     const renderEstoque = (valor: unknown, linha: Produto): React.ReactNode => <span style={{ fontVariantNumeric: "tabular-nums" }}>{linha.controlaEstoque ? quantidade.format(Number(valor)) : "Não controla"}</span>;
