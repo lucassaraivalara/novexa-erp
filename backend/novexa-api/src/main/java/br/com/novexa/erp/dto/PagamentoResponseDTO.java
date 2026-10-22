@@ -16,7 +16,8 @@ public record PagamentoResponseDTO(Long id, Long empresaId, Long vendaId, Long u
         Long configuracaoContaFinanceiraDestinoId, String configuracaoContaFinanceiraDestinoNome,
         boolean confirmadoFinanceiramente, LocalDateTime dataConfirmacaoFinanceira,
         Long usuarioConfirmacaoFinanceiraId, Long movimentacaoFinanceiraId,
-        BigDecimal taxaPercentualSnapshot, BigDecimal taxaFixaSnapshot, Integer prazoRecebimentoDiasSnapshot, br.com.novexa.erp.entity.ModoRecebimentoFinanceiro modoRecebimentoSnapshot) {
+        BigDecimal taxaPercentualSnapshot, BigDecimal taxaFixaSnapshot, Integer prazoRecebimentoDiasSnapshot,
+        Integer parcelasConsumidor, br.com.novexa.erp.entity.ModoRecebimentoFinanceiro modoRecebimentoSnapshot) {
     public static PagamentoResponseDTO de(PagamentoEntity pagamento) {
         var movimento = pagamento.getMovimentacaoFinanceira();
         return new PagamentoResponseDTO(pagamento.getId(), pagamento.getEmpresa().getId(),
@@ -29,6 +30,7 @@ public record PagamentoResponseDTO(Long id, Long empresaId, Long vendaId, Long u
                 pagamento.getConfiguracaoContaFinanceiraDestinoId(), pagamento.getConfiguracaoContaFinanceiraDestinoNome(),
                 movimento != null, movimento == null ? null : movimento.getDataCriacao(),
                 movimento == null ? null : movimento.getUsuario().getId(), movimento == null ? null : movimento.getId(),
-                pagamento.getTaxaPercentualSnapshot(), pagamento.getTaxaFixaSnapshot(), pagamento.getPrazoRecebimentoDiasSnapshot(), pagamento.getModoRecebimentoSnapshot());
+                pagamento.getTaxaPercentualSnapshot(), pagamento.getTaxaFixaSnapshot(), pagamento.getPrazoRecebimentoDiasSnapshot(),
+                pagamento.getParcelasConsumidor(), pagamento.getModoRecebimentoSnapshot());
     }
 }

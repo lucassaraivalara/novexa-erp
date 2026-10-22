@@ -1,5 +1,11 @@
 Empresa ........ funcional
 
+## Parcelamento do consumidor no crédito — 2026-10-22
+
+Crédito no PDV passa a oferecer parcelas ao consumidor, limitadas pela configuração da empresa. Configuração de pagamento CREDITO ganha `maximoParcelasConsumidor` (1–120; padrão 1, à vista; exclusivo de crédito). Pagamento da venda registra `parcelasConsumidor` escolhido no PDV (imutável, validado contra o limite da configuração no backend). V58 aditiva cria as duas colunas nullable com CHECKs, sem backfill; legado permanece NULL e equivale a 1x. Frontend: campo no cadastro da configuração, seletor de parcelas no diálogo de pagamento e validação no rascunho (`parcelamentoValido`). Não altera taxas, prazo de recebimento da empresa, liquidação, faturamento nem financeiro — é informação de venda ao consumidor, sem efeito em recebíveis.
+
+Validação: 244 testes backend aprovados por classe (37 configuração, 23 políticas, 135 venda com 2 skips preexistentes, 49 liquidação) em H2 com Flyway V58; TypeScript, lint (zero erros) e 20 testes frontend aprovados. Publicado na main e deploy em produção com Flyway V58.
+
 ## Configurações de pagamento — autorização local, 2026-10-22
 
 Correção local da Tarefa 10A sobre `6bb3583`: POST/PUT de configurações empresariais exigem ADMIN/GERENTE na cadeia Spring Security. Consultas continuam disponíveis para todos os perfis autenticados, incluindo o PDV; a tela administrativa oculta criação/edição e o formulário de perfis operacionais. Empresa permanece derivada do JWT. Sem alteração de contratos financeiros, taxas/prazos persistidos, snapshots, migrations ou regras de liquidação. Matriz em [financeiro.md](financeiro.md#autorização-das-configurações-de-pagamento--tarefa-10a).

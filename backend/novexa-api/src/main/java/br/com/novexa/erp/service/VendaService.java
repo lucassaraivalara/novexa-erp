@@ -366,7 +366,7 @@ public class VendaService {
         for (int i = 0; i < parcelas.size(); i++) {
             var parcela = parcelas.get(i);
             var pagamento = pagamentos.registrarFaturamento(venda, operador, parcela.forma(), parcela.configuracao(),
-                    i + 1, parcela.valor(), parcela.recebido());
+                    i + 1, parcela.valor(), parcela.recebido(), parcela.parcelasConsumidor());
             pagamentosCriados.add(pagamento);
             var recebivel = recebiveis.gerar(pagamento);
             if (recebivel != null) recebiveisCriados.add(recebivel);
@@ -387,7 +387,7 @@ public class VendaService {
     }
 
     private record PagamentoPreparado(FormaPagamentoEntity forma, ConfiguracaoFormaPagamentoEmpresaEntity configuracao,
-            BigDecimal valor, BigDecimal recebido) { }
+            BigDecimal valor, BigDecimal recebido, Integer parcelasConsumidor) { }
 
     private List<PagamentoPreparado> prepararPagamentos(FaturamentoVendaDTO pedido, Long empresaId, BigDecimal total) {
         if (!pedido.isFormaInformadaCorretamente())
@@ -396,7 +396,7 @@ public class VendaService {
         if (pedido.pagamentos() == null && pedido.parcelasPrazo() == null) {
             var forma = pagamentos.resolverForma(pedido.formaPagamento(), pedido.formaPagamentoId());
             var config = pagamentos.resolverConfiguracao(pedido.configuracaoFormaPagamentoId(), empresaId, forma);
-            parcelas.add(prepararParcela(forma, config, total, pedido.valorRecebido()));
+            parcelas.add(prepararParcela(forma, config, total, pedido.valorRecebido(), null));
         } else if (pedido.pagamentos() != null) {
             if ((pedido.pagamentos().isEmpty() && pedido.parcelasPrazo() == null) || pedido.pagamentos().size() > 20)
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe de 1 a 20 pagamentos.");
@@ -410,7 +410,7 @@ public class VendaService {
             for (var input : pedido.pagamentos()) {
                 var config = configs.get(input.configuracaoFormaPagamentoId());
                 var forma = pagamentos.resolverForma(null, config.getFormaPagamento().getId());
-                parcelas.add(prepararParcela(forma, config, input.valor(), input.valorRecebido()));
+                parcelas.add(prepararParcela(forma, config, input.valor(), input.valorRecebido(), input.parcelasConsumidor()));
             }
         }
         BigDecimal soma = parcelas.stream().map(PagamentoPreparado::valor).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -426,12 +426,19 @@ public class VendaService {
     }
 
     private PagamentoPreparado prepararParcela(FormaPagamentoEntity forma, ConfiguracaoFormaPagamentoEmpresaEntity config,
-            BigDecimal valor, BigDecimal recebido) {
+            BigDecimal valor, BigDecimal recebido, Integer parcelasConsumidor) {
         if (valor == null || valor.signum() <= 0 || valor.stripTrailingZeros().scale() > 2
                 || valor.precision() - valor.scale() > 12
                 || (recebido != null && (recebido.signum() < 0 || recebido.stripTrailingZeros().scale() > 2
                     || recebido.precision() - recebido.scale() > 12)))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe valores positivos com ate duas casas decimais.");
+        if (parcelasConsumidor != null && forma.getTipo() != TipoFormaPagamento.CREDITO)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parcelas do consumidor sao exclusivas de credito.");
+        if (parcelasConsumidor != null && (parcelasConsumidor < 1 || parcelasConsumidor > 12))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe de 1 a 12 parcelas do consumidor.");
+        int maximoParcelas = config == null || config.getMaximoParcelasConsumidor() == null ? 1 : config.getMaximoParcelasConsumidor();
+        if (parcelasConsumidor != null && parcelasConsumidor > maximoParcelas)
+            throw conflito("Parcelas do consumidor acima do permitido pela configuracao de pagamento.");
         valor = valor.setScale(2, RoundingMode.UNNECESSARY);
         if (forma.getTipo() == TipoFormaPagamento.DINHEIRO) {
             if (recebido == null) recebido = valor;
@@ -441,7 +448,7 @@ public class VendaService {
                 throw conflito("PIX e cartao devem corresponder ao valor da parcela, sem troco.");
             recebido = null;
         }
-        return new PagamentoPreparado(forma, config, valor, recebido);
+        return new PagamentoPreparado(forma, config, valor, recebido, parcelasConsumidor);
     }
 
     private void validarQuantidade(BigDecimal quantidade) {

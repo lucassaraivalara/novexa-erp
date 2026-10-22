@@ -30,6 +30,7 @@ public class ConfiguracaoFormaPagamentoEmpresaEntity {
     @Column(precision = 7, scale = 4) private BigDecimal taxaPercentual;
     @Column(precision = 19, scale = 2) private BigDecimal taxaFixa;
     private Integer prazoRecebimentoDias;
+    private Integer maximoParcelasConsumidor;
 
     protected ConfiguracaoFormaPagamentoEmpresaEntity() { }
     public ConfiguracaoFormaPagamentoEmpresaEntity(EmpresaEntity empresa, FormaPagamentoEntity forma,
@@ -37,6 +38,7 @@ public class ConfiguracaoFormaPagamentoEmpresaEntity {
         this.empresa = empresa;
         this.formaPagamento = forma;
         this.tipo = forma.getTipo();
+        this.maximoParcelasConsumidor = tipo == TipoFormaPagamento.CREDITO ? 1 : null;
         this.dataCriacao = TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS);
         atualizar(nome, ativo, destino);
     }
@@ -48,15 +50,24 @@ public class ConfiguracaoFormaPagamentoEmpresaEntity {
     }
     public Long getId() { return id; }
     public void atualizarCondicoesCartao(BigDecimal percentual, BigDecimal fixa, Integer prazo) {
+        atualizarCondicoesCartao(percentual, fixa, prazo, this.maximoParcelasConsumidor);
+    }
+    public void atualizarCondicoesCartao(BigDecimal percentual, BigDecimal fixa, Integer prazo, Integer maximoParcelas) {
         if (tipo != TipoFormaPagamento.DEBITO && tipo != TipoFormaPagamento.CREDITO)
             throw new IllegalArgumentException("Condicoes financeiras exclusivas de cartao.");
+        if (maximoParcelas != null && (maximoParcelas < 1 || maximoParcelas > 12))
+            throw new IllegalArgumentException("Maximo de parcelas do consumidor invalido.");
+        if (tipo != TipoFormaPagamento.CREDITO && maximoParcelas != null)
+            throw new IllegalArgumentException("Parcelas do consumidor exclusivas de credito.");
         if (percentual == null || percentual.signum() < 0 || percentual.compareTo(new BigDecimal("100")) > 0
                 || fixa == null || fixa.signum() < 0 || prazo == null || prazo < 0)
             throw new IllegalArgumentException("Taxas ou prazo de cartao invalidos.");
         this.taxaPercentual = percentual.setScale(4, java.math.RoundingMode.UNNECESSARY);
         this.taxaFixa = fixa.setScale(2, java.math.RoundingMode.UNNECESSARY);
         this.prazoRecebimentoDias = prazo;
+        this.maximoParcelasConsumidor = tipo == TipoFormaPagamento.CREDITO ? maximoParcelas : null;
     }
+    public Integer getMaximoParcelasConsumidor() { return maximoParcelasConsumidor; }
     public BigDecimal getTaxaPercentual() { return taxaPercentual; }
     public BigDecimal getTaxaFixa() { return taxaFixa; }
     public Integer getPrazoRecebimentoDias() { return prazoRecebimentoDias; }

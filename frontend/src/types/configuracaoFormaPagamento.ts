@@ -30,6 +30,7 @@ export type ConfiguracaoFormaPagamento = {
     taxaPercentual: number | null;
     taxaFixa: number | null;
     prazoRecebimentoDias: number | null;
+    maximoParcelasConsumidor?: number;
 };
 
 export type ConfiguracaoFormaPagamentoInput = {
@@ -40,6 +41,7 @@ export type ConfiguracaoFormaPagamentoInput = {
     taxaPercentual?: number | null;
     taxaFixa?: number | null;
     prazoRecebimentoDias?: number | null;
+    maximoParcelasConsumidor?: number | null;
 };
 
 export type FormaPagamentoCatalogo = {

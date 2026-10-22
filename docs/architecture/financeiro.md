@@ -4,6 +4,10 @@ FINANCEIRO NOVEXA
 
 Datas e horas operacionais seguem `America/Sao_Paulo`, via `TempoNovexa`: sessão de Caixa, pagamentos PIX, criação/liquidação/cancelamento de recebíveis, movimentos financeiros, cofre e vencimentos. O scheduler de cartão e a validação da liquidação automática consultam o mesmo dia civil de Brasília, inclusive após indisponibilidade do servidor (`dataPrevista <= hoje`). Prazo de recebimento continua derivado da data histórica do pagamento em Brasília. Valores, locks, idempotência, regras de saldo e confirmações permanecem os mesmos. Não há liquidação ou correção retroativa introduzida por esta padronização. Semântica de armazenamento e exibição em [arquitetura.md](arquitetura.md#data-e-hora-oficial--brasília).
 
+## Parcelamento do consumidor no crédito — V58
+
+Configuração CREDITO possui `maximoParcelasConsumidor` (1–120, padrão 1). O PDV oferece de 1x até o limite e envia `parcelasConsumidor` no pagamento; o backend valida contra o limite da configuração (409 acima do permitido, 400 fora de crédito) e persiste o valor imutável no Pagamento. Colunas nullable sem backfill; legado NULL equivale a 1x. Sem efeito em taxas, prazo de recebimento, recebíveis ou liquidação — não muda quando nem quanto a empresa recebe. Publicado na main e aplicado em produção.
+
 ## Autorização das configurações de pagamento — Tarefa 10A
 
 `GET /financeiro/configuracoes-formas-pagamento` e `GET /financeiro/configuracoes-formas-pagamento/{id}` permanecem disponíveis a ADMIN, GERENTE, OPERADOR e USUARIO autenticados, inclusive para seleção no PDV. POST/PUT exigem ADMIN/GERENTE no backend: criar, editar nome/taxa/prazo/destino e ativar/desativar usam a mesma proteção. OPERADOR/USUARIO recebem 403 antes da escrita; sem autenticação retorna 401. Não há endpoint de exclusão. IDs e destinos de outro tenant continuam retornando 404 para usuários autorizados, sem autoridade de empresa no payload. A interface permite consulta operacional e reserva os botões de criação/edição e o formulário aos perfis gerenciais existentes. Não altera valores, snapshots, faturamento, liquidação ou dados históricos. Implementação publicada na main e aplicada em produção.

@@ -62,6 +62,8 @@ public class ConfiguracaoFormaPagamentoEmpresaService {
         return ConfiguracaoFormaPagamentoEmpresaResponseDTO.de(configuracoes.saveAndFlush(c));
     }
     private void condicoes(ConfiguracaoFormaPagamentoEmpresaEntity c, ConfiguracaoFormaPagamentoEmpresaRequestDTO p) {
+        if (p.maximoParcelasConsumidor() != null && c.getTipo() != TipoFormaPagamento.CREDITO)
+            throw erro(HttpStatus.BAD_REQUEST, "Parcelas do consumidor são exclusivas de crédito.");
         if (!cartao(c.getTipo())) {
             if (p.taxaPercentual() != null || p.taxaFixa() != null || p.prazoRecebimentoDias() != null)
                 throw erro(HttpStatus.BAD_REQUEST, "Taxas e prazo sao exclusivos de cartao.");
@@ -71,7 +73,11 @@ public class ConfiguracaoFormaPagamentoEmpresaService {
                         : c.getTaxaPercentual() != null ? c.getTaxaPercentual() : BigDecimal.ZERO,
                 p.taxaFixa() != null ? p.taxaFixa() : c.getTaxaFixa() != null ? c.getTaxaFixa() : BigDecimal.ZERO,
                 p.prazoRecebimentoDias() != null ? p.prazoRecebimentoDias()
-                        : c.getPrazoRecebimentoDias() != null ? c.getPrazoRecebimentoDias() : 0);
+                        : c.getPrazoRecebimentoDias() != null ? c.getPrazoRecebimentoDias() : 0,
+                c.getTipo() == TipoFormaPagamento.CREDITO
+                        ? p.maximoParcelasConsumidor() != null ? p.maximoParcelasConsumidor()
+                        : c.getMaximoParcelasConsumidor() != null ? c.getMaximoParcelasConsumidor() : 1
+                        : null);
     }
     private ContaFinanceiraEntity destino(Long empresaId, TipoFormaPagamento tipo, Long id,
             ContaFinanceiraEntity atual) {

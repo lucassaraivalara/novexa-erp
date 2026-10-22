@@ -9,6 +9,7 @@ export type PagamentoVenda = {
     status: "REGISTRADO" | "CANCELADO"; configuracaoNomeExibicao: string | null;
     configuracaoTipo: string | null; configuracaoContaFinanceiraDestinoNome: string | null;
     modoRecebimentoSnapshot?: "CONTROLADO" | "SIMPLIFICADO" | null;
+    parcelasConsumidor?: number | null;
     confirmadoFinanceiramente: boolean; dataConfirmacaoFinanceira: string | null;
     usuarioConfirmacaoFinanceiraId: number | null; movimentacaoFinanceiraId: number | null;
 };
@@ -17,6 +18,7 @@ export type PagamentoVendaInput = {
     configuracaoFormaPagamentoId: number;
     valor: number;
     valorRecebido?: number;
+    parcelasConsumidor?: number;
 };
 export type ParcelaPrazoVendaInput = { valor: number; vencimento: string };
 export type VendaInput = {

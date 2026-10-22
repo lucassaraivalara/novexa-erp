@@ -45,8 +45,8 @@ public class PagamentoService {
     @Transactional(propagation = Propagation.MANDATORY)
     PagamentoEntity registrarFaturamento(VendaEntity venda, UsuarioEntity operador, FormaPagamentoEntity forma,
             ConfiguracaoFormaPagamentoEmpresaEntity configuracao, int sequencia, java.math.BigDecimal valor,
-            java.math.BigDecimal recebido) {
-        var pagamento=new PagamentoEntity(venda, operador, forma, configuracao, sequencia, valor, recebido);
+            java.math.BigDecimal recebido, Integer parcelasConsumidor) {
+        var pagamento=new PagamentoEntity(venda, operador, forma, configuracao, sequencia, valor, recebido, parcelasConsumidor);
         pagamento.registrarPoliticaRecebimento(operador.getEmpresa().getModoRecebimentoFinanceiro());
         return pagamentos.save(pagamento);
     }

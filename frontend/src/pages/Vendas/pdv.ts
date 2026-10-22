@@ -11,6 +11,7 @@ export type PagamentoPDV = {
     formaPagamento: FormaPagamento | "A_PRAZO";
     valor: string;
     recebido: string;
+    parcelasConsumidor?: number;
     /** Campo de rascunhos antigos; a aplicação em dinheiro é sempre derivada do saldo. */
     valorDinheiroExplicito?: boolean;
 };
@@ -116,6 +117,7 @@ export function totais(r: RascunhoPDV) {
             && /^\d{4}-\d{2}-\d{2}$/.test(p.vencimento) && !Number.isNaN(Date.parse(p.vencimento))))
         && parcelas.filter(p => p.formaPagamento === "A_PRAZO").length === 1;
     const pagamentosValidos = parcelas.length > 0 && prazoValido && imediatos.every(p => p.configuracaoFormaPagamentoId !== null
+        && parcelamentoValido(p)
         && p.valorCentavos !== null && p.valorCentavos > 0 && p.recebidoCentavos !== null && p.recebidoCentavos >= p.valorCentavos)
         && new Set(imediatos.map(p => p.configuracaoFormaPagamentoId)).size === imediatos.length;
     return { subtotal, desconto, total, totalInformado, totalPrazo, usaPrazo, parcelasPrazo,
@@ -128,6 +130,11 @@ export function totais(r: RascunhoPDV) {
 export function pagamentosRascunho(r: RascunhoPDV): PagamentoPDV[] {
     return r.pagamentos ?? [{ configuracaoFormaPagamentoId: r.configuracaoFormaPagamentoId,
         nomeExibicao: r.configuracaoNomeExibicao, formaPagamento: r.formaPagamento, valor: "", recebido: r.recebido }];
+}
+export function parcelamentoValido(p: PagamentoPDV, config?: ConfiguracaoFormaPagamento): boolean {
+    const quantidade = p.parcelasConsumidor ?? 1;
+    return Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= (config?.maximoParcelasConsumidor ?? (config ? 1 : 120))
+        && (p.formaPagamento === "CARTAO_CREDITO" || quantidade === 1);
 }
 export function criarPedido(r: RascunhoPDV, chave: string): VendaInput {
     const t = totais(r);
@@ -146,6 +153,7 @@ export function criarPedido(r: RascunhoPDV, chave: string): VendaInput {
         clienteId: r.cliente?.id ?? null, desconto: t.desconto! / 100, totalEsperado: t.total / 100,
         pagamentos: t.parcelas.filter(p => p.formaPagamento !== "A_PRAZO").map(p => ({ configuracaoFormaPagamentoId: p.configuracaoFormaPagamentoId!,
             valor: p.valorCentavos! / 100,
+            ...(p.formaPagamento === "CARTAO_CREDITO" && (p.parcelasConsumidor ?? 1) > 1 ? { parcelasConsumidor: p.parcelasConsumidor } : {}),
             ...(p.formaPagamento === "DINHEIRO" ? { valorRecebido: p.recebidoCentavos! / 100 } : {}) })),
         ...(t.usaPrazo ? { parcelasPrazo: t.parcelasPrazo.map(p => ({ valor: p.valorCentavos! / 100, vencimento: p.vencimento })) } : {}),
         entrega: r.entrega.trim(), observacoes: r.observacoes.trim(),

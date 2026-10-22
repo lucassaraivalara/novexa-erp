@@ -57,6 +57,11 @@ const criarSchema = (legadaSemDestino: boolean) => yup.object({
         then: (campo) => campo.integer("O prazo deve ser um número inteiro.")
             .min(0, "O prazo não pode ser negativo.").typeError("Informe um prazo válido."),
     }),
+    maximoParcelasConsumidor: numeroOpcional().when("formaPagamentoId", {
+        is: 4,
+        then: campo => campo.required("Informe o máximo de parcelas do consumidor.")
+            .integer("Informe um número inteiro de parcelas.").min(1, "Informe de 1 a 120 parcelas.").max(120, "Informe de 1 a 120 parcelas."),
+    }),
 });
 
 type ConfiguracaoFormaPagamentoFormProps = {
@@ -77,7 +82,7 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
     const { register, handleSubmit, reset, control, watch, setValue, formState: { errors } } = useForm<ConfiguracaoFormaPagamentoInput>({
         resolver: yupResolver(criarSchema(legadaSemDestino)),
         defaultValues: { nomeExibicao: "", formaPagamentoId: 1, ativo: true, contaFinanceiraDestinoId: null,
-            taxaPercentual: 0, taxaFixa: 0, prazoRecebimentoDias: 0 },
+            taxaPercentual: 0, taxaFixa: 0, prazoRecebimentoDias: 0, maximoParcelasConsumidor: 1 },
         mode: "onBlur",
     });
 
@@ -121,10 +126,11 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                 taxaPercentual: config.taxaPercentual ?? null,
                 taxaFixa: config.taxaFixa ?? null,
                 prazoRecebimentoDias: config.prazoRecebimentoDias ?? null,
+                maximoParcelasConsumidor: config.maximoParcelasConsumidor ?? 1,
             });
         } else {
             reset({ nomeExibicao: "", formaPagamentoId: 1, ativo: true, contaFinanceiraDestinoId: null,
-                taxaPercentual: 0, taxaFixa: 0, prazoRecebimentoDias: 0 });
+                taxaPercentual: 0, taxaFixa: 0, prazoRecebimentoDias: 0, maximoParcelasConsumidor: 1 });
         }
     }, [config, reset]);
 
@@ -146,6 +152,7 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                 if (dados.taxaFixa != null) payload.taxaFixa = dados.taxaFixa;
                 if (dados.prazoRecebimentoDias != null) payload.prazoRecebimentoDias = dados.prazoRecebimentoDias;
             }
+            if (tipoSelecionado === "CREDITO") payload.maximoParcelasConsumidor = dados.maximoParcelasConsumidor;
             onSalvo(await salvarConfiguracaoFormaPagamento(payload, config?.id));
         } catch (e) {
             setErro(mensagemConfiguracaoFormaPagamento(e, "Não foi possível salvar a configuração."));
@@ -252,6 +259,13 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                                     </Alert>
                                 )}
                                 {ehCartao && <>
+                                    {tipoSelecionado === "CREDITO" && <Controller name="maximoParcelasConsumidor" control={control} render={({ field }) => (
+                                        <TextField {...field} value={field.value ?? ""} fullWidth type="number" autoComplete="off"
+                                            label="Máximo de parcelas do consumidor" error={!!errors.maximoParcelasConsumidor}
+                                            onChange={evento => field.onChange(evento.target.value === "" ? null : Number(evento.target.value))}
+                                            helperText={errors.maximoParcelasConsumidor?.message ?? "1 permite apenas crédito à vista. Não altera taxas nem o prazo de recebimento da empresa."}
+                                            slotProps={{ htmlInput: { min: 1, max: 120, step: 1, inputMode: "numeric" } }} />
+                                    )} />}
                                     <Controller name="taxaPercentual" control={control} render={({ field }) => (
                                         <TextField {...field} value={field.value ?? ""}
                                             onChange={(evento) => field.onChange(evento.target.value === "" ? null : Number(evento.target.value))}

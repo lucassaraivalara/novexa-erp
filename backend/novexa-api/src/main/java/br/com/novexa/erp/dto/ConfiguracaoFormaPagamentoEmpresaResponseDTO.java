@@ -7,13 +7,15 @@ import java.math.BigDecimal;
 public record ConfiguracaoFormaPagamentoEmpresaResponseDTO(Long id, String nomeExibicao,
         Long formaPagamentoId, TipoFormaPagamento tipo, boolean ativo, Destino contaFinanceiraDestino,
         LocalDateTime dataCriacao, LocalDateTime dataAtualizacao,
-        BigDecimal taxaPercentual, BigDecimal taxaFixa, Integer prazoRecebimentoDias) {
+        BigDecimal taxaPercentual, BigDecimal taxaFixa, Integer prazoRecebimentoDias,
+        Integer maximoParcelasConsumidor) {
     public record Destino(Long id, String nome, TipoContaFinanceira tipo, boolean ativo) { }
     public static ConfiguracaoFormaPagamentoEmpresaResponseDTO de(ConfiguracaoFormaPagamentoEmpresaEntity c) {
         var destino = c.getContaFinanceiraDestino();
         return new ConfiguracaoFormaPagamentoEmpresaResponseDTO(c.getId(), c.getNomeExibicao(),
                 c.getFormaPagamento().getId(), c.getTipo(), c.isAtivo(), destino == null ? null
                 : new Destino(destino.getId(), destino.getNome(), destino.getTipo(), destino.isAtivo()),
-                c.getDataCriacao(), c.getDataAtualizacao(), c.getTaxaPercentual(), c.getTaxaFixa(), c.getPrazoRecebimentoDias());
+                c.getDataCriacao(), c.getDataAtualizacao(), c.getTaxaPercentual(), c.getTaxaFixa(), c.getPrazoRecebimentoDias(),
+                c.getTipo() == TipoFormaPagamento.CREDITO && c.getMaximoParcelasConsumidor() == null ? 1 : c.getMaximoParcelasConsumidor());
     }
 }

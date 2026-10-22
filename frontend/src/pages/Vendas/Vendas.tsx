@@ -25,7 +25,7 @@ import { listarConfiguracoesParaPDV } from "../../services/configuracaoFormaPaga
 import { obterSessao } from "../../utils/auth/sessao";
 import type { Produto } from "../../types/produto";
 import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
-import { carregarRascunhoSalvo, salvarRascunho, encontrarProdutoPorCodigo, criarPedido, decimal, moeda, moverIndiceProduto, novoRascunho, subtotalItem, totais, type RascunhoPDV } from "./pdv";
+import { carregarRascunhoSalvo, salvarRascunho, encontrarProdutoPorCodigo, criarPedido, decimal, moeda, moverIndiceProduto, novoRascunho, parcelamentoValido, subtotalItem, totais, type RascunhoPDV } from "./pdv";
 import PagamentoVendaDialog from "./PagamentoVendaDialog";
 import BuscaAvancadaProdutoDialog from "./BuscaAvancadaProdutoDialog";
 import SessaoCaixaPDVDialog from "./SessaoCaixaPDVDialog";
@@ -116,7 +116,7 @@ export default function Vendas() {
     const produtoExibido = emInclusao ? produtoEmInclusao : itemAtual?.produto;
     const revisaoDesabilitada = !sessaoCaixaResolvida || salvando || (!rascunho.pendente && (!rascunho.itens.length || !t.valido));
     const pagarDesabilitado = !sessaoCaixaResolvida || salvando || carregandoConfig || (!rascunho.pendente && (!rascunho.itens.length || !t.valido || !t.pagamentosValidos || t.restante !== 0
-        || t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))));
+        || t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId && parcelamentoValido(p, c)))));
 
     useLayoutEffect(() => {
         if (buscaAvancadaAberta) return;
@@ -309,7 +309,7 @@ export default function Vendas() {
         if (!rascunho.pendente && t.usaPrazo && !rascunho.cliente) {
             setErro("Selecione um cliente para vender a prazo."); setOpcional("cliente"); return;
         }
-        if (!rascunho.pendente && t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId))) {
+        if (!rascunho.pendente && t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId && parcelamentoValido(p, c)))) {
             setErro("Selecione uma forma de pagamento válida.");
             return;
         }

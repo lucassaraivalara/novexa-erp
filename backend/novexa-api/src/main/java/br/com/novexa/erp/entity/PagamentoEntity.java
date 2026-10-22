@@ -41,6 +41,7 @@ public class PagamentoEntity {
     @Column(precision = 7, scale = 4, updatable = false) private BigDecimal taxaPercentualSnapshot;
     @Column(precision = 19, scale = 2, updatable = false) private BigDecimal taxaFixaSnapshot;
     @Column(updatable = false) private Integer prazoRecebimentoDiasSnapshot;
+    @Column(updatable = false) private Integer parcelasConsumidor;
     @OneToOne(mappedBy = "pagamento", fetch = FetchType.LAZY)
     private MovimentacaoFinanceiraEntity movimentacaoFinanceira;
     @Column(nullable = false, precision = 19, scale = 2) private BigDecimal valor;
@@ -59,6 +60,12 @@ public class PagamentoEntity {
 
     public PagamentoEntity(VendaEntity venda, UsuarioEntity operador, FormaPagamentoEntity forma,
             ConfiguracaoFormaPagamentoEmpresaEntity configuracao, int sequencia, BigDecimal valor, BigDecimal recebido) {
+        this(venda, operador, forma, configuracao, sequencia, valor, recebido, null);
+    }
+
+    public PagamentoEntity(VendaEntity venda, UsuarioEntity operador, FormaPagamentoEntity forma,
+            ConfiguracaoFormaPagamentoEmpresaEntity configuracao, int sequencia, BigDecimal valor, BigDecimal recebido,
+            Integer parcelasConsumidor) {
         if (venda.getStatus() != StatusVenda.FATURADA) {
             throw new IllegalArgumentException("Pagamento exige venda faturada.");
         }
@@ -78,6 +85,16 @@ public class PagamentoEntity {
         }
         this.forma = forma;
         this.configuracaoFormaPagamento = configuracao;
+        if (formaPagamento == FormaPagamento.CARTAO_CREDITO) {
+            int parcelas = parcelasConsumidor == null ? 1 : parcelasConsumidor;
+            int maximo = configuracao == null || configuracao.getMaximoParcelasConsumidor() == null
+                    ? 1 : configuracao.getMaximoParcelasConsumidor();
+            if (parcelas < 1 || parcelas > 12 || parcelas > maximo)
+                throw new IllegalArgumentException("Parcelas do consumidor acima do permitido pela configuração.");
+            this.parcelasConsumidor = parcelas;
+        } else if (parcelasConsumidor != null) {
+            throw new IllegalArgumentException("Parcelas do consumidor exclusivas de crédito.");
+        }
         if (configuracaoFormaPagamento != null && (!empresa.getId().equals(configuracaoFormaPagamento.getEmpresa().getId())
                 || configuracaoFormaPagamento.getTipo() != forma.getTipo() || !configuracaoFormaPagamento.isAtivo())) {
             throw new IllegalArgumentException("Configuracao de pagamento indisponivel ou incompativel.");
@@ -134,6 +151,7 @@ public class PagamentoEntity {
     public BigDecimal getTaxaPercentualSnapshot() { return taxaPercentualSnapshot; }
     public BigDecimal getTaxaFixaSnapshot() { return taxaFixaSnapshot; }
     public Integer getPrazoRecebimentoDiasSnapshot() { return prazoRecebimentoDiasSnapshot; }
+    public Integer getParcelasConsumidor() { return parcelasConsumidor; }
     public StatusPagamento getStatus() { return status; }
     public LocalDateTime getDataHora() { return dataHora; }
     public BigDecimal getValorRecebido() { return valorRecebido; }

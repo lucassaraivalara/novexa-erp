@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from "react";
-import { Alert, alpha, Box, Button, ButtonBase, Dialog, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, TextField, Typography } from "@mui/material";
+import { Alert, alpha, Box, Button, ButtonBase, Dialog, DialogContent, DialogTitle, IconButton, InputAdornment, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import PixIcon from "@mui/icons-material/Pix";
 import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
@@ -12,7 +12,7 @@ import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import ShoppingCartCheckoutRoundedIcon from "@mui/icons-material/ShoppingCartCheckoutRounded";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import type { ConfiguracaoFormaPagamento } from "../../types/configuracaoFormaPagamento";
-import { decimal, moeda, pagamentosRascunho, subtotalItem, type PagamentoPDV, type RascunhoPDV, type totais } from "./pdv";
+import { decimal, moeda, pagamentosRascunho, parcelamentoValido, subtotalItem, type PagamentoPDV, type RascunhoPDV, type totais } from "./pdv";
 import ValorMonetarioPDV from "./ValorMonetarioPDV";
 
 type Props = {
@@ -63,6 +63,7 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
         const dinheiro = config.tipo === "DINHEIRO";
         const pagamento: PagamentoPDV = { configuracaoFormaPagamentoId: config.id, nomeExibicao: config.nomeExibicao,
             formaPagamento: meios[config.tipo as keyof typeof meios].forma, valor,
+            ...(config.tipo === "CREDITO" ? { parcelasConsumidor: atual?.parcelasConsumidor ?? 1 } : {}),
             recebido: dinheiro ? valor : "" };
         onAlterar({ pagamentos: atual ? base.map(p => p === atual ? pagamento : p) : [...outros, pagamento] });
     }
@@ -138,6 +139,14 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
                                         if (!e.repeat) avancar(String(config.id), e.key === "ArrowUp" ? -1 : 1, e.key === "Enter", e.key !== "Enter" && selecionado);
                                     } }} />
                                 {p && p.troco > 0 && <Typography aria-label={`Troco em ${config.nomeExibicao}`} variant="body2" sx={{ gridColumn: "1 / -1", textAlign: "right", color: "primary.main", fontWeight: 700 }} aria-live="polite">Troco: {moeda(p.troco)}</Typography>}
+                                {p && config.tipo === "CREDITO" && ((config.maximoParcelasConsumidor ?? 1) > 1 || (p.parcelasConsumidor ?? 1) > 1) &&
+                                    <TextField select size="small" sx={{ gridColumn: "1 / -1" }} label={`Parcelas do consumidor — ${config.nomeExibicao}`}
+                                        value={p.parcelasConsumidor ?? 1} disabled={bloqueado} error={!parcelamentoValido(p, config)}
+                                        helperText={!parcelamentoValido(p, config) ? "O limite desta configuração mudou. Revise as parcelas." : undefined}
+                                        onChange={e => onAlterar({ pagamentos: pagamentos.map(item => item.configuracaoFormaPagamentoId === config.id ? { ...item, parcelasConsumidor: Number(e.target.value) } : item) })}>
+                                        {Array.from({ length: config.maximoParcelasConsumidor ?? 1 }, (_, indice) => <MenuItem key={indice + 1} value={indice + 1}>{indice === 0 ? "1x (à vista)" : `${indice + 1}x`}</MenuItem>)}
+                                        {(p.parcelasConsumidor ?? 1) > (config.maximoParcelasConsumidor ?? 1) && <MenuItem value={p.parcelasConsumidor}>{p.parcelasConsumidor}x (indisponível)</MenuItem>}
+                                    </TextField>}
                             </Box>;
                         })}
                         <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 132px", alignItems: "center", gap: 1, p: 1, bgcolor: t.usaPrazo ? "action.selected" : undefined }}>
