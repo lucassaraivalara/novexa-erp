@@ -38,6 +38,8 @@ public class ProdutoService {
     private final br.com.novexa.erp.repository.SubcategoriaProdutoRepository subcategorias;
     private final br.com.novexa.erp.repository.MarcaRepository marcas;
     private final br.com.novexa.erp.repository.ProdutoFornecedorRepository vinculosFornecedores;
+    private final br.com.novexa.erp.repository.UsuarioRepository usuarios;
+    private final br.com.novexa.erp.repository.ProdutoAuditoriaRepository auditoria;
 
     public ProdutoService(
             ProdutoRepository produtoRepository,
@@ -47,7 +49,9 @@ public class ProdutoService {
             br.com.novexa.erp.repository.CategoriaProdutoRepository categorias,
             br.com.novexa.erp.repository.SubcategoriaProdutoRepository subcategorias,
             br.com.novexa.erp.repository.MarcaRepository marcas,
-            br.com.novexa.erp.repository.ProdutoFornecedorRepository vinculosFornecedores
+            br.com.novexa.erp.repository.ProdutoFornecedorRepository vinculosFornecedores,
+            br.com.novexa.erp.repository.UsuarioRepository usuarios,
+            br.com.novexa.erp.repository.ProdutoAuditoriaRepository auditoria
     ) {
         this.produtoRepository = produtoRepository;
         this.empresaService = empresaService;
@@ -55,6 +59,8 @@ public class ProdutoService {
         this.fornecedorRepository = fornecedorRepository;
         this.categorias = categorias; this.subcategorias = subcategorias; this.marcas = marcas;
         this.vinculosFornecedores = vinculosFornecedores;
+        this.usuarios = usuarios;
+        this.auditoria = auditoria;
     }
 
     @Transactional
@@ -212,9 +218,19 @@ public class ProdutoService {
     @Transactional
     public ProdutoEntity atualizar(Long id, ProdutoEntity dadosNovos, Long empresaId,
                                   Long fornecedorId, boolean fornecedorInformado, br.com.novexa.erp.dto.ProdutoRequestDTO classificacao) {
+        return atualizar(id, dadosNovos, empresaId, fornecedorId, fornecedorInformado, classificacao, null);
+    }
+
+    @Transactional
+    public ProdutoEntity atualizar(Long id, ProdutoEntity dadosNovos, Long empresaId,
+                                  Long fornecedorId, boolean fornecedorInformado, br.com.novexa.erp.dto.ProdutoRequestDTO classificacao,
+                                  Long usuarioAuditoriaId) {
         if (classificacao != null && classificacao.getComponentes() != null) composicoes.bloquearEdicao(id, empresaId, classificacao.getComponentes());
         else if (composicoes != null) composicoes.bloquearEdicao(id,empresaId,java.util.List.of());
         ProdutoEntity produtoExistente = buscarPorId(id, empresaId);
+        var controlaEstoqueAntes = produtoExistente.getControlaEstoque();
+        var ativoAntes = produtoExistente.getAtivo();
+        var composicaoVersaoAntes = produtoExistente.getComposicaoVersao();
         if (classificacao != null && classificacao.getComposto() != null && classificacao.getComposto() != produtoExistente.isComposto())
             throw new ProdutoInvalidoException("O tipo simples/composto nao pode ser alterado; preserve o historico e cadastre outro produto.");
         aplicarClassificacao(produtoExistente, empresaId, classificacao);
@@ -242,7 +258,27 @@ public class ProdutoService {
         if (classificacao != null) validarVinculos(produtoExistente, empresaId, classificacao);
         var salvo = produtoRepository.save(produtoExistente);
         if (classificacao != null) gravarVinculos(salvo, empresaId, classificacao);
+        if (usuarioAuditoriaId != null) {
+            registrarAuditoria(produtoExistente, "controla_estoque", controlaEstoqueAntes, produtoExistente.getControlaEstoque(), usuarioAuditoriaId);
+            registrarAuditoria(produtoExistente, "ativo", ativoAntes, produtoExistente.getAtivo(), usuarioAuditoriaId);
+            registrarAuditoria(produtoExistente, "composicao", "v" + composicaoVersaoAntes, "v" + produtoExistente.getComposicaoVersao(), usuarioAuditoriaId);
+        }
         return salvo;
+    }
+
+    private void registrarAuditoria(ProdutoEntity produto, String campo, Object valorAnterior, Object valorNovo, Long usuarioId) {
+        if (java.util.Objects.equals(valorAnterior, valorNovo)) return;
+        var usuario = usuarios.findByIdAndEmpresaId(usuarioId, produto.getEmpresa().getId())
+                .orElseThrow(() -> new ProdutoInvalidoException("Usuário responsável indisponível para registrar a auditoria."));
+        var registro = new br.com.novexa.erp.entity.ProdutoAuditoriaEntity();
+        registro.empresa = produto.getEmpresa();
+        registro.produto = produto;
+        registro.campo = campo;
+        registro.valorAnterior = String.valueOf(valorAnterior);
+        registro.valorNovo = String.valueOf(valorNovo);
+        registro.usuario = usuario;
+        registro.dataHora = br.com.novexa.erp.time.TempoNovexa.agora();
+        auditoria.save(registro);
     }
 
     @Transactional(readOnly = true)

@@ -118,7 +118,8 @@ public class ProdutoController {
         ProdutoEntity produtoAtualizado = produtoService.atualizar(
                 id,
                 dadosNovos,
-                usuario.empresaId(), request.getFornecedorId(), request.isFornecedorInformado(), request
+                usuario.empresaId(), request.getFornecedorId(), request.isFornecedorInformado(), request,
+                usuario.usuarioId()
         );
 
         return ResponseEntity.ok(resposta(produtoAtualizado));
