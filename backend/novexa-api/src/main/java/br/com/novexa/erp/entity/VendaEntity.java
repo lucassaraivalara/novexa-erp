@@ -40,6 +40,7 @@ public class VendaEntity {
     @Column(length = 20) private UUID chaveRequisicao;
     @Column(length = 64) private String resumoRequisicao;
     @Column(nullable = false) private LocalDateTime dataHora;
+    private LocalDateTime dataFaturamento;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private StatusVenda status;
     @Column(precision = 19, scale = 2) private BigDecimal subtotal;
     @Column(precision = 19, scale = 2) private BigDecimal desconto;
@@ -85,6 +86,7 @@ public class VendaEntity {
     public UUID getChaveRequisicao() { return chaveRequisicao; }
     public String getResumoRequisicao() { return resumoRequisicao; }
     public LocalDateTime getDataHora() { return dataHora; }
+    public LocalDateTime getDataFaturamento() { return dataFaturamento; }
     public StatusVenda getStatus() { return status; }
     public void setStatus(StatusVenda status) { this.status = status; }
     public BigDecimal getSubtotal() { return subtotal; }
@@ -107,6 +109,7 @@ public class VendaEntity {
         registrarFaturamento(chave, resumo, forma, recebido, recebido.subtract(total), BigDecimal.ZERO);
     }
     public void registrarFaturamento(UUID chave, String resumo, FormaPagamento forma, BigDecimal recebido, BigDecimal troco, BigDecimal valorPrazo) {
+        if (dataFaturamento == null) dataFaturamento = TempoNovexa.agora().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         this.chaveRequisicao = chave;
         this.resumoRequisicao = resumo;
         this.formaPagamento = forma;
