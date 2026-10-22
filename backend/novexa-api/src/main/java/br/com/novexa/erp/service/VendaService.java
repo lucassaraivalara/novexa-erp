@@ -225,7 +225,7 @@ public class VendaService {
         for (var item : pedido.itens()) {
             ProdutoEntity produto = produtosMap.get(item.produtoId());
             if(item.composicaoVersaoEsperada()!=null && item.composicaoVersaoEsperada()!=produto.getComposicaoVersao())
-                throw conflito("Composição alterada. Remova e adicione o Kit/Combo novamente para conferir os componentes.");
+                throw conflito("A composição do Kit/Combo '"+produto.getNome()+"' foi alterada após a inclusão na venda. Remova o item e adicione novamente para conferir os componentes.");
             if (produto.getPrecoVenda().compareTo(item.precoUnitarioEsperado()) != 0) {
                 throw conflito("Preço alterado: " + produto.getNome() + ". Remova e adicione o item novamente.");
             }
@@ -298,7 +298,7 @@ public class VendaService {
             ProdutoEntity produto = produtosMap.get(item.getProduto().getId());
             if (produto == null || !Boolean.TRUE.equals(produto.getAtivo())) throw conflito("Produto indisponível.");
             if(produto.isComposto() && item.getComposicaoVersao()!=produto.getComposicaoVersao())
-                throw conflito("Composição alterada. Remova e adicione o Kit/Combo novamente para conferir os componentes.");
+                throw conflito("A composição do Kit/Combo '"+produto.getNome()+"' foi alterada após a inclusão na venda. Remova o item e adicione novamente para conferir os componentes.");
             validarQuantidade(item.getQuantidade());
             if (item.getPrecoUnitario() == null || item.getPrecoUnitario().signum() < 0) throw conflito("Preço inválido.");
             BigDecimal valor = item.getQuantidade().multiply(item.getPrecoUnitario()).setScale(2, RoundingMode.HALF_UP);

@@ -91,15 +91,23 @@ public class ComposicaoProdutoService {
             var p=bloqueados.get(item.getProduto().getId());
             if(p.isComposto()) {
                 var componentes=linhas.stream().filter(c->c.produto.getId().equals(p.getId())).toList();
-                if(componentes.isEmpty())throw erro("Kit/Combo sem composição válida.");
-                for(var c:componentes) adicionar(resultado,bloqueados,c.componente.getId(),quantidade(c,item.getQuantidade()));
-            } else if(Boolean.TRUE.equals(p.getControlaEstoque())) adicionar(resultado,bloqueados,p.getId(),item.getQuantidade());
+                if(componentes.isEmpty())throw erro("O Kit/Combo '"+p.getNome()+"' não possui composição cadastrada. Cadastre os componentes do produto antes de vendê-lo.");
+                for(var c:componentes) adicionar(resultado,bloqueados,c.componente.getId(),quantidade(c,item.getQuantidade()),p.getNome());
+            } else if(Boolean.TRUE.equals(p.getControlaEstoque())) adicionar(resultado,bloqueados,p.getId(),item.getQuantidade(),null);
         }
         return resultado;
     }
-    private void adicionar(Map<Long,Necessidade> r,Map<Long,ProdutoEntity> bloqueados,Long id,BigDecimal quantidade) {
+    private void adicionar(Map<Long,Necessidade> r,Map<Long,ProdutoEntity> bloqueados,Long id,BigDecimal quantidade,String nomeDoKit) {
         var p=bloqueados.get(id);
-        if(p==null||p.isComposto()||!Boolean.TRUE.equals(p.getAtivo())||!Boolean.TRUE.equals(p.getControlaEstoque()))throw erro("Composição alterada ou componente indisponível. Atualize a venda.");
+        var origem=nomeDoKit==null?"":" do Kit/Combo '"+nomeDoKit+"'";
+        if(p==null)throw erro("A composição"+origem+" mudou e um componente não foi localizado. Remova o item da venda e adicione novamente para carregar a composição atual.");
+        if(p.isComposto())throw erro("O componente '"+p.getNome()+"'"+origem+" é um Kit/Combo; componentes devem ser produtos simples. Revise a composição do produto.");
+        if(!Boolean.TRUE.equals(p.getAtivo()))throw erro(nomeDoKit==null
+                ?"O produto '"+p.getNome()+"' está inativo. Reative o cadastro antes de vender."
+                :"O componente '"+p.getNome()+"'"+origem+" está inativo. Reative o produto no cadastro ou revise a composição.");
+        if(!Boolean.TRUE.equals(p.getControlaEstoque()))throw erro(nomeDoKit==null
+                ?"O produto '"+p.getNome()+"' não controla estoque. Ative 'Controla estoque' no cadastro antes de vender."
+                :"O componente '"+p.getNome()+"'"+origem+" não controla estoque e a venda não consegue baixá-lo. Ative 'Controla estoque' no cadastro de '"+p.getNome()+"' ou revise a composição.");
         r.put(id,new Necessidade(p,quantidade.add(r.containsKey(id)?r.get(id).quantidade():BigDecimal.ZERO)));
     }
     private BigDecimal quantidade(ComponenteProdutoEntity c,BigDecimal kits) {
