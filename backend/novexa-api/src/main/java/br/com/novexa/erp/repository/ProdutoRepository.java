@@ -90,6 +90,7 @@ public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
               and (
                     lower(produto.nome) like lower(concat('%', :termo, '%'))
                     or lower(produto.codigoInterno) = lower(:termo)
+                    or lower(produto.codigoInterno) like lower(concat('%', :termo, '%'))
                     or produto.codigoBarras = :termo
               )
             order by case when produto.codigoBarras = :termo

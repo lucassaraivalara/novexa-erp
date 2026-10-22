@@ -51,6 +51,17 @@ class ComercialPostgresTest extends VendaServiceTest {
                 .isEmpty();
     }
 
+    @Test void buscaPorTermoEncontraCodigoInternoParcialEPriorizaExato() {
+        var alvo = produto(empresa, "Produto codigo interno", "10", "10");
+        alvo.setCodigoInterno("3001001");
+        produtos.saveAndFlush(alvo);
+
+        assertThat(produtoService.buscarPorTermo(empresa.getId(), "3001"))
+                .extracting(p -> p.getId()).contains(alvo.getId());
+        assertThat(produtoService.buscarPorTermo(empresa.getId(), "3001001").get(0).getId())
+                .isEqualTo(alvo.getId());
+    }
+
     @AfterAll static void limparSchema() throws Exception {
         try (var c = DriverManager.getConnection(URL, USER, PASSWORD); var s = c.createStatement()) {
             s.execute("DROP SCHEMA IF EXISTS " + SCHEMA + " CASCADE");
