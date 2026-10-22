@@ -1,5 +1,11 @@
 Empresa ........ funcional
 
+## Refinamento do fechamento de caixa — 2026-10-21
+
+Modal de fechamento reorganizado com resumo da sessão, dinheiro esperado em destaque, contado com foco inicial e diferença em tempo real. Troco/recolhimento usam o componente existente com complemento automático e distribuição explícita; ações permanecem no rodapé. Preservados os contratos, conferência dos meios, observação obrigatória nas divergências, confirmação de entrega e bloqueio de duplo envio. Backend, migrations e dados reais não foram alterados. Detalhes em [frontend.md](frontend.md#fechamento-de-caixa--apresentação-e-conferência-2026-10-21).
+
+Validação local: 32 testes relacionados aprovados (abertura/custódia/fechamento/histórico e conferência dos meios), com HTTP simulado nos testes de interface. Seletor histórico desatualizado foi alinhado ao nome já existente “Caixas Anteriores”. Build frontend, lint dos arquivos afetados e diff check aprovados; permanece o aviso preexistente de chunk acima de 500 kB. Conferidos 1440×900, 1280×720, 390×844 e 1024×480 em claro/escuro/automático. Sem push ou deploy nesta tarefa.
+
 ## Correção pontual de teclado e dinheiro no pagamento — 2026-10-21
 
 Comportamento esclarecido pelo operador: sem distribuição anterior, o modal sugere o total na primeira configuração e seleciona o valor. Setas sobre um valor integralmente selecionado movem a parcela para o meio adjacente vazio e limpam a origem; não somam o mesmo valor em dois meios nem sobrescrevem destinos preenchidos. Enter confirma o meio atual, sugere o complemento quando necessário e, estando quitado/válido, foca Concluir; o Enter seguinte aciona o envio protegido existente. Consulta e rascunho permanecem locais até a confirmação final. Validação: 31 cenários relacionados de interface aprovados, incluindo sequência Crédito → Débito → Dinheiro → PIX, transferência inversa, pagamento parcial, temas e prevenção de duplo envio.

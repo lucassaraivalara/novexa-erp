@@ -1,4 +1,12 @@
 
+## Fechamento de caixa — apresentação e conferência (2026-10-21)
+
+O modal existente usa duas colunas em desktop/notebook: resumo real da sessão com dinheiro esperado em destaque e conferência do contado com diferença ao vivo. Em telas pequenas empilha as áreas, preserva rolagem interna e mantém Cancelar/Confirmar no rodapé. Foco inicial no dinheiro físico contado; diferenças continuam exigindo a observação prevista na política atual.
+
+`EntregaCofreCampos` reaproveita os campos e contratos existentes. No fechamento, troco e recolhimento aparecem lado a lado; editar um calcula o complemento em centavos. Alterar o contado conserva o troco até o limite contado e destina o restante ao recolhimento. Valores acima do contado permanecem visíveis com orientação e bloqueiam a confirmação, sem compensação financeira automática. Recolhimento positivo continua exigindo cofre/responsável, com confirmação explícita de entrega; pendência não credita cofre. Sangria/devolução mantêm sua apresentação e comportamento anteriores.
+
+Conferência dos meios não dinheiro, validações, permissões, transação e proteção contra duplo envio permanecem existentes. Erro genérico de requisição oferece orientação operacional e preserva os dados digitados. Testes de navegador com HTTP simulado validam a interface e os payloads; não representam movimentação financeira real nem integração com produção.
+
 ## Busca avançada de produtos no PDV (2026-10-21)
 
 O botão em Inclusão de produto e Ctrl+B abrem `BuscaAvancadaProdutoDialog`, sem navegação ou gravação. A pesquisa rápida/leitor permanece existente. O diálogo reutiliza `listarProdutosPaginado`, `AppTable`, os seletores remotos de categoria/marca e a mesma função de inclusão do carrinho. Permite adicionar produtos consecutivamente, incluindo repetidos e kits, sem perder o rascunho; inativos são consultáveis, mas não adicionáveis. Estoque zerado não cria bloqueio adicional: a validação de finalização existente permanece autoridade.

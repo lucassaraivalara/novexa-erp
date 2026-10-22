@@ -10,6 +10,9 @@ import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
 import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import BlockRoundedIcon from "@mui/icons-material/BlockRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlineRounded";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PaymentsRoundedIcon from "@mui/icons-material/PaymentsRounded";
@@ -17,7 +20,7 @@ import QrCode2RoundedIcon from "@mui/icons-material/QrCode2Rounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import {
-    Alert, Box, Button, Checkbox, FormControlLabel, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer,
+    Alert, alpha, Box, Button, Checkbox, FormControlLabel, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer,
     FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tab, Tabs, TextField, Typography,
 } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
@@ -226,12 +229,24 @@ export default function Caixa() {
                 setErroModal(`${mensagemCaixa(e, "O resumo do Caixa mudou.")} Atualize o resumo e confira os valores novamente.`);
                 await carregarSessao(sessaoId).catch(() => {});
             } else {
-                setErroModal(e instanceof Error && !("isAxiosError" in e) ? e.message : mensagemCaixa(e, "Não foi possível fechar o Caixa."));
+                const mensagem = e instanceof Error && !("isAxiosError" in e) ? e.message : mensagemCaixa(e, "Não foi possível fechar o Caixa.");
+                setErroModal(/^Requisi[çc][ãa]o inv[áa]lida\.?$/i.test(mensagem)
+                    ? "Não foi possível confirmar o fechamento. Revise o dinheiro contado, a destinação e os valores conferidos; para recolhimento, informe cofre e responsável." : mensagem);
             }
         } finally {
             fechamentoEmAndamento.current = false;
             setProcessando(false);
         }
+    }
+
+    function informarDinheiroContado(texto: string) {
+        setSaldo(texto);
+        const contado = centavosDinheiro(texto);
+        if (contado === null) return;
+        setEntregaCofre(atual => {
+            const troco = Math.min(centavosDinheiro(atual.troco) ?? 0, contado);
+            return { ...atual, troco: valorEditavel(troco / 100), valor: valorEditavel((contado - troco) / 100) };
+        });
     }
 
     async function editar(id: number) {
@@ -273,7 +288,10 @@ export default function Caixa() {
     const formasIncompletas = conferencia.incompleto;
     const temDiferencaFormas = conferencia.divergencia;
     const temDiferencaFechamento = temDiferencaDinheiro || temDiferencaFormas;
-    const podeFechar = politicaFechamento !== null && saldoFinalInformado !== null && !conferencia.invalido && !formasIncompletas && (!temDiferencaFechamento || observacaoFechamento.trim() !== "");
+    const valorTroco = centavosDinheiro(entregaCofre.troco), valorRecolhido = centavosDinheiro(entregaCofre.valor);
+    const destinacaoCompleta = saldoFinalInformado !== null && valorTroco !== null && valorRecolhido !== null
+        && valorTroco + valorRecolhido === Math.round(saldoFinalInformado * 100);
+    const podeFechar = politicaFechamento !== null && saldoFinalInformado !== null && destinacaoCompleta && !conferencia.invalido && !formasIncompletas && (!temDiferencaFechamento || observacaoFechamento.trim() !== "");
 
     return <PageContainer>
         <PageHeader titulo="Caixas" descricao="Sessões e dinheiro do caixa físico. Saldos e extratos de contas financeiras ficam em Contas e saldos."
@@ -303,42 +321,54 @@ export default function Caixa() {
         <Dialog open={modalMovimento !== null} fullWidth maxWidth="xs" aria-labelledby="caixa-movimento-titulo" onClose={() => !processando && setModalMovimento(null)}><form onSubmit={movimentar}><DialogTitle id="caixa-movimento-titulo">{modalMovimento === "SANGRIA" ? "Registrar Sangria" : "Registrar Suprimento"}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}>{erroModal && <Alert severity="error">{erroModal}</Alert>}<TextField required autoFocus name="valor" autoComplete="off" label="Valor (R$)" value={saldo} onChange={(e) => setSaldo(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />{modalMovimento === "SANGRIA" && <><FormControlLabel control={<Checkbox checked={destinarAoCofre} disabled={processando} onChange={e => setDestinarAoCofre(e.target.checked)} />} label="Destino desta sangria: COFRE" />
                 {destinarAoCofre && <EntregaCofreCampos value={entregaCofre} onChange={setEntregaCofre} disabled={processando} valorFixo={valorDecimal(saldo) ?? 0} />}</>}
                 <TextField name="observacao" autoComplete="off" label="Observação" value={observacao} onChange={(e) => setObservacao(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} /></Stack></DialogContent><DialogActions><Button type="button" onClick={() => setModalMovimento(null)}>Cancelar</Button><Button type="submit" variant="contained" disabled={processando}>{processando ? "Registrando…" : "Confirmar"}</Button></DialogActions></form></Dialog>
-        <Dialog open={modalFechamento} fullWidth maxWidth="sm" aria-labelledby="caixa-fechamento-titulo" aria-describedby="caixa-fechamento-descricao" onClose={() => { if (!processando) { setObservacaoFechamento(""); setModalFechamento(false); } }}>
-            <form onSubmit={fechar}>
-                <DialogTitle id="caixa-fechamento-titulo">Fechar Caixa</DialogTitle>
-                <DialogContent dividers>
-                    <Stack spacing={2.5} sx={{ pt: 0.5 }}>
+        <Dialog open={modalFechamento} fullWidth maxWidth="md" aria-labelledby="caixa-fechamento-titulo" aria-describedby="caixa-fechamento-descricao" onClose={() => { if (!processando) { setObservacaoFechamento(""); setModalFechamento(false); } }}
+            slotProps={{ paper: { sx: { m: { xs: 1, md: 3 }, width: "calc(100% - 16px)", maxHeight: "calc(100dvh - 32px)", borderRadius: 2 } } }}>
+            <Box component="form" onSubmit={fechar} sx={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+                <DialogTitle id="caixa-fechamento-titulo" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, px: 2.5, py: 2, borderBottom: 1, borderColor: "divider" }}>
+                    <Box><Typography component="span" variant="h5" sx={{ fontWeight: 700 }}>Fechamento de caixa</Typography>
+                        <Typography variant="body2" color="text.secondary">PDV Novexa · Sessão #{sessaoId} · {resumo?.descricaoCaixa}</Typography></Box>
+                    <IconButton aria-label="Fechar conferência de caixa" disabled={processando} onClick={() => { setObservacaoFechamento(""); setModalFechamento(false); }}><CloseRoundedIcon /></IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ p: 2, minHeight: 0, overscrollBehavior: "contain" }}>
+                    <Stack spacing={1.5}>
                         {erroModal && <Alert ref={erroFechamento} tabIndex={-1} severity="error">{erroModal}</Alert>}
-                        <Typography id="caixa-fechamento-descricao" color="text.secondary">
-                            Confira o valor esperado de cada forma de pagamento e informe o que foi efetivamente contado ou conferido.
-                        </Typography>
-                        {resumo && <Box component="dl" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1.5, m: 0 }}>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo inicial</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(resumo.saldoInicial)}</Typography></Box>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Vendas em dinheiro</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(vendasEmDinheiro)}</Typography></Box>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Suprimentos</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700, color: "success.main" }}>{dinheiro(resumo.suprimentos)}</Typography></Box>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Sangrias</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700, color: "error.main" }}>{dinheiro(resumo.sangrias)}</Typography></Box>
-                        </Box>}
-                        <Divider />
-                        <Box>
-                            <Typography component="h3" variant="body2" sx={{ fontWeight: 700 }}>Dinheiro físico</Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Esperado: {dinheiro(resumo?.saldoEsperadoDinheiro)}</Typography>
+                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "minmax(0, .9fr) minmax(0, 1fr)" }, gap: 2 }}>
+                            <Box component="section" aria-label="Resumo da sessão" sx={{ p: 1.5, borderRadius: 1.5, bgcolor: theme => alpha(theme.palette.primary.main, .06), minWidth: 0 }}>
+                                <Typography component="h3" variant="subtitle2" sx={{ mb: 1 }}>Resumo da sessão</Typography>
+                                {resumo && <Box component="dl" sx={{ m: 0, display: "grid", gap: .75 }}>
+                                    {[["Saldo inicial", resumo.saldoInicial, "text.primary"], ["Vendas em dinheiro", vendasEmDinheiro, "text.primary"],
+                                        ["Suprimentos", resumo.suprimentos, "success.main"], ["Sangrias", resumo.sangrias, "error.main"]].map(([rotulo, valor, cor]) =>
+                                        <Stack key={String(rotulo)} direction="row" sx={{ gap: 1, justifyContent: "space-between" }}>
+                                            <Typography component="dt" variant="body2">{rotulo}</Typography><Typography component="dd" variant="body2" sx={{ m: 0, fontWeight: 700, color: cor, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{dinheiro(Number(valor))}</Typography>
+                                        </Stack>)}
+                                </Box>}
+                                <Box sx={{ mt: 1.5, pt: 1.5, borderTop: 1, borderColor: "divider" }}>
+                                    <Typography variant="subtitle2">Dinheiro esperado</Typography><Typography aria-label="Dinheiro esperado" sx={{ fontSize: 32, lineHeight: 1.25, fontWeight: 800, color: "primary.main", fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>{dinheiro(resumo?.saldoEsperadoDinheiro)}</Typography>
+                                </Box>
+                            </Box>
+                            <Box component="section" aria-label="Conferência do dinheiro" sx={{ py: 1, minWidth: 0 }}>
+                            <Typography component="h3" variant="h6" sx={{ fontSize: 18, fontWeight: 700 }}>Conferência do dinheiro</Typography>
+                            <Typography id="caixa-fechamento-descricao" variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>Informe o valor físico contado no caixa.</Typography>
                             <TextField id="input-saldoFinal" required autoFocus fullWidth name="saldoFinal" autoComplete="off" label="Dinheiro físico contado (R$)" value={saldo}
-                                sx={{ mt: 1 }}
-                                onChange={(e) => setSaldo(e.target.value)}
+                                disabled={processando} onChange={(e) => informarDinheiroContado(e.target.value)}
                                 slotProps={{ htmlInput: { inputMode: "decimal", "aria-describedby": "caixa-fechamento-descricao" } }} />
-                            <Box role="status" aria-live="polite" sx={{ mt: 1, borderLeft: 3, borderColor: diferencaFechamento === null ? "divider" : temDiferencaDinheiro ? "warning.main" : "success.main", bgcolor: "action.hover", px: 2, py: 1.5 }}>
+                            <Box role="status" aria-live="polite" sx={{ mt: 1.5, borderRadius: 1.5, bgcolor: theme => alpha(temDiferencaDinheiro ? theme.palette.warning.main : theme.palette.primary.main, .06), p: 1.5 }}>
                                 {diferencaFechamento === null ? <Typography variant="body2">Informe o dinheiro contado para conferir a diferença.</Typography>
-                                    : temDiferencaDinheiro ? <Typography variant="body2" sx={{ fontWeight: 700 }}>{diferencaFechamento > 0 ? "Sobra de dinheiro" : "Falta de dinheiro"}: {dinheiro(Math.abs(diferencaFechamento))}</Typography>
-                                        : <Typography variant="body2" sx={{ fontWeight: 700 }}>Conferência sem diferença.</Typography>}
+                                    : <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                                        {temDiferencaDinheiro ? <BlockRoundedIcon color="warning" /> : <CheckCircleOutlineRoundedIcon color="primary" />}
+                                        <Box><Typography variant="subtitle2">{temDiferencaDinheiro ? diferencaFechamento > 0 ? "Sobra de dinheiro" : "Falta de dinheiro" : "Diferença de caixa"}</Typography>
+                                            <Typography aria-label="Diferença de caixa" sx={{ fontSize: 28, fontWeight: 800, color: temDiferencaDinheiro ? "text.primary" : "primary.main", fontVariantNumeric: "tabular-nums" }}>{diferencaFechamento > 0 ? "+ " : ""}{dinheiro(diferencaFechamento)}</Typography>
+                                        </Box>
+                                    </Stack>}
+                            </Box>
                             </Box>
                         </Box>
-                        <Divider />
-                        <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 700 }}>Destinação do dinheiro contado</Typography>
-                        <Typography variant="body2" color="text.secondary">Todo o valor contado deve ser mantido para troco ou destinado ao cofre. A entrega só credita o cofre quando confirmada.</Typography>
+                        <Box><Typography variant="subtitle1" component="h3" sx={{ fontWeight: 700 }}>Destino do dinheiro contado</Typography>
+                            <Typography variant="body2" color="text.secondary">Distribua o valor entre o troco da próxima abertura e o recolhimento ao cofre.</Typography></Box>
                         <EntregaCofreCampos value={entregaCofre} onChange={setEntregaCofre} disabled={processando} valorContado={saldoFinalInformado} />
                         {erroPolitica && <Alert severity="error">{erroPolitica}</Alert>}
                         {!politicaFechamento && !erroPolitica && <Typography role="status">Carregando configuração do fechamento…</Typography>}
-                        {politicaFechamento && <ConferenciaMeiosPagamento politica={politicaFechamento} conferencia={conferencia}
+                        {politicaFechamento && (conferencia.porTotal || conferencia.linhas.length > 0) && <ConferenciaMeiosPagamento politica={politicaFechamento} conferencia={conferencia}
                             valores={valoresConferidos} total={totalConferido} onTotal={setTotalConferido} disabled={processando}
                             onValor={(chave, valor) => setValoresConferidos(atuais => ({ ...atuais, [chave]: valor }))} />}
                         {temDiferencaFechamento && <TextField required multiline minRows={2} fullWidth name="observacaoFechamento" autoComplete="off"
@@ -347,13 +377,13 @@ export default function Caixa() {
                             slotProps={{ htmlInput: { maxLength: 500 } }} />}
                     </Stack>
                 </DialogContent>
-                <DialogActions>
-                    <Button type="button" onClick={() => { setObservacaoFechamento(""); setModalFechamento(false); }} disabled={processando}>Cancelar</Button>
-                    <Button type="submit" variant="contained" disabled={processando || !podeFechar}>
+                <DialogActions sx={{ p: 2, gap: 1.5, borderTop: 1, borderColor: "divider", flexShrink: 0, flexDirection: { xs: "column-reverse", sm: "row" }, "& > :not(style) ~ :not(style)": { ml: 0 } }}>
+                    <Button fullWidth type="button" variant="outlined" startIcon={<ArrowBackRoundedIcon />} sx={{ minHeight: 48 }} onClick={() => { setObservacaoFechamento(""); setModalFechamento(false); }} disabled={processando}>Cancelar</Button>
+                    <Button fullWidth type="submit" variant="contained" startIcon={<CheckRoundedIcon />} sx={{ minHeight: 48 }} disabled={processando || !podeFechar}>
                         {processando ? "Fechando…" : temDiferencaFechamento ? "Confirmar fechamento com divergência" : "Confirmar fechamento"}
                     </Button>
                 </DialogActions>
-            </form>
+            </Box>
         </Dialog>
         <Drawer anchor="right" open={detalhe !== null} onClose={() => setDetalhe(null)} slotProps={{ paper: { sx: { width: { xs: "100%", sm: 540 } } } }}>
             {detalhe && <Box role="dialog" aria-labelledby="caixa-detalhe-titulo" sx={{ display: "flex", flexDirection: "column", height: "100%" }}>

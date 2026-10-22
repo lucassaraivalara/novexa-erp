@@ -62,8 +62,8 @@ async function ambiente(t, op = {}) {
         if (r.method() === "POST") {
             posts.push({ path, dados: r.postDataJSON() });
             if (op.demoraPost) await new Promise(r => setTimeout(r, 150));
-            status = op.erroPost && posts.length === 1 ? 503 : 201;
-            data = status === 503 ? "Servidor indisponível. Tente novamente." : { id: 11 };
+            status = op.erroPost && posts.length === 1 ? typeof op.erroPost === "number" ? op.erroPost : 503 : 201;
+            data = status === 400 ? { detail: "Requisição inválida." } : status === 503 ? "Servidor indisponível. Tente novamente." : { id: 11 };
         } else {
             consultas.push(path);
             if (path.endsWith("abertura-contexto")) {
@@ -194,14 +194,77 @@ test("fechamento exige classificação completa e mantém entrega pendente expl�
     await expect(a.dialog.getByLabel("Valor mantido para troco (R$)")).toHaveValue("100,00");
     await expect(a.dialog.getByLabel("Recolher ao cofre (R$)")).toHaveValue("55,30");
     await a.dialog.getByLabel("Valor mantido para troco (R$)").fill("90");
-    await a.dialog.getByRole("button", { name: "Confirmar fechamento", exact: true }).click();
-    await expect(a.dialog.getByRole("alert").filter({hasText:"devem corresponder"})).toContainText("devem corresponder"); assert.equal(a.posts.length, 0);
+    await expect(a.dialog.getByLabel("Recolher ao cofre (R$)")).toHaveValue("65,30");
+    await a.dialog.getByLabel("Valor mantido para troco (R$)").fill("160");
+    await expect(a.dialog.getByRole("status").filter({hasText:"excede"})).toContainText("4,70");
+    await expect(a.dialog.getByRole("button", { name: "Confirmar fechamento", exact: true })).toBeDisabled(); assert.equal(a.posts.length, 0);
     await a.dialog.getByLabel("Valor mantido para troco (R$)").fill("100");
     await a.dialog.getByLabel("Conta COFRE").click(); await a.page.getByRole("option", { name: "Cofre Principal", exact: true }).click();
     await a.dialog.getByLabel("Responsável pelo recebimento").fill("Responsável local");
     await a.dialog.getByRole("button", { name: "Confirmar fechamento", exact: true }).click(); await expect(a.dialog).toHaveCount(0);
     assert.equal(a.posts.length, 1);
     assert.deepEqual([a.posts[0].dados.cofre.valorTroco, a.posts[0].dados.cofre.valor, a.posts[0].dados.cofre.confirmarEntrega], [100,55.3,false]);
+});
+
+test("fechamento calcula destino complementar e diferença, exige observação somente na divergência", async t => {
+    const a = await ambiente(t, { completo: true });
+    await a.page.getByRole("button", { name: "Fechar Caixa", exact: true }).click();
+    const contado = a.dialog.getByRole("textbox", { name: /Dinheiro físico contado/ });
+    await expect(contado).toBeFocused();
+    await contado.fill("155,30");
+    await expect(a.dialog.getByLabel("Diferença de caixa", { exact: true })).toContainText("0,00");
+    await a.dialog.getByLabel("Recolher ao cofre (R$)").fill("20");
+    await expect(a.dialog.getByLabel("Valor mantido para troco (R$)")).toHaveValue("135,30");
+    await contado.fill("150");
+    await expect(a.dialog.getByLabel("Valor mantido para troco (R$)")).toHaveValue("135,30");
+    await expect(a.dialog.getByLabel("Recolher ao cofre (R$)")).toHaveValue("14,70");
+    await expect(a.dialog.getByLabel("Diferença de caixa", { exact: true })).toContainText("5,30");
+    await expect(a.dialog.getByText("Falta de dinheiro", { exact: true })).toBeVisible();
+    await expect(a.dialog.getByRole("button", { name: "Confirmar fechamento com divergência", exact: true })).toBeDisabled();
+    await a.dialog.getByLabel("Observação da divergência").fill("Diferença identificada na conferência local simulada.");
+    await contado.fill("160");
+    await expect(a.dialog.getByText("Sobra de dinheiro", { exact: true })).toBeVisible();
+    await expect(a.dialog.getByLabel("Diferença de caixa", { exact: true })).toContainText("4,70");
+    await contado.fill("155,30");
+    await expect(a.dialog.getByLabel("Observação da divergência")).toHaveCount(0);
+    await a.dialog.getByLabel("Recolher ao cofre (R$)").fill("0");
+    await a.dialog.getByRole("button", { name: "Confirmar fechamento", exact: true }).click();
+    await expect(a.dialog).toHaveCount(0);
+    assert.equal(a.posts[0].dados.saldoFinal, 155.3); assert.equal(a.posts[0].dados.cofre.valorTroco, 155.3);
+});
+
+test("fechamento preserva valores em erro HTTP e oferece orientação operacional", async t => {
+    const a = await ambiente(t, { completo: true, erroPost: 400 });
+    await a.page.getByRole("button", { name: "Fechar Caixa", exact: true }).click();
+    await a.dialog.getByRole("textbox", { name: /Dinheiro físico contado/ }).fill("155,30");
+    await a.dialog.getByLabel("Recolher ao cofre (R$)").fill("0");
+    await a.dialog.getByRole("button", { name: "Confirmar fechamento", exact: true }).click();
+    await expect(a.dialog.getByRole("alert")).toContainText("Revise o dinheiro contado");
+    await expect(a.dialog.getByRole("textbox", { name: /Dinheiro físico contado/ })).toHaveValue("155,30");
+    await expect(a.dialog.getByLabel("Valor mantido para troco (R$)")).toHaveValue("155,30");
+    assert.equal(a.posts.length, 1);
+    await a.dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
+    await expect(a.dialog).toHaveCount(0); assert.equal(a.posts.length, 1);
+});
+
+test("fechamento mantém ações fixas e foco em desktop, notebook, mobile e janela baixa", async t => {
+    for (const [tema, viewport] of [["light", {width:1440,height:900}], ["dark", {width:1280,height:720}], ["auto", {width:390,height:844}], ["dark", {width:1024,height:480}]]) {
+        const a = await ambiente(t, { completo: true, tema, viewport });
+        await a.page.getByRole("button", { name: "Fechar Caixa", exact: true }).click();
+        const contado = a.dialog.getByRole("textbox", { name: /Dinheiro físico contado/ });
+        await expect(contado).toBeFocused(); await contado.fill("155,30");
+        await a.dialog.getByLabel("Recolher ao cofre (R$)").fill("0");
+        const confirmar = a.dialog.getByRole("button", { name: "Confirmar fechamento", exact: true });
+        await expect(confirmar).toBeInViewport(); await expect(a.dialog.getByRole("button", { name: "Cancelar", exact: true })).toBeInViewport();
+        assert.ok(await a.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+        await confirmar.focus(); await a.page.keyboard.press("Tab");
+        assert.ok(await a.dialog.evaluate(el => el.contains(document.activeElement)));
+        await a.page.screenshot({ path: join(tmpdir(), `novexa-fechamento-${tema}-${viewport.width}-${viewport.height}.png`), animations: "disabled" });
+        await a.page.keyboard.press("Escape"); await expect(a.dialog).toHaveCount(0);
+        await expect(a.page.getByRole("button", { name: "Fechar Caixa", exact: true })).toBeFocused();
+        assert.equal(a.posts.length, 0); assert.deepEqual(a.consoleErros, []);
+        await a.page.close();
+    }
 });
 test("fechamento integral em troco dispensa cofre e responsável", async t => {
     const a = await ambiente(t, { completo: true });
@@ -230,7 +293,7 @@ test("detalhe mostra composição auditada e preserva leitura do legado", async 
         valorAporteExterno: 10, observacaoAporte: "Complemento do proprietário", operadorAbertura: "Operador A", dataCriacao: "2026-10-20T10:00:00" }]) {
         const historico = { ...sessao, status: "FECHADO", dataHoraFechamento: "2026-10-20T11:00:00", operadorFechamento: {id:4,nome:"Operador A"}, totalVendas: 0, dinheiroEsperado:100, valorInformado:100, diferenca:0 };
         const a = await ambiente(t, { completo: true, historico, detalhe: { sessao: historico, resumo, modalidadeConferencia:"LEGADA", observacaoFechamento:null, conferencias:[], movimentacoes:[], composicaoAbertura:composicao } });
-        await a.page.getByRole("tab", { name: "Histórico de sessões" }).click();
+        await a.page.getByRole("tab", { name: "Caixas Anteriores", exact: true }).click();
         await a.page.getByRole("button", { name: "Ver detalhes" }).click();
         await expect(a.page.getByRole("heading", { name: "Composição da abertura" })).toBeVisible();
         if (composicao) {
