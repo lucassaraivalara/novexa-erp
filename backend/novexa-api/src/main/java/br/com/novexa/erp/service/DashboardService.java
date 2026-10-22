@@ -76,6 +76,7 @@ public class DashboardService {
                 quantidade,
                 ticketMedio,
                 produtos.contarEstoqueBaixo(empresaId),
+                produtos.contarEstoqueNegativo(empresaId),
                 clientes.countByEmpresaIdAndAtivoTrue(empresaId),
                 sessoesAbertas);
     }

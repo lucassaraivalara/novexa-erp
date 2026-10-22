@@ -61,6 +61,7 @@ class PaginacaoHttpTest {
         }
     }
 
+
     static String endpoint(String recurso) {
         return switch (recurso) {
             case "vendas", "clientes", "produtos" -> "/" + recurso;
@@ -125,6 +126,16 @@ class PaginacaoHttpTest {
         assertThat(consultar("/financeiro/transferencias?contaOrigemId=1002").get("totalItems").asLong()).isZero();
         assertThat(consultar("/financeiro/contas-pagar/resumo").get("emAberto").get("quantidade").asLong()).isEqualTo(3);
         assertThat(consultar("/financeiro/contas-pagar/categorias").size()).isEqualTo(2);
+    }
+
+    @Test void filtroEstoqueNegativoIsoladoPorEmpresa() throws Exception {
+        jdbc.update("insert into produtos(id,empresa_id,nome,codigo_interno,codigo_barras,unidade_medida,preco_custo,preco_venda,estoque_atual,estoque_minimo,controla_estoque,composto,composicao_versao,ativo,data_cadastro) values (10014,1001,'Negativo','COD4','BARRA4','UN',0,10,-2,5,true,false,0,true,CURRENT_TIMESTAMP)");
+        jdbc.update("insert into produtos(id,empresa_id,nome,codigo_interno,codigo_barras,unidade_medida,preco_custo,preco_venda,estoque_atual,estoque_minimo,controla_estoque,composto,composicao_versao,ativo,data_cadastro) values (10024,1002,'Negativo externo','COD4','BARRA4','UN',0,10,-1,5,true,false,0,true,CURRENT_TIMESTAMP)");
+
+        assertThat(ids(consultar("/produtos?situacaoEstoque=negativo"))).containsExactly(10014L);
+        assertThat(ids(consultar("/produtos?situacaoEstoque=zerado"))).containsExactly(10011L);
+        assertThat(consultar("/produtos?situacaoEstoque=baixo").get("totalItems").asLong()).isEqualTo(1);
+        assertThat(consultar("/produtos?situacaoEstoque=negativo&busca=COD4&campoBusca=codigoInterno").get("totalItems").asLong()).isEqualTo(1);
     }
 
     @Test void camposPermitidosEInvalidos() throws Exception {

@@ -14,6 +14,7 @@ export type DashboardResumo = {
     quantidadeVendasHoje: number;
     ticketMedioHoje: number;
     quantidadeProdutosEstoqueBaixo: number;
+    quantidadeProdutosEstoqueNegativo: number;
     quantidadeClientesAtivos: number;
     sessoesCaixaAbertas: SessaoCaixaDashboard[];
 };

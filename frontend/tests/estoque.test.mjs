@@ -25,11 +25,12 @@ beforeEach(() => {
     });
 });
 
-test("classifica estoque normal, baixo, zerado e sem controle", () => {
+test("classifica estoque normal, baixo, zerado, negativo e sem controle", () => {
     assert.equal(situacaoEstoque({ controlaEstoque: true, estoqueAtual: 11, estoqueMinimo: 10 }), "NORMAL");
     assert.equal(situacaoEstoque({ controlaEstoque: true, estoqueAtual: 10, estoqueMinimo: 10 }), "BAIXO");
     assert.equal(situacaoEstoque({ controlaEstoque: true, estoqueAtual: 0, estoqueMinimo: 10 }), "ZERADO");
-    assert.equal(situacaoEstoque({ controlaEstoque: false, estoqueAtual: 0, estoqueMinimo: 10 }), "SEM CONTROLE");
+    assert.equal(situacaoEstoque({ controlaEstoque: true, estoqueAtual: -3, estoqueMinimo: 10 }), "NEGATIVO");
+    assert.equal(situacaoEstoque({ controlaEstoque: false, estoqueAtual: -3, estoqueMinimo: 10 }), "SEM CONTROLE");
 });
 
 test("calcula entrada, saída e ajuste como novo saldo", () => {

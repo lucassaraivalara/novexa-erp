@@ -8,6 +8,7 @@ public record DashboardResumoDTO(
         long quantidadeVendasHoje,
         BigDecimal ticketMedioHoje,
         long quantidadeProdutosEstoqueBaixo,
+        long quantidadeProdutosEstoqueNegativo,
         long quantidadeClientesAtivos,
         List<SessaoCaixaAberta> sessoesCaixaAbertas) {
 

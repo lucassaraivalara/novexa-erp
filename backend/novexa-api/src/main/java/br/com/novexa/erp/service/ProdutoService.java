@@ -117,7 +117,7 @@ public class ProdutoService {
             throw br.com.novexa.erp.util.Paginacao.invalida("Campo de busca invalido.");
         if (situacao != null && !java.util.Set.of("ativos", "inativos", "todos").contains(situacao))
             throw br.com.novexa.erp.util.Paginacao.invalida("Situacao invalida.");
-        if (situacaoEstoque != null && !java.util.Set.of("baixo", "zerado", "normal", "semControle").contains(situacaoEstoque))
+        if (situacaoEstoque != null && !java.util.Set.of("baixo", "zerado", "negativo", "normal", "semControle").contains(situacaoEstoque))
             throw br.com.novexa.erp.util.Paginacao.invalida("Situacao de estoque invalida.");
         if (pageable.getSort().stream().anyMatch(o -> o.getProperty().equals("estoqueAtual")))
             pageable=org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(),pageable.getPageSize(),org.springframework.data.domain.Sort.by(pageable.getSort().stream().map(o -> new org.springframework.data.domain.Sort.Order(o.getDirection(),o.getProperty().equals("estoqueAtual")?"saldoDisponivel":o.getProperty())).toList()));

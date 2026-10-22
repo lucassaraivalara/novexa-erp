@@ -29,6 +29,7 @@ public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
               and (:estoque is null
                 or (:estoque = 'baixo' and p.controlaEstoque = true and p.saldoDisponivel > 0 and p.saldoDisponivel <= p.estoqueMinimo)
                 or (:estoque = 'zerado' and p.controlaEstoque = true and p.saldoDisponivel = 0)
+                or (:estoque = 'negativo' and p.controlaEstoque = true and p.saldoDisponivel < 0)
                 or (:estoque = 'normal' and p.controlaEstoque = true and p.saldoDisponivel > p.estoqueMinimo)
                 or (:estoque = 'semControle' and p.controlaEstoque = false))
             """)
@@ -53,6 +54,16 @@ public interface ProdutoRepository extends JpaRepository<ProdutoEntity, Long> {
               and produto.saldoDisponivel <= produto.estoqueMinimo
             """)
     long contarEstoqueBaixo(@Param("empresaId") Long empresaId);
+
+    @Query("""
+            select count(produto)
+            from ProdutoEntity produto
+            where produto.empresa.id = :empresaId
+              and produto.ativo = true
+              and produto.controlaEstoque = true
+              and produto.saldoDisponivel < 0
+            """)
+    long contarEstoqueNegativo(@Param("empresaId") Long empresaId);
 
     boolean existsByEmpresaIdAndCodigoInterno(Long empresaId, String codigoInterno);
 

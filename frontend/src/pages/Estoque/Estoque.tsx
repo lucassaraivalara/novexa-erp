@@ -6,7 +6,7 @@ import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-    Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
+    Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
     Divider, Link, MenuItem, Stack, Tab, Tabs, TablePagination, TextField, Typography,
 } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
@@ -35,8 +35,14 @@ const camposBusca: Record<CampoBuscaEstoque, { rotulo: string; placeholder: stri
 };
 
 const coresSituacao: Record<SituacaoEstoque, "default" | "success" | "warning" | "error"> = {
-    "SEM CONTROLE": "default", NORMAL: "success", BAIXO: "warning", ZERADO: "error",
+    "SEM CONTROLE": "default", NEGATIVO: "error", NORMAL: "success", BAIXO: "warning", ZERADO: "error",
 };
+
+const situacoesFiltro = ["zerado", "baixo", "negativo", "normal", "semControle"];
+
+function saldoNegativo(produto: Pick<Produto, "controlaEstoque" | "estoqueAtual">): boolean {
+    return produto.controlaEstoque && Number(produto.estoqueAtual) < 0;
+}
 
 function codigoProduto(produto: Produto): string {
     return produto.codigoInterno || produto.codigoBarras || "—";
@@ -59,6 +65,8 @@ export default function Estoque() {
 }
 
 function SaldoEstoque() {
+    const [paramsIniciais] = useSearchParams();
+    const situacaoInicial = paramsIniciais.get("situacaoEstoque");
     const [produtos, setProdutos] = useState<Produto[]>([]);
     const [busca, setBusca] = useState("");
     const [campoBusca, setCampoBusca] = useState<CampoBuscaEstoque | null>(null);
@@ -76,7 +84,7 @@ function SaldoEstoque() {
     const [salvando, setSalvando] = useState(false);
     const [totalItems, setTotalItems] = useState(0);
     const [revisao, setRevisao] = useState(0);
-    const [situacao, setSituacao] = useState("");
+    const [situacao, setSituacao] = useState(situacaoInicial && situacoesFiltro.includes(situacaoInicial) ? situacaoInicial : "");
     const [ordenacao, setOrdenacao] = useState({ campo: "nome", direcao: "asc" as "asc" | "desc" });
     const [paginaHistorico, setPaginaHistorico] = useState(0);
     const [sizeHistorico, setSizeHistorico] = useState(25);
@@ -165,7 +173,7 @@ function SaldoEstoque() {
     const colunas: Coluna<ProdutoEstoque>[] = [
         { campo: "nome", cabecalho: "Produto", largura: 280, pesquisavel: true, ordenavel: true, render: (_, produto) => <>{produto.nome}{produto.composto && <Typography variant="caption" sx={{ display: "block" }} color="text.secondary">Kit/Combo · disponibilidade calculada pelos componentes</Typography>}</> },
         { campo: "codigoEstoque", cabecalho: "Código", largura: 135, pesquisavel: true, ordenavel: true },
-        { campo: "estoqueAtual", cabecalho: "Estoque atual", largura: 125, alinhar: "right", ordenavel: true, render: (valor) => quantidadeFormatada.format(Number(valor)) },
+        { campo: "estoqueAtual", cabecalho: "Estoque atual", largura: 125, alinhar: "right", ordenavel: true, render: (valor, produto) => <Box component="span" sx={saldoNegativo(produto) ? { color: "error.main", fontWeight: 600 } : undefined}>{quantidadeFormatada.format(Number(valor))}</Box> },
         { campo: "estoqueMinimo", cabecalho: "Estoque mínimo", largura: 125, alinhar: "right", ordenavel: true, render: (valor) => quantidadeFormatada.format(Number(valor)) },
         { campo: "situacao", cabecalho: "Situação", largura: 135, render: (valor) => { const situacao = valor as SituacaoEstoque; return <Chip size="small" label={situacao} color={coresSituacao[situacao]} variant="outlined" />; } },
     ];
@@ -199,6 +207,7 @@ function SaldoEstoque() {
                     onChange={e => { setSituacao(e.target.value); setPagina(0); }}>
                     <MenuItem value="">Todas</MenuItem>
                     <MenuItem value="zerado">Zerado</MenuItem><MenuItem value="baixo">Baixo</MenuItem>
+                    <MenuItem value="negativo">Negativo</MenuItem>
                     <MenuItem value="normal">Normal</MenuItem><MenuItem value="semControle">Sem controle</MenuItem>
                 </TextField>
             </PageFilters>

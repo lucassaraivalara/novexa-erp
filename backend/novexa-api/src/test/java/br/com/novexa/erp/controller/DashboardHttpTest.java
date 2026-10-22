@@ -59,6 +59,7 @@ class DashboardHttpTest {
         cliente(outraEmpresa, "Outro tenant", true);
 
         produto(empresa, "Baixo", true, true, "2", "2");
+        produto(empresa, "Negativo", true, true, "-4", "2");
         produto(empresa, "Normal", true, true, "3", "2");
         produto(empresa, "Sem controle", true, false, "0", "2");
         produto(empresa, "Inativo", false, true, "0", "2");
@@ -88,7 +89,8 @@ class DashboardHttpTest {
                 .andExpect(jsonPath("$.faturamentoHoje").value(150.00))
                 .andExpect(jsonPath("$.quantidadeVendasHoje").value(2))
                 .andExpect(jsonPath("$.ticketMedioHoje").value(75.00))
-                .andExpect(jsonPath("$.quantidadeProdutosEstoqueBaixo").value(1))
+                .andExpect(jsonPath("$.quantidadeProdutosEstoqueBaixo").value(2))
+                .andExpect(jsonPath("$.quantidadeProdutosEstoqueNegativo").value(1))
                 .andExpect(jsonPath("$.quantidadeClientesAtivos").value(1))
                 .andExpect(jsonPath("$.sessoesCaixaAbertas.length()").value(2))
                 .andExpect(jsonPath("$.sessoesCaixaAbertas[0].sessaoId").value(primeira.getId()))
@@ -112,6 +114,7 @@ class DashboardHttpTest {
                 .andExpect(jsonPath("$.quantidadeVendasHoje").value(0))
                 .andExpect(jsonPath("$.ticketMedioHoje").value(0))
                 .andExpect(jsonPath("$.quantidadeProdutosEstoqueBaixo").value(0))
+                .andExpect(jsonPath("$.quantidadeProdutosEstoqueNegativo").value(0))
                 .andExpect(jsonPath("$.quantidadeClientesAtivos").value(0))
                 .andExpect(jsonPath("$.sessoesCaixaAbertas").isEmpty());
 

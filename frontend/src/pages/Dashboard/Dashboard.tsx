@@ -177,16 +177,28 @@ export default function Dashboard() {
 
                 <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 1.75 }, minWidth: 0 }}>
                     <SectionHeading icone={<WarehouseRoundedIcon />} titulo="Alertas operacionais" />
-                    {resumo.quantidadeProdutosEstoqueBaixo > 0 ? <ButtonBase component={Link} to="/estoque" aria-label={`${resumo.quantidadeProdutosEstoqueBaixo} produtos abaixo do mínimo. Revisar estoque.`} sx={{ width: "100%", textAlign: "left", borderRadius: 2 }}>
-                        <Paper variant="outlined" sx={{ display: "flex", width: "100%", alignItems: "center", gap: 1.25, p: 1.25, bgcolor: theme => theme.palette.mode === "dark" ? theme.palette.warning.light : "#FFF7E9", borderColor: theme => theme.palette.mode === "dark" ? theme.palette.divider : "#F4E4C8", boxShadow: "none" }}>
-                            <ToneIcon tom="amber"><WarehouseRoundedIcon /></ToneIcon>
-                            <Box sx={{ minWidth: 0 }}>
-                                <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{resumo.quantidadeProdutosEstoqueBaixo} produtos abaixo do mínimo</Typography>
-                                <Typography variant="caption" color="text.secondary">Revise o estoque e evite falta de produtos.</Typography>
-                            </Box>
-                            <ArrowForwardRoundedIcon sx={{ ml: "auto", flexShrink: 0, fontSize: 17, color: "warning.main" }} />
-                        </Paper>
-                    </ButtonBase> : <Typography color="text.secondary" sx={{ py: 1.5, fontSize: 13 }}>Nenhum alerta operacional no momento.</Typography>}
+                    <Stack spacing={1}>
+                        {resumo.quantidadeProdutosEstoqueNegativo > 0 && <ButtonBase component={Link} to="/estoque?situacaoEstoque=negativo" aria-label={`${resumo.quantidadeProdutosEstoqueNegativo} produtos com estoque negativo. Revisar estoque.`} sx={{ width: "100%", textAlign: "left", borderRadius: 2 }}>
+                            <Paper variant="outlined" sx={{ display: "flex", width: "100%", alignItems: "center", gap: 1.25, p: 1.25, bgcolor: theme => theme.palette.mode === "dark" ? theme.palette.error.light : "#FDECEA", borderColor: theme => theme.palette.mode === "dark" ? theme.palette.divider : "#F5C6C0", boxShadow: "none" }}>
+                                <Box sx={{ display: "grid", width: 34, height: 34, flexShrink: 0, placeItems: "center", borderRadius: 1.5, color: theme => theme.palette.mode === "dark" ? theme.palette.error.main : "#C62828", bgcolor: theme => theme.palette.mode === "dark" ? theme.palette.error.dark : "#FBDCD7", "& svg": { fontSize: 20 } }}><WarehouseRoundedIcon /></Box>
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{resumo.quantidadeProdutosEstoqueNegativo} {resumo.quantidadeProdutosEstoqueNegativo === 1 ? "produto com estoque negativo" : "produtos com estoque negativo"}</Typography>
+                                    <Typography variant="caption" color="text.secondary">Saldo abaixo de zero. Regularize com entrada ou ajuste.</Typography>
+                                </Box>
+                                <ArrowForwardRoundedIcon sx={{ ml: "auto", flexShrink: 0, fontSize: 17, color: "error.main" }} />
+                            </Paper>
+                        </ButtonBase>}
+                        {resumo.quantidadeProdutosEstoqueBaixo > 0 ? <ButtonBase component={Link} to="/estoque" aria-label={`${resumo.quantidadeProdutosEstoqueBaixo} produtos abaixo do mínimo. Revisar estoque.`} sx={{ width: "100%", textAlign: "left", borderRadius: 2 }}>
+                            <Paper variant="outlined" sx={{ display: "flex", width: "100%", alignItems: "center", gap: 1.25, p: 1.25, bgcolor: theme => theme.palette.mode === "dark" ? theme.palette.warning.light : "#FFF7E9", borderColor: theme => theme.palette.mode === "dark" ? theme.palette.divider : "#F4E4C8", boxShadow: "none" }}>
+                                <ToneIcon tom="amber"><WarehouseRoundedIcon /></ToneIcon>
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{resumo.quantidadeProdutosEstoqueBaixo} produtos abaixo do mínimo</Typography>
+                                    <Typography variant="caption" color="text.secondary">Revise o estoque e evite falta de produtos.</Typography>
+                                </Box>
+                                <ArrowForwardRoundedIcon sx={{ ml: "auto", flexShrink: 0, fontSize: 17, color: "warning.main" }} />
+                            </Paper>
+                        </ButtonBase> : resumo.quantidadeProdutosEstoqueNegativo === 0 && <Typography color="text.secondary" sx={{ py: 1.5, fontSize: 13 }}>Nenhum alerta operacional no momento.</Typography>}
+                    </Stack>
                 </Paper>
             </Box>
         </>}
