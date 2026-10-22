@@ -133,7 +133,7 @@ export function pagamentosRascunho(r: RascunhoPDV): PagamentoPDV[] {
 }
 export function parcelamentoValido(p: PagamentoPDV, config?: ConfiguracaoFormaPagamento): boolean {
     const quantidade = p.parcelasConsumidor ?? 1;
-    return Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= (config?.maximoParcelasConsumidor ?? (config ? 1 : 120))
+    return Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= (config?.maximoParcelasConsumidor ?? (config ? 1 : 12))
         && (p.formaPagamento === "CARTAO_CREDITO" || quantidade === 1);
 }
 export function criarPedido(r: RascunhoPDV, chave: string): VendaInput {

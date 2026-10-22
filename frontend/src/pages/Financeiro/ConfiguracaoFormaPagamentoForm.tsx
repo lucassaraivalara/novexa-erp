@@ -60,7 +60,7 @@ const criarSchema = (legadaSemDestino: boolean) => yup.object({
     maximoParcelasConsumidor: numeroOpcional().when("formaPagamentoId", {
         is: 4,
         then: campo => campo.required("Informe o máximo de parcelas do consumidor.")
-            .integer("Informe um número inteiro de parcelas.").min(1, "Informe de 1 a 120 parcelas.").max(120, "Informe de 1 a 120 parcelas."),
+            .integer("Informe um número inteiro de parcelas.").min(1, "Informe de 1 a 12 parcelas.").max(12, "Informe de 1 a 12 parcelas."),
     }),
 });
 
@@ -264,7 +264,7 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                                             label="Máximo de parcelas do consumidor" error={!!errors.maximoParcelasConsumidor}
                                             onChange={evento => field.onChange(evento.target.value === "" ? null : Number(evento.target.value))}
                                             helperText={errors.maximoParcelasConsumidor?.message ?? "1 permite apenas crédito à vista. Não altera taxas nem o prazo de recebimento da empresa."}
-                                            slotProps={{ htmlInput: { min: 1, max: 120, step: 1, inputMode: "numeric" } }} />
+                                            slotProps={{ htmlInput: { min: 1, max: 12, step: 1, inputMode: "numeric" } }} />
                                     )} />}
                                     <Controller name="taxaPercentual" control={control} render={({ field }) => (
                                         <TextField {...field} value={field.value ?? ""}

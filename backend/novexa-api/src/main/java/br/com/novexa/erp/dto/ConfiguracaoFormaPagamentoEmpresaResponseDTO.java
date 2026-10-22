@@ -16,6 +16,6 @@ public record ConfiguracaoFormaPagamentoEmpresaResponseDTO(Long id, String nomeE
                 c.getFormaPagamento().getId(), c.getTipo(), c.isAtivo(), destino == null ? null
                 : new Destino(destino.getId(), destino.getNome(), destino.getTipo(), destino.isAtivo()),
                 c.getDataCriacao(), c.getDataAtualizacao(), c.getTaxaPercentual(), c.getTaxaFixa(), c.getPrazoRecebimentoDias(),
-                c.getTipo() == TipoFormaPagamento.CREDITO && c.getMaximoParcelasConsumidor() == null ? 1 : c.getMaximoParcelasConsumidor());
+                c.getTipo() == TipoFormaPagamento.CREDITO && c.getMaximoParcelasConsumidor() == null ? Integer.valueOf(1) : c.getMaximoParcelasConsumidor());
     }
 }
