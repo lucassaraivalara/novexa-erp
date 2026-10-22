@@ -437,17 +437,17 @@ test("rascunho com itens e pagamento sobrevive ao reload; sucesso remove storage
         const quantidade = await conferirQuantidade(page, "Produto remoto", "1");
         await quantidade.press("Enter"); await esperarFoco(page, busca);
         await abrirPagamento(page);
-        await page.getByLabel("Entregue em Dinheiro (R$)").fill("20");
+        await page.getByLabel("Valor de Dinheiro (R$)").fill("20");
         await page.reload(); await esperarFoco(page, busca);
         assert.equal(await quantidade.inputValue(), "1");
         await abrirPagamento(page);
-        assert.equal(await page.getByLabel("Entregue em Dinheiro (R$)").inputValue(), "20,00");
+        assert.equal(await page.getByLabel("Valor de Dinheiro (R$)").inputValue(), "20,00");
         await confirmarPagamento(page);
         await page.getByText("Venda concluída", { exact: true }).waitFor();
         assert.equal(await page.evaluate(() => sessionStorage.getItem("novexa-pdv:1:1:10")), null);
         await page.reload(); await esperarFoco(page, busca);
         assert.equal(await quantidade.count(), 0);
-        assert.equal(await page.getByLabel("Entregue em Dinheiro (R$)").count(), 0);
+        assert.equal(await page.getByLabel("Valor de Dinheiro (R$)").count(), 0);
     } finally { await page.close(); }
 });
 
@@ -764,7 +764,7 @@ test("Cliente descarta resposta antiga e cancela ao fechar; venda sem cliente co
         if (await page.getByRole("dialog").count()) await page.keyboard.press("Escape");
         await busca.fill("P1"); await busca.press("Enter"); await page.getByLabel("Quantidade de Produto remoto").waitFor();
         await abrirPagamento(page);
-        await page.getByLabel("Entregue em Dinheiro (R$)").fill("10"); await confirmarPagamento(page);
+        await page.getByLabel("Valor de Dinheiro (R$)").fill("10"); await confirmarPagamento(page);
         await esperar(() => estado.requests.some(r => r.path === "/vendas" && r.method === "POST"));
         const pedido = JSON.parse(estado.requests.find(r => r.path === "/vendas").body);
         assert.equal(pedido.clienteId, null); assert.equal(pedido.empresaId, undefined); assert.equal(pedido.tenantId, undefined);
@@ -1126,19 +1126,77 @@ for (const [nome, id] of [["PIX Loja", 2], ["Débito Loja", 3], ["Crédito Loja"
     } finally { await page.close(); }
 });
 
-test("lista direta: dinheiro aplicado e entregue são independentes, misto e troco não redistribuem valores", async () => {
+test("lista direta: dinheiro entregue deriva aplicação e troco, preservando outros meios e reload", async () => {
     const { page, estado, busca } = await abrir();
     try {
         await adicionarCem(page, busca); await meio(page, "Dinheiro", "50"); await meio(page, "PIX Loja", "30"); await meio(page, "Crédito Loja");
-        await page.getByLabel("Entregue em Dinheiro (R$)").fill("60");
+        await page.getByLabel("Valor de Dinheiro (R$)").fill("60");
         assert.match(await page.getByLabel("Troco em Dinheiro").innerText(), /10,00/);
         assert.match(await page.getByLabel("Valor aplicado", { exact: true }).innerText(), /100,00/);
         assert.equal(await valorMeio(page, "PIX Loja").inputValue(), "30,00");
         assert.equal(await valorMeio(page, "Crédito Loja").inputValue(), "20,00");
         await page.reload(); await esperarFoco(page, busca); await abrirPagamento(page);
-        assert.equal(await page.getByLabel("Entregue em Dinheiro (R$)").inputValue(), "60,00");
+        assert.equal(await page.getByLabel("Valor de Dinheiro (R$)").inputValue(), "60,00");
         await confirmarPagamento(page); await page.getByText("Venda concluída", { exact: true }).waitFor();
         assert.deepEqual(JSON.parse(gravacoes(estado)[0].body).pagamentos, [{ configuracaoFormaPagamentoId: 1, valor: 50, valorRecebido: 60 }, { configuracaoFormaPagamentoId: 2, valor: 30 }, { configuracaoFormaPagamentoId: 4, valor: 20 }]);
+    } finally { await page.close(); }
+});
+
+test("correção pagamento: foco numérico, setas e Enter completam misto sem sobrescrever ou duplicar", async () => {
+    const { page, estado, busca } = await abrir();
+    try {
+        await adicionarCem(page, busca);
+        const dinheiro = valorMeio(page, "Dinheiro"), pix = valorMeio(page, "PIX Loja"), debito = valorMeio(page, "Débito Loja");
+        await esperarFoco(page, dinheiro);
+        await dinheiro.fill("30"); await dinheiro.press("ArrowDown"); await esperarFoco(page, pix);
+        assert.equal(await pix.inputValue(), "70,00");
+        assert.deepEqual(await pix.evaluate(el => [el.selectionStart, el.selectionEnd]), [0, 5]);
+        await pix.fill("20"); await pix.press("Enter"); await esperarFoco(page, debito);
+        assert.equal(await debito.inputValue(), "50,00");
+        await debito.press("ArrowUp"); await esperarFoco(page, pix); assert.equal(await pix.inputValue(), "20,00");
+        await pix.press("ArrowDown"); await esperarFoco(page, debito); assert.equal(await debito.inputValue(), "50,00");
+        await debito.press("Enter"); await esperarFoco(page, concluir(page));
+        assert.equal(gravacoes(estado).length, 0);
+        estado.atrasarVenda = true;
+        await page.keyboard.press("Enter"); await page.keyboard.press("Enter");
+        await page.getByText("Venda concluída", { exact: true }).waitFor();
+        assert.equal(gravacoes(estado).length, 1);
+        assert.deepEqual(JSON.parse(gravacoes(estado)[0].body).pagamentos, [
+            { configuracaoFormaPagamentoId: 1, valor: 30, valorRecebido: 30 },
+            { configuracaoFormaPagamentoId: 2, valor: 20 }, { configuracaoFormaPagamentoId: 3, valor: 50 }]);
+    } finally { await page.close(); }
+});
+
+for (const [total, entregue, cartao, aplicado, troco, falta] of [[2.5, 4, 0, 2.5, 1.5, 0], [100, 50, 60, 40, 10, 0], [100, 30, 0, 30, 0, 70], [100, 100, 40, 60, 40, 0]]) {
+    test(`correção pagamento: dinheiro ${entregue}, cartão ${cartao}, total ${total}`, async () => {
+        const { page, estado, busca } = await abrir();
+        try {
+            estado.produtos = [{ ...produto(), precoVenda: total }];
+            await busca.fill("P1"); await busca.press("Enter"); await conferirQuantidade(page, "Produto remoto", "1");
+            await abrirPagamento(page, false);
+            const dinheiro = valorMeio(page, "Dinheiro"); await esperarFoco(page, dinheiro);
+            await dinheiro.fill(String(entregue));
+            if (cartao) await meio(page, "Crédito Loja", String(cartao));
+            assert.equal(await page.getByText("Recebimento em dinheiro", { exact: true }).count(), 0);
+            assert.match(await page.getByLabel("Valor aplicado", { exact: true }).innerText(), new RegExp((aplicado + cartao).toFixed(2).replace(".", ",")));
+            assert.match(await page.getByLabel("Falta a pagar", { exact: true }).innerText(), new RegExp(falta.toFixed(2).replace(".", ",")));
+            if (troco) assert.match(await page.getByLabel("Troco em Dinheiro").innerText(), new RegExp(troco.toFixed(2).replace(".", ",")));
+            else assert.equal(await page.getByLabel("Troco em Dinheiro").count(), 0);
+            assert.equal(await concluir(page).isEnabled(), falta === 0);
+            assert.equal(gravacoes(estado).length, 0);
+        } finally { await page.close(); }
+    });
+}
+
+test("correção pagamento: foco inicial respeita a ordem recebida de configurações", async () => {
+    const configuracoesPagamento = [{ id: 4, tipo: "CREDITO", nomeExibicao: "Crédito primeiro", ativo: true }, { id: 1, tipo: "DINHEIRO", nomeExibicao: "Dinheiro", ativo: true }];
+    const { page, busca } = await abrir({ configuracoesPagamento });
+    try {
+        await busca.fill("P1"); await busca.press("Enter"); await conferirQuantidade(page, "Produto remoto", "1");
+        await abrirPagamento(page, false); const credito = valorMeio(page, "Crédito primeiro"); await esperarFoco(page, credito);
+        await credito.fill("3"); await credito.press("ArrowDown"); await esperarFoco(page, valorMeio(page, "Dinheiro"));
+        assert.equal(await valorMeio(page, "Dinheiro").inputValue(), "7,00");
+        await page.waitForTimeout(350); await esperarFoco(page, valorMeio(page, "Dinheiro"));
     } finally { await page.close(); }
 });
 
@@ -1148,7 +1206,10 @@ test("lista direta: editar, zerar e limpar remove somente o meio escolhido; inv�
         await adicionarCem(page, busca); await meio(page, "Dinheiro", "40"); await meio(page, "PIX Loja");
         assert.equal(await concluir(page).isEnabled(), true);
         const pix = valorMeio(page, "PIX Loja");
-        for (const invalido of ["61", "101", "-1", "2,501", "texto"]) { await pix.fill(invalido); assert.equal(await concluir(page).isDisabled(), true); }
+        await pix.fill("61"); assert.equal(await concluir(page).isEnabled(), true);
+        assert.match(await page.getByLabel("Troco em Dinheiro").innerText(), /1,00/);
+        await pix.fill("101"); assert.equal(await concluir(page).isDisabled(), true);
+        for (const invalido of ["-1", "2,501", "texto"]) { await pix.fill(invalido); assert.equal(await pix.inputValue(), "101"); }
         await pix.fill("0"); await pix.press("Tab"); assert.match(await page.getByLabel("Falta a pagar", { exact: true }).innerText(), /60,00/);
         await meio(page, "PIX Loja"); assert.equal(await pix.inputValue(), "60,00");
         await pix.fill(""); await pix.press("Tab"); assert.equal(await concluir(page).isDisabled(), true);
@@ -1162,11 +1223,11 @@ test("lista direta: valor entregue insuficiente bloqueia; troco zero e positivo 
     const { page, busca } = await abrir();
     try {
         await adicionarCem(page, busca);
-        const entregue = page.getByLabel("Entregue em Dinheiro (R$)");
+        const entregue = page.getByLabel("Valor de Dinheiro (R$)");
         await entregue.fill("99"); assert.equal(await concluir(page).isDisabled(), true);
-        await entregue.fill("100"); assert.equal(await concluir(page).isEnabled(), true); assert.match(await page.getByLabel("Troco em Dinheiro").innerText(), /0,00/);
+        await entregue.fill("100"); assert.equal(await concluir(page).isEnabled(), true); assert.equal(await page.getByLabel("Troco em Dinheiro").count(), 0);
         await entregue.fill("130"); assert.equal(await concluir(page).isEnabled(), true); assert.match(await page.getByLabel("Troco em Dinheiro").innerText(), /30,00/);
-        assert.equal(await valorMeio(page, "Dinheiro").inputValue(), "100,00");
+        await entregue.press("Tab"); assert.equal(await valorMeio(page, "Dinheiro").inputValue(), "130,00");
     } finally { await page.close(); }
 });
 
@@ -1199,7 +1260,7 @@ for (const imediato of [null, "Dinheiro", "PIX Loja", "Crédito Loja"]) test(`li
         await page.getByLabel("Valor da parcela 1 (R$)").fill(valor); await page.getByRole("button", { name: "Adicionar parcela", exact: true }).click();
         await page.getByLabel("Vencimento 2", { exact: true }).fill("2026-12-15");
         assert.equal(await concluir(page).isEnabled(), true);
-        if (imediato === "Dinheiro") await page.getByLabel("Entregue em Dinheiro (R$)").fill("50");
+        if (imediato === "Dinheiro") await page.getByLabel("Valor de Dinheiro (R$)").fill("50");
         await confirmarPagamento(page); await page.getByText("Venda concluída", { exact: true }).waitFor();
         const pedido = JSON.parse(gravacoes(estado)[0].body);
         assert.equal(pedido.clienteId, 8); assert.deepEqual(pedido.parcelasPrazo, [{ valor: Number(valor), vencimento: "2026-11-15" }, { valor: Number(valor), vencimento: "2026-12-15" }]);
@@ -1224,12 +1285,11 @@ test("lista direta: teclado, F2, Escape, retorno e rascunho sem confirmação an
         await busca.press("F2"); assert.equal(await page.getByRole("dialog", { name: "Pagamento da venda" }).count(), 0);
         await busca.fill("P1"); await busca.press("Enter"); await conferirQuantidade(page, "Produto remoto", "1");
         await page.keyboard.press("F2"); const dialogo = await abrirPagamento(page, false);
-        const dinheiro = dialogo.getByRole("button", { name: "Usar Dinheiro", exact: true }); await esperarFoco(page, dinheiro);
-        await page.keyboard.press("Tab"); await esperarFoco(page, valorMeio(page, "Dinheiro")); await page.keyboard.press("Shift+Tab"); await esperarFoco(page, dinheiro);
-        await page.keyboard.press("Space"); await esperarFoco(page, valorMeio(page, "Dinheiro"));
-        await page.getByLabel("Entregue em Dinheiro (R$)").fill("20");
+        const dinheiro = valorMeio(page, "Dinheiro"); await esperarFoco(page, dinheiro);
+        await page.keyboard.press("Tab"); await page.keyboard.press("Shift+Tab"); await esperarFoco(page, dinheiro);
+        await page.getByLabel("Valor de Dinheiro (R$)").fill("20");
         await page.keyboard.press("Escape"); await dialogo.waitFor({ state: "hidden" }); assert.equal(gravacoes(estado).length, 0);
-        await abrirPagamento(page, false); assert.equal(await page.getByLabel("Entregue em Dinheiro (R$)").inputValue(), "20,00");
+        await abrirPagamento(page, false); assert.equal(await page.getByLabel("Valor de Dinheiro (R$)").inputValue(), "20,00");
         await dialogo.getByRole("button", { name: "Voltar para a venda", exact: true }).click(); await dialogo.waitFor({ state: "hidden" }); assert.equal(gravacoes(estado).length, 0);
         await page.keyboard.press("F2"); await abrirPagamento(page, false); estado.atrasarVenda = true;
         await page.keyboard.press("F2"); await page.keyboard.press("F2");
@@ -1263,7 +1323,7 @@ test("lista direta: muitas configurações e itens rolam internamente, total e c
 for (const tema of ["light", "dark", "auto"]) test(`lista direta: visual desktop/notebook/mobile em ${tema}`, async () => {
     const { page, estado, busca } = await abrir({ tema, colorScheme: "dark" });
     try {
-        await adicionarCem(page, busca); await meio(page, "Dinheiro", "50"); await meio(page, "PIX Loja"); await page.getByLabel("Entregue em Dinheiro (R$)").fill("60"); await page.getByLabel("Entregue em Dinheiro (R$)").press("Tab");
+        await adicionarCem(page, busca); await meio(page, "Dinheiro", "50"); await meio(page, "PIX Loja"); await page.getByLabel("Valor de Dinheiro (R$)").fill("60"); await page.getByLabel("Valor de Dinheiro (R$)").press("Tab");
         for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 600 }, { width: 390, height: 844 }, { width: 390, height: 480 }]) {
             await page.setViewportSize(viewport); const dialogo = page.getByRole("dialog", { name: "Pagamento da venda" });
             await page.waitForTimeout(200);

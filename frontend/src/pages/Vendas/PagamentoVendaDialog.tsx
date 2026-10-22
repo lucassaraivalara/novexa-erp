@@ -18,7 +18,7 @@ import ValorMonetarioPDV from "./ValorMonetarioPDV";
 type Props = {
     open: boolean; rascunho: RascunhoPDV; t: ReturnType<typeof totais>; configuracoes: ConfiguracaoFormaPagamento[];
     carregando: boolean; erroConfig: string; erro: string; estoqueConfirmado: boolean; bloqueado: boolean; salvando: boolean; confirmarDesabilitado: boolean;
-    primeiraFormaRef: RefObject<HTMLButtonElement | null>; recebidoRef: RefObject<HTMLInputElement | null>;
+    primeiraFormaRef: RefObject<HTMLInputElement | null>; recebidoRef: RefObject<HTMLInputElement | null>;
     confirmarRef: RefObject<HTMLButtonElement | null>; erroRef: RefObject<HTMLDivElement | null>;
     onAlterar: (patch: Partial<RascunhoPDV>) => void; onCliente: () => void; onConfirmar: () => void; onVoltar: () => void;
 };
@@ -28,7 +28,6 @@ const meios = { DINHEIRO: { forma: "DINHEIRO", Icone: PaymentsOutlinedIcon }, PI
 export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes, carregando, erroConfig, erro, estoqueConfirmado, bloqueado, salvando,
     confirmarDesabilitado, primeiraFormaRef, recebidoRef, confirmarRef, erroRef, onAlterar, onCliente, onConfirmar, onVoltar }: Props) {
     const campos = useRef<Record<string, HTMLInputElement | null>>({});
-    const botoes = useRef<Record<string, HTMLButtonElement | null>>({});
     const pagamentos = pagamentosRascunho(rascunho);
     const focoValor = (chave: string) => requestAnimationFrame(() => { campos.current[chave]?.focus(); campos.current[chave]?.select(); });
     function alterarValor(config: ConfiguracaoFormaPagamento, valor: string) {
@@ -39,8 +38,7 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
         const dinheiro = config.tipo === "DINHEIRO";
         const pagamento: PagamentoPDV = { configuracaoFormaPagamentoId: config.id, nomeExibicao: config.nomeExibicao,
             formaPagamento: meios[config.tipo as keyof typeof meios].forma, valor,
-            recebido: dinheiro ? !atual || atual.recebido === atual.valor ? valor : atual.recebido : "",
-            ...(dinheiro ? { valorDinheiroExplicito: true } : {}) };
+            recebido: dinheiro ? valor : "" };
         onAlterar({ pagamentos: atual ? pagamentos.map(p => p === atual ? pagamento : p) : [...outros, pagamento] });
     }
     function selecionar(config: ConfiguracaoFormaPagamento) {
@@ -54,12 +52,14 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
         onAlterar({ pagamentos: [...outros, { configuracaoFormaPagamentoId: null, nomeExibicao: "A prazo", formaPagamento: "A_PRAZO", valor, recebido: "" }],
             parcelasPrazo: [{ valor, vencimento: t.parcelasPrazo[0]?.vencimento ?? "" }] });
     }
-    function avancar(chave: string) {
-        if (!confirmarDesabilitado) { confirmarRef.current?.focus(); return; }
-        const proxima = configuracoes.find(c => String(c.id) !== chave && !pagamentos.some(p => p.configuracaoFormaPagamentoId === c.id));
-        if (proxima) botoes.current[String(proxima.id)]?.focus();
+    function avancar(chave: string, direcao = 1, concluir = true) {
+        if (concluir && !confirmarDesabilitado) { confirmarRef.current?.focus(); return; }
+        if (concluir && t.restante <= 0) return;
+        const indice = configuracoes.findIndex(c => String(c.id) === chave);
+        const proxima = configuracoes[indice + direcao];
+        if (proxima) { if (direcao > 0) selecionar(proxima); else focoValor(String(proxima.id)); }
+        else if (direcao > 0) { if (!t.usaPrazo && t.restante > 0) selecionarPrazo(); focoValor("prazo"); }
     }
-    const dinheiro = t.parcelas.filter(p => p.formaPagamento === "DINHEIRO" && p.configuracaoFormaPagamentoId !== null);
     return <Dialog open={open} onClose={onVoltar} fullWidth maxWidth="md" aria-labelledby="pdv-pagamento-titulo" aria-describedby="pdv-pagamento-descricao"
         onKeyDown={e => { if (e.key !== "Escape") e.stopPropagation(); if (e.key === "F2") { e.preventDefault(); if (!e.repeat && !e.nativeEvent.isComposing && !confirmarDesabilitado) onConfirmar(); } }}
         slotProps={{ paper: { sx: { m: { xs: 1, md: 3 }, width: "calc(100% - 16px)", maxHeight: { xs: "calc(100dvh - 16px)", md: "calc(100dvh - 48px)" }, borderRadius: 2 } } }}>
@@ -87,11 +87,12 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
                             const p = t.parcelas.find(p => p.configuracaoFormaPagamentoId === config.id);
                             const { Icone } = meios[config.tipo as keyof typeof meios];
                             return <Box role="group" aria-label={config.nomeExibicao} key={config.id} sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 132px", gap: 1, alignItems: "center", py: 1, px: 1, borderBottom: 1, borderColor: "divider", bgcolor: p ? theme => alpha(theme.palette.primary.main, .06) : undefined, borderRadius: 1 }}>
-                                <ButtonBase autoFocus={i === 0} ref={el => { botoes.current[String(config.id)] = el; if (i === 0) primeiraFormaRef.current = el; }} disabled={bloqueado || (!p && pagamentos.length >= 20)} onClick={() => selecionar(config)} aria-label={`Usar ${config.nomeExibicao}`} sx={{ gap: 1, justifyContent: "flex-start", minWidth: 0, minHeight: 40, textAlign: "left", borderRadius: 1, "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }}><Icone aria-hidden="true" sx={{ fontSize: 23, color: "primary.main", flexShrink: 0 }} /><Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{config.nomeExibicao}</Typography></ButtonBase>
-                                <ValorMonetarioPDV size="small" value={p?.valor ?? ""} placeholder="0,00" disabled={bloqueado} inputRef={el => { campos.current[String(config.id)] = el; }}
+                                <ButtonBase disabled={bloqueado || (!p && pagamentos.length >= 20)} onClick={() => selecionar(config)} aria-label={`Usar ${config.nomeExibicao}`} sx={{ gap: 1, justifyContent: "flex-start", minWidth: 0, minHeight: 40, textAlign: "left", borderRadius: 1, "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }}><Icone aria-hidden="true" sx={{ fontSize: 23, color: "primary.main", flexShrink: 0 }} /><Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{config.nomeExibicao}</Typography></ButtonBase>
+                                <ValorMonetarioPDV size="small" autoFocus={i === 0} value={config.tipo === "DINHEIRO" ? p?.recebido || p?.valor || "" : p?.valor ?? ""} placeholder="0,00" disabled={bloqueado} inputRef={el => { campos.current[String(config.id)] = el; if (i === 0) primeiraFormaRef.current = el; if (config.id === configuracoes.find(c => c.tipo === "DINHEIRO")?.id) recebidoRef.current = el; }}
                                     slotProps={{ htmlInput: { "aria-label": `Valor de ${config.nomeExibicao} (R$)`, inputMode: "decimal", style: { textAlign: "right", fontWeight: 600 } }, input: { startAdornment: <InputAdornment position="start">R$</InputAdornment> } }}
                                     onClick={() => { if (!p) { campos.current[String(config.id)]?.blur(); selecionar(config); } }} onChange={valor => alterarValor(config, valor)}
-                                    onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) avancar(String(config.id)); } }} />
+                                    onKeyDown={e => { if (["Enter", "ArrowDown", "ArrowUp"].includes(e.key) && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) avancar(String(config.id), e.key === "ArrowUp" ? -1 : 1, e.key === "Enter"); } }} />
+                                {p && p.troco > 0 && <Typography aria-label={`Troco em ${config.nomeExibicao}`} variant="body2" sx={{ gridColumn: "1 / -1", textAlign: "right", color: "primary.main", fontWeight: 700 }} aria-live="polite">Troco: {moeda(p.troco)}</Typography>}
                             </Box>;
                         })}
                         <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 132px", alignItems: "center", gap: 1, p: 1, bgcolor: t.usaPrazo ? "action.selected" : undefined }}>
@@ -116,16 +117,6 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
                         {pagamentos.some(p => p.formaPagamento !== "A_PRAZO" && p.configuracaoFormaPagamentoId !== null && !configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId)) && <Alert severity="warning" action={<Button disabled={bloqueado} onClick={() => onAlterar({ pagamentos: pagamentos.filter(p => p.formaPagamento === "A_PRAZO" || configuracoes.some(c => c.id === p.configuracaoFormaPagamentoId)) })}>Remover</Button>}>Há uma forma indisponível no rascunho. Revise os pagamentos.</Alert>}
                     </>}
                 </Box>
-                {!!dinheiro.length && <Box sx={{ flexShrink: 0, p: 1.5, borderRadius: 1.5, bgcolor: theme => alpha(theme.palette.primary.main, .06), maxHeight: "35%", overflowY: "auto" }}>
-                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Recebimento em dinheiro</Typography>
-                    {dinheiro.map((p, i) => <Box key={p.configuracaoFormaPagamentoId} sx={{ mt: i ? 1.5 : 0 }}>
-                        <Typography variant="caption" color="text.secondary">{p.nomeExibicao} · Aplicado: {moeda(p.valorCentavos ?? 0)}</Typography>
-                        <Stack direction="row" sx={{ gap: 2, mt: .5, alignItems: "center" }}><ValorMonetarioPDV size="small" label="Entregue pelo cliente" value={p.recebido} inputRef={i === 0 ? recebidoRef : undefined} disabled={bloqueado} sx={{ flex: 1 }} error={p.recebidoCentavos !== null && p.recebidoCentavos < (p.valorCentavos ?? 0)}
-                            slotProps={{ htmlInput: { "aria-label": `Entregue em ${p.nomeExibicao} (R$)`, inputMode: "decimal" } }} onChange={recebido => onAlterar({ pagamentos: pagamentos.map(atual => atual.configuracaoFormaPagamentoId === p.configuracaoFormaPagamentoId ? { ...atual, recebido } : atual) })}
-                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); if (!e.repeat) avancar(String(p.configuracaoFormaPagamentoId)); } }} />
-                            <Box><Typography variant="caption" color="text.secondary">Troco</Typography><Typography aria-label={`Troco em ${p.nomeExibicao}`} sx={{ color: "primary.main", fontSize: 22, fontWeight: 700, whiteSpace: "nowrap" }}>{moeda(p.troco)}</Typography></Box></Stack>
-                    </Box>)}
-                </Box>}
             </Stack>
         </DialogContent>
         <Stack sx={{ flexShrink: 0, p: 2, borderTop: 1, borderColor: "divider", gap: 1 }}>

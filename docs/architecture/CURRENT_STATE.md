@@ -1,5 +1,9 @@
 Empresa ........ funcional
 
+## Correção pontual de teclado e dinheiro no pagamento — 2026-10-21
+
+Pagamento do PDV inicia no primeiro campo numérico na ordem das configurações. Enter/setas navegam diretamente pelos valores, sugerem o restante em campos vazios e preservam valores existentes. DINHEIRO informa somente o entregue; aplicação e troco são derivados do saldo após os outros meios, sem bloco de recebimento redundante. Máscara rejeita letras/negativos; rascunho, prazo, F2/Escape, UUID e contrato `valor`/`valorRecebido` preservados. Sem alteração de backend/migrations. Validação local: 40 testes de cálculo/PDV e 28 cenários de interface com HTTP simulado aprovados, incluindo cenários A–D, teclado, reedição, prazo e envio único; build frontend, lint afetado e diff check aprovados. Sem venda real, push ou deploy nesta tarefa.
+
 ## Busca avançada de produtos no PDV — 2026-10-21
 
 Implementação frontend com botão/Ctrl+B, modal MUI, tabela paginada e filtros reais de Produtos. Reutilizados serviço paginado, seletores de classificação e inclusão existente do carrinho; busca rápida, scanner, kits, rascunho, pagamentos e regras de estoque preservados. Sem alteração de backend/migrations. Descrição não integra a busca disponível; situações de estoque seguem os valores existentes da API. Detalhes em [frontend.md](frontend.md#busca-avançada-de-produtos-no-pdv-2026-10-21).

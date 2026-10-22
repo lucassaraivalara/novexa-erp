@@ -66,7 +66,7 @@ export default function Vendas() {
     const [pagamentoAberto, setPagamentoAberto] = useState(false);
     const [buscaAvancadaAberta, setBuscaAvancadaAberta] = useState(false);
     const [estoqueConfirmado, setEstoqueConfirmado] = useState(false);
-    const formaPagamentoRef = useRef<HTMLButtonElement>(null);
+    const formaPagamentoRef = useRef<HTMLInputElement>(null);
     const confirmarPagamentoRef = useRef<HTMLButtonElement>(null);
     const erroPagamentoRef = useRef<HTMLDivElement>(null);
     const retornandoPagamento = useRef(false);
@@ -186,6 +186,7 @@ export default function Vendas() {
         if (pagamentoAberto && !carregandoConfig && !finalizacao && !opcional && !confirmacaoEstoque) {
             const campo = erro || erroConfig ? erroPagamentoRef.current : formaPagamentoRef.current;
             campo?.focus();
+            if (campo instanceof HTMLInputElement) campo.select();
         }
     }, [pagamentoAberto, carregandoConfig, finalizacao, opcional, confirmacaoEstoque, erro, erroConfig]);
 
@@ -247,7 +248,7 @@ export default function Vendas() {
             .map(p => ({ configuracaoFormaPagamentoId: p.configuracaoFormaPagamentoId, nomeExibicao: p.nomeExibicao,
                 formaPagamento: p.formaPagamento, valor: p.valorCentavos === null ? p.valor : (p.valorCentavos / 100).toFixed(2),
                 recebido: p.formaPagamento === "DINHEIRO" ? p.recebidoCentavos === null ? p.recebido : (p.recebidoCentavos / 100).toFixed(2) : "",
-                ...(p.formaPagamento === "DINHEIRO" ? { valorDinheiroExplicito: true } : {}) })) });
+                })) });
         setListaAberta(false); setErro(""); setPagamentoAberto(true);
     }
     function fecharPagamento() {

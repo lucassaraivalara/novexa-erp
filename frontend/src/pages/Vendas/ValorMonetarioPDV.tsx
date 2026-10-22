@@ -16,6 +16,7 @@ export default function ValorMonetarioPDV({ value, onChange, onFocus, onBlur, ..
         onFocus={e => { setEdicao(e.target.value); e.target.select(); onFocus?.(e); }}
         onChange={e => {
             const texto = e.target.value;
+            if (normalizarValorMonetario(texto) === null) return;
             setEdicao(texto);
             onChange(normalizarValorMonetario(texto) ?? texto);
         }}

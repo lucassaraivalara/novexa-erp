@@ -11,7 +11,7 @@ export type PagamentoPDV = {
     formaPagamento: FormaPagamento | "A_PRAZO";
     valor: string;
     recebido: string;
-    /** Nova interface separa a parcela aplicada do dinheiro entregue; legado mantém derivação automática. */
+    /** Campo de rascunhos antigos; a aplicação em dinheiro é sempre derivada do saldo. */
     valorDinheiroExplicito?: boolean;
 };
 export type ParcelaPrazoPDV = { valor: string; vencimento: string };
@@ -103,8 +103,7 @@ export function totais(r: RascunhoPDV) {
         let valor = valoresAplicados[i];
         const recebido = p.formaPagamento === "DINHEIRO" && p.recebido !== "" ? decimal(p.recebido, 2) : valor;
         if (p.formaPagamento === "DINHEIRO") {
-            // Legado cobre o saldo; a nova interface preserva o valor explicitamente aplicado.
-            valor = p.valorDinheiroExplicito ? valor : recebido === null ? null : Math.min(recebido, saldoParaDinheiro);
+            valor = recebido === null ? null : Math.min(recebido, saldoParaDinheiro);
             saldoParaDinheiro -= valor ?? 0;
         }
         return { ...p, valorCentavos: valor, recebidoCentavos: recebido, troco: Math.max(0, (recebido ?? 0) - (valor ?? 0)) };

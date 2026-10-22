@@ -326,7 +326,7 @@ test("pagamento unico automatico acompanha total e dinheiro sem recebido assume 
     assert.equal(totais(r).troco, 0);
 });
 
-test("dinheiro explícito mantém aplicado separado do entregue e das outras configurações", () => {
+test("rascunho anterior deriva dinheiro aplicado do entregue e reage à reedição", () => {
     const r = { ...novoRascunho(10), itens: [{ produto: { id: 1, precoVenda: 100 }, quantidade: "1" }], pagamentos: [
         { configuracaoFormaPagamentoId: 1, nomeExibicao: "Dinheiro", formaPagamento: "DINHEIRO", valor: "50", recebido: "60", valorDinheiroExplicito: true },
         { configuracaoFormaPagamentoId: 2, nomeExibicao: "PIX", formaPagamento: "PIX", valor: "50", recebido: "" },
@@ -334,10 +334,22 @@ test("dinheiro explícito mantém aplicado separado do entregue e das outras con
     assert.equal(totais(r).totalInformado, 10000); assert.equal(totais(r).troco, 1000);
     assert.deepEqual(criarPedido(r, "uuid").pagamentos, [{ configuracaoFormaPagamentoId: 1, valor: 50, valorRecebido: 60 }, { configuracaoFormaPagamentoId: 2, valor: 50 }]);
     r.pagamentos[1].valor = "40";
-    assert.equal(totais(r).restante, 1000); assert.equal(totais(r).parcelas[0].valorCentavos, 5000);
-    assert.throws(() => criarPedido(r, "uuid"));
+    assert.equal(totais(r).restante, 0); assert.equal(totais(r).parcelas[0].valorCentavos, 6000);
+    assert.equal(criarPedido(r, "uuid").pagamentos[0].valor, 60);
     r.pagamentos[1].valor = "60";
-    assert.equal(totais(r).restante, -1000); assert.throws(() => criarPedido(r, "uuid"));
+    assert.equal(totais(r).restante, 0); assert.equal(criarPedido(r, "uuid").pagamentos[0].valor, 40);
     r.pagamentos[1].valor = "50"; r.pagamentos[0].recebido = "49";
-    assert.equal(totais(r).pagamentosValidos, false); assert.throws(() => criarPedido(r, "uuid"));
+    assert.equal(totais(r).restante, 100); assert.throws(() => criarPedido(r, "uuid"));
 });
+
+for (const [total, entregue, cartao, aplicado, troco, falta] of [[2.5, 4, 0, 2.5, 1.5, 0], [100, 50, 60, 40, 10, 0], [100, 30, 0, 30, 0, 70], [100, 100, 40, 60, 40, 0]]) {
+    test(`dinheiro único: total ${total}, entregue ${entregue}, cartão ${cartao}`, () => {
+        const r = { ...novoRascunho(10), itens: [{ produto: { id: 1, precoVenda: total }, quantidade: "1" }],
+            pagamentos: [parcela(1, "DINHEIRO", String(entregue), String(entregue)), ...(cartao ? [parcela(2, "CARTAO_CREDITO", String(cartao))] : [])] };
+        const t = totais(r);
+        assert.equal(t.parcelas[0].valorCentavos, aplicado * 100); assert.equal(t.troco, troco * 100); assert.equal(t.restante, falta * 100);
+        if (!falta) assert.deepEqual(criarPedido(r, "uuid").pagamentos[0], { configuracaoFormaPagamentoId: 1, valor: aplicado, valorRecebido: entregue });
+        else assert.throws(() => criarPedido(r, "uuid"));
+        assert.equal(totais({ ...r, pagamentos: [...r.pagamentos].reverse() }).troco, t.troco);
+    });
+}
