@@ -67,10 +67,12 @@ export type VendaDetalhe = {
     itens: ItemVenda[];
     status: StatusVenda;
     sessaoCaixaId: number | null;
+    usuarioNome?: string | null;
     contasReceber?: ContaReceber[];
     valorPrazo?: number;
 };
 export type FiltrosVenda = {
+    referenciaData?: "FATURAMENTO";
     status?: StatusVenda;
     dataInicial?: string;
     dataFinal?: string;

@@ -485,6 +485,7 @@ export default function Caixa() {
                                         <Box>
                                             <Typography variant="body2">{rotuloMovimentacao[movimento.tipo]}{movimento.vendaId ? ` #${movimento.vendaId}` : ""}</Typography>
                                             <Typography variant="caption" color="text.secondary">{data(movimento.dataHora)}{movimento.observacao ? ` · ${movimento.observacao}` : ""}</Typography>
+                                            <Typography variant="caption" color="text.secondary">{movimento.usuarioNome ?? "Usuário não identificado"}{movimento.origemAutomatica ? " · registro automático" : ""}</Typography>
                                         </Box>
                                         <Typography variant="body2" color={movimento.tipo === "VENDA_CANCELADA" ? "text.secondary" : "text.primary"}
                                             sx={{ fontWeight: 700, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums",
@@ -673,6 +674,9 @@ function Atual({ abertas, sessaoId, onSessao, resumo, timeline, podeMovimentar, 
                                         {movimento.formaPagamento && <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                                             {movimento.formaPagamento}
                                         </Typography>}
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                            {movimento.autor ?? "Usuário não identificado"}
+                                        </Typography>
                                         <Typography component="time" dateTime={movimento.dataHora} variant="caption" color="text.secondary">
                                             {data(movimento.dataHora)}
                                         </Typography>

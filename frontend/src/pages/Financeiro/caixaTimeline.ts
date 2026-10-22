@@ -14,6 +14,7 @@ export type ItemTimeline = {
     descricao: string;
     sinal: "+" | "−";
     formaPagamento: string | null;
+    autor: string | null;
 };
 
 export function criarTimeline(movimentos: MovimentacaoCaixa[], vendas: VendaDetalhe[]): ItemTimeline[] {
@@ -25,6 +26,7 @@ export function criarTimeline(movimentos: MovimentacaoCaixa[], vendas: VendaDeta
         descricao: `Venda #${venda.id}`,
         sinal: "+" as const,
         formaPagamento: venda.formaPagamento ? rotuloFormaPagamento[venda.formaPagamento] : "Pagamento",
+        autor: venda.usuarioNome ?? null,
     }));
     const movimentosTimeline = movimentos
         .filter((movimento) => movimento.tipo !== "VENDA")
@@ -37,6 +39,7 @@ export function criarTimeline(movimentos: MovimentacaoCaixa[], vendas: VendaDeta
                 : movimento.tipo === "SANGRIA" ? "Sangria" : "Cancelamento de venda",
             sinal: movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? "−" as const : "+" as const,
             formaPagamento: null,
+            autor: movimento.usuarioNome ?? null,
         }));
     return [...vendasTimeline, ...movimentosTimeline].sort(
         (a, b) => (interpretarDataHora(b.dataHora)?.getTime() ?? 0) - (interpretarDataHora(a.dataHora)?.getTime() ?? 0),

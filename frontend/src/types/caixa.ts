@@ -96,6 +96,8 @@ export type SessaoCaixaDetalhe = {
         valor: number;
         vendaId: number | null;
         observacao: string | null;
+        usuarioNome: string | null;
+        origemAutomatica: boolean;
     }[];
     composicaoAbertura?: ComposicaoAbertura | null;
 };
@@ -105,6 +107,7 @@ export type MovimentacaoCaixa = {
     sessaoId: number;
     vendaId: number | null;
     usuarioId: number;
+    usuarioNome: string | null;
     chaveRequisicao: string;
     tipo: "VENDA" | "SUPRIMENTO" | "SANGRIA" | "ESTORNO_VENDA";
     valor: number;

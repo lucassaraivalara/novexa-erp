@@ -21,7 +21,9 @@ public interface VendaRepository extends JpaRepository<VendaEntity, Long> {
 
     Optional<VendaEntity> findByEmpresaIdAndUsuarioIdAndChaveRequisicao(Long empresaId, Long usuarioId, UUID chave);
     Optional<VendaEntity> findByIdAndEmpresaId(Long id, Long empresaId);
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"usuario", "cliente"})
     List<VendaEntity> findByEmpresaIdAndSessaoCaixaIdOrderByDataHoraAscIdAsc(Long empresaId, Long sessaoId);
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"usuario", "cliente"})
     List<VendaEntity> findByEmpresaIdAndSessaoCaixaIdAndStatusOrderByDataHoraAscIdAsc(Long empresaId, Long sessaoId, StatusVenda status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -56,6 +58,24 @@ public interface VendaRepository extends JpaRepository<VendaEntity, Long> {
               and (:clienteId is null or v.cliente.id = :clienteId)
             """)
     Page<VendaEntity> listarResumoPaginado(@Param("empresaId") Long empresaId,
+                                           @Param("status") StatusVenda status,
+                                           @Param("inicio") LocalDateTime inicio,
+                                           @Param("fimExclusivo") LocalDateTime fimExclusivo,
+                                           @Param("clienteId") Long clienteId,
+                                           Pageable pageable);
+
+    @Query("""
+            select v from VendaEntity v
+            left join fetch v.cliente
+            left join fetch v.sessaoCaixa
+            where v.empresa.id = :empresaId
+              and v.dataFaturamento is not null
+              and (:status is null or v.status = :status)
+              and (cast(:inicio as timestamp) is null or v.dataFaturamento >= :inicio)
+              and (cast(:fimExclusivo as timestamp) is null or v.dataFaturamento < :fimExclusivo)
+              and (:clienteId is null or v.cliente.id = :clienteId)
+            """)
+    Page<VendaEntity> listarResumoPaginadoPorFaturamento(@Param("empresaId") Long empresaId,
                                            @Param("status") StatusVenda status,
                                            @Param("inicio") LocalDateTime inicio,
                                            @Param("fimExclusivo") LocalDateTime fimExclusivo,

@@ -14,5 +14,6 @@ public record SessaoCaixaDetalheDTO(SessaoCaixaHistoricoDTO sessao, ResumoSessao
             List<ConferenciaFechamentoCaixaDTO> conferencias, List<Evento> movimentacoes) {
         this(sessao, resumo, modalidadeConferencia, observacaoFechamento, conferencias, movimentacoes, null);
     }
-    public record Evento(String tipo, LocalDateTime dataHora, BigDecimal valor, Long vendaId, String observacao) { }
+    public record Evento(String tipo, LocalDateTime dataHora, BigDecimal valor, Long vendaId, String observacao,
+            String usuarioNome, Boolean origemAutomatica) { }
 }

@@ -8,7 +8,8 @@ import java.util.List;
 public record VendaResponseDTO(Long id, LocalDateTime dataHora, BigDecimal subtotal, BigDecimal desconto,
         BigDecimal total, FormaPagamento formaPagamento, BigDecimal valorRecebido, BigDecimal troco,
         Long clienteId, String entrega, String observacoes, List<ItemVendaDTO> itens, StatusVenda status, Long sessaoCaixaId,
-        Long configuracaoFormaPagamentoId, List<ContaReceberResponseDTO> contasReceber, BigDecimal valorPrazo) {
+        Long configuracaoFormaPagamentoId, List<ContaReceberResponseDTO> contasReceber, BigDecimal valorPrazo,
+        String usuarioNome) {
     public static VendaResponseDTO de(VendaEntity venda) {
         return new VendaResponseDTO(venda.getId(), venda.getDataHora(), venda.getSubtotal(), venda.getDesconto(),
                 venda.getTotal(), venda.getFormaPagamento(), venda.getValorRecebido(), venda.getTroco(),
@@ -16,6 +17,7 @@ public record VendaResponseDTO(Long id, LocalDateTime dataHora, BigDecimal subto
                 venda.getObservacoes(), venda.getItens().stream().map(ItemVendaDTO::de).toList(), venda.getStatus(),
                 venda.getSessaoCaixa() == null ? null : venda.getSessaoCaixa().getId(),
                 venda.getConfiguracaoFormaPagamento() == null ? null : venda.getConfiguracaoFormaPagamento().getId(),
-                venda.getContasReceber().stream().map(c -> ContaReceberResponseDTO.de(c, List.of())).toList(), venda.getValorPrazo());
+                venda.getContasReceber().stream().map(c -> ContaReceberResponseDTO.de(c, List.of())).toList(), venda.getValorPrazo(),
+                venda.getUsuario() == null ? null : venda.getUsuario().getNomeUsuario());
     }
 }

@@ -17,6 +17,7 @@ public interface MovimentacaoCaixaRepository extends JpaRepository<MovimentacaoC
 
     Optional<MovimentacaoCaixaEntity> findByPagamentoIdAndTipoAndSessaoIdAndEmpresaId(Long pagamentoId, br.com.novexa.erp.entity.TipoMovimentacaoCaixa tipo, Long sessaoId, Long empresaId);
     Optional<MovimentacaoCaixaEntity> findBySessaoIdAndEmpresaIdAndChaveRequisicao(Long sessaoId, Long empresaId, UUID chave);
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"usuario"})
     List<MovimentacaoCaixaEntity> findBySessaoIdAndEmpresaIdOrderByIdAsc(Long sessaoId, Long empresaId);
 
     @Query("""

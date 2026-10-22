@@ -65,10 +65,12 @@ public class CaixaOperacionalService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Somente quem abriu o Caixa pode ver esta sessão.");
         var resumo = calcular(sessao);
         var eventos = new ArrayList<SessaoCaixaDetalheDTO.Evento>();
-        eventos.add(new SessaoCaixaDetalheDTO.Evento("ABERTURA", sessao.getDataAbertura(), sessao.getSaldoInicial(), null, null));
+        eventos.add(new SessaoCaixaDetalheDTO.Evento("ABERTURA", sessao.getDataAbertura(), sessao.getSaldoInicial(), null, null,
+                sessao.getUsuarioAbertura().getNomeUsuario(), false));
         for (var venda : vendas.findByEmpresaIdAndSessaoCaixaIdOrderByDataHoraAscIdAsc(usuario.empresaId(), sessaoId)) {
             eventos.add(new SessaoCaixaDetalheDTO.Evento(venda.getStatus() == StatusVenda.CANCELADA ? "VENDA_CANCELADA" : "VENDA",
-                    venda.getDataHora(), venda.getTotal(), venda.getId(), null));
+                    venda.getDataHora(), venda.getTotal(), venda.getId(), null,
+                    venda.getUsuario().getNomeUsuario(), true));
         }
         for (var movimento : movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessaoId, usuario.empresaId())) {
             if (movimento.getTipo() == TipoMovimentacaoCaixa.VENDA ||
@@ -76,9 +78,11 @@ public class CaixaOperacionalService {
                             && "Saldo inicial / Abertura de caixa".equals(movimento.getObservacao()))) continue;
             eventos.add(new SessaoCaixaDetalheDTO.Evento(movimento.getTipo().name(), movimento.getDataHora(),
                     movimento.getValor(), movimento.getPagamento() == null ? null : movimento.getPagamento().getVenda().getId(),
-                    movimento.getObservacao()));
+                    movimento.getObservacao(), movimento.getUsuario().getNomeUsuario(),
+                    movimento.getTipo() == TipoMovimentacaoCaixa.VENDA || movimento.getTipo() == TipoMovimentacaoCaixa.ESTORNO_VENDA));
         }
-        eventos.add(new SessaoCaixaDetalheDTO.Evento("FECHAMENTO", sessao.getDataFechamento(), sessao.getSaldoFinal(), null, null));
+        eventos.add(new SessaoCaixaDetalheDTO.Evento("FECHAMENTO", sessao.getDataFechamento(), sessao.getSaldoFinal(), null, null,
+                sessao.getUsuarioFechamento() == null ? null : sessao.getUsuarioFechamento().getNomeUsuario(), false));
         eventos.sort(Comparator.comparing(SessaoCaixaDetalheDTO.Evento::dataHora));
 
         var origemOpt = aberturasOrigem.findBySessaoId(sessaoId);

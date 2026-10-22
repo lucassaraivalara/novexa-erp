@@ -761,6 +761,43 @@ class CaixaOperacionalHttpTest {
                 .andExpect(jsonPath("$.movimentacoes[2].vendaId").value(venda.id()));
     }
 
+    @Test void movimentacaoEEventosIdentificamAutorRealENaoOOperadorDaSessao() throws Exception {
+        var colega = usuarios.saveAndFlush(usuario(empresa, "33333333333"));
+        colega.setPerfil(PerfilUsuario.GERENTE);
+        colega = usuarios.saveAndFlush(colega);
+        var principalColega = new UsuarioAutenticado(colega.getId(), colega.getCpf(), empresa.getId(), PerfilUsuario.GERENTE);
+
+        var pedido = manual(TipoMovimentacaoCaixa.SUPRIMENTO, "7");
+        operacional.movimentar(sessao, pedido, principalColega);
+        var repetido = operacional.movimentar(sessao, pedido, principalColega);
+        assertThat(repetido.usuarioNome()).isEqualTo(colega.getNomeUsuario());
+        operacional.movimentar(sessao, manual(TipoMovimentacaoCaixa.SANGRIA, "2"), principalColega);
+        vendaService.finalizar(venda(FormaPagamento.DINHEIRO, sessao), principal);
+        assertThat(movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao, empresa.getId())).hasSize(4);
+
+        mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + "/movimentacoes").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[1].usuarioId").value(colega.getId()))
+                .andExpect(jsonPath("$[1].usuarioNome").value(colega.getNomeUsuario()))
+                .andExpect(jsonPath("$[2].usuarioNome").value(colega.getNomeUsuario()));
+
+        sessoesService.fechar(caixa.getId(), sessao, new BigDecimal("115"), principal);
+        var detalhe = json.readTree(mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + "/detalhe").header("Authorization", token))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        Map<String, com.fasterxml.jackson.databind.JsonNode> eventos = new HashMap<>();
+        detalhe.get("movimentacoes").forEach(evento -> eventos.put(evento.get("tipo").asText(), evento));
+        assertThat(eventos.keySet()).containsExactlyInAnyOrder("ABERTURA", "SUPRIMENTO", "SANGRIA", "VENDA", "FECHAMENTO");
+        assertThat(eventos.get("ABERTURA").get("usuarioNome").asText()).isEqualTo(operador.getNomeUsuario());
+        assertThat(eventos.get("SUPRIMENTO").get("usuarioNome").asText()).isEqualTo(colega.getNomeUsuario());
+        assertThat(eventos.get("SUPRIMENTO").get("origemAutomatica").asBoolean()).isFalse();
+        assertThat(eventos.get("SANGRIA").get("usuarioNome").asText()).isEqualTo(colega.getNomeUsuario());
+        assertThat(eventos.get("SANGRIA").get("origemAutomatica").asBoolean()).isFalse();
+        assertThat(eventos.get("VENDA").get("usuarioNome").asText()).isEqualTo(operador.getNomeUsuario());
+        assertThat(eventos.get("VENDA").get("origemAutomatica").asBoolean()).isTrue();
+        assertThat(eventos.get("FECHAMENTO").get("usuarioNome").asText()).isEqualTo(operador.getNomeUsuario());
+        assertThat(eventos.get("FECHAMENTO").get("origemAutomatica").asBoolean()).isFalse();
+    }
+
     @Test void detalheLegadoNaoInventaConferenciaERejeitaSessaoAberta() throws Exception {
         mvc.perform(get("/financeiro/caixas/sessoes/" + sessao + "/detalhe").header("Authorization", token))
                 .andExpect(status().isConflict());
