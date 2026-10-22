@@ -6,7 +6,13 @@ Datas e horas operacionais seguem `America/Sao_Paulo`, via `TempoNovexa`: sessã
 
 ## Parcelamento do consumidor no crédito — V58
 
-Configuração CREDITO possui `maximoParcelasConsumidor` (1–120, padrão 1). O PDV oferece de 1x até o limite e envia `parcelasConsumidor` no pagamento; o backend valida contra o limite da configuração (409 acima do permitido, 400 fora de crédito) e persiste o valor imutável no Pagamento. Colunas nullable sem backfill; legado NULL equivale a 1x. Sem efeito em taxas, prazo de recebimento, recebíveis ou liquidação — não muda quando nem quanto a empresa recebe. Publicado na main e aplicado em produção.
+Configuração CREDITO possui `maximoParcelasConsumidor` (1–12, padrão 1 no MVP). O limite é específico de cada configuração da empresa e sua edição continua restrita a ADMIN/GERENTE. O PDV oferece de 1x até esse limite, preserva a escolha ao reabrir o pagamento ou recuperar o rascunho e envia `parcelasConsumidor` no pagamento. O backend rejeita frações/valores fora de 1–12 ou parcelas em outro meio (400), e quantidades acima do limite configurado (409). A escolha é imutável no Pagamento. O teto de 12x atende ao parcelamento de cartão do MVP; não foi adotado o limite de 120 parcelas usado pela venda a prazo.
+
+V58 é aditiva e mantém ambas as colunas nullable, sem backfill. Configuração antiga sem limite permite somente 1x; pagamento antigo sem quantidade permanece com histórico desconhecido, sem inferir 1x. Omitir o limite em uma edição preserva a configuração. Omitir parcelas em um novo pagamento de crédito assume 1x. O formato anterior do hash é mantido, inclusive na equivalência entre omissão e 1x; mudar a quantidade numa repetição da mesma intenção gera conflito.
+
+Parcelamento do consumidor não divide os recebíveis da empresa. Crédito de R$ 300 em 3x com taxa de 3% gera um único recebível de R$ 300, taxa de R$ 9 e líquido de R$ 291. SIMPLIFICADO D+0 credita R$ 291 na transação da venda; D+1 mantém o recebível integral pendente com a previsão correspondente; CONTROLADO mantém sua confirmação existente. Taxas, prazo, destino e modo continuam nos snapshots financeiros anteriores. Retry e concorrência não repetem o crédito; cancelamento reverte o movimento original e preserva o histórico. Não há configuração de taxa por quantidade de parcelas nem liquidação parcelada pela operadora nesta etapa.
+
+Estabilização local sobre `7abb43a`: validada em PostgreSQL descartável com HTTP real, Flyway V57→V58 e Hibernate validate. O registro anterior de publicação não foi auditado nesta validação; nenhum commit, push ou deploy foi executado nesta etapa.
 
 ## Autorização das configurações de pagamento — Tarefa 10A
 

@@ -91,6 +91,23 @@ for (const perfil of ["ADMIN", "GERENTE", "OPERADOR", "USUARIO"]) {
     }, {perfil, somenteConsulta: true, viewport: {width: perfil === "GERENTE" || perfil === "USUARIO" ? 390 : 1440, height: 960}, config: {id: 20, formaPagamentoId: 4, tipo: "CREDITO", nomeExibicao: "Crédito autorizado", ativo: true, contaFinanceiraDestino: conta, taxaPercentual: 3, taxaFixa: 0, prazoRecebimentoDias: 1}}));
 }
 const destino = page => page.getByRole("combobox", {name: /Conta Financeira de destino/});
+
+test("limite de crédito preserva edição, valida 1 a 12 e não altera taxa ou prazo", () => withEditor(async (page, requests) => {
+    const parcelas = page.getByLabel("Máximo de parcelas do consumidor", {exact: true});
+    assert.equal(await parcelas.inputValue(), "6");
+    for (const valor of ["0", "13", "1.5"]) {
+        await parcelas.fill(valor); await salvar(page, true);
+        await page.getByText(valor === "1.5" ? "Informe um número inteiro de parcelas." : "Informe de 1 a 12 parcelas.", {exact: true}).waitFor();
+        assert.equal(requests.length, 0);
+    }
+    await parcelas.fill("3"); await salvar(page, true);
+    await page.getByText("Configuração salva com sucesso.").waitFor();
+    assert.equal(requests.length, 1);
+    assert.deepEqual(requests[0].payload, {nomeExibicao: "Crédito 6x", formaPagamentoId: 4, ativo: true,
+        contaFinanceiraDestinoId: 5, taxaPercentual: 3, taxaFixa: 0, prazoRecebimentoDias: 0, maximoParcelasConsumidor: 3});
+}, {config: {id: 20, formaPagamentoId: 4, tipo: "CREDITO", nomeExibicao: "Crédito 6x", ativo: true,
+    contaFinanceiraDestino: conta, taxaPercentual: 3, taxaFixa: 0, prazoRecebimentoDias: 0, maximoParcelasConsumidor: 6}}));
+
 async function selecionar(page, campo, texto) {
     await campo.click();
     await page.getByRole("option", {name: texto, exact: true}).click();

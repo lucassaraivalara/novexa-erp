@@ -4,12 +4,46 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 
 const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
-const { novoRascunho, carregarRascunhoSalvo, salvarRascunho, decimal, normalizarValorMonetario, formatarValorMonetario, subtotalItem, totais, criarPedido, encontrarProdutoPorCodigo, decidirSessaoCaixa, moverIndiceProduto } = await server.ssrLoadModule("/src/pages/Vendas/pdv.ts");
+const { novoRascunho, carregarRascunhoSalvo, salvarRascunho, decimal, normalizarValorMonetario, formatarValorMonetario, subtotalItem, totais, criarPedido, encontrarProdutoPorCodigo, decidirSessaoCaixa, moverIndiceProduto, parcelamentoValido } = await server.ssrLoadModule("/src/pages/Vendas/pdv.ts");
 await server.close();
 const fontePDV = await readFile(new URL("../src/pages/Vendas/Vendas.tsx", import.meta.url), "utf8");
 const fonteFinalizacao = await readFile(new URL("../src/pages/Vendas/VendaFinalizacaoDialog.tsx", import.meta.url), "utf8");
 const produto = { id: 1, nome: "Café", precoVenda: 10.10, ativo: true, codigoBarras: "7890001", codigoInterno: "CAFE" };
 const venda = () => ({ ...novoRascunho(), itens: [{ produto, quantidade: "2" }], recebido: "30", configuracaoFormaPagamentoId: 42 });
+
+test("crédito parcelado preserva valor integral e compatibilidade do payload em 1x", () => {
+    const pagamento = { configuracaoFormaPagamentoId: 42, formaPagamento: "CARTAO_CREDITO", nomeExibicao: "Crédito", valor: "300", recebido: "", parcelasConsumidor: 3 };
+    const r = { ...novoRascunho(10), itens: [{ produto: { ...produto, precoVenda: 300 }, quantidade: "1" }], pagamentos: [pagamento] };
+    const pedido = criarPedido(r, "uuid");
+    assert.equal(pedido.totalEsperado, 300);
+    assert.deepEqual(pedido.pagamentos, [{ configuracaoFormaPagamentoId: 42, valor: 300, parcelasConsumidor: 3 }]);
+    assert.equal(pedido.parcelasPrazo, undefined);
+    assert.equal(parcelamentoValido(pagamento, { maximoParcelasConsumidor: 3 }), true);
+    assert.equal(parcelamentoValido(pagamento, { maximoParcelasConsumidor: 2 }), false);
+    assert.equal(parcelamentoValido(pagamento, {}), false);
+    pagamento.parcelasConsumidor = 1;
+    assert.deepEqual(criarPedido(r, "uuid").pagamentos, [{ configuracaoFormaPagamentoId: 42, valor: 300 }]);
+    delete pagamento.parcelasConsumidor;
+    assert.deepEqual(criarPedido(r, "uuid").pagamentos, [{ configuracaoFormaPagamentoId: 42, valor: 300 }]);
+});
+
+test("rascunho rejeita parcelamento inválido e preserva pagamentos mistos válidos", () => {
+    const credito = { configuracaoFormaPagamentoId: 42, formaPagamento: "CARTAO_CREDITO", valor: "200", recebido: "", parcelasConsumidor: 3 };
+    const dinheiro = { configuracaoFormaPagamentoId: 1, formaPagamento: "DINHEIRO", valor: "100", recebido: "120" };
+    const r = { ...novoRascunho(10), itens: [{ produto: { ...produto, precoVenda: 300 }, quantidade: "1" }], pagamentos: [credito, dinheiro] };
+    assert.equal(totais(r).troco, 2000);
+    assert.deepEqual(criarPedido(r, "uuid").pagamentos, [
+        { configuracaoFormaPagamentoId: 42, valor: 200, parcelasConsumidor: 3 },
+        { configuracaoFormaPagamentoId: 1, valor: 100, valorRecebido: 120 },
+    ]);
+    for (const quantidade of [0, -1, 13, 120, 1.5, NaN]) {
+        credito.parcelasConsumidor = quantidade;
+        assert.equal(totais(r).pagamentosValidos, false);
+        assert.throws(() => criarPedido(r, "uuid"));
+    }
+    credito.parcelasConsumidor = 3; credito.formaPagamento = "CARTAO_DEBITO";
+    assert.equal(totais(r).pagamentosValidos, false);
+});
 
 test("storage restaura somente venda em andamento da sessao correta e elimina rascunhos vazios", () => {
     const anterior = globalThis.sessionStorage;

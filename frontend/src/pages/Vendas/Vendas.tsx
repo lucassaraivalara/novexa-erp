@@ -246,6 +246,7 @@ export default function Vendas() {
         if (!rascunho.pendente) alterar({ pagamentos: t.parcelas
             .filter(p => p.formaPagamento === "A_PRAZO" || p.configuracaoFormaPagamentoId !== null)
             .map(p => ({ configuracaoFormaPagamentoId: p.configuracaoFormaPagamentoId, nomeExibicao: p.nomeExibicao,
+                parcelasConsumidor: p.parcelasConsumidor,
                 formaPagamento: p.formaPagamento, valor: p.valorCentavos === null ? p.valor : (p.valorCentavos / 100).toFixed(2),
                 recebido: p.formaPagamento === "DINHEIRO" ? p.recebidoCentavos === null ? p.recebido : (p.recebidoCentavos / 100).toFixed(2) : "",
                 })) });

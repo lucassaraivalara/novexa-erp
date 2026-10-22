@@ -1084,6 +1084,30 @@ test("quantidade do PDV rejeita letras e colagem inválida nos dois editores, pr
 });
 const concluir = page => page.getByRole("button", { name: "Concluir pagamento \u00b7 F2", exact: true });
 const gravacoes = estado => estado.requests.filter(r => r.path === "/vendas" && r.method === "POST");
+
+for (const width of [1440, 390]) test(`crédito 3x preserva parcelas no rascunho e envia valor integral em ${width}px`, async () => {
+    const { page, estado, busca } = await abrir({ configuracoesPagamento: [
+        {id: 4, tipo: "CREDITO", nomeExibicao: "Crédito Loja", ativo: true, maximoParcelasConsumidor: 3},
+    ] });
+    try {
+        await page.setViewportSize({width, height: 900});
+        await busca.fill("P1"); await busca.press("Enter"); await conferirQuantidade(page, "Produto remoto", "1");
+        await abrirPagamento(page, false);
+        const parcelas = page.getByRole("combobox", {name: "Parcelas do consumidor — Crédito Loja"});
+        await parcelas.click(); await page.getByRole("option", {name: "3x", exact: true}).click();
+        await page.getByLabel("Valor de Crédito Loja (R$)").fill("10");
+        assert.match(await parcelas.innerText(), /3x/);
+        await page.getByRole("button", {name: "Fechar pagamento", exact: true}).click();
+        await page.reload(); await abrirPagamento(page, false);
+        assert.match(await parcelas.innerText(), /3x/);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        await concluir(page).click(); await esperar(() => gravacoes(estado).length === 1);
+        const pedido = JSON.parse(gravacoes(estado)[0].body);
+        assert.deepEqual(pedido.pagamentos, [{configuracaoFormaPagamentoId: 4, valor: 10, parcelasConsumidor: 3}]);
+        assert.equal(pedido.parcelasPrazo, undefined);
+    } finally { await page.close(); }
+});
+
 async function meio(page, nome, valor) {
     await page.getByRole("button", { name: `Usar ${nome}`, exact: true }).click();
     if (valor !== undefined) { await valorMeio(page, nome).fill(valor); await valorMeio(page, nome).press("Tab"); }
