@@ -14,6 +14,7 @@ import type {
     SessaoCaixaResponse,
     SessaoCaixaHistorico,
     SessaoCaixaDetalhe,
+    PainelSessaoCaixa,
 } from "../types/caixa";
 
 export const listarCaixas = async (signal?: AbortSignal) =>
@@ -45,6 +46,9 @@ export const abrirSessaoCaixa = async (caixaId: number, dados: AberturaCaixaInpu
 
 export const buscarResumoSessao = async (sessaoId: number, signal?: AbortSignal) =>
     (await api.get<ResumoSessaoCaixa>(`/financeiro/caixas/sessoes/${sessaoId}/resumo`, { signal })).data;
+
+export const buscarPainelSessao = async (sessaoId: number, signal?: AbortSignal) =>
+    (await api.get<PainelSessaoCaixa>(`/financeiro/caixas/sessoes/${sessaoId}/painel`, { signal })).data;
 
 export const listarMovimentacoes = async (sessaoId: number, signal?: AbortSignal) =>
     (await api.get<MovimentacaoCaixa[]>(`/financeiro/caixas/sessoes/${sessaoId}/movimentacoes`, { signal })).data;

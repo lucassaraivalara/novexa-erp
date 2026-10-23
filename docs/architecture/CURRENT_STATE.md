@@ -1,5 +1,11 @@
 Empresa ........ funcional
 
+## Performance de Caixas — Tarefa 13, 2026-10-23
+
+Correção local, sem publicação: leituras completas de Pagamento/Movimento/Venda replicavam a logomarca de 971.611 bytes da empresa em resultados SQL; o polling anterior fazia três GETs sobrepostos a cada dois segundos. Logs de produção comprovaram saturação das cinco conexões Hikari, timeouts de cinco segundos e PostgreSQL em ClientWrite, com apenas 85 vendas na sessão aberta. Projeções escalares preservam os cálculos; novo GET `sessoes/{id}/painel` agrega resumo/movimentos/vendas curtas com o lock existente. Frontend faz uma chamada por rodada concluída, carrega histórico somente na aba e mantém loading/erro/retry independentes.
+
+Reprodução sintética equivalente: mediana de dados da tela 5.598→622 ms, tráfego banco–API por atualização 659.171.226→5.863.749 bytes e comandos de protocolo 507→13. Paridade exata dos valores/DTOs usados na tela. Backend: 118 testes aprovados, incluindo 13 HTTP/PostgreSQL novos; frontend: 52/56, com quatro asserções estáticas antigas reproduzidas também no HEAD original, sem enfraquecimento. Builds/TypeScript aprovados e lint sem erros, dois avisos anteriores. Sem migration ou alteração financeira. **CAIXAS PERFORMANCE READY tecnicamente; deploy e medição posterior em produção pendentes**, backend deve preceder frontend. Detalhes, limites e falhas preexistentes em [auditoria de performance](../audits/performance-caixas-2026-10-23.md).
+
 ## Tarefa 10 — publicação e auditoria final, 2026-10-22
 
 Push normal de `2189ec4` concluído; Vercel publicou esse commit em produção com status Ready. Oracle já executava `7abb43a`: suas 387 classes são idênticas às do backend validado, sem mudança backend no commit enviado. Serviço preservado, sem reinicialização; readiness/liveness HTTPS UP. Banco já estava em V58, aplicada uma vez com checksum correspondente ao teste descartável e sem falhas Flyway. Consultas somente leitura não encontraram duplicidades ou vínculos de tenant incompatíveis; pagamentos anteriores à V58 preservam parcelas desconhecidas.

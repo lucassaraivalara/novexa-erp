@@ -14,6 +14,16 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface VendaRepository extends JpaRepository<VendaEntity, Long> {
+    @Query("""
+            select new br.com.novexa.erp.dto.VendaSessaoCaixaDTO(
+                v.id, v.dataHora, v.total, v.formaPagamento, u.nomeUsuario)
+            from VendaEntity v join v.usuario u
+            where v.empresa.id = :empresaId and v.sessaoCaixa.id = :sessaoId
+              and v.status = br.com.novexa.erp.entity.StatusVenda.FATURADA
+            order by v.dataHora, v.id
+            """)
+    List<br.com.novexa.erp.dto.VendaSessaoCaixaDTO> listarTimelineCaixa(Long empresaId, Long sessaoId);
+
     interface ResumoVendasHoje {
         BigDecimal getFaturamento();
         long getQuantidade();

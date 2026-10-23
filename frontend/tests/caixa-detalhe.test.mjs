@@ -106,18 +106,16 @@ createRoot(document.getElementById('root')).render(
             sessaoId: 9, caixaId: 1, descricaoCaixa: "Caixa principal", saldoInicial: 100,
             dataHoraAbertura: "2026-10-02T09:00:00", operadorAbertura: { id: 4, nome: "Operador" },
         }];
-        else if (path.endsWith("/resumo")) data = {
+        else if (path.endsWith("/painel")) data = { resumo: {
             sessaoId: 9, caixaId: 1, status: "ABERTO", descricaoCaixa: "Caixa principal",
             dataHoraAbertura: "2026-10-02T09:00:00", operadorAbertura: { id: 4, nome: "Operador" },
             saldoInicial: 100, totalVendas: 20, totaisPorFormaPagamento: [], suprimentos: 0, sangrias: 0,
             saldoEsperadoDinheiro: 100, saldoFinalInformado: null, diferenca: null,
-        };
-        else if (path.endsWith("/movimentacoes")) data = [{
+        }, movimentacoes: [{
             id: 71, sessaoId: 9, vendaId: 123, usuarioId: 4, chaveRequisicao: "estorno-venda-123",
             tipo: "ESTORNO_VENDA", valor: 20, observacao: "Cancelamento da venda 123",
             dataHora: "2026-10-02T10:00:00",
-        }];
-        else if (path === "/vendas/por-sessao/9") data = [];
+        }], vendas: [] };
         await route.fulfill({ status: 200, contentType: "application/json", headers, body: JSON.stringify(data) });
     });
 

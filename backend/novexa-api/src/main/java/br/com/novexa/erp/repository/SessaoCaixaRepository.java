@@ -8,6 +8,19 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SessaoCaixaRepository extends JpaRepository<SessaoCaixaEntity, Long> {
+    interface AcessoSessao {
+        StatusSessaoCaixa getStatus();
+        Long getUsuarioAberturaId();
+    }
+
+    @org.springframework.data.jpa.repository.Query("""
+            select s.status as status, s.usuarioAbertura.id as usuarioAberturaId
+            from SessaoCaixaEntity s where s.id = :id and s.empresa.id = :empresaId
+            """)
+    Optional<AcessoSessao> buscarAcesso(Long id, Long empresaId);
+
+    boolean existsByIdAndEmpresaId(Long id, Long empresaId);
+
     @EntityGraph(attributePaths = {"caixa", "usuarioAbertura"})
     List<SessaoCaixaEntity> findByEmpresaIdAndStatusOrderByDataAberturaAscIdAsc(Long empresaId, StatusSessaoCaixa status);
     @EntityGraph(attributePaths = {"caixa", "usuarioAbertura", "usuarioFechamento"})

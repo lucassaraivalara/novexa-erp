@@ -74,6 +74,7 @@ async function ambiente(t, op = {}) {
             else if (path.endsWith("sessoes/abertas")) data = op.completo ? [sessao] : [];
             else if (path.endsWith("sessoes/fechadas")) data = op.historico ? [op.historico] : [];
             else if (path.endsWith("/detalhe")) data = op.detalhe;
+            else if (path.endsWith("/painel")) data = { resumo, movimentacoes: [], vendas: [] };
             else if (path.endsWith("/resumo") && !path.includes("cofre")) data = resumo;
             else if (path === "/financeiro/cofre/resumo") data = { saldo: 500, entradas: 0, saidas: 0, contas: [{ ...cofre, ativo: true }] };
         }

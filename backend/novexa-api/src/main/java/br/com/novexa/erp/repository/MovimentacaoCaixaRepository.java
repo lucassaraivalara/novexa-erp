@@ -9,6 +9,28 @@ import java.math.BigDecimal;
 import java.util.*;
 
 public interface MovimentacaoCaixaRepository extends JpaRepository<MovimentacaoCaixaEntity, Long> {
+    interface MovimentoResumo {
+        TipoMovimentacaoCaixa getTipo();
+        UUID getChaveRequisicao();
+        BigDecimal getValor();
+    }
+
+    @Query("""
+            select m.tipo as tipo, m.chaveRequisicao as chaveRequisicao, m.valor as valor
+            from MovimentacaoCaixaEntity m
+            where m.sessao.id = :sessaoId and m.empresa.id = :empresaId order by m.id
+            """)
+    List<MovimentoResumo> resumirParaCaixa(Long sessaoId, Long empresaId);
+
+    @Query("""
+            select new br.com.novexa.erp.dto.MovimentacaoCaixaResponseDTO(
+                m.id, m.sessao.id, p.venda.id, u.id, u.nomeUsuario,
+                m.chaveRequisicao, m.tipo, m.valor, m.observacao, m.dataHora)
+            from MovimentacaoCaixaEntity m join m.usuario u left join m.pagamento p
+            where m.sessao.id = :sessaoId and m.empresa.id = :empresaId order by m.id
+            """)
+    List<br.com.novexa.erp.dto.MovimentacaoCaixaResponseDTO> listarParaCaixa(Long sessaoId, Long empresaId);
+
     interface SaldoMovimentacoesSessao {
         Long getSessaoId();
         BigDecimal getEntradas();

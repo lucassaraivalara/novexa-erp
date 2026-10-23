@@ -41,6 +41,10 @@ public class CaixaOperacionalController {
         service.exigirAcessoLeitura(sessaoId, usuario);
         return service.listarMovimentos(sessaoId, usuario.empresaId());
     }
+    @GetMapping("/{sessaoId}/painel")
+    public PainelSessaoCaixaDTO painel(@PathVariable Long sessaoId, @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return service.painel(sessaoId, usuario);
+    }
     @PostMapping("/{sessaoId}/movimentacoes")
     public MovimentacaoCaixaResponseDTO movimentar(@PathVariable Long sessaoId,
             @Valid @RequestBody MovimentacaoCaixaRequestDTO pedido, @AuthenticationPrincipal UsuarioAutenticado usuario) {

@@ -1,8 +1,7 @@
 import { interpretarDataHora } from "../../utils/dataHora";
-import type { MovimentacaoCaixa } from "../../types/caixa";
-import type { VendaDetalhe } from "../../services/vendaService";
+import type { MovimentacaoCaixa, VendaSessaoCaixa } from "../../types/caixa";
 
-const rotuloFormaPagamento: Record<NonNullable<VendaDetalhe["formaPagamento"]>, string> = {
+const rotuloFormaPagamento: Record<NonNullable<VendaSessaoCaixa["formaPagamento"]>, string> = {
     DINHEIRO: "Dinheiro", PIX: "PIX", CARTAO_DEBITO: "Débito", CARTAO_CREDITO: "Crédito",
 };
 
@@ -17,7 +16,7 @@ export type ItemTimeline = {
     autor: string | null;
 };
 
-export function criarTimeline(movimentos: MovimentacaoCaixa[], vendas: VendaDetalhe[]): ItemTimeline[] {
+export function criarTimeline(movimentos: MovimentacaoCaixa[], vendas: VendaSessaoCaixa[]): ItemTimeline[] {
     const vendasTimeline = vendas.map((venda) => ({
         chave: `venda-${venda.id}`,
         tipo: "VENDA" as const,

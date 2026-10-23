@@ -49,10 +49,18 @@ public class CaixaOperacionalService {
 
     @Transactional(readOnly = true)
     public void exigirAcessoLeitura(Long sessaoId, UsuarioAutenticado usuario) {
-        var sessao = sessoes.findByIdAndEmpresaId(sessaoId, usuario.empresaId()).orElseThrow(() ->
+        var sessao = sessoes.buscarAcesso(sessaoId, usuario.empresaId()).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão de Caixa não encontrada."));
-        if (!podeVer(sessao, usuario))
+        if (!podeVer(sessao.getStatus(), sessao.getUsuarioAberturaId(), usuario))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Somente quem abriu o Caixa pode ver esta sessão.");
+    }
+
+    public PainelSessaoCaixaDTO painel(Long sessaoId, UsuarioAutenticado usuario) {
+        exigirAcessoLeitura(sessaoId, usuario);
+        // Mesmo lock do resumo/fechamento; as três leituras compartilham a transação.
+        return new PainelSessaoCaixaDTO(resumo(sessaoId, usuario.empresaId()),
+                movimentos.listarParaCaixa(sessaoId, usuario.empresaId()),
+                vendas.listarTimelineCaixa(usuario.empresaId(), sessaoId));
     }
 
     @Transactional(readOnly = true)
@@ -108,9 +116,13 @@ public class CaixaOperacionalService {
     }
 
     private boolean podeVer(SessaoCaixaEntity sessao, UsuarioAutenticado usuario) {
-        return sessao.getStatus() != StatusSessaoCaixa.FECHADO || usuario.perfil() == PerfilUsuario.ADMIN
+        return podeVer(sessao.getStatus(), sessao.getUsuarioAbertura().getId(), usuario);
+    }
+
+    private boolean podeVer(StatusSessaoCaixa status, Long usuarioAberturaId, UsuarioAutenticado usuario) {
+        return status != StatusSessaoCaixa.FECHADO || usuario.perfil() == PerfilUsuario.ADMIN
                 || usuario.perfil() == PerfilUsuario.GERENTE
-                || sessao.getUsuarioAbertura().getId().equals(usuario.usuarioId());
+                || usuarioAberturaId.equals(usuario.usuarioId());
     }
 
     // Venda, movimentação manual, resumo e fechamento compartilham o lock desta sessão.
@@ -215,39 +227,38 @@ public class CaixaOperacionalService {
 
     @Transactional(readOnly = true)
     public List<MovimentacaoCaixaResponseDTO> listarMovimentos(Long sessaoId, Long empresaId) {
-        sessoes.findByIdAndEmpresaId(sessaoId, empresaId).orElseThrow(() ->
-                new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão de Caixa não encontrada."));
-        return movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessaoId, empresaId)
-                .stream().map(MovimentacaoCaixaResponseDTO::de).toList();
+        if (!sessoes.existsByIdAndEmpresaId(sessaoId, empresaId))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão de Caixa não encontrada.");
+        return movimentos.listarParaCaixa(sessaoId, empresaId);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
     public ResumoSessaoCaixaDTO calcular(SessaoCaixaEntity sessao) {
-        var registros = pagamentos.findByEmpresaIdAndVendaSessaoCaixaIdOrderByIdAsc(sessao.getEmpresa().getId(), sessao.getId());
+        var registros = pagamentos.resumirParaCaixa(sessao.getEmpresa().getId(), sessao.getId());
         Map<Long, ResumoSessaoCaixaDTO.TotalForma> porForma = new LinkedHashMap<>();
         Map<String, ResumoSessaoCaixaDTO.TotalConfiguracao> porConfiguracao = new LinkedHashMap<>();
         BigDecimal total = BigDecimal.ZERO;
         for (var p : registros) {
             if (p.getStatus() == StatusPagamento.CANCELADO) continue;
             total = total.add(p.getValor());
-            Long configId=p.getConfiguracaoFormaPagamento()==null?null:p.getConfiguracaoFormaPagamento().getId();
-            String chave=configId==null?"f:"+p.getForma().getId():"c:"+configId;
+            Long configId=p.getConfiguracaoId();
+            String chave=configId==null?"f:"+p.getFormaId():"c:"+configId;
             var grupo=porConfiguracao.get(chave);
             String nome=grupo!=null?grupo.descricao():p.getConfiguracaoNomeExibicao()!=null?p.getConfiguracaoNomeExibicao():p.getFormaPagamento().name();
-            String tipoConfig=p.getConfiguracaoTipo()!=null?p.getConfiguracaoTipo().name():p.getForma().getTipo().name();
-            porConfiguracao.put(chave,new ResumoSessaoCaixaDTO.TotalConfiguracao(configId,p.getForma().getId(),nome,tipoConfig,
+            String tipoConfig=p.getConfiguracaoTipo()!=null?p.getConfiguracaoTipo().name():p.getFormaTipo().name();
+            porConfiguracao.put(chave,new ResumoSessaoCaixaDTO.TotalConfiguracao(configId,p.getFormaId(),nome,tipoConfig,
                     p.getValor().add(grupo==null?BigDecimal.ZERO:grupo.total())));
-            var anterior = porForma.get(p.getForma().getId());
+            var anterior = porForma.get(p.getFormaId());
             String tipo = switch (p.getFormaPagamento()) {
                 case DINHEIRO -> "DINHEIRO"; case PIX -> "PIX";
                 case CARTAO_DEBITO -> "DEBITO"; case CARTAO_CREDITO -> "CREDITO";
             };
-            porForma.put(p.getForma().getId(), new ResumoSessaoCaixaDTO.TotalForma(p.getForma().getId(),
-                    p.getForma().getDescricao(), tipo, p.getValor().add(anterior == null ? BigDecimal.ZERO : anterior.total())));
+            porForma.put(p.getFormaId(), new ResumoSessaoCaixaDTO.TotalForma(p.getFormaId(),
+                    p.getFormaDescricao(), tipo, p.getValor().add(anterior == null ? BigDecimal.ZERO : anterior.total())));
         }
         BigDecimal dinheiro = BigDecimal.ZERO, suprimentos = BigDecimal.ZERO, sangrias = BigDecimal.ZERO;
         var chaveAbertura = chaveSaldoInicial(sessao.getId());
-        for (var m : movimentos.findBySessaoIdAndEmpresaIdOrderByIdAsc(sessao.getId(), sessao.getEmpresa().getId())) {
+        for (var m : movimentos.resumirParaCaixa(sessao.getId(), sessao.getEmpresa().getId())) {
             if (m.getTipo() == TipoMovimentacaoCaixa.SUPRIMENTO
                     && chaveAbertura.equals(m.getChaveRequisicao())) continue;
             switch (m.getTipo()) {

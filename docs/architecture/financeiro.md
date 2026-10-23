@@ -344,6 +344,12 @@ Na Fase 2 de Usuários e Acessos, qualquer perfil operacional autenticado pode a
 - V10 adiciona o vínculo Venda–Sessão e movimentacoes_caixa com chaves de empresa e unicidade por pagamento/requisição. Vendas antigas não recebem sessão fictícia nem geram movimentos retroativos.
 - Continua um pagamento por venda no contrato atual. Misto, confirmação de PIX/cartões e destinos bancários não fazem parte deste bloco. A implementação parcial anterior de venda em dinheiro em outro worktree foi superada por este bloco: não integrar sua V10 concorrente.
 
+### Painel operacional e performance — Tarefa 13
+
+O novo `GET /financeiro/caixas/sessoes/{sessaoId}/painel` retorna `{resumo, movimentacoes, vendas}` em uma transação com o mesmo lock/refresh do resumo. Empresa vem do JWT; sessão de outro tenant retorna 404, fechada exige responsável ou ADMIN/GERENTE. `vendas` contém apenas `{id, dataHora, total, formaPagamento, usuarioNome}`, FATURADA, ordenadas por data/id; detalhes permanecem no contrato de Venda existente. Resumo e movimentos preservam seus DTOs anteriores e cálculos/snapshots, usando projeções sem materializar Empresa/Venda por registro. Todos os endpoints anteriores continuam disponíveis.
+
+Caixas usa uma chamada por atualização, aguardando concluir antes de programar a próxima após dois segundos. Histórico fechado é carregado na aba, com loading/erro/retry próprios; sair da aba atual cancela seu polling. Sem cache ou migration, sem mudança de saldos, regras financeiras, permissões ou idempotência. Evidências e limites da validação local em [performance-caixas-2026-10-23.md](../audits/performance-caixas-2026-10-23.md); publicação e medição pós-deploy pendentes, com backend antes de frontend.
+
 ### Conferencia por forma no fechamento — Fase 1 backend
 
 Implementada na branch `feat/conferencia-fechamento-backend`, atualizada com o baseline `1b313df`; pendente de integracao.

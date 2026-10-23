@@ -6,6 +6,20 @@ export type CaixaResumo = {
 
 export type CaixaCompleta = CaixaResumo;
 
+export type VendaSessaoCaixa = {
+    id: number;
+    dataHora: string;
+    total: number;
+    formaPagamento: "DINHEIRO" | "PIX" | "CARTAO_DEBITO" | "CARTAO_CREDITO" | null;
+    usuarioNome: string | null;
+};
+
+export type PainelSessaoCaixa = {
+    resumo: ResumoSessaoCaixa;
+    movimentacoes: MovimentacaoCaixa[];
+    vendas: VendaSessaoCaixa[];
+};
+
 export type CaixaInput = {
     descricao: string;
     ativo: boolean;

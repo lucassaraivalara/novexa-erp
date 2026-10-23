@@ -27,11 +27,10 @@ import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import {
-    adicionarMovimentacao, buscarCaixa, buscarDetalheSessao, buscarResumoSessao, fecharSessaoCaixa,
-    inativarCaixa, listarCaixas, listarMovimentacoes, listarSessoesAbertas, listarSessoesFechadas,
+    adicionarMovimentacao, buscarCaixa, buscarDetalheSessao, buscarPainelSessao, fecharSessaoCaixa,
+    inativarCaixa, listarCaixas, listarSessoesAbertas, listarSessoesFechadas,
     mensagemCaixa,
 } from "../../services/caixaService";
-import { listarVendasSessao } from "../../services/vendaService";
 import EntregaCofreCampos from "./EntregaCofreCampos";
 import { novaEntregaCofre, lerEntregaCofre, centavosDinheiro } from "./cofreFormulario";
 import type {
@@ -73,6 +72,9 @@ export default function Caixa() {
     const [resumo, setResumo] = useState<ResumoSessaoCaixa | null>(null);
     const [timeline, setTimeline] = useState<ItemTimeline[]>([]);
     const [historico, setHistorico] = useState<SessaoCaixaHistorico[]>([]);
+    const [carregandoHistorico, setCarregandoHistorico] = useState(true);
+    const [erroHistorico, setErroHistorico] = useState("");
+    const [versaoHistorico, setVersaoHistorico] = useState(0);
     const [paginaHistorico, setPaginaHistorico] = useState(0);
     const [porPaginaHistorico, setPorPaginaHistorico] = useState(10);
     const [caixas, setCaixas] = useState<CaixaResumo[]>([]);
@@ -113,12 +115,11 @@ export default function Caixa() {
 
     function carregar(signal?: AbortSignal) {
         return Promise.all([
-            listarSessoesAbertas(signal), listarCaixas(signal), listarSessoesFechadas(signal),
-        ]).then(([sessoes, cadastros, fechadas]) => {
+            listarSessoesAbertas(signal), listarCaixas(signal),
+        ]).then(([sessoes, cadastros]) => {
             if (signal?.aborted) return;
             setAbertas(sessoes);
             setCaixas(cadastros);
-            setHistorico(fechadas);
             setSessaoId((atual) => sessoes.some((sessao) => sessao.sessaoId === atual) ? atual : sessoes[0]?.sessaoId ?? null);
             if (sessoes.length === 0) { setResumo(null); setTimeline([]); }
         }).catch((e) => {
@@ -131,16 +132,21 @@ export default function Caixa() {
     function recarregar() {
         setCarregando(true);
         setErro("");
+        recarregarHistorico();
         return carregar();
     }
 
+    function recarregarHistorico() {
+        setCarregandoHistorico(true);
+        setErroHistorico("");
+        setVersaoHistorico(atual => atual + 1);
+    }
+
     async function carregarSessao(id: number, signal?: AbortSignal) {
-        const [novoResumo, movimentos, vendas] = await Promise.all([
-            buscarResumoSessao(id, signal), listarMovimentacoes(id, signal), listarVendasSessao(id, signal),
-        ]);
+        const painel = await buscarPainelSessao(id, signal);
         if (signal?.aborted) return;
-        setResumo(novoResumo);
-        setTimeline(criarTimeline(movimentos, vendas));
+        setResumo(painel.resumo);
+        setTimeline(criarTimeline(painel.movimentacoes, painel.vendas));
     }
 
     useEffect(() => {
@@ -150,15 +156,34 @@ export default function Caixa() {
     }, []);
 
     useEffect(() => {
-        if (sessaoId === null) return;
+        if (sessaoId === null || aba !== 0) return;
         const controller = new AbortController();
-        const atualizar = () => carregarSessao(sessaoId, controller.signal).catch((e) => {
-            if (!controller.signal.aborted) setErro(mensagemCaixa(e, "Não foi possível carregar o resumo do Caixa."));
-        });
+        let intervalo: ReturnType<typeof window.setTimeout>;
+        const atualizar = async () => {
+            try {
+                await carregarSessao(sessaoId, controller.signal);
+            } catch (e) {
+                if (!controller.signal.aborted) setErro(mensagemCaixa(e, "Não foi possível carregar o resumo do Caixa."));
+            } finally {
+                if (!controller.signal.aborted) intervalo = window.setTimeout(() => void atualizar(), intervaloAtualizacaoSessao);
+            }
+        };
         void atualizar();
-        const intervalo = window.setInterval(() => void atualizar(), intervaloAtualizacaoSessao);
-        return () => { controller.abort(); window.clearInterval(intervalo); };
-    }, [sessaoId]);
+        return () => { controller.abort(); window.clearTimeout(intervalo); };
+    }, [sessaoId, aba]);
+
+    useEffect(() => {
+        if (aba !== 1) return;
+        const controller = new AbortController();
+        listarSessoesFechadas(controller.signal).then(fechadas => {
+            if (!controller.signal.aborted) setHistorico(fechadas);
+        }).catch(e => {
+            if (!controller.signal.aborted) setErroHistorico(mensagemCaixa(e, "Não foi possível carregar os caixas anteriores."));
+        }).finally(() => {
+            if (!controller.signal.aborted) setCarregandoHistorico(false);
+        });
+        return () => controller.abort();
+    }, [aba, versaoHistorico]);
 
     useEffect(() => {
         if (detalhe === null) return;
@@ -298,15 +323,15 @@ export default function Caixa() {
             acaoPrincipal={<Button variant="contained" startIcon={<AccountBalanceWalletRoundedIcon />} onClick={() => setModalAbertura(true)} disabled={abertas.length > 0}>Abrir Caixa</Button>}
             acoesSecundarias={podeMovimentar && <Button variant="outlined" startIcon={<SettingsRoundedIcon />} onClick={() => setGerenciando(true)}>Cadastro de caixas</Button>} />
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void recarregar()}>Tentar novamente</Button>}>{erro}</Alert>}
-        <Paper variant="outlined"><Tabs value={aba} onChange={(_, valor) => setAba(valor)} aria-label="Sessões do caixa físico" variant="scrollable" scrollButtons="auto" sx={{ minHeight: 44 }}><Tab id="caixa-atual-tab" aria-controls="caixa-atual-painel" label="Caixa Atual" sx={{ minHeight: 44, py: 1 }} /><Tab id="caixas-anteriores-tab" aria-controls="caixas-anteriores-painel" label="Caixas Anteriores" sx={{ minHeight: 44, py: 1 }} /></Tabs></Paper>
+        <Paper variant="outlined"><Tabs value={aba} onChange={(_, valor) => { if (valor === 1) recarregarHistorico(); setAba(valor); }} aria-label="Sessões do caixa físico" variant="scrollable" scrollButtons="auto" sx={{ minHeight: 44 }}><Tab id="caixa-atual-tab" aria-controls="caixa-atual-painel" label="Caixa Atual" sx={{ minHeight: 44, py: 1 }} /><Tab id="caixas-anteriores-tab" aria-controls="caixas-anteriores-painel" label="Caixas Anteriores" sx={{ minHeight: 44, py: 1 }} /></Tabs></Paper>
         {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} podeMovimentar={podeMovimentar} podeFechar={podeFecharSessao(usuarioAtual?.perfil, usuarioAtual?.id, resumo.operadorAbertura.id)} onSuprimento={() => { setErroModal(""); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setObservacaoFechamento(""); setValoresConferidos({}); setDestinarAoCofre(false); setSaldo(""); setEntregaCofre({ ...novaEntregaCofre(), troco: valorEditavel(Math.min(resumo.saldoInicial, Math.max(0, resumo.saldoEsperadoDinheiro))), valor: valorEditavel(Math.max(0, resumo.saldoEsperadoDinheiro - resumo.saldoInicial)) }); setChaveMovimento(chave()); setPoliticaFechamento(null); setErroPolitica(""); setTotalConferido(""); setModalFechamento(true); }} /></Box>)}
-        {aba === 1 && <Box id="caixas-anteriores-painel" role="tabpanel" aria-labelledby="caixas-anteriores-tab"><AppTable colunas={[
+        {aba === 1 && <Box id="caixas-anteriores-painel" role="tabpanel" aria-labelledby="caixas-anteriores-tab">{erroHistorico && <Alert severity="error" action={<Button color="inherit" onClick={recarregarHistorico}>Tentar novamente</Button>}>{erroHistorico}</Alert>}<AppTable colunas={[
             { campo: "descricaoCaixa", cabecalho: "Caixa", largura: 180 }, { campo: "dataHoraAbertura", cabecalho: "Abertura", largura: 170, render: (valor) => data(valor as string) },
             { campo: "dataHoraFechamento", cabecalho: "Fechamento", largura: 170, render: (valor) => data(valor as string | null) }, { campo: "operadorAbertura.nome", cabecalho: "Operador", largura: 180 },
             { campo: "saldoInicial", cabecalho: "Saldo inicial", alinhar: "right", render: (valor) => dinheiro(valor as number) }, { campo: "totalVendas", cabecalho: "Vendas", alinhar: "right", render: (valor) => dinheiro(valor as number) },
             { campo: "dinheiroEsperado", cabecalho: "Esperado", alinhar: "right", render: (valor) => dinheiro(valor as number) }, { campo: "valorInformado", cabecalho: "Informado", alinhar: "right", render: (valor) => dinheiro(valor as number | null) },
             { campo: "diferenca", cabecalho: "Diferença", alinhar: "right", render: (valor) => <Typography color={(valor as number | null) === 0 ? "success.main" : "error.main"} sx={{ fontWeight: 700 }}>{dinheiro(valor as number | null)}</Typography> },
-        ]} linhas={historicoPagina} carregando={carregando} obterChaveLinha={(sessao) => sessao.sessaoId} minWidth={1100} alturaCorpo={480} linhaCliqueavel onLinhaClick={abrirDetalhe}
+        ]} linhas={historicoPagina} carregando={carregandoHistorico} obterChaveLinha={(sessao) => sessao.sessaoId} minWidth={1100} alturaCorpo={480} linhaCliqueavel onLinhaClick={abrirDetalhe}
             acoes={[{ rotulo: "Ver detalhes", icone: <VisibilityRoundedIcon fontSize="small" />, onClick: abrirDetalhe, tooltip: "Ver detalhes da sessão" }]}
             vazio={{ titulo: "Nenhuma sessão encerrada", descricao: "As sessões fechadas aparecerão aqui." }} paginacao={{
             pagina: paginaHistoricoAtual,
