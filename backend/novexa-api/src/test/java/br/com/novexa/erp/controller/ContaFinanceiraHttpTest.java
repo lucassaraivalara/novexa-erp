@@ -34,6 +34,7 @@ class ContaFinanceiraHttpTest {
     @Autowired UsuarioRepository usuarios;
     @Autowired ContaFinanceiraRepository contas;
     @Autowired MovimentacaoFinanceiraRepository movimentos;
+    @jakarta.persistence.PersistenceContext jakarta.persistence.EntityManager entityManager;
     @Autowired JwtService jwt;
     @Autowired BancoRepository bancos;
     @Autowired AgenciaRepository agencias;
@@ -87,12 +88,14 @@ class ContaFinanceiraHttpTest {
         long entrada = movimentar(tokenA, id, "ENTRADA", 50);
         long saida = movimentar(tokenA, id, "SAIDA", 30);
         assertThat(contas.findById(id).orElseThrow().getSaldoAtual()).isEqualByComparingTo("120.00");
+        // A leitura HTTP real usa outro contexto e devolve a escala monetária persistida.
+        entityManager.flush(); entityManager.clear();
         mvc.perform(get("/financeiro/movimentacoes-financeiras").header("Authorization", tokenA)
                         .param("contaFinanceiraId", String.valueOf(id)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(3))
                 .andExpect(jsonPath("$.items[?(@.id == " + saida + ")].origem").value("MANUAL"))
                 .andExpect(jsonPath("$.items[?(@.id == " + entrada + ")].usuarioNome").value("Admin"))
-                .andExpect(jsonPath("$.items[?(@.origem == 'SALDO_INICIAL')].valor").value(100));
+                .andExpect(jsonPath("$.items[?(@.origem == 'SALDO_INICIAL')].valor").value(100.0));
     }
 
     @Test void saidaSemSaldoFalhaSemPersistirMovimento() throws Exception {

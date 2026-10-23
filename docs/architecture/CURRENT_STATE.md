@@ -1,5 +1,9 @@
 Empresa ........ funcional
 
+## Performance do extrato financeiro — Tarefa 14A, validação local de 2026-10-23
+
+Leitura paginada usa projeção no DTO existente, eliminando N+1 de transferências/contrapartes sem alterar escritas, saldos, permissões, filtros ou frontend. Em PostgreSQL descartável, 25 contrapartes distintas: 59→7 comandos, 27.226.118→978.293 bytes banco/API e mediana HTTP 131,85→42,58 ms. Dez/25/50 contrapartes mantêm sete comandos; 27 pares de respostas entre versões são byte a byte idênticos. Aprovados 21 testes HTTP PostgreSQL e 104 regressões H2, build backend e diff check. Sem migration, commit ou deploy; permanece o custo fixo da Empresa/logomarca na autenticação. Detalhes, limites e evidências na [validação do extrato](../audits/performance-extrato-2026-10-23.md); diagnóstico anterior preservado na auditoria do Financeiro.
+
 ## Performance de Caixas — Tarefa 13, 2026-10-23
 
 Publicado em 23/10/2026, commit funcional `3d9cf78`, backend Oracle antes do frontend Vercel. Leituras completas de Pagamento/Movimento/Venda replicavam a logomarca de 971.611 bytes e saturavam as cinco conexões Hikari. Projeções escalares preservam os cálculos; GET `sessoes/{id}/painel` agrega resumo/movimentos/vendas curtas com o lock existente. Frontend faz uma chamada por rodada concluída, carrega histórico somente na aba e mantém loading/erro/retry independentes. Schema permanece V58, sem migration; imagem anterior e backup com restauração comprovada preservados.

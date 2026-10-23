@@ -19,15 +19,33 @@ public interface MovimentacaoFinanceiraRepository extends JpaRepository<Moviment
           and m.dataMovimento >= :de and m.dataMovimento <= :ate
         """)
     ContaReceberRepository.Total resumirRecebimentos(Long empresaId, java.time.LocalDate de, java.time.LocalDate ate);
-    @org.springframework.data.jpa.repository.Query("""
-        select m from MovimentacaoFinanceiraEntity m where m.empresa.id = :empresaId
+    @org.springframework.data.jpa.repository.Query(value = """
+        select new br.com.novexa.erp.dto.MovimentacaoFinanceiraResponseDTO(
+            m.id, c.id, c.nome, m.tipo, m.origem, m.descricao, m.valor, m.dataMovimento,
+            m.observacao, u.id, u.nomeUsuario, m.dataCriacao, m.estornada, m.dataEstorno,
+            ue.id, ue.nomeUsuario, m.motivoEstorno, t.id,
+            case when m.tipo = br.com.novexa.erp.entity.TipoMovimentacaoFinanceira.SAIDA
+                then contaDestino.nome else contaOrigem.nome end,
+            m.recebivel.id, m.contaReceber.id, m.chaveRequisicao)
+        from MovimentacaoFinanceiraEntity m
+        join m.contaFinanceira c join m.usuario u
+        left join m.usuarioEstorno ue left join m.transferencia t
+        left join t.contaOrigem contaOrigem left join t.contaDestino contaDestino
+        where m.empresa.id = :empresaId
+         and (:contaFinanceiraId is null or m.contaFinanceira.id = :contaFinanceiraId)
+         and (:tipo is null or m.tipo = :tipo) and (:origem is null or m.origem = :origem)
+         and (cast(:dataInicial as date) is null or m.dataMovimento >= :dataInicial)
+         and (cast(:dataFinal as date) is null or m.dataMovimento <= :dataFinal)
+         and (:estornada is null or m.estornada = :estornada)
+        """, countQuery = """
+        select count(m) from MovimentacaoFinanceiraEntity m where m.empresa.id = :empresaId
          and (:contaFinanceiraId is null or m.contaFinanceira.id = :contaFinanceiraId)
          and (:tipo is null or m.tipo = :tipo) and (:origem is null or m.origem = :origem)
          and (cast(:dataInicial as date) is null or m.dataMovimento >= :dataInicial)
          and (cast(:dataFinal as date) is null or m.dataMovimento <= :dataFinal)
          and (:estornada is null or m.estornada = :estornada)
         """)
-    org.springframework.data.domain.Page<MovimentacaoFinanceiraEntity> listarPagina(Long empresaId, Long contaFinanceiraId, br.com.novexa.erp.entity.TipoMovimentacaoFinanceira tipo, br.com.novexa.erp.entity.OrigemMovimentacaoFinanceira origem, java.time.LocalDate dataInicial, java.time.LocalDate dataFinal, Boolean estornada,
+    org.springframework.data.domain.Page<br.com.novexa.erp.dto.MovimentacaoFinanceiraResponseDTO> listarPagina(Long empresaId, Long contaFinanceiraId, br.com.novexa.erp.entity.TipoMovimentacaoFinanceira tipo, br.com.novexa.erp.entity.OrigemMovimentacaoFinanceira origem, java.time.LocalDate dataInicial, java.time.LocalDate dataFinal, Boolean estornada,
             org.springframework.data.domain.Pageable pageable);
 
     Optional<MovimentacaoFinanceiraEntity> findByPagamentoIdAndEmpresaId(Long pagamentoId, Long empresaId);

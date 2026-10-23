@@ -29,7 +29,7 @@ public class ContaFinanceiraService {
             throw br.com.novexa.erp.util.Paginacao.invalida("Periodo invalido.");
         if (contaFinanceiraId != null && !contas.existsByIdAndEmpresaId(contaFinanceiraId, empresaId))
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Conta financeira nao encontrada.");
-        return br.com.novexa.erp.dto.PaginaResponseDTO.de(movimentos.listarPagina(empresaId, contaFinanceiraId, tipo, origem, dataInicial, dataFinal, estornada, pageable), MovimentacaoFinanceiraResponseDTO::de);
+        return br.com.novexa.erp.dto.PaginaResponseDTO.de(movimentos.listarPagina(empresaId, contaFinanceiraId, tipo, origem, dataInicial, dataFinal, estornada, pageable), movimento -> movimento);
     }
 
 

@@ -1,5 +1,9 @@
 FINANCEIRO NOVEXA
 
+## Leitura paginada do extrato — Tarefa 14A
+
+`GET /financeiro/movimentacoes-financeiras` utiliza projeção escalar no DTO existente, sem materializar movimentos/transferências/Empresa para exibir nomes e contrapartes. Preserva tenant do JWT, 404 de conta externa, filtros inclusivos, paginação, count e ordenação estável. Escritas, saldos, locks e estornos permanecem nos serviços existentes. Validado localmente em PostgreSQL descartável, com paridade HTTP e consultas constantes em páginas de 10/25/50 contrapartes; sem migration ou deploy. A autenticação ainda carrega sua Empresa/logomarca, limitação separada desta consulta. Medições e regressões em [validação do extrato](../audits/performance-extrato-2026-10-23.md).
+
 ## Referência temporal oficial
 
 Datas e horas operacionais seguem `America/Sao_Paulo`, via `TempoNovexa`: sessão de Caixa, pagamentos PIX, criação/liquidação/cancelamento de recebíveis, movimentos financeiros, cofre e vencimentos. O scheduler de cartão e a validação da liquidação automática consultam o mesmo dia civil de Brasília, inclusive após indisponibilidade do servidor (`dataPrevista <= hoje`). Prazo de recebimento continua derivado da data histórica do pagamento em Brasília. Valores, locks, idempotência, regras de saldo e confirmações permanecem os mesmos. Não há liquidação ou correção retroativa introduzida por esta padronização. Semântica de armazenamento e exibição em [arquitetura.md](arquitetura.md#data-e-hora-oficial--brasília).
