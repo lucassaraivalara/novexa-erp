@@ -15,6 +15,22 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
 
     Optional<UsuarioEntity> findByIdAndEmpresaId(Long id, Long empresaId);
 
+    interface ContextoSeguranca {
+        long getVersaoToken();
+        Boolean getAtivo();
+        Long getEmpresaId();
+        Boolean getEmpresaAtiva();
+        br.com.novexa.erp.entity.PerfilUsuario getPerfil();
+    }
+
+    @Query("""
+            select u.versaoToken as versaoToken, u.ativo as ativo, e.id as empresaId,
+                e.ativo as empresaAtiva, u.perfil as perfil
+            from UsuarioEntity u join u.empresa e
+            where u.id = :id and e.id = :empresaId
+            """)
+    Optional<ContextoSeguranca> buscarContextoSeguranca(Long id, Long empresaId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from UsuarioEntity u where u.empresa.id = :empresaId order by u.id")
     List<UsuarioEntity> bloquearAdministracao(@Param("empresaId") Long empresaId);

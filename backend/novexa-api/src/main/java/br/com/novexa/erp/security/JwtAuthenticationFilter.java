@@ -81,12 +81,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return new UsuarioAutenticado(usuarioId, cpf, empresaId, PerfilUsuario.valueOf(perfil));
     }
     private void validarVinculoAtual(UsuarioAutenticado principal, Claims claims) {
-        var usuario = usuarios.findByIdAndEmpresaId(principal.usuarioId(), principal.empresaId())
+        var usuario = usuarios.buscarContextoSeguranca(principal.usuarioId(), principal.empresaId())
                 .orElseThrow(() -> new BadCredentialsException("Vinculo de usuario invalido."));
         Number versao = claims.get(JwtService.CLAIM_VERSAO, Number.class);
         if (usuario.getVersaoToken() != (versao == null ? 0 : versao.longValue())
-                || Boolean.FALSE.equals(usuario.getAtivo()) || usuario.getEmpresa() == null
-                || Boolean.FALSE.equals(usuario.getEmpresa().getAtivo())
+                || Boolean.FALSE.equals(usuario.getAtivo()) || usuario.getEmpresaId() == null
+                || Boolean.FALSE.equals(usuario.getEmpresaAtiva())
                 || usuario.getPerfil() != principal.perfil())
             throw new BadCredentialsException("Usuario, empresa ou perfil indisponivel.");
     }

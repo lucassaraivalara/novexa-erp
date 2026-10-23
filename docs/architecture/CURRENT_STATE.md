@@ -1,8 +1,14 @@
 Empresa ........ funcional
 
+## Autenticação compacta — Tarefa 14B, validação local de 2026-10-23
+
+Filtro JWT valida o estado persistido por projeção de versão de revogação, perfil, atividade do usuário e ID/atividade da empresa, sem materializar Usuario/Empresa ou carregar logomarca. Mesmas regras de token, vínculo, renovação, perfis e flags legadas, sem cache. Empresa sintética com imagem de 971.626 bytes: autenticação ADMIN 2→1 consultas, 2→0 entidades, 972.121→75 bytes e mediana 8,180→2,922 ms. Login e detalhe da empresa mantêm a imagem; consultas financeiras de negócio podem continuar carregando suas próprias relações.
+
+Suíte backend completa: 1.891 aprovados, zero falhas/erros e 861 ignorados por guardas; inclui 26 testes HTTP PostgreSQL novos, 21 do extrato e 13 de Caixas. Build aprovado; smoke real frontend/API com quatro perfis, sessão, menus e logomarca sem erros. Frontend relacionado 36/37, com uma falha estática de título reproduzida no HEAD, sem mudança de frontend. 14A commitada localmente em `bbb543f`; 14B ainda sem commit/deploy ou migration. Medições, regressões, falha preexistente e limites na [validação da autenticação](../audits/performance-autenticacao-2026-10-23.md).
+
 ## Performance do extrato financeiro — Tarefa 14A, validação local de 2026-10-23
 
-Leitura paginada usa projeção no DTO existente, eliminando N+1 de transferências/contrapartes sem alterar escritas, saldos, permissões, filtros ou frontend. Em PostgreSQL descartável, 25 contrapartes distintas: 59→7 comandos, 27.226.118→978.293 bytes banco/API e mediana HTTP 131,85→42,58 ms. Dez/25/50 contrapartes mantêm sete comandos; 27 pares de respostas entre versões são byte a byte idênticos. Aprovados 21 testes HTTP PostgreSQL e 104 regressões H2, build backend e diff check. Sem migration, commit ou deploy; permanece o custo fixo da Empresa/logomarca na autenticação. Detalhes, limites e evidências na [validação do extrato](../audits/performance-extrato-2026-10-23.md); diagnóstico anterior preservado na auditoria do Financeiro.
+Leitura paginada usa projeção no DTO existente, eliminando N+1 de transferências/contrapartes sem alterar escritas, saldos, permissões, filtros ou frontend. Em PostgreSQL descartável, 25 contrapartes distintas: 59→7 comandos, 27.226.118→978.293 bytes banco/API e mediana HTTP 131,85→42,58 ms. Dez/25/50 contrapartes mantêm sete comandos; 27 pares de respostas entre versões são byte a byte idênticos. Aprovados 21 testes HTTP PostgreSQL e 104 regressões H2, build backend e diff check. Commit local `bbb543f`, sem migration ou deploy; o custo residual da autenticação foi tratado na Tarefa 14B. Detalhes, limites e evidências na [validação do extrato](../audits/performance-extrato-2026-10-23.md); diagnóstico anterior preservado na auditoria do Financeiro.
 
 ## Performance de Caixas — Tarefa 13, 2026-10-23
 

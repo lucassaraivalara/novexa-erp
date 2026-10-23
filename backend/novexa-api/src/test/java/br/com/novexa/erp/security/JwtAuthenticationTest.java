@@ -333,7 +333,13 @@ class JwtAuthenticationTest {
         usuario.setSenha(passwordEncoder.encode("senha123"));
         usuario.setPerfil(perfil);
         usuario.setEmpresa(empresa);
-        when(usuarioRepository.findByIdAndEmpresaId(1L, 10L)).thenReturn(Optional.of(usuario));
+        when(usuarioRepository.buscarContextoSeguranca(1L, 10L)).thenAnswer(invocacao -> Optional.of(new UsuarioRepository.ContextoSeguranca() {
+            public long getVersaoToken() { return usuario.getVersaoToken(); }
+            public Boolean getAtivo() { return usuario.getAtivo(); }
+            public Long getEmpresaId() { return usuario.getEmpresa() == null ? null : usuario.getEmpresa().getId(); }
+            public Boolean getEmpresaAtiva() { return usuario.getEmpresa() == null ? null : usuario.getEmpresa().getAtivo(); }
+            public PerfilUsuario getPerfil() { return usuario.getPerfil(); }
+        }));
         return usuario;
     }
 

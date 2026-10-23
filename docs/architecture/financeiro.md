@@ -2,7 +2,7 @@ FINANCEIRO NOVEXA
 
 ## Leitura paginada do extrato — Tarefa 14A
 
-`GET /financeiro/movimentacoes-financeiras` utiliza projeção escalar no DTO existente, sem materializar movimentos/transferências/Empresa para exibir nomes e contrapartes. Preserva tenant do JWT, 404 de conta externa, filtros inclusivos, paginação, count e ordenação estável. Escritas, saldos, locks e estornos permanecem nos serviços existentes. Validado localmente em PostgreSQL descartável, com paridade HTTP e consultas constantes em páginas de 10/25/50 contrapartes; sem migration ou deploy. A autenticação ainda carrega sua Empresa/logomarca, limitação separada desta consulta. Medições e regressões em [validação do extrato](../audits/performance-extrato-2026-10-23.md).
+`GET /financeiro/movimentacoes-financeiras` utiliza projeção escalar no DTO existente, sem materializar movimentos/transferências/Empresa para exibir nomes e contrapartes. Preserva tenant do JWT, 404 de conta externa, filtros inclusivos, paginação, count e ordenação estável. Escritas, saldos, locks e estornos permanecem nos serviços existentes. Validado localmente em PostgreSQL descartável, com paridade HTTP e consultas constantes em páginas de 10/25/50 contrapartes; sem migration ou deploy. O custo residual de Empresa/logomarca na autenticação foi eliminado pela [Tarefa 14B](../audits/performance-autenticacao-2026-10-23.md), sem alterar os relacionamentos próprios das consultas de negócio. Medições e regressões em [validação do extrato](../audits/performance-extrato-2026-10-23.md).
 
 ## Referência temporal oficial
 
