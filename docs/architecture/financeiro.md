@@ -16,6 +16,8 @@ Estabilização local sobre `7abb43a`: validada em PostgreSQL descartável com H
 
 ## Autorização das configurações de pagamento — Tarefa 10A
 
+Auditoria publicada de 2026-10-22: frontend `2189ec4`, backend equivalente validado em `7abb43a` e banco V58. Cenário 3x/D+0 reexecutado com sucesso em PostgreSQL descartável; configuração real preservada em 1x. Encerramento de produção depende de comprovar backup/restauração e smoke por perfil com contas autorizadas; detalhes em [producao.md](../deploy/producao.md#tarefa-10--registro-de-publicação-e-validação-2026-10-22). Não houve reprocessamento histórico nem alteração de política financeira.
+
 `GET /financeiro/configuracoes-formas-pagamento` e `GET /financeiro/configuracoes-formas-pagamento/{id}` permanecem disponíveis a ADMIN, GERENTE, OPERADOR e USUARIO autenticados, inclusive para seleção no PDV. POST/PUT exigem ADMIN/GERENTE no backend: criar, editar nome/taxa/prazo/destino e ativar/desativar usam a mesma proteção. OPERADOR/USUARIO recebem 403 antes da escrita; sem autenticação retorna 401. Não há endpoint de exclusão. IDs e destinos de outro tenant continuam retornando 404 para usuários autorizados, sem autoridade de empresa no payload. A interface permite consulta operacional e reserva os botões de criação/edição e o formulário aos perfis gerenciais existentes. Não altera valores, snapshots, faturamento, liquidação ou dados históricos. Implementação publicada na main e aplicada em produção.
 
 ## Políticas de recebimento e conferência de Caixa — V49

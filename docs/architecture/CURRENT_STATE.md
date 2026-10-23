@@ -1,5 +1,13 @@
 Empresa ........ funcional
 
+## Tarefa 10 — publicação e auditoria final, 2026-10-22
+
+Push normal de `2189ec4` concluído; Vercel publicou esse commit em produção com status Ready. Oracle já executava `7abb43a`: suas 387 classes são idênticas às do backend validado, sem mudança backend no commit enviado. Serviço preservado, sem reinicialização; readiness/liveness HTTPS UP. Banco já estava em V58, aplicada uma vez com checksum correspondente ao teste descartável e sem falhas Flyway. Consultas somente leitura não encontraram duplicidades ou vínculos de tenant incompatíveis; pagamentos anteriores à V58 preservam parcelas desconhecidas.
+
+Reexecutados os 14 testes HTTP/PostgreSQL de parcelamento, todos aprovados, incluindo R$ 300 → R$ 9 de taxa → R$ 291, retry, estorno e upgrade V57→V58. Demais evidências de 169 testes backend distintos e 145 frontend reaproveitadas porque os arquivos validados não mudaram. Smoke publicado confirmou sessão existente, PDV, pagamento misto/reabertura sem concluir venda, consultas financeiras e formulário administrativo. Configuração real permanece em 1x; 2x/3x e matriz completa por perfil não foram exercitados em produção.
+
+**TAREFA 10 BLOQUEADA para encerramento como PRODUCTION READY:** painel Supabase Free informa ausência de backups do projeto; backup externo e restauração testada ainda não comprovados. Contas de teste por perfil também pendentes para smoke publicado. Nenhum dado financeiro/configuração real foi modificado. Registro verificável e condições de continuidade em [producao.md](../deploy/producao.md#tarefa-10--registro-de-publicação-e-validação-2026-10-22).
+
 ## Parcelamento do consumidor no crédito — 2026-10-22
 
 Crédito no PDV oferece de 1 a 12 parcelas no MVP, limitado pela configuração da empresa e com padrão 1x. V58 mantém colunas nullable sem backfill: configuração legada sem limite permite 1x; pagamento histórico sem quantidade permanece desconhecido. A quantidade fica imutável no Pagamento, sem dividir o recebível da empresa nem alterar os snapshots financeiros. Contrato, idempotência e limites em [financeiro.md](financeiro.md#parcelamento-do-consumidor-no-crédito--v58).
