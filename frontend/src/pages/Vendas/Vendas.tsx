@@ -1,3 +1,6 @@
+import CampoTexto from "../../components/ui/CampoTexto";
+import ValorMonetarioPDV from "./ValorMonetarioPDV";
+import { CampoQuantidade } from "../../components/ui/CampoDecimal";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -16,7 +19,7 @@ import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell,
-    TableHead, TableRow, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+    TableHead, TableRow, Tooltip, Typography, useTheme } from "@mui/material";
 import { pesquisarProdutos, obterMensagemDaApi } from "../../services/produtoService";
 import { useRemoteSearch } from "../../hooks/useRemoteSearch";
 import ClienteAutocomplete from "../../components/clientes/ClienteAutocomplete";
@@ -258,8 +261,9 @@ export default function Vendas() {
         setPagamentoAberto(false);
     }
     function informarQuantidade(id: number, quantidade: string) {
-        if (!/^\d{0,9}(?:[.,]\d{0,3})?$/.test(quantidade)) return;
+        if (!/^\d{0,9}(?:[.,]\d{0,3})?$/.test(quantidade)) return false;
         alterar({ itens: rascunho.itens.map(item => item.produto.id === id ? { ...item, quantidade } : item) });
+        return true;
     }
     function ajustarQuantidade(id: number, passo: number) {
         const item = rascunho.itens.find(i => i.produto.id === id);
@@ -493,10 +497,11 @@ export default function Vendas() {
                         <Typography variant="caption" sx={{ color: cores.title, fontWeight: 800 }}>INCLUSÃO DE PRODUTO</Typography>
                         <Button size="small" startIcon={<SearchIcon />} disabled={bloqueado} onClick={abrirBuscaAvancada} aria-keyshortcuts="Control+b">Busca avançada · Ctrl+B</Button>
                     </Stack>
-                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr) 100px", sm: "minmax(0, 1fr) 110px 100px 90px" }, gap: 1, alignItems: "start" }}>
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr) 100px", sm: "minmax(0, 1fr) 110px 100px 90px" }, gap: 1, alignItems: "start",
+                        "& .MuiOutlinedInput-input": { height: 44, boxSizing: "border-box" } }}>
                     <Box sx={{ position: "relative", minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
-                    <TextField fullWidth size="small" autoFocus inputRef={buscaRef} disabled={!sessaoCaixaResolvida || salvando} value={busca}
-                        label="Buscar produto ou ler código de barras" placeholder={carregando ? "Buscando produtos…" : "Nome, código interno ou código de barras"}
+                    <CampoTexto fullWidth size="small" autoFocus inputRef={buscaRef} disabled={!sessaoCaixaResolvida || salvando} value={busca}
+                        label="Buscar produto ou ler código de barras" placeholder="Código ou descrição…"
                         sx={{ "& input": { fontSize: 14 } }}
                         helperText={avisoBusca || (!busca.trim() ? "Digite nome, código interno ou código de barras." : undefined)}
                         onChange={e => { setBusca(e.target.value); setListaAberta(true); setIndice(0); }}
@@ -532,10 +537,10 @@ export default function Vendas() {
                         </Box>}
                     </Box>
                     <Tooltip describeChild title={emInclusao ? "Inclusão de uma unidade; ajuste a quantidade no item adicionado" : itemAtual ? "Quantidade do item selecionado na lista" : "Adicione um item para ajustar sua quantidade"}>
-                        <TextField size="small" label="Quantidade" value={emInclusao ? "1" : itemAtual?.quantidade ?? ""} disabled={bloqueado || !emInclusao && !itemAtual}
-                            slotProps={{ input: { readOnly: emInclusao }, htmlInput: { "aria-label": "Quantidade do item selecionado", inputMode: "decimal" } }}
+                        <CampoQuantidade canonico casasMinimas={0} rotuloAcessivel="Quantidade do item selecionado" placeholder="0,000" readOnly={emInclusao} size="small" label="Quantidade" value={emInclusao ? "1" : itemAtual?.quantidade ?? ""} disabled={bloqueado || !emInclusao && !itemAtual}
+
                             onFocus={e => { quantidadeAntesRef.current = itemAtual?.quantidade ?? ""; e.target.select(); }}
-                            onChange={e => { if (itemAtual) informarQuantidade(itemAtual.produto.id, e.target.value); }}
+                            onValueChange={v => itemAtual ? informarQuantidade(itemAtual.produto.id, v) : false}
                             onKeyDown={e => {
                                 if (e.key === "Enter") { e.preventDefault(); focarBusca(); }
                                 if (e.key === "Escape") {
@@ -545,7 +550,7 @@ export default function Vendas() {
                                 }
                             }} />
                     </Tooltip>
-                    <TextField size="small" label="Unitário" value={produtoExibido ? moeda(Math.round(produtoExibido.precoVenda * 100)) : ""}
+                    <CampoTexto size="small" label="Unitário" value={produtoExibido ? moeda(Math.round(produtoExibido.precoVenda * 100)) : ""}
                         slotProps={{ input: { readOnly: true }, htmlInput: { "aria-label": "Unitário do item selecionado" } }} />
                     <Button variant="contained" startIcon={<AddRoundedIcon />} disabled={bloqueado || !busca.trim()} onMouseDown={e => e.preventDefault()} onClick={() => void adicionarPorCodigo()}
                         sx={{ height: 44, px: 1, fontSize: 12, bgcolor: cores.blue, color: pdvTokens.light.headerText, "&:hover": { bgcolor: cores.blueHover } }}>Adicionar</Button>
@@ -577,9 +582,8 @@ export default function Vendas() {
                                 <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                                 <Tooltip title="Diminuir quantidade"><span><IconButton tabIndex={-1} aria-label={"Diminuir uma unidade: " + item.produto.nome} size="small" disabled={bloqueado || (decimal(item.quantidade, 3) ?? 0) <= 1000}
                                     sx={{ width: 26, height: 28, borderRadius: "4px", bgcolor: cores.removeSurface, color: cores.remove }} onClick={e => { e.stopPropagation(); ajustarQuantidade(item.produto.id, -1); }}><RemoveRoundedIcon sx={{ fontSize: 16 }} /></IconButton></span></Tooltip>
-                                <TextField fullWidth size="small" sx={{ "& .MuiInputBase-root": { minHeight: { xs: 44, sm: 0 } } }} value={item.quantidade} disabled={bloqueado}
+                                <CampoQuantidade canonico casasMinimas={0} label="" rotuloAcessivel={"Quantidade de " + item.produto.nome} placeholder="0,000" fullWidth size="small" sx={{ "& .MuiInputBase-root": { minHeight: { xs: 44, sm: 0 } } }} value={item.quantidade} disabled={bloqueado}
                                 inputRef={(el: HTMLInputElement | null) => { quantidadesRef.current[item.produto.id] = el; }}
-                                slotProps={{ htmlInput: { "aria-label": "Quantidade de " + item.produto.nome, inputMode: "decimal" } }}
                                 onFocus={e => { quantidadeAntesRef.current = item.quantidade; setSelecionado(item.produto.id); e.target.select(); }}
                                 onKeyDown={e => {
                                     if (e.key === "Enter") { e.preventDefault(); focarBusca(); }
@@ -589,7 +593,7 @@ export default function Vendas() {
                                         focarBusca();
                                     }
                                 }}
-                                onChange={e => informarQuantidade(item.produto.id, e.target.value)} />
+                                onValueChange={v => informarQuantidade(item.produto.id, v)} />
                                 <Tooltip title="Aumentar quantidade"><span><IconButton tabIndex={-1} aria-label={"Aumentar uma unidade: " + item.produto.nome} size="small" disabled={bloqueado || decimal(item.quantidade, 3) === null}
                                     sx={{ width: 26, height: 28, borderRadius: "4px", bgcolor: cores.addSurface, color: cores.add }} onClick={e => { e.stopPropagation(); ajustarQuantidade(item.produto.id, 1); }}><AddRoundedIcon sx={{ fontSize: 16 }} /></IconButton></span></Tooltip>
                                 </Stack></TableCell>
@@ -637,10 +641,14 @@ export default function Vendas() {
             <DialogContent sx={{ pt: "12px !important" }}>
                 {opcional === "cliente" && <ClienteAutocomplete value={rascunho.cliente} disabled={bloqueado} inputRef={registrarOpcional}
                     onChange={cliente => { alterar({ cliente }); setOpcional(null); if (!pagamentoAberto) focarBusca(); }} />}
-                {opcional && opcional !== "cliente" && <TextField fullWidth inputRef={registrarOpcional} disabled={bloqueado}
-                    label={opcional === "desconto" ? "Desconto em R$" : opcional === "entrega" ? "Endereço / instruções de entrega" : "Observações"}
-                    value={rascunho[opcional]} multiline={opcional !== "desconto"} minRows={opcional !== "desconto" ? 2 : undefined}
-                    slotProps={{ htmlInput: { maxLength: opcional === "entrega" ? 500 : opcional === "observacoes" ? 2000 : 12 } }}
+                {opcional === "desconto" && <ValorMonetarioPDV fullWidth inputRef={registrarOpcional} disabled={bloqueado}
+                    label="Desconto em R$" placeholder="Ex.: 10,50…" value={rascunho.desconto}
+                    slotProps={{ htmlInput: { inputMode: "decimal", maxLength: 12 } }}
+                    onChange={v => alterar({ desconto: v })} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); setOpcional(null); focarBusca(); } }} />}
+                {opcional && opcional !== "cliente" && opcional !== "desconto" && <CampoTexto placeholder={opcional === "entrega" ? "Endereço e instruções de entrega…" : "Informações adicionais…"} fullWidth inputRef={registrarOpcional} disabled={bloqueado}
+                    label={opcional === "entrega" ? "Endereço / instruções de entrega" : "Observações"}
+                    value={rascunho[opcional]} multiline minRows={2}
+                    slotProps={{ htmlInput: { maxLength: opcional === "entrega" ? 500 : 2000 } }}
                     onChange={e => alterar({ [opcional]: e.target.value })} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); setOpcional(null); focarBusca(); } }} />}
             </DialogContent>
             <DialogActions><Button onClick={fecharOpcional}>Concluir</Button></DialogActions>

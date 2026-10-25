@@ -397,7 +397,7 @@ test("obrigação é explícita, permite valor separado e abre a conta exata em 
         assert.equal(estado.chamadas.filter(c => c.metodo === "POST").length, 0);
         await detalhe.getByRole("button", { name: "Gerar conta a pagar", exact: true }).click();
         const dialog = page.getByRole("dialog", { name: "Gerar conta a pagar", exact: true });
-        assert.equal(await dialog.getByLabel("Valor financeiro (R$)").inputValue(), "10");
+        assert.equal(await dialog.getByLabel("Valor financeiro (R$)").inputValue(), "10,00");
         await dialog.getByLabel("Valor financeiro (R$)").fill("79,25");
         await dialog.getByLabel("Vencimento").fill("2026-12-10");
         await dialog.getByRole("button", { name: "Gerar conta a pagar", exact: true }).click();
@@ -444,7 +444,7 @@ test("XML: botão, multipart arquivo, preview original e matches, sem persistenc
         assert.equal(await form.getByLabel("Data de emissão").inputValue(), "2026-10-01");
         assert.equal(await form.getByRole("combobox", { name: /Fornecedor/ }).inputValue(), fornecedor.razaoSocial);
         assert.equal(await form.getByRole("combobox", { name: "Produto", exact: true }).inputValue(), produto.nome);
-        assert.equal(await form.getByLabel("Custo unitário").inputValue(), "3.5", "Mantem custo do XML, nao preco do produto");
+        assert.equal(await form.getByLabel("Custo unitário").inputValue(), "3,50", "Mantem custo do XML, nao preco do produto");
         assert.match(await form.innerText(), /Valor total \(NF-e\): R\$\s*9,00/);
         assert.match(await form.innerText(), /Total da entrada \(itens revisados\): R\$\s*7,00/);
         assert.equal(criacoesXml(estado).length, 0);
@@ -502,7 +502,7 @@ test("XML: item sem match usa busca remota sem similaridade e preserva custo his
         assert.equal(estado.chamadas.some(c => c.caminho === "/produtos/buscar"), false);
         await form.getByRole("combobox", { name: "Produto", exact: true }).fill("pro");
         await page.getByRole("option", { name: produto.nome }).click();
-        assert.equal(await form.getByLabel("Custo unitário").inputValue(), "3.5");
+        assert.equal(await form.getByLabel("Custo unitário").inputValue(), "3,50");
         assert.equal(await form.getByRole("button", { name: "Confirmar entrada", exact: true }).isDisabled(), false);
         assert.ok(estado.chamadas.some(c => c.caminho === "/produtos/buscar" && c.params.get("termo") === "pro"));
         assert.equal(estado.chamadas.some(c => c.caminho === "/fornecedores" || c.metodo !== "GET" && c.caminho === "/produtos"), false);
@@ -679,7 +679,7 @@ test("Produto rapido: XML preenche somente nome, GTIN, unidade e custo; venda na
     try {
         const { rapido } = await abrirProdutoXml(page, estado);
         for (const [campo, valor] of [["Nome", "Descrição da NF-e"], ["Código de barras", "4006381333931"],
-            ["Unidade de medida", "KG"], ["Preço de custo", "3,5"], ["Preço de venda", ""]])
+            ["Unidade de medida", "KG"], ["Preço de custo", "3,50"], ["Preço de venda", ""]])
             assert.equal(await rapido.getByLabel(campo, { exact: false }).inputValue(), valor, campo);
         assert.equal(await rapido.locator("input").count(), 5);
         for (const campo of ["Código interno", "Descrição", "Estoque mínimo", "Controla estoque", "Produto ativo", "Selecionar imagem do produto"])
@@ -708,8 +708,8 @@ test("Produto rapido: retorno do POST resolve item XML sem busca, saldo ou match
         await rapido.getByRole("button", { name: "Cadastrar e selecionar" }).click();
         await form.getByText("Produto vinculado").waitFor();
         assert.equal(await form.getByRole("combobox", { name: "Produto", exact: true }).inputValue(), "Descrição da NF-e");
-        assert.equal(await form.getByLabel("Quantidade").inputValue(), "2");
-        assert.equal(await form.getByLabel("Custo unitário").inputValue(), "3.5");
+        assert.equal(await form.getByLabel("Quantidade").inputValue(), "2,000");
+        assert.equal(await form.getByLabel("Custo unitário").inputValue(), "3,50");
         const corpo = postsProduto(estado)[0].corpo;
         assert.deepEqual(corpo, { codigoInterno: null, codigoBarras: "4006381333931", nome: "Descrição da NF-e", descricao: null,
             unidadeMedida: "KG", precoCusto: 3.5, precoVenda: 12.5, estoqueMinimo: 0, controlaEstoque: true, ativo: true });
@@ -745,8 +745,8 @@ test("Produto rapido: Entrada Manual usa o mesmo formulario e seleciona somente 
         await page.waitForFunction(() => document.querySelector('input[value="Produto manual novo"]'));
         assert.equal(await form.getByRole("combobox", { name: "Produto", exact: true }).first().inputValue(), "");
         assert.equal(await form.getByRole("combobox", { name: "Produto", exact: true }).nth(1).inputValue(), "Produto manual novo");
-        assert.equal(await form.getByLabel("Quantidade").nth(1).inputValue(), "7");
-        assert.equal(await form.getByLabel("Custo unitário").nth(1).inputValue(), "4.5");
+        assert.equal(await form.getByLabel("Quantidade").nth(1).inputValue(), "7,000");
+        assert.equal(await form.getByLabel("Custo unitário").nth(1).inputValue(), "4,50");
         assert.equal(estado.produtosCriados[0].estoqueAtual, 0);
         assert.equal(postsProduto(estado)[0].corpo.estoqueAtual, undefined);
         assert.equal(estado.chamadas.some(c => /\/estoque\/movimentacoes|\/confirmar$/.test(c.caminho)), false);
@@ -834,7 +834,7 @@ test("Produto completo: API anterior, campos e callback de criacao permanecem", 
         await aba("Preços e estoque");
         await form.getByLabel("Preço de custo").fill("4");
         await form.getByLabel("Preço de venda").fill("8");
-        await form.getByLabel("Estoque mínimo").fill("2,500");
+        await form.getByRole("spinbutton", { name: /^Estoque mínimo/ }).fill("2,500");
         await aba("Dados gerais");
         for (const [campo, nome] of [["Categoria", "Categoria teste"], ["Subcategoria", "Subcategoria teste"], ["Marca", "Marca teste"]]) {
             await form.getByRole("combobox", { name: campo, exact: true }).fill(nome);

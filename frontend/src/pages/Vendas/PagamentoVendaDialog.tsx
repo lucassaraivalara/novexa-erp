@@ -1,5 +1,6 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useLayoutEffect, useRef, type RefObject } from "react";
-import { Alert, alpha, Box, Button, ButtonBase, Dialog, DialogContent, DialogTitle, IconButton, InputAdornment, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, alpha, Box, Button, ButtonBase, Dialog, DialogContent, DialogTitle, IconButton, InputAdornment, MenuItem, Stack, Typography } from "@mui/material";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import PixIcon from "@mui/icons-material/Pix";
 import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
@@ -140,13 +141,13 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
                                     } }} />
                                 {p && p.troco > 0 && <Typography aria-label={`Troco em ${config.nomeExibicao}`} variant="body2" sx={{ gridColumn: "1 / -1", textAlign: "right", color: "primary.main", fontWeight: 700 }} aria-live="polite">Troco: {moeda(p.troco)}</Typography>}
                                 {p && config.tipo === "CREDITO" && ((config.maximoParcelasConsumidor ?? 1) > 1 || (p.parcelasConsumidor ?? 1) > 1) &&
-                                    <TextField select size="small" sx={{ gridColumn: "1 / -1" }} label={`Parcelas do consumidor — ${config.nomeExibicao}`}
+                                    <CampoTexto select size="small" sx={{ gridColumn: "1 / -1" }} label={`Parcelas do consumidor — ${config.nomeExibicao}`}
                                         value={p.parcelasConsumidor ?? 1} disabled={bloqueado} error={!parcelamentoValido(p, config)}
                                         helperText={!parcelamentoValido(p, config) ? "O limite desta configuração mudou. Revise as parcelas." : undefined}
                                         onChange={e => onAlterar({ pagamentos: pagamentos.map(item => item.configuracaoFormaPagamentoId === config.id ? { ...item, parcelasConsumidor: Number(e.target.value) } : item) })}>
                                         {Array.from({ length: config.maximoParcelasConsumidor ?? 1 }, (_, indice) => <MenuItem key={indice + 1} value={indice + 1}>{indice === 0 ? "1x (à vista)" : `${indice + 1}x`}</MenuItem>)}
                                         {(p.parcelasConsumidor ?? 1) > (config.maximoParcelasConsumidor ?? 1) && <MenuItem value={p.parcelasConsumidor}>{p.parcelasConsumidor}x (indisponível)</MenuItem>}
-                                    </TextField>}
+                                    </CampoTexto>}
                             </Box>;
                         })}
                         <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 132px", alignItems: "center", gap: 1, p: 1, bgcolor: t.usaPrazo ? "action.selected" : undefined }}>
@@ -158,7 +159,7 @@ export default function PagamentoVendaDialog({ open, rascunho, t, configuracoes,
                             {!rascunho.cliente && <Alert severity="warning">Selecione um cliente para vender a prazo.</Alert>}
                             <Button size="small" aria-label="Selecionar cliente do pagamento" startIcon={<PersonOutlineRoundedIcon />} disabled={bloqueado} onClick={onCliente} sx={{ alignSelf: "flex-start" }}>{rascunho.cliente ? `Cliente: ${rascunho.cliente.nome}` : "Selecionar cliente"}</Button>
                             {t.parcelasPrazo.map((parcela, indice) => <Stack key={indice} role="group" aria-label={`Parcela a prazo ${indice + 1}`} direction="row" sx={{ gap: 1, alignItems: "start" }}>
-                                <TextField size="small" type="date" fullWidth label={`Vencimento ${indice + 1}`} value={parcela.vencimento} disabled={bloqueado} slotProps={{ inputLabel: { shrink: true } }}
+                                <CampoTexto size="small" type="date" fullWidth label={`Vencimento ${indice + 1}`} value={parcela.vencimento} disabled={bloqueado} slotProps={{ inputLabel: { shrink: true } }}
                                     error={!/^\d{4}-\d{2}-\d{2}$/.test(parcela.vencimento) || Number.isNaN(Date.parse(parcela.vencimento))} helperText={!parcela.vencimento ? "Informe o vencimento." : undefined}
                                     onChange={e => onAlterar({ parcelasPrazo: t.parcelasPrazo.map((p, j) => ({ valor: p.valor, vencimento: j === indice ? e.target.value : p.vencimento })) })} />
                                 <ValorMonetarioPDV size="small" sx={{ width: 115, flexShrink: 0 }} value={parcela.valor} disabled={bloqueado} slotProps={{ htmlInput: { "aria-label": `Valor da parcela ${indice + 1} (R$)`, inputMode: "decimal" } }}

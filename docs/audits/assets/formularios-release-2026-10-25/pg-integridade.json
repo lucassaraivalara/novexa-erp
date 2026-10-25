@@ -1,0 +1,11 @@
+{
+  "last_stock_matches_product": true,
+  "stock_chain": true,
+  "financial_balances": true,
+  "payment_total_matches_sale": true,
+  "rate_00002_persisted": true,
+  "kit_six_decimals": true,
+  "no_cross_tenant_stock": true,
+  "no_cross_tenant_financial": true,
+  "kit_native_text": "0.000004"
+}

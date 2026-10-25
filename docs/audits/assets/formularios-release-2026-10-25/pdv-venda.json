@@ -1,0 +1,61 @@
+{
+  "response": {
+    "id": 1,
+    "dataHora": "2026-10-25T02:12:31.4326762",
+    "subtotal": 13.13,
+    "desconto": 0,
+    "total": 13.13,
+    "formaPagamento": null,
+    "valorRecebido": 13.13,
+    "troco": 0,
+    "clienteId": null,
+    "entrega": "",
+    "observacoes": "",
+    "itens": [
+      {
+        "id": 1,
+        "produtoId": 4,
+        "nomeProduto": "Release KG",
+        "quantidade": 1.25,
+        "precoUnitario": 10.5,
+        "subtotal": 13.13,
+        "movimentacaoEstoqueId": 7,
+        "ordem": 0,
+        "componentesConsumidos": []
+      }
+    ],
+    "status": "FATURADA",
+    "sessaoCaixaId": 1,
+    "configuracaoFormaPagamentoId": null,
+    "contasReceber": [],
+    "valorPrazo": 0,
+    "usuarioNome": "Admin Teste"
+  },
+  "request": {
+    "chaveRequisicao": "cd270758-e624-44c9-9722-f3f8bd00e3f6",
+    "itens": [
+      {
+        "produtoId": 4,
+        "quantidade": 1.25,
+        "precoUnitarioEsperado": 10.5
+      }
+    ],
+    "clienteId": null,
+    "desconto": 0,
+    "totalEsperado": 13.13,
+    "pagamentos": [
+      {
+        "configuracaoFormaPagamentoId": 1,
+        "valor": 8,
+        "valorRecebido": 8
+      },
+      {
+        "configuracaoFormaPagamentoId": 2,
+        "valor": 5.13
+      }
+    ],
+    "entrega": "",
+    "observacoes": "",
+    "sessaoCaixaId": 1
+  }
+}

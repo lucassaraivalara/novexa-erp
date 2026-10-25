@@ -1,4 +1,20 @@
 
+## Campos dos formulários — expansão local 15B (2026-10-24)
+
+Cadastros, Estoque/Entradas, Financeiro, PDV e Administração reutilizam os campos do piloto onde necessário. `CampoTexto` mantém o contrato do MUI e seus slots/refs, com label visível e orientação pelo tema. `CampoDecimal` aceita entrega canônica aos parsers já existentes, leitura histórica e nomes/descrições acessíveis. Valores financeiros não recebem spinbox; metadados de parcelas e estoque mínimo mantêm incremento apropriado. No PDV, quantidades inteiras continuam compactas, sem agrupamento de milhar ambíguo, e frações usam vírgula com até três casas; o componente monetário e os atalhos operacionais existentes são preservados.
+
+Precisão continua por domínio: preços/custos de Produto e Entradas com duas casas, quantidades com três, fator de Kit com seis e taxa percentual de cartão com quatro. Coordenadas com sinal, documentos, máscaras e campos de consulta já adequados são preservados. Validação textual de valores inválidos não os converte silenciosamente em taxa opcional nula; campos de cartão ocultos continuam fora do payload de outros meios. As conversões de entrada reutilizam `numeroDecimal` antes do envio para impedir perda de precisão no contrato `number`, sem mudar as fórmulas financeiras. Não há mudança de backend, banco ou contratos HTTP. Inventário, evidências, testes direcionados e falhas globais preexistentes em [Tarefa 15B](../audits/padronizacao-formularios-completa-2026-10-24.md). Implementação local ainda sem publicação.
+
+## Campos reutilizáveis — piloto de Produtos (2026-10-24)
+
+`TextField` e `CadastroDialog` continuam sendo a base para textos, labels, ajuda, erros, alturas e responsividade. O piloto de Produto acrescenta exemplos em placeholders sem substituir labels; NCM/CEST continuam metadados opcionais, com exemplos que respeitam oito/sete dígitos. A ajuda nunca substitui o erro do campo.
+
+`components/ui/CampoDecimal.tsx` oferece base decimal e adaptadores monetário, quantidade e percentual, com precisão e limites definidos pelo consumidor. Strings são preservadas durante edição; a apresentação usa pt-BR ao sair. `utils/numeroFormulario.ts` aceita vírgula/ponto decimal e agrupamento brasileiro com vírgula, valida antes de converter e incrementa em inteiros escalados, sem arredondamento silencioso. A API continua recebendo números; valores sem representação decimal segura nesse contrato são recusados. Não reutilizar funções do PDV indiscriminadamente: seus limites e cálculos permanecem próprios.
+
+Produto usa duas casas para custo/venda e três para estoque mínimo, conforme o backend. O componente suporta quatro casas para outros contratos compatíveis, mas não amplia a precisão de Produto. Apenas estoque mínimo recebe incremento/decremento de uma unidade, com piso zero e digitação fracionária preservada; preços, códigos e unidade textual permanecem sem spinbox. Setas de teclado funcionam nos campos com passo; `type="text"` evita mudança de valor ao rolar. Não há alteração de saldo, permissões, contrato HTTP, validações fiscais ou telas fora do piloto.
+
+Testes, limites, integração PostgreSQL descartável e evidências antes/depois estão no [relatório da padronização](../audits/padronizacao-formularios-2026-10-24.md). A expansão para outros formulários depende de uma tarefa específica.
+
 ## Fechamento de caixa — apresentação e conferência (2026-10-21)
 
 O modal existente usa duas colunas em desktop/notebook: resumo real da sessão com dinheiro esperado em destaque e conferência do contado com diferença ao vivo. Em telas pequenas empilha as áreas, preserva rolagem interna e mantém Cancelar/Confirmar no rodapé. Foco inicial no dinheiro físico contado; diferenças continuam exigindo a observação prevista na política atual.

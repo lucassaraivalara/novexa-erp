@@ -1,8 +1,9 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
     Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
     Divider, Drawer, FormControlLabel, IconButton, InputAdornment, MenuItem, Stack, Switch,
-    TextField, Typography,
+    Typography,
 } from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
@@ -132,25 +133,25 @@ export default function UsuarioDrawer({ usuario, focarSenha = false, onFechar, o
                         {!redefinindoSenha && <Stack spacing={2}>
                             <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>Dados</Typography>
                             <Divider />
-                            <TextField inputRef={nomeRef} label="Nome" name="nomeUsuario" autoComplete="name" required fullWidth value={form.nomeUsuario} onChange={(e) => atualizar("nomeUsuario", e.target.value)} error={erroNome} helperText={erroNome ? "Informe o nome do usuário." : undefined} slotProps={{ htmlInput: { maxLength: 150 } }} />
-                            <TextField inputRef={cpfRef} label="CPF" name="cpf" disabled={preservado} autoComplete="off" inputMode="numeric" required fullWidth value={form.cpf} onChange={(e) => atualizar("cpf", e.target.value)} error={erroCpf} helperText={erroCpf ? "Informe um CPF com 11 dígitos." : undefined} slotProps={{ htmlInput: { maxLength: 14 } }} />
-                            <TextField label="Login" name="login" required fullWidth autoComplete="off" value={form.login} onChange={(e) => atualizar("login", e.target.value)} helperText="Identificação interna. O acesso continua sendo feito pelo CPF." slotProps={{ htmlInput: { maxLength: 255 } }} />
-                            <TextField label="E-mail" name="email" type="email" autoComplete="email" spellCheck={false} required fullWidth value={form.email} onChange={(e) => atualizar("email", e.target.value)} />
-                            {!usuario && <TextField inputRef={senhaRef} label="Senha" name="senha" type={mostrarSenha ? "text" : "password"} slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"} onClick={() => setMostrarSenha(v => !v)} edge="end">{mostrarSenha ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment> } }} autoComplete="new-password" required fullWidth value={form.senha} onChange={(e) => atualizar("senha", e.target.value)} error={erroSenha} helperText={erroSenha ? "Informe a senha." : undefined} />}
+                            <CampoTexto placeholder="Digite o nome do usuário…" inputRef={nomeRef} label="Nome" name="nomeUsuario" autoComplete="name" required fullWidth value={form.nomeUsuario} onChange={(e) => atualizar("nomeUsuario", e.target.value)} error={erroNome} helperText={erroNome ? "Informe o nome do usuário." : undefined} slotProps={{ htmlInput: { maxLength: 150 } }} />
+                            <CampoTexto placeholder="Digite o CPF…" inputRef={cpfRef} label="CPF" name="cpf" disabled={preservado} autoComplete="off" inputMode="numeric" required fullWidth value={form.cpf} onChange={(e) => atualizar("cpf", e.target.value)} error={erroCpf} helperText={erroCpf ? "Informe um CPF com 11 dígitos." : undefined} slotProps={{ htmlInput: { maxLength: 14 } }} />
+                            <CampoTexto placeholder="Identificação interna do usuário…" label="Login" name="login" required fullWidth autoComplete="off" value={form.login} onChange={(e) => atualizar("login", e.target.value)} helperText="Identificação interna. O acesso continua sendo feito pelo CPF." slotProps={{ htmlInput: { maxLength: 255 } }} />
+                            <CampoTexto placeholder="Ex.: pessoa@empresa.com.br…" label="E-mail" name="email" type="email" autoComplete="email" spellCheck={false} required fullWidth value={form.email} onChange={(e) => atualizar("email", e.target.value)} />
+                            {!usuario && <CampoTexto placeholder="Digite a senha inicial…" inputRef={senhaRef} label="Senha" name="senha" type={mostrarSenha ? "text" : "password"} slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"} onClick={() => setMostrarSenha(v => !v)} edge="end">{mostrarSenha ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment> } }} autoComplete="new-password" required fullWidth value={form.senha} onChange={(e) => atualizar("senha", e.target.value)} error={erroSenha} helperText={erroSenha ? "Informe a senha." : undefined} />}
                         </Stack>}
                         {redefinindoSenha && <Stack spacing={2}>
                             <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>Nova senha</Typography>
                             <Divider />
-                            <TextField inputRef={senhaRef} label="Nova senha" name="senha" type={mostrarSenha ? "text" : "password"} slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"} onClick={() => setMostrarSenha(v => !v)} edge="end">{mostrarSenha ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment> } }} autoComplete="new-password" required fullWidth value={form.senha} onChange={(e) => atualizar("senha", e.target.value)} error={erroSenha} helperText={erroSenha ? "Informe a nova senha." : "As sessões anteriores serão encerradas. Entre novamente com a nova senha."} />
+                            <CampoTexto placeholder="Digite a nova senha…" inputRef={senhaRef} label="Nova senha" name="senha" type={mostrarSenha ? "text" : "password"} slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"} onClick={() => setMostrarSenha(v => !v)} edge="end">{mostrarSenha ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment> } }} autoComplete="new-password" required fullWidth value={form.senha} onChange={(e) => atualizar("senha", e.target.value)} error={erroSenha} helperText={erroSenha ? "Informe a nova senha." : "As sessões anteriores serão encerradas. Entre novamente com a nova senha."} />
                         </Stack>}
                         {!redefinindoSenha && <Stack spacing={2}>
                             <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>Acesso</Typography>
                             <Divider />
-                            <TextField select disabled={preservado} label="Perfil" name="perfil" required fullWidth value={form.perfil} onChange={(e) => atualizar("perfil", e.target.value as UsuarioInput["perfil"])}>
+                            <CampoTexto select disabled={preservado} label="Perfil" name="perfil" required fullWidth value={form.perfil} onChange={(e) => atualizar("perfil", e.target.value as UsuarioInput["perfil"])}>
                                 <MenuItem value="ADMIN">Administrador</MenuItem>
                                 <MenuItem value="GESTOR">Gestor</MenuItem>
                                 <MenuItem value="OPERADOR">Operador</MenuItem>
-                            </TextField>
+                            </CampoTexto>
                             <Box sx={{ borderLeft: "3px solid", borderColor: "primary.main", pl: 2, py: 0.5 }}>
                                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                     {form.perfil === "ADMIN" ? "Administrador" : form.perfil === "GESTOR" ? "Gestor" : "Operador"}

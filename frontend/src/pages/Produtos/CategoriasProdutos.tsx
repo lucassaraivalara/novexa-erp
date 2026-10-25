@@ -1,3 +1,4 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useEffect, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Alert, Autocomplete, Button, Checkbox, Chip, CircularProgress, Dialog, DialogActions,
@@ -68,7 +69,7 @@ function Cadastro({ sub, registro, onFechar, onSalvo }: {
         salvando={salvando} onFechar={onFechar} onSubmit={salvar}>
         <Stack spacing={2}>
             {erro && <Alert severity="error">{erro}</Alert>}
-            <TextField label="Nome" value={nome} onChange={e => setNome(e.target.value)} autoFocus fullWidth required
+            <CampoTexto placeholder="Ex.: Bebidas…" label="Nome" value={nome} onChange={e => setNome(e.target.value)} autoFocus fullWidth required
                 disabled={salvando} slotProps={{ htmlInput: { maxLength: 100 } }} />
             {sub && <SeletorCategoria value={categoria} onChange={setCategoria} disabled={salvando} />}
             <FormControlLabel control={<Checkbox checked={ativo} disabled={salvando} onChange={e => setAtivo(e.target.checked)} />} label="Ativa" />

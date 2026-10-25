@@ -1,6 +1,8 @@
+import CampoTexto from "../../components/ui/CampoTexto";
+import { CampoMonetario } from "../../components/ui/CampoDecimal";
 import axios from "axios";
 import { useRef, useState, type FormEvent } from "react";
-import { Alert, Autocomplete, Box, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Autocomplete, Box, Stack, Typography } from "@mui/material";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import { useRemoteSearch } from "../../hooks/useRemoteSearch";
 import { listarContasFinanceirasPaginado, mensagemContaFinanceira } from "../../services/contaFinanceiraService";
@@ -79,18 +81,18 @@ export default function ContaReceberBaixaDialog({ conta, onFechar, onSalvo }: Pr
                 </Stack>
             </Box>
             {tentativa && <Alert severity="warning">Há um recebimento aguardando confirmação. Tente novamente com os mesmos dados para evitar duplicidade.</Alert>}
-            <TextField required label="Valor recebido agora (R$)" value={valor} disabled={bloqueado}
+            <CampoMonetario canonico placeholder="Ex.: 1.234,56…" required label="Valor recebido agora (R$)" value={valor} disabled={bloqueado}
                 helperText={valorMonetario(valor) !== null && Number(valorMonetario(valor)) < conta.saldo ? "Recebimento parcial" : undefined}
-                onChange={e => setValor(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
+                onValueChange={v => setValor(v)}  />
             <Autocomplete value={destino} options={destino && !opcoes.some(c => c.id === destino.id) ? [destino, ...opcoes] : opcoes}
                 disabled={bloqueado} loading={loading} filterOptions={items => items}
                 getOptionLabel={c => c.nome} isOptionEqualToValue={(a, b) => a.id === b.id}
                 onChange={(_, c) => setDestino(c)} onInputChange={(_, texto, motivo) => { if (motivo === "input" || motivo === "clear") setTerm(texto); }}
                 noOptionsText="Nenhuma conta ativa encontrada" loadingText="Buscando contas…"
-                renderInput={params => <TextField {...params} required label="Conta de destino" error={!!erroBusca} helperText={erroBusca} />} />
-            <TextField required type="date" label="Data do recebimento" value={dataRecebimento} disabled={bloqueado}
+                renderInput={params => <CampoTexto {...params} required label="Conta de destino" error={!!erroBusca} helperText={erroBusca} />} />
+            <CampoTexto required type="date" label="Data do recebimento" value={dataRecebimento} disabled={bloqueado}
                 onChange={e => setDataRecebimento(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField multiline minRows={2} label="Observação" value={observacao} disabled={bloqueado}
+            <CampoTexto placeholder="Informações adicionais sobre a operação…" multiline minRows={2} label="Observação" value={observacao} disabled={bloqueado}
                 onChange={e => setObservacao(e.target.value)} slotProps={{ htmlInput: { maxLength: 1000 } }} />
             {erro && <Alert severity="error">{erro}</Alert>}
         </Stack>

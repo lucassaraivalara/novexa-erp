@@ -1,0 +1,111 @@
+{
+  "response": {
+    "id": 1,
+    "caixaId": 1,
+    "status": "FECHADO",
+    "saldoInicial": 0,
+    "saldoFinal": 8,
+    "usuarioAberturaId": 1,
+    "usuarioFechamentoId": 1,
+    "dataAbertura": "2026-10-25T02:11:14.557881",
+    "dataFechamento": "2026-10-25T02:13:48.479724",
+    "resumo": {
+      "sessaoId": 1,
+      "caixaId": 1,
+      "status": "FECHADO",
+      "saldoInicial": 0,
+      "totalVendas": 13.13,
+      "totaisPorFormaPagamento": [
+        {
+          "formaPagamentoId": 1,
+          "descricao": "Dinheiro",
+          "tipo": "DINHEIRO",
+          "total": 8
+        },
+        {
+          "formaPagamentoId": 2,
+          "descricao": "PIX",
+          "tipo": "PIX",
+          "total": 5.13
+        }
+      ],
+      "suprimentos": 0,
+      "sangrias": 0,
+      "saldoEsperadoDinheiro": 8,
+      "saldoFinalInformado": 8,
+      "diferenca": 0,
+      "descricaoCaixa": "Caixa 15D",
+      "dataHoraAbertura": "2026-10-25T02:11:14.557881",
+      "operadorAbertura": {
+        "id": 1,
+        "nome": "Admin Teste"
+      },
+      "totaisPorConfiguracao": [
+        {
+          "configuracaoId": 1,
+          "formaPagamentoId": 1,
+          "descricao": "15D dinheiro",
+          "tipo": "DINHEIRO",
+          "total": 8
+        },
+        {
+          "configuracaoId": 2,
+          "formaPagamentoId": 2,
+          "descricao": "15D pix",
+          "tipo": "PIX",
+          "total": 5.13
+        }
+      ]
+    },
+    "modalidadeConferencia": "POR_CONFIGURACAO",
+    "observacaoFechamento": null,
+    "conferencias": [
+      {
+        "escopo": "DINHEIRO_FISICO",
+        "formaPagamentoId": null,
+        "descricao": "Dinheiro físico",
+        "tipo": "DINHEIRO",
+        "valorEsperado": 8,
+        "valorInformado": 8,
+        "diferenca": 0,
+        "configuracaoId": null,
+        "usuarioId": 1,
+        "dataHora": "2026-10-25T02:13:48.479724"
+      },
+      {
+        "escopo": "CONFIGURACAO",
+        "formaPagamentoId": null,
+        "descricao": "15D pix",
+        "tipo": "PIX",
+        "valorEsperado": 5.13,
+        "valorInformado": 5.13,
+        "diferenca": 0,
+        "configuracaoId": 2,
+        "usuarioId": 1,
+        "dataHora": "2026-10-25T02:13:48.479724"
+      }
+    ]
+  },
+  "request": {
+    "saldoFinal": 8,
+    "conferenciaMeios": {
+      "modo": "POR_FORMA_PAGAMENTO",
+      "meios": [
+        {
+          "configuracaoId": 2,
+          "formaPagamentoId": null,
+          "valorInformado": 5.13
+        }
+      ],
+      "observacao": null
+    },
+    "cofre": {
+      "contaCofreId": null,
+      "valor": 0,
+      "valorTroco": 8,
+      "responsavel": null,
+      "observacao": null,
+      "confirmarEntrega": false
+    }
+  }
+}

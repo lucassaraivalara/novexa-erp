@@ -244,7 +244,7 @@ test("baixa informa original/recebido/saldo e consulta destinos ativos remotamen
         const dialog = page.getByRole("dialog", { name: "Receber conta" });
         await dialog.getByText(/Valor original:.*100,00/).waitFor(); await dialog.getByText(/Já recebido:.*40,00/).waitFor();
         await dialog.getByText(/Saldo:.*60,00/).waitFor();
-        assert.equal(await dialog.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).inputValue(), "60");
+        assert.equal(await dialog.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).inputValue(), "60,00");
         await dialog.getByRole("combobox", { name: "Conta de destino" }).fill("Destino");
         await esperar(() => chamadas(estado, "/financeiro/contas-financeiras/pagina").at(-1)?.params.termo === "Destino");
         await page.getByRole("option", { name: "Destino BANCO", exact: true }).waitFor();
@@ -381,7 +381,7 @@ test("duas baixas preservam histórico, usam saldo parcial e atualizam listagem/
         const primeiro = chamadas(estado, `${base}/1/receber`)[0].body;
         assert.equal(primeiro.valor, 40); assert.equal(primeiro.contaFinanceiraId, 3); assert.match(primeiro.chaveRequisicao, /^[0-9a-f-]{36}$/);
         assert.ok(!Object.hasOwn(primeiro, "empresaId"));
-        await abrirBaixa(page); assert.equal(await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).inputValue(), "60");
+        await abrirBaixa(page); assert.equal(await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).inputValue(), "60,00");
         await page.getByRole("combobox", { name: "Conta de destino" }).fill("Secundário");
         await page.getByRole("option", { name: "Banco secundário", exact: true }).click();
         await page.getByRole("button", { name: "Confirmar recebimento", exact: true }).click();
@@ -408,7 +408,7 @@ test("recebimento inválido bloqueia envio e retry após 503/reload conserva UUI
         const payload = chamadas(estado, `${base}/1/receber`)[0].body;
         assert.equal(await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).isDisabled(), true);
         await page.reload(); await page.getByRole("cell", { name: estado.conta.descricao, exact: true }).waitFor(); await abrirBaixa(page);
-        assert.equal(await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).inputValue(), "40");
+        assert.equal(await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).inputValue(), "40,00");
         estado.falhaBaixa = false; await page.getByRole("button", { name: "Tentar novamente", exact: true }).click();
         await page.getByRole("dialog", { name: "Receber conta" }).waitFor({ state: "hidden" });
         assert.deepEqual(chamadas(estado, `${base}/1/receber`)[1].body, payload);

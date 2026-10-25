@@ -121,7 +121,9 @@ test("tela de estoque preserva busca, ações e diálogos acessíveis", async ()
     assert.match(fonte, /aria-labelledby="estoque-movimentacao-titulo"/);
     assert.match(fonte, /aria-labelledby="estoque-historico-titulo"/);
     assert.match(fonte, /name="quantidade"/);
-    assert.match(fonte, /inputMode: "decimal"/);
+    assert.match(fonte, /<CampoQuantidade canonico/);
+    const campo = await readFile(new URL("../src/components/ui/CampoDecimal.tsx", import.meta.url), "utf8");
+    assert.match(campo, /inputMode: casas === 0 \? "numeric" : "decimal"/);
     assert.match(fonte, /e\.key === "Enter"/);
     assert.match(fonte, /Registrando…/);
 });

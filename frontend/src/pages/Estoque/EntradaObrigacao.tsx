@@ -1,6 +1,9 @@
+import { numeroDecimal } from "../../utils/numeroFormulario";
+import CampoTexto from "../../components/ui/CampoTexto";
+import { CampoMonetario } from "../../components/ui/CampoDecimal";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import axios from "axios";
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Link, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Link, MenuItem, Stack, Typography } from "@mui/material";
 import StatusChip from "../../components/ui/StatusChip";
 import { consultarObrigacaoEntrada, desvincularObrigacaoEntrada, gerarObrigacaoEntrada, vincularObrigacaoEntrada } from "../../services/entradaMercadoriaService";
 import { listarContasPagar } from "../../services/contaPagarService";
@@ -64,8 +67,8 @@ export default function EntradaObrigacao({ entrada }: { entrada: EntradaMercador
         evento.preventDefault();
         if (!modo || ocupado.current) return;
         if (modo === "gerar" && !tentativa.current) {
-            const numero = Number(valor.replace(",", "."));
-            if (!Number.isFinite(numero) || numero <= 0 || Math.abs(numero * 100 - Math.round(numero * 100)) > 0.000001) {
+            const numero = numeroDecimal(valor, 2);
+            if (numero === null || numero <= 0 || Math.abs(numero * 100 - Math.round(numero * 100)) > 0.000001) {
                 setErro("Informe um valor positivo com até duas casas decimais."); return;
             }
             tentativa.current = { chaveRequisicao: crypto.randomUUID(), descricao: descricao.trim(), valor: numero, dataVencimento: vencimento };
@@ -114,23 +117,23 @@ export default function EntradaObrigacao({ entrada }: { entrada: EntradaMercador
                     {erro && <Alert severity="error">{erro}</Alert>}
                     {modo === "gerar" && <>
                         {incerta && <Alert severity="warning">Confira o vínculo antes de repetir. A nova tentativa usará os mesmos dados.</Alert>}
-                        <TextField required inputRef={descricaoInput} label="Descrição" value={descricao} disabled={salvando || incerta} onChange={e => setDescricao(e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} />
-                        <TextField required label="Valor financeiro (R$)" value={valor} disabled={salvando || incerta} onChange={e => setValor(e.target.value)}
-                            helperText="Sugestão: total operacional. Revise o valor; frete e impostos não são acrescentados automaticamente." slotProps={{ htmlInput: { inputMode: "decimal" } }} />
-                        <TextField required type="date" label="Vencimento" value={vencimento} disabled={salvando || incerta} onChange={e => setVencimento(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+                        <CampoTexto placeholder="Identifique a obrigação financeira…" required inputRef={descricaoInput} label="Descrição" value={descricao} disabled={salvando || incerta} onChange={e => setDescricao(e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} />
+                        <CampoMonetario canonico placeholder="Ex.: 1.234,56…" required label="Valor financeiro (R$)" value={valor} disabled={salvando || incerta} onValueChange={v => setValor(v)}
+                            helperText="Sugestão: total operacional. Revise o valor; frete e impostos não são acrescentados automaticamente."  />
+                        <CampoTexto required type="date" label="Vencimento" value={vencimento} disabled={salvando || incerta} onChange={e => setVencimento(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
                     </>}
                     {modo === "vincular" && <>
                         <Typography variant="body2">Selecione uma conta aberta ou paga do mesmo fornecedor, ou sem fornecedor informado. Confirme que corresponde a esta entrada. Vincular uma conta paga não registra outro pagamento.</Typography>
-                        <TextField label="Buscar conta por descrição ou documento" value={busca} disabled={salvando} onChange={e => {
+                        <CampoTexto placeholder="Descrição ou documento…" label="Buscar conta por descrição ou documento" value={busca} disabled={salvando} onChange={e => {
                             setBusca(e.target.value); setPagina(0); setContaId(""); setContas([]); setCarregandoBusca(true);
                         }} />
                         {erroBusca && <Alert severity="error" action={<Button color="inherit" onClick={() => setRevisao(n => n + 1)}>Tentar novamente</Button>}>{erroBusca}</Alert>}
-                        <TextField select required label="Conta a pagar existente" value={contaId} disabled={salvando || carregandoBusca || !!erroBusca} onChange={e => setContaId(Number(e.target.value))}
+                        <CampoTexto select required label="Conta a pagar existente" value={contaId} disabled={salvando || carregandoBusca || !!erroBusca} onChange={e => setContaId(Number(e.target.value))}
                             helperText={carregandoBusca ? "Buscando contas…" : !contas.length ? "Nenhuma conta nesta página." : undefined}>
                             {contas.map(c => <MenuItem key={c.id} value={c.id} disabled={c.status === "CANCELADA" || !!c.entradaMercadoriaId || (!!c.fornecedorId && c.fornecedorId !== entrada.fornecedorId)} sx={{ whiteSpace: "normal" }}>
                                 #{c.id} · {c.descricao} · {moeda.format(c.valor)} · {situacoes[c.status]} · {c.fornecedorNome ?? "Sem fornecedor informado"}{c.entradaMercadoriaId ? " · Já vinculada" : ""}
                             </MenuItem>)}
-                        </TextField>
+                        </CampoTexto>
                         <Stack direction="row" sx={{ gap: 1, alignItems: "center" }}>
                             <Button disabled={salvando || carregandoBusca || pagina === 0} onClick={() => { setPagina(p => p - 1); setContaId(""); setCarregandoBusca(true); }}>Anterior</Button>
                             <Typography variant="caption">Página {pagina + 1}</Typography>

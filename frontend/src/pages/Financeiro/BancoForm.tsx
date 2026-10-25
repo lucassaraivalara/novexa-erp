@@ -1,5 +1,6 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useEffect, useState } from "react";
-import { Alert, Checkbox, DialogContent, FormControlLabel, Stack, TextField } from "@mui/material";
+import { Alert, Checkbox, DialogContent, FormControlLabel, Stack, } from "@mui/material";
 import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -60,7 +61,7 @@ export default function BancoForm({ banco, onFechar, onSalvo }: BancoFormProps) 
             <DialogContent sx={{ p: 0 }}>
                 <Stack spacing={2}>
                     {erro && <Alert severity="error">{erro}</Alert>}
-                    <TextField
+                    <CampoTexto placeholder="Ex.: 001…"
                         fullWidth required autoFocus size="small"
                         label="Número"
                         {...register("numero")}
@@ -68,7 +69,7 @@ export default function BancoForm({ banco, onFechar, onSalvo }: BancoFormProps) 
                         helperText={errors.numero?.message}
                         slotProps={{ htmlInput: { maxLength: 10 } }}
                     />
-                    <TextField
+                    <CampoTexto placeholder="Nome da instituição bancária…"
                         fullWidth required size="small"
                         label="Nome"
                         {...register("nome")}
@@ -76,7 +77,7 @@ export default function BancoForm({ banco, onFechar, onSalvo }: BancoFormProps) 
                         helperText={errors.nome?.message}
                         slotProps={{ htmlInput: { maxLength: 150 } }}
                     />
-                    <TextField
+                    <CampoTexto
                         fullWidth size="small"
                         label="CNAB"
                         {...register("cnab")}

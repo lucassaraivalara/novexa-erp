@@ -1,4 +1,5 @@
 import { hojeBrasilia, formatarData as dataCivil, formatarDataHora } from "../../utils/dataHora";
+import { numeroDecimal } from "../../utils/numeroFormulario";
 import type { ContaReceber, StatusContaReceber } from "../../types/contaReceber";
 
 export const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -10,8 +11,8 @@ export const formatarData = (valor: string | null, hora = false) => valor
 export const hoje = hojeBrasilia;
 export function valorMonetario(texto: string): number | null {
     if (!/^\d+(?:[.,]\d{1,2})?$/.test(texto.trim())) return null;
-    const valor = Number(texto.trim().replace(",", "."));
-    return Number.isFinite(valor) && valor > 0 && Number.isSafeInteger(Math.round(valor * 100)) ? valor : null;
+    const valor = numeroDecimal(texto, 2);
+    return valor !== null && valor > 0 && Number.isSafeInteger(Math.round(valor * 100)) ? valor : null;
 }
 // A página não traz recebimentos; esta regra usa somente o detalhe carregado.
 export const podeEditarConta = (conta: ContaReceber) => conta.status === "PENDENTE"

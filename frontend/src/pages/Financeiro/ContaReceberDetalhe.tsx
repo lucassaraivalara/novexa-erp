@@ -1,9 +1,10 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useEffect, useRef, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
-import { Alert, Box, Button, CircularProgress, Divider, Drawer, IconButton, Link, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Divider, Drawer, IconButton, Link, Stack, Tooltip, Typography } from "@mui/material";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import StatusChip from "../../components/ui/StatusChip";
 import { buscarContaReceber, cancelarContaReceber, estornarRecebimentoConta, mensagemContaReceber } from "../../services/contaReceberService";
@@ -124,7 +125,7 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
             <Stack spacing={2}>
                 <Typography variant="body2">{acao.tipo === "cancelar" ? "A conta será cancelada e permanecerá no histórico."
                     : `${moeda.format(acao.movimento.valor)} serão revertidos de ${acao.movimento.contaFinanceiraNome}. O recebimento permanecerá no histórico.`}</Typography>
-                {acao.tipo === "estornar" && <TextField required autoFocus multiline minRows={2} label="Motivo do estorno" value={motivo}
+                {acao.tipo === "estornar" && <CampoTexto placeholder="Justifique o estorno…" required autoFocus multiline minRows={2} label="Motivo do estorno" value={motivo}
                     disabled={salvando} onChange={e => setMotivo(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} />}
                 {erroAcao && <Alert severity="error">{erroAcao}</Alert>}
             </Stack>

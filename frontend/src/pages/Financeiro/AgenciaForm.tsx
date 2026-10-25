@@ -1,5 +1,6 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useEffect, useState } from "react";
-import { Alert, Checkbox, DialogContent, FormControlLabel, MenuItem, Stack, TextField } from "@mui/material";
+import { Alert, Checkbox, DialogContent, FormControlLabel, MenuItem, Stack, } from "@mui/material";
 import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -80,7 +81,7 @@ export default function AgenciaForm({ agencia, onFechar, onSalvo }: AgenciaFormP
                         name="bancoId"
                         control={control}
                         render={({ field }) => (
-                            <TextField
+                            <CampoTexto
                                 {...field}
                                 select fullWidth required autoFocus size="small"
                                 label="Banco"
@@ -90,18 +91,18 @@ export default function AgenciaForm({ agencia, onFechar, onSalvo }: AgenciaFormP
                                 helperText={errors.bancoId?.message ?? (bancos.length === 0 ? "Cadastre um banco ativo antes de continuar." : undefined)}
                             >
                                 {bancos.map((b) => <MenuItem key={b.id} value={b.id}>{b.nome} — {b.numero}{b.ativo ? "" : " (inativo)"}</MenuItem>)}
-                            </TextField>
+                            </CampoTexto>
                         )}
                     />
                     <Stack direction="row" spacing={2}>
-                        <TextField
+                        <CampoTexto placeholder="Número da agência sem o dígito…"
                             fullWidth required size="small"
                             label="Número"
                             {...register("numero")}
                             error={!!errors.numero}
                             helperText={errors.numero?.message}
                         />
-                        <TextField
+                        <CampoTexto placeholder="Ex.: 1 ou X…"
                             fullWidth size="small"
                             label="Dígito"
                             {...register("digito")}
@@ -109,7 +110,7 @@ export default function AgenciaForm({ agencia, onFechar, onSalvo }: AgenciaFormP
                             helperText={errors.digito?.message}
                         />
                     </Stack>
-                    <TextField
+                    <CampoTexto placeholder="Nome do contato…"
                         fullWidth size="small"
                         label="Contato"
                         {...register("contato")}
@@ -117,14 +118,14 @@ export default function AgenciaForm({ agencia, onFechar, onSalvo }: AgenciaFormP
                         helperText={errors.contato?.message}
                     />
                     <Stack direction="row" spacing={2}>
-                        <TextField
+                        <CampoTexto placeholder="Ex.: (11) 99999-9999…"
                             fullWidth size="small"
                             label="Telefone"
                             {...register("telefone")}
                             error={!!errors.telefone}
                             helperText={errors.telefone?.message}
                         />
-                        <TextField
+                        <CampoTexto placeholder="Nome da cidade…"
                             fullWidth size="small"
                             label="Cidade"
                             {...register("cidade")}

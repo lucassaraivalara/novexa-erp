@@ -1,5 +1,6 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useRef, useState, type FormEvent } from "react";
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Link, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Link, Stack, Typography } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import StatusChip from "../../components/ui/StatusChip";
@@ -109,24 +110,24 @@ export default function EntradaMercadoriaForm({ entrada, previewXml, onFechar, o
             {fornecedor && <Box><StatusChip status="ATIVO" label={fornecedor.id === previewXml.fornecedorMatch?.id ? "Fornecedor encontrado" : "Fornecedor selecionado"} /></Box>}
             <Typography variant="body2" color="text.secondary">Revise quantidades e custos. Quantidade: até 3 casas decimais. Custo unitário: até 2 casas decimais.</Typography>
         </Stack>}
-        {somenteLeitura ? <TextField label="Fornecedor" value={fornecedor?.razaoSocial ?? ""} slotProps={{ input: { readOnly: true } }} /> :
+        {somenteLeitura ? <CampoTexto label="Fornecedor" value={fornecedor?.razaoSocial ?? ""} slotProps={{ input: { readOnly: true } }} /> :
             <Box sx={{ display: "grid", gridTemplateColumns: previewXml ? { xs: "minmax(0, 1fr)", sm: "minmax(0, 1fr) auto" } : "minmax(0, 1fr) auto", gap: 1, alignItems: "start" }}>
                 <FornecedorAutocomplete value={fornecedor} onChange={setFornecedor} label="Fornecedor *" disabled={salvando} />
                 {(!previewXml || !previewXml.fornecedorMatch) && <Button type="button" sx={{ justifySelf: "start" }} disabled={salvando} startIcon={<AddRoundedIcon />} onClick={() => setNovoFornecedor(true)}>{previewXml ? "Cadastrar fornecedor" : "Novo"}</Button>}
             </Box>}
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 100px 1fr" }, gap: 2 }}>
-            <TextField label="Número da nota" value={numeroNota} disabled={salvando} onChange={e => setNumeroNota(e.target.value)}
+            <CampoTexto placeholder="Número do documento…" label="Número da nota" value={numeroNota} disabled={salvando} onChange={e => setNumeroNota(e.target.value)}
                 slotProps={{ input: { readOnly: somenteLeitura }, htmlInput: { maxLength: 60 } }} />
-            <TextField label="Série" value={serie} disabled={salvando} onChange={e => setSerie(e.target.value)}
+            <CampoTexto placeholder="Ex.: 1…" label="Série" value={serie} disabled={salvando} onChange={e => setSerie(e.target.value)}
                 slotProps={{ input: { readOnly: somenteLeitura }, htmlInput: { maxLength: 20 } }} />
-            <TextField label="Data de emissão" type="date" value={dataEmissao} disabled={salvando} onChange={e => setDataEmissao(e.target.value)}
+            <CampoTexto label="Data de emissão" type="date" value={dataEmissao} disabled={salvando} onChange={e => setDataEmissao(e.target.value)}
                 slotProps={{ inputLabel: { shrink: true }, input: { readOnly: somenteLeitura } }} />
         </Box>
         <EntradaMercadoriaItens itens={itens} onChange={setItens} fornecedorId={fornecedor?.id ?? null} disabled={salvando || somenteLeitura} somenteLeitura={somenteLeitura} />
         {previewXml && resolucaoPendente && <Alert severity="warning">{!fornecedor && "Selecione um fornecedor ativo. "}
             {pendentes > 0 && `${pendentes} ${pendentes === 1 ? "produto precisa ser vinculado." : "produtos precisam ser vinculados."}`}
             {!itens.length && "Informe pelo menos um item."}</Alert>}
-        <TextField label="Observação" value={observacao} disabled={salvando} multiline minRows={2} onChange={e => setObservacao(e.target.value)}
+        <CampoTexto placeholder="Informações adicionais sobre a entrada…" label="Observação" value={observacao} disabled={salvando} multiline minRows={2} onChange={e => setObservacao(e.target.value)}
             slotProps={{ input: { readOnly: somenteLeitura }, htmlInput: { maxLength: 2000 } }} />
         <Stack direction="row" sx={{ justifyContent: "space-between", flexWrap: "wrap", gap: 1, pt: 1, borderTop: 1, borderColor: "divider" }}>
             <Typography>{itens.length} {itens.length === 1 ? "item" : "itens"}</Typography>

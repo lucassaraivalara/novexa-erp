@@ -1,0 +1,56 @@
+npm warn Unknown env config "min-release-age". This will stop working in the next major version of npm.
+
+> frontend@0.0.0 build
+> tsc -b && vite build
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 1209 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.75 kB │ gzip:   0.40 kB
+dist/assets/index-D5QuKYMP.css      5.95 kB │ gzip:   1.85 kB
+dist/assets/index-C7mNe4B2.js   1,413.98 kB │ gzip: 417.44 kB
+
+✓ built in 641ms
+[plugin builtin:vite-reporter]
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+npm warn Unknown env config "min-release-age". This will stop working in the next major version of npm.
+npm warn Unknown env config "min-release-age". This will stop working in the next major version of npm.
+
+> frontend@0.0.0 lint
+> eslint .
+
+
+C:\Users\lucas\AppData\Local\Temp\novexa-release15d-9vmpp3xe\snapshot\frontend\src\pages\Financeiro\ConfiguracaoFormaPagamentoForm.tsx
+  104:41  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\lucas\AppData\Local\Temp\novexa-release15d-9vmpp3xe\snapshot\frontend\src\pages\Financeiro\ConfiguracaoFormaPagamentoForm.tsx:104:41
+  102 |     });
+  103 |
+> 104 |     const formaPagamentoIdSelecionado = watch("formaPagamentoId");
+      |                                         ^^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  105 |     const tipoSelecionado = tiposCatalogo.find((t) => t.id === formaPagamentoIdSelecionado)?.tipo;
+  106 |     const exigeContaDestino = tipoSelecionado ? tiposFormaPagamentoComContaDestino.includes(tipoSelecionado) : false;
+  107 |     const ehCartao = tipoSelecionado === "DEBITO" || tipoSelecionado === "CREDITO";  react-hooks/incompatible-library
+
+C:\Users\lucas\AppData\Local\Temp\novexa-release15d-9vmpp3xe\snapshot\frontend\src\pages\Financeiro\ContaBancariaForm.tsx
+  53:62  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\lucas\AppData\Local\Temp\novexa-release15d-9vmpp3xe\snapshot\frontend\src\pages\Financeiro\ContaBancariaForm.tsx:53:62
+  51 |     }, [conta, reset]);
+  52 |
+> 53 |     const agenciaSelecionada = agencias.find((a) => a.id === watch("agenciaId"));
+     |                                                              ^^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  54 |
+  55 |     const aoSalvar: SubmitHandler<ContaBancariaInput> = async (dados) => {
+  56 |         setSalvando(true);  react-hooks/incompatible-library
+
+✖ 2 problems (0 errors, 2 warnings)

@@ -1,0 +1,42 @@
+[
+  {
+    "mobile": false,
+    "dark": false,
+    "color": "rgb(93, 107, 122)",
+    "opacity": "1",
+    "background": "rgb(255, 255, 255)",
+    "contraste": 5.455200983562923,
+    "larguraCampo": 400.8125,
+    "alturaCampo": 41.5625
+  },
+  {
+    "mobile": false,
+    "dark": true,
+    "color": "rgb(177, 193, 211)",
+    "opacity": "1",
+    "background": "rgb(18, 33, 54)",
+    "contraste": 8.822034569295147,
+    "larguraCampo": 400.8125,
+    "alturaCampo": 41.5625
+  },
+  {
+    "mobile": true,
+    "dark": false,
+    "color": "rgb(93, 107, 122)",
+    "opacity": "1",
+    "background": "rgb(255, 255, 255)",
+    "contraste": 5.455200983562923,
+    "larguraCampo": 227.796875,
+    "alturaCampo": 41.5625
+  },
+  {
+    "mobile": true,
+    "dark": true,
+    "color": "rgb(177, 193, 211)",
+    "opacity": "1",
+    "background": "rgb(18, 33, 54)",
+    "contraste": 8.822034569295147,
+    "larguraCampo": 225.796875,
+    "alturaCampo": 41.5625
+  }
+]

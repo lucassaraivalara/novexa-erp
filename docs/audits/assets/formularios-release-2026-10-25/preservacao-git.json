@@ -1,0 +1,41 @@
+{
+  "branch": "main",
+  "head": "71f2ea0224359ad0e886fdc45ab79941f0ce9d17",
+  "headUnchanged": true,
+  "indexPatchUnchanged": true,
+  "existingFilesChecked": 135,
+  "existingFilesChanged": [],
+  "checks": {
+    "unstagedDiffCheck": {
+      "exitCode": 0,
+      "errors": ""
+    },
+    "stagedDiffCheck": {
+      "exitCode": 0,
+      "errors": ""
+    },
+    "combinedDiffCheck": {
+      "exitCode": 0,
+      "errors": ""
+    },
+    "selectiveCurrentStatePatch": {
+      "exitCode": 0,
+      "errors": ""
+    }
+  },
+  "originalServices": {
+    "postgresql": {
+      "port": 5432,
+      "pid": 27080
+    },
+    "backend": {
+      "port": 8080,
+      "pid": 6648
+    },
+    "frontend": {
+      "port": 5173,
+      "pid": 26148
+    }
+  },
+  "disposableServicesStopped": true
+}

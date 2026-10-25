@@ -1,8 +1,10 @@
+import CampoTexto from "../../components/ui/CampoTexto";
+import { CampoMonetario } from "../../components/ui/CampoDecimal";
 import { formatarDataHora } from "../../utils/dataHora";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
     Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, Divider,
-    FormControl, FormControlLabel, FormLabel, MenuItem, Radio, RadioGroup, Skeleton, Stack, TextField, Typography,
+    FormControl, FormControlLabel, FormLabel, MenuItem, Radio, RadioGroup, Skeleton, Stack, Typography,
 } from "@mui/material";
 import { abrirSessaoCaixa, buscarContextoAbertura, mensagemCaixa } from "../../services/caixaService";
 import type { AberturaContexto, CaixaResumo } from "../../types/caixa";
@@ -101,10 +103,10 @@ export default function AberturaCaixaDialog({ onClose, onSucesso, caixasAtivos, 
                     {aviso && <Alert severity="info">{aviso}</Alert>}
                     {erro && <Alert ref={alerta} tabIndex={-1} severity="error">{erro}</Alert>}
                     <Typography variant="body2" color="text.secondary">Confira o dinheiro físico e sua origem. Nenhum valor será movimentado antes de confirmar a abertura.</Typography>
-                    <TextField select fullWidth name="caixaAbertura" label="Caixa" value={caixaId} disabled={processando}
+                    <CampoTexto select fullWidth name="caixaAbertura" label="Caixa" value={caixaId} disabled={processando}
                         onChange={e => selecionarCaixa(e.target.value === "" ? "" : Number(e.target.value))} helperText={caixasAtivos.length ? undefined : "Nenhum Caixa ativo está disponível."}>
                         <MenuItem value="">Selecione</MenuItem>{caixasAtivos.map(c => <MenuItem key={c.id} value={c.id}>{c.descricao}</MenuItem>)}
-                    </TextField>
+                    </CampoTexto>
                     {carregando && <Skeleton aria-label="Consultando origens da abertura" variant="rounded" height={96} />}
                     {falhaContexto && <Alert severity="error" action={<Button color="inherit" onClick={() => { setContexto(null); setFalhaContexto(""); setCarregando(true); setTentativa(t => t + 1); }}>Tentar novamente</Button>}>{falhaContexto}</Alert>}
                     {contexto && <>
@@ -114,8 +116,8 @@ export default function AberturaCaixaDialog({ onClose, onSucesso, caixasAtivos, 
                                 <Typography variant="body2" color="text.secondary">Sessão #{contexto.trocoAnterior.sessaoId} · fechada em {formatarDataHora(contexto.trocoAnterior.dataFechamento)}</Typography>
                                 <FormControlLabel label="Usar troco da sessão anterior" control={<Checkbox checked={usarTroco} disabled={processando} onChange={e => setUsarTroco(e.target.checked)} />} />
                             </Box> : <Typography variant="body2" color="text.secondary">Sem troco herdado disponível. Informe a origem de qualquer fundo inicial.</Typography>}
-                            <TextField fullWidth name="saldoInicial" autoComplete="off" label="Fundo inicial (R$)" value={saldo} disabled={processando}
-                                slotProps={{ htmlInput: { inputMode: "decimal" } }} onChange={e => setSaldo(e.target.value)} helperText="Total físico após somar todas as origens, sem separador de milhar." />
+                            <CampoMonetario canonico placeholder="Ex.: 1.234,56…" fullWidth name="saldoInicial" autoComplete="off" label="Fundo inicial (R$)" value={saldo} disabled={processando}
+                                 onValueChange={v => setSaldo(v)} helperText="Total físico após somar todas as origens. Até 2 casas decimais." />
                             {complemento > 0 && <>
                                 <Typography variant="subtitle2">Complemento necessário: {dinheiro(complemento)}</Typography>
                                 {!contexto.podeMovimentarCofre && <Alert severity="info">Retirada do cofre e aporte externo exigem administrador ou gestor.</Alert>}
@@ -127,13 +129,13 @@ export default function AberturaCaixaDialog({ onClose, onSucesso, caixasAtivos, 
                                         <FormControlLabel value="MISTO" control={<Radio />} label="COFRE e aporte externo" />
                                     </RadioGroup>
                                 </FormControl>
-                                {origem !== "APORTE" && <TextField select fullWidth name="cofreOrigem" label="Cofre de origem" value={cofreId} disabled={processando || !contexto.podeMovimentarCofre}
+                                {origem !== "APORTE" && <CampoTexto select fullWidth name="cofreOrigem" label="Cofre de origem" value={cofreId} disabled={processando || !contexto.podeMovimentarCofre}
                                     error={!!insuficiente} helperText={insuficiente ? `Saldo disponível: ${moeda.format(conta?.saldoAtual ?? 0)}. Insuficiente para esta retirada.` : conta ? `Saldo disponível: ${moeda.format(conta.saldoAtual)}. Débito somente ao confirmar.` : "Selecione o destino; a retirada só ocorre ao confirmar."} onChange={e => setCofreId(e.target.value === "" ? "" : Number(e.target.value))}>
                                     <MenuItem value="">Selecione um Cofre</MenuItem>{contexto.cofres.map(c => <MenuItem key={c.id} value={c.id} sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>{c.nome} · disponível {moeda.format(c.saldoAtual)}</MenuItem>)}
-                                </TextField>}
-                                {origem === "MISTO" && <TextField fullWidth name="retiradaMista" autoComplete="off" label="Valor a retirar do cofre (R$)" value={retiradaMista} disabled={processando || !contexto.podeMovimentarCofre}
-                                    slotProps={{ htmlInput: { inputMode: "decimal" } }} onChange={e => setRetiradaMista(e.target.value)} helperText="O restante do complemento será registrado como aporte externo." />}
-                                {origem !== "COFRE" && <TextField fullWidth multiline minRows={2} name="observacaoAporte" autoComplete="off" label="Motivo do aporte externo" value={observacao} disabled={processando || !contexto.podeMovimentarCofre}
+                                </CampoTexto>}
+                                {origem === "MISTO" && <CampoMonetario canonico placeholder="Ex.: 1.234,56…" fullWidth name="retiradaMista" autoComplete="off" label="Valor a retirar do cofre (R$)" value={retiradaMista} disabled={processando || !contexto.podeMovimentarCofre}
+                                     onValueChange={v => setRetiradaMista(v)} helperText="O restante do complemento será registrado como aporte externo." />}
+                                {origem !== "COFRE" && <CampoTexto placeholder="Justifique a origem do aporte…" fullWidth multiline minRows={2} name="observacaoAporte" autoComplete="off" label="Motivo do aporte externo" value={observacao} disabled={processando || !contexto.podeMovimentarCofre}
                                     slotProps={{ htmlInput: { maxLength: 500 } }} onChange={e => setObservacao(e.target.value)} helperText="Obrigatório. O aporte não movimenta Conta Financeira." />}
                             </>}
                             <Divider />

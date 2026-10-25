@@ -1,0 +1,34 @@
+[
+  {
+    "dark": false,
+    "submit": {
+      "x": 213.734375,
+      "y": 738.328125,
+      "width": 120.265625,
+      "height": 42.5
+    },
+    "association": {
+      "id": "_r_d_",
+      "refs": "_r_d_-helper-text",
+      "messages": [
+        "Informe uma taxa percentual válida."
+      ]
+    }
+  },
+  {
+    "dark": true,
+    "submit": {
+      "x": 212.734375,
+      "y": 737.328125,
+      "width": 120.265625,
+      "height": 42.5
+    },
+    "association": {
+      "id": "_r_d_",
+      "refs": "_r_d_-helper-text",
+      "messages": [
+        "Informe uma taxa percentual válida."
+      ]
+    }
+  }
+]

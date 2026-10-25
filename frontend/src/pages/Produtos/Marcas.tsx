@@ -1,3 +1,4 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useEffect, useState, type FormEvent } from "react";
 import { Alert, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogContentText,
     DialogTitle, FormControlLabel, MenuItem, Stack, TextField } from "@mui/material";
@@ -31,7 +32,7 @@ function MarcaForm({ registro, onFechar, onSalvo }: { registro: Marca | null; on
         descricao="Mantenha o nome e a situação da marca da empresa." salvando={salvando} onFechar={onFechar} onSubmit={salvar}>
         <Stack spacing={2}>
             {erro && <Alert severity="error">{erro}</Alert>}
-            <TextField label="Nome" value={nome} onChange={e => setNome(e.target.value)} autoFocus fullWidth required
+            <CampoTexto placeholder="Ex.: Marca própria…" label="Nome" value={nome} onChange={e => setNome(e.target.value)} autoFocus fullWidth required
                 disabled={salvando} slotProps={{ htmlInput: { maxLength: 100 } }} />
             <FormControlLabel control={<Checkbox checked={ativo} disabled={salvando} onChange={e => setAtivo(e.target.checked)} />} label="Ativa" />
         </Stack>

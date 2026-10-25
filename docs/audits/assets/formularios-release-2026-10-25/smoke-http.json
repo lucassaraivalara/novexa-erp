@@ -1,0 +1,297 @@
+[
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/produtos",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/produtos",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/estoque/movimentacoes/entrada",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/estoque/movimentacoes/saida",
+    "status": 201
+  },
+  {
+    "method": "GET",
+    "path": "/produtos/4",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/estoque/movimentacoes/entrada",
+    "status": 400
+  },
+  {
+    "method": "GET",
+    "path": "/produtos/4",
+    "status": 404
+  },
+  {
+    "method": "POST",
+    "path": "/fornecedores",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/estoque/entradas",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/estoque/entradas/2/confirmar",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/produtos/4",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/produtos",
+    "status": 201
+  },
+  {
+    "method": "GET",
+    "path": "/produtos/5/composicoes",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/clientes",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/contas-financeiras",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/contas-financeiras",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/transferencias",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/transferencias/1/estornar",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/financeiro/contas-financeiras",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/contas-pagar",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/contas-pagar/1/pagar",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/contas-pagar/1/estornar",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/contas-receber",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/contas-receber/1/receber",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/produtos",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/financeiro/contas-receber/1",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/contas-receber/1/recebimentos/5/estornar",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/financeiro/formas-pagamento",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/financeiro/configuracoes-formas-pagamento",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/produtos",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/configuracoes-formas-pagamento",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/configuracoes-formas-pagamento",
+    "status": 403
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/configuracoes-formas-pagamento",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/configuracoes-formas-pagamento",
+    "status": 403
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/configuracoes-formas-pagamento",
+    "status": 201
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/configuracoes-formas-pagamento",
+    "status": 403
+  },
+  {
+    "method": "POST",
+    "path": "/financeiro/caixas",
+    "status": 201
+  },
+  {
+    "method": "GET",
+    "path": "/financeiro/contas-pagar/1",
+    "status": 404
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/produtos",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/financeiro/configuracoes-formas-pagamento",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/financeiro/configuracoes-formas-pagamento",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/financeiro/configuracoes-formas-pagamento/3",
+    "status": 200
+  },
+  {
+    "method": "PUT",
+    "path": "/financeiro/configuracoes-formas-pagamento/3",
+    "status": 403
+  },
+  {
+    "method": "PUT",
+    "path": "/financeiro/configuracoes-formas-pagamento/3",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/financeiro/configuracoes-formas-pagamento/3",
+    "status": 404
+  }
+]

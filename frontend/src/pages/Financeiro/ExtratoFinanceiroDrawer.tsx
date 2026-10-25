@@ -1,4 +1,5 @@
 import { formatarData } from "../../utils/dataHora";
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useEffect, useState, type FormEvent } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
@@ -133,7 +134,7 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
                 <DialogTitle id="estorno-financeiro-titulo">{estorno?.origem === "TRANSFERENCIA" ? "Estornar transferência?" : "Estornar movimentação?"}</DialogTitle>
                 <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
                     <Typography variant="body2">{estorno && descricaoMovimentacaoFinanceira(estorno)} · {estorno && moeda.format(estorno.valor)}</Typography>
-                    <TextField autoFocus required fullWidth multiline minRows={2} label="Motivo do estorno" value={motivo}
+                    <CampoTexto placeholder="Justifique o estorno…" helperText="Motivo registrado no histórico da movimentação." autoFocus required fullWidth multiline minRows={2} label="Motivo do estorno" value={motivo}
                         onChange={(e) => setMotivo(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} />
                     {erro && <Alert severity="error">{erro}</Alert>}
                 </Stack></DialogContent>

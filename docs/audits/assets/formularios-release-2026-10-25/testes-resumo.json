@@ -1,0 +1,31 @@
+{
+  "global": {
+    "tests": 650,
+    "pass": 629,
+    "fail": 18,
+    "cancelled": 0,
+    "skipped": 3
+  },
+  "failures": [
+    "Cabecalhos de pagina e atalhos usam a nomenclatura da navegacao",
+    "Contas: alterar situacao recarrega pagina e resumo em vez de editar universo local",
+    "Contas: falha no resumo nao apresenta totais da pagina como globais",
+    "Contas: resumo global conserva legados e totais fora da pagina/filtro",
+    "Contas: transferencia carrega seletor antigo sob demanda incluindo destino fora da pagina",
+    "Fechamento de Caixa confere valores por forma de pagamento",
+    "agenda mantém confirmação acessível em 1280x400",
+    "agenda mantém confirmação acessível em 1440x900",
+    "agenda mantém confirmação acessível em 390x844",
+    "agenda não liquida por abrir, informa previsão e envia apenas IDs ao confirmar",
+    "cancelar lote por Escape não grava",
+    "contas: pagina esvaziada volta a ultima pagina valida consultando backend",
+    "contas: pagina/total do backend e ordem remota sem resort/slice local",
+    "contas: termo, sort e tamanho enviados ao backend e resetam pagina",
+    "formulários seguem o padrão de submit, feedback e autofocus",
+    "listagem e formulário de Produtos preservam campos reais e organização visual",
+    "modal de fechamento soma dinheiro e usa os tipos reais da API",
+    "paginas administrativas nao usam filtro/sort/paginacao local nem tamanho de workaround"
+  ],
+  "baseline_distinct": 18,
+  "new_failures": []
+}

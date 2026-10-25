@@ -1,7 +1,10 @@
+import { numeroDecimal } from "../../utils/numeroFormulario";
+import CampoTexto from "../../components/ui/CampoTexto";
+import { CampoMonetario } from "../../components/ui/CampoDecimal";
 import { hojeBrasilia } from "../../utils/dataHora";
 import { useState, type FormEvent } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { Alert, Box, Button, Drawer, IconButton, Stack, TextField, ToggleButton,
+import { Alert, Box, Button, Drawer, IconButton, Stack, ToggleButton,
     ToggleButtonGroup, Typography } from "@mui/material";
 import { criarMovimentacaoFinanceira, mensagemContaFinanceira } from "../../services/contaFinanceiraService";
 import type { ContaFinanceira, TipoMovimentacaoFinanceira } from "../../types/contaFinanceira";
@@ -21,8 +24,8 @@ export default function MovimentacaoFinanceiraDrawer({ conta, onFechar, onSalvo 
     async function enviar(evento: FormEvent<HTMLFormElement>) {
         evento.preventDefault();
         if (salvando) return;
-        const quantia = Number(valor.replace(",", "."));
-        if (!Number.isFinite(quantia) || quantia <= 0 || Math.abs(quantia * 100 - Math.round(quantia * 100)) > 0.000001) {
+        const quantia = numeroDecimal(valor, 2);
+        if (quantia === null || quantia <= 0 || Math.abs(quantia * 100 - Math.round(quantia * 100)) > 0.000001) {
             setErro("Informe um valor positivo com até duas casas decimais.");
             return;
         }
@@ -53,13 +56,13 @@ export default function MovimentacaoFinanceiraDrawer({ conta, onFechar, onSalvo 
                     <ToggleButton value="ENTRADA">Entrada</ToggleButton>
                     <ToggleButton value="SAIDA">Saída</ToggleButton>
                 </ToggleButtonGroup>
-                <TextField autoFocus required fullWidth label="Descrição" value={descricao}
+                <CampoTexto placeholder="Identifique a operação…" autoFocus required fullWidth label="Descrição" value={descricao}
                     onChange={(e) => setDescricao(e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} />
-                <TextField required fullWidth label="Valor (R$)" value={valor}
-                    onChange={(e) => setValor(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
-                <TextField required fullWidth type="date" label="Data do movimento" value={dataMovimento}
+                <CampoMonetario canonico placeholder="Ex.: 1.234,56…" required fullWidth label="Valor (R$)" value={valor}
+                    onValueChange={v => setValor(v)}  />
+                <CampoTexto required fullWidth type="date" label="Data do movimento" value={dataMovimento}
                     onChange={(e) => setDataMovimento(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-                <TextField fullWidth multiline minRows={3} label="Observação" value={observacao}
+                <CampoTexto placeholder="Informações adicionais sobre a operação…" fullWidth multiline minRows={3} label="Observação" value={observacao}
                     onChange={(e) => setObservacao(e.target.value)} slotProps={{ htmlInput: { maxLength: 1000 } }} />
             </Stack>
             <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", px: 3, py: 2, borderTop: 1, borderColor: "divider" }}>

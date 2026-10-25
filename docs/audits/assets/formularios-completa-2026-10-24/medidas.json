@@ -1,0 +1,202 @@
+[
+  {
+    "name": "cliente-antes-desktop-claro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "cliente-depois-desktop-claro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "cliente-antes-desktop-escuro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "cliente-depois-desktop-escuro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "cliente-antes-mobile-claro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "cliente-depois-mobile-claro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "cliente-antes-mobile-escuro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "cliente-depois-mobile-escuro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "entrada-antes-desktop-claro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "entrada-depois-desktop-claro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "entrada-antes-desktop-escuro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "entrada-depois-desktop-escuro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "entrada-antes-mobile-claro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "entrada-depois-mobile-claro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "entrada-antes-mobile-escuro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "entrada-depois-mobile-escuro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "configuracao-antes-desktop-claro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "configuracao-depois-desktop-claro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "configuracao-antes-desktop-escuro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "configuracao-depois-desktop-escuro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "configuracao-antes-mobile-claro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "configuracao-depois-mobile-claro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "configuracao-antes-mobile-escuro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "configuracao-depois-mobile-escuro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "usuario-antes-desktop-claro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "usuario-depois-desktop-claro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "usuario-antes-desktop-escuro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "usuario-depois-desktop-escuro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "usuario-antes-mobile-claro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "usuario-depois-mobile-claro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "usuario-antes-mobile-escuro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "usuario-depois-mobile-escuro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "pdv-antes-desktop-claro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "pdv-depois-desktop-claro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "pdv-antes-desktop-escuro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "pdv-depois-desktop-escuro",
+    "width": 1440,
+    "doc": 1440
+  },
+  {
+    "name": "pdv-antes-mobile-claro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "pdv-depois-mobile-claro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "pdv-antes-mobile-escuro",
+    "width": 390,
+    "doc": 390
+  },
+  {
+    "name": "pdv-depois-mobile-escuro",
+    "width": 390,
+    "doc": 390
+  }
+]

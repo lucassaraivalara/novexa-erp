@@ -1,5 +1,6 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useEffect, useState } from "react";
-import { Alert, Checkbox, Dialog, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, TextField } from "@mui/material";
+import { Alert, Checkbox, Dialog, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, } from "@mui/material";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -63,7 +64,7 @@ export default function FormaPagamentoForm({ forma, onFechar, onSalvo }: FormaPa
                 <DialogContent>
                     <Stack spacing={2} sx={{ pt: 1 }}>
                         {erro && <Alert severity="error">{erro}</Alert>}
-                        <TextField
+                        <CampoTexto placeholder="Identifique a operação…"
                             fullWidth
                             required
                             autoFocus
@@ -78,7 +79,7 @@ export default function FormaPagamentoForm({ forma, onFechar, onSalvo }: FormaPa
                             name="tipo"
                             control={control}
                             render={({ field }) => (
-                                <TextField
+                                <CampoTexto
                                     {...field}
                                     fullWidth
                                     required
@@ -90,7 +91,7 @@ export default function FormaPagamentoForm({ forma, onFechar, onSalvo }: FormaPa
                                     disabled={!!forma}
                                 >
                                     {tipos.map(([valor, label]) => <MenuItem key={valor} value={valor}>{label}</MenuItem>)}
-                                </TextField>
+                                </CampoTexto>
                             )}
                         />
                         <FormControlLabel control={<Checkbox {...register("ativo")} defaultChecked={!forma || forma.ativo} />} label="Forma de pagamento ativa" />

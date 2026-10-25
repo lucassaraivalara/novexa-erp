@@ -1,5 +1,6 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useEffect, useState } from "react";
-import { Alert, Dialog, DialogContent, DialogTitle, Stack, TextField, FormControlLabel, Switch, Typography } from "@mui/material";
+import { Alert, Dialog, DialogContent, DialogTitle, Stack, FormControlLabel, Switch, Typography } from "@mui/material";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import { useForm, type SubmitHandler, useWatch, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -87,7 +88,7 @@ export default function CaixaForm({ caixa, onFechar, onSalvo }: CaixaFormProps) 
                     </Alert>
                 )}
 
-                <TextField
+                <CampoTexto
                     fullWidth
                     required
                     label="Descrição"

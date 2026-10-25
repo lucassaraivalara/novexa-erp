@@ -1,6 +1,9 @@
+import { numeroDecimal } from "../../utils/numeroFormulario";
+import CampoTexto from "../../components/ui/CampoTexto";
+import { CampoMonetario } from "../../components/ui/CampoDecimal";
 import { useState, type FormEvent } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { Alert, Box, Button, Drawer, IconButton, Link, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Drawer, IconButton, Link, Stack, Typography } from "@mui/material";
 import FornecedorAutocomplete, { type FornecedorOpcao } from "../../components/fornecedores/FornecedorAutocomplete";
 import { mensagemContaPagar, salvarContaPagar } from "../../services/contaPagarService";
 import type { ContaPagar, ContaPagarInput } from "../../types/contaPagar";
@@ -32,8 +35,8 @@ export default function ContaPagarDrawer({ conta, onFechar, onSalvo, somenteLeit
     async function enviar(evento: FormEvent<HTMLFormElement>) {
         evento.preventDefault();
         if (salvando || somenteLeitura) return;
-        const valor = Number(form.valor.replace(",", "."));
-        if (!Number.isFinite(valor) || valor <= 0 || Math.abs(valor * 100 - Math.round(valor * 100)) > 0.000001) {
+        const valor = numeroDecimal(form.valor, 2);
+        if (valor === null || valor <= 0 || Math.abs(valor * 100 - Math.round(valor * 100)) > 0.000001) {
             setErro("Informe um valor positivo com até duas casas decimais.");
             return;
         }
@@ -64,23 +67,23 @@ export default function ContaPagarDrawer({ conta, onFechar, onSalvo, somenteLeit
                 </Alert>}
                 {somenteLeitura && conta && <Typography variant="body2">Situação: {conta.status === "PAGA" ? "Paga" : conta.status === "ABERTA" ? "Aberta" : "Cancelada"}</Typography>}
                 <Stack component="fieldset" spacing={2} disabled={somenteLeitura || salvando} sx={{ border: 0, m: 0, p: 0, minWidth: 0 }}>
-                <TextField autoFocus required fullWidth label="Descrição" name="descricao" value={form.descricao}
+                <CampoTexto placeholder="Identifique a operação…" autoFocus required fullWidth label="Descrição" name="descricao" value={form.descricao}
                     onChange={(e) => setForm({ ...form, descricao: e.target.value })} slotProps={{ htmlInput: { maxLength: 200 } }} />
-                <TextField fullWidth label="Número do documento" name="documento" value={form.documento}
+                <CampoTexto placeholder="Ex.: nota, boleto ou referência…" fullWidth label="Número do documento" name="documento" value={form.documento}
                     onChange={(e) => setForm({ ...form, documento: e.target.value })} slotProps={{ htmlInput: { maxLength: 80 } }} />
                 <FornecedorAutocomplete value={fornecedor} placeholder="Sem fornecedor" disabled={somenteLeitura || !!conta?.entradaMercadoriaId}
                     onChange={(item) => { setFornecedor(item); setForm({ ...form, fornecedorId: item?.id ?? "" }); }} />
-                <TextField fullWidth label="Categoria" name="categoria" value={form.categoria}
+                <CampoTexto placeholder="Ex.: Serviços, aluguel…" fullWidth label="Categoria" name="categoria" value={form.categoria}
                     onChange={(e) => setForm({ ...form, categoria: e.target.value })} slotProps={{ htmlInput: { maxLength: 100 } }} />
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                    <TextField fullWidth label="Emissão" name="dataEmissao" type="date" value={form.dataEmissao}
+                    <CampoTexto fullWidth label="Emissão" name="dataEmissao" type="date" value={form.dataEmissao}
                         onChange={(e) => setForm({ ...form, dataEmissao: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
-                    <TextField fullWidth required label="Vencimento" name="dataVencimento" type="date" value={form.dataVencimento}
+                    <CampoTexto fullWidth required label="Vencimento" name="dataVencimento" type="date" value={form.dataVencimento}
                         onChange={(e) => setForm({ ...form, dataVencimento: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} />
                 </Stack>
-                <TextField fullWidth required label="Valor (R$)" name="valor" value={form.valor} slotProps={{ htmlInput: { inputMode: "decimal" } }}
-                    onChange={(e) => setForm({ ...form, valor: e.target.value })} />
-                <TextField fullWidth multiline minRows={3} label="Observação" name="observacao" value={form.observacao}
+                <CampoMonetario canonico placeholder="Ex.: 1.234,56…" fullWidth required label="Valor (R$)" name="valor" value={form.valor}
+                    onValueChange={v => setForm({ ...form, valor: v })} />
+                <CampoTexto placeholder="Informações adicionais sobre a operação…" fullWidth multiline minRows={3} label="Observação" name="observacao" value={form.observacao}
                     onChange={(e) => setForm({ ...form, observacao: e.target.value })} slotProps={{ htmlInput: { maxLength: 1000 } }} />
                 </Stack>
             </Stack>

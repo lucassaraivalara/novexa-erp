@@ -934,18 +934,18 @@ test("controles de quantidade e inclusao em linha reutilizam o item selecionado 
         await linha.fill("1,25"); await linha.press("Enter"); await esperarFoco(page, busca);
         assert.equal(await quantidade.inputValue(), "1,25");
         await diminuir.click();
-        assert.equal(await quantidade.inputValue(), "0.25");
+        assert.equal(await quantidade.inputValue(), "0,25");
         assert.equal(await diminuir.isDisabled(), true);
         assert.match(await page.getByLabel("Total da venda", { exact: true }).innerText(), /2,50/);
         await linha.fill("3"); await linha.press("Escape"); await esperarFoco(page, busca);
-        assert.equal(await quantidade.inputValue(), "0.25");
+        assert.equal(await quantidade.inputValue(), "0,25");
         assert.equal(await page.getByLabel("Unitário do item selecionado").getAttribute("readonly"), "");
         estado.produtos = [{ ...produto("Outro produto", "P2"), id: 2, precoVenda: 15, codigoBarras: "7890002" }];
         await busca.fill("7890002"); await page.getByRole("listbox").getByRole("option").waitFor();
         assert.equal(await linha.inputValue(), "1");
         assert.equal(await linha.getAttribute("readonly"), "");
         assert.match(await page.getByLabel("Unitário do item selecionado").inputValue(), /15,00/);
-        assert.equal(await quantidade.inputValue(), "0.25");
+        assert.equal(await quantidade.inputValue(), "0,25");
         assert.equal(estado.requests.some(r => r.method === "POST"), false);
     } finally { await page.close(); }
 });

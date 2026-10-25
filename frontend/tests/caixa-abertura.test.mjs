@@ -133,7 +133,7 @@ test("complemento soma troco 70 e cofre 30 para fundo 100", async t => {
 test("saldo insuficiente não envia abertura e conserva os valores", async t => {
     const a = await ambiente(t); await fundo(a, "600"); await a.confirmar();
     await expect(a.dialog.getByRole("alert")).toContainText("Saldo insuficiente");
-    await expect(a.dialog.getByLabel("Fundo inicial (R$)", { exact: true })).toHaveValue("600"); assert.equal(a.posts.length, 0);
+    await expect(a.dialog.getByLabel("Fundo inicial (R$)", { exact: true })).toHaveValue("600,00"); assert.equal(a.posts.length, 0);
 });
 test("aporte externo exige motivo, preserva dados e não seleciona conta", async t => {
     const a = await ambiente(t, { contexto: { cofres: [] } }); await fundo(a, "100"); await a.confirmar();

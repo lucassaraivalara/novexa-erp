@@ -1,5 +1,7 @@
+import CampoTexto from "../../components/ui/CampoTexto";
+import { CampoQuantidade, CampoMonetario } from "../../components/ui/CampoDecimal";
 import { useCallback, useState } from "react";
-import { Autocomplete, Box, Button, CircularProgress, IconButton, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Autocomplete, Box, Button, CircularProgress, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { useRemoteSearch } from "../../hooks/useRemoteSearch";
@@ -28,7 +30,7 @@ function ProdutoAutocomplete({ value, onChange, disabled }: {
             setTerm(texto); setHabilitado(texto.trim().length >= 2); setOpcoes([]);
         } }}
         onChange={(_, p) => { setTerm(""); setHabilitado(false); onChange(p); }}
-        renderInput={params => <TextField {...params} label="Produto" required size="small" error={Boolean(erro)} helperText={erro || undefined}
+        renderInput={params => <CampoTexto placeholder="Código ou descrição…" {...params} label="Produto" required size="small" error={Boolean(erro)} helperText={erro || undefined}
             slotProps={{ ...params.slotProps, input: { ...params.slotProps.input, endAdornment: <>
                 {loading && <CircularProgress size={16} />}{params.slotProps.input.endAdornment}</> } }} />} />;
 }
@@ -70,7 +72,7 @@ export default function EntradaMercadoriaItens({ itens, onChange, fornecedorId =
             <Box sx={{ display: "grid", gap: 1.5, alignItems: "start",
             gridTemplateColumns: { xs: "1fr 1fr", sm: "minmax(0, 1fr) 120px 140px 40px" } }}>
             <Box sx={{ minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
-                {somenteLeitura ? <TextField fullWidth size="small" label="Produto" value={item.produto?.nome ?? ""}
+                {somenteLeitura ? <CampoTexto placeholder="Código ou descrição…" fullWidth size="small" label="Produto" value={item.produto?.nome ?? ""}
                     slotProps={{ input: { readOnly: true } }} /> : <>
                     {item.historico?.descricaoOriginal && <Typography variant="caption" color="text.secondary">Produto Novexa</Typography>}
                     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) auto" }, gap: 0.75, alignItems: "start" }}>
@@ -86,12 +88,12 @@ export default function EntradaMercadoriaItens({ itens, onChange, fornecedorId =
                     <StatusChip status={item.produto ? "ATIVO" : "PENDENTE"} label={item.produto ? "Produto vinculado" : "Vincular produto"} />
                 </Box>}
             </Box>
-            <TextField label="Quantidade" size="small" required value={item.quantidade} disabled={disabled && !somenteLeitura}
-                onChange={e => alterar(indice, { quantidade: e.target.value })}
-                slotProps={{ input: { readOnly: somenteLeitura }, htmlInput: { inputMode: "decimal" } }} />
-            <TextField label="Custo unitário" size="small" required value={item.custo} disabled={disabled && !somenteLeitura}
-                onChange={e => alterar(indice, { custo: e.target.value })}
-                slotProps={{ input: { readOnly: somenteLeitura }, htmlInput: { inputMode: "decimal" } }} />
+            <CampoQuantidade canonico placeholder="Ex.: 1,250…" readOnly={somenteLeitura} label="Quantidade" size="small" required value={item.quantidade} disabled={disabled && !somenteLeitura}
+                onValueChange={v => alterar(indice, { quantidade: v })}
+                 />
+            <CampoMonetario canonico placeholder="Ex.: 10,50…" readOnly={somenteLeitura} label="Custo unitário" size="small" required value={item.custo} disabled={disabled && !somenteLeitura}
+                onValueChange={v => alterar(indice, { custo: v })}
+                 />
             {!somenteLeitura && <Tooltip title="Remover item"><span><IconButton disabled={disabled} aria-label={`Remover item ${indice + 1}`}
                 onClick={() => onChange(itens.flatMap((v, i) => i === indice ? [] : [v]))}><DeleteOutlineRoundedIcon /></IconButton></span></Tooltip>}
             </Box>

@@ -1,5 +1,7 @@
+import CampoTexto from "../../components/ui/CampoTexto";
+import { CampoMonetario } from "../../components/ui/CampoDecimal";
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, Checkbox, FormControlLabel, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, FormControlLabel, MenuItem, Stack, Typography } from "@mui/material";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
 import { resumoCofre, type Cofre } from "../../services/cofreService";
@@ -34,16 +36,16 @@ export default function EntregaCofreCampos({ value, onChange, valorFixo, disable
         alterar({ [campo]: texto, ...(fechamento && contado !== null && informado !== null
             ? { [campo === "troco" ? "valor" : "troco"]: (Math.max(0, contado - informado) / 100).toFixed(2).replace(".", ",") } : {}) });
     }
-    const campoCofre = <TextField fullWidth size={fechamento ? "small" : "medium"} name="valorRecolhido" label={devolucao ? "Valor devolvido para troco (R$)" : "Recolher ao cofre (R$)"} value={value.valor} disabled={disabled}
+    const campoCofre = <CampoMonetario canonico placeholder="Ex.: 1.234,56…" fullWidth size={fechamento ? "small" : "medium"} name="valorRecolhido" label={devolucao ? "Valor devolvido para troco (R$)" : "Recolher ao cofre (R$)"} value={value.valor} disabled={disabled}
         sx={fechamento ? { "& .MuiInputBase-root": { minHeight: 44 } } : undefined}
         error={fechamento && contado !== null && recolhido !== null && recolhido > contado}
         helperText={fechamento && contado !== null && recolhido !== null && recolhido > contado ? "O recolhimento não pode exceder o dinheiro contado." : undefined}
-        slotProps={{ htmlInput: { inputMode: "decimal" } }} onChange={e => destinar("valor", e.target.value)} />;
-    const campoTroco = <TextField fullWidth size={fechamento ? "small" : "medium"} name="valorTrocoMantido" label="Valor mantido para troco (R$)" value={value.troco} disabled={disabled}
+         onValueChange={v => destinar("valor", v)} />;
+    const campoTroco = <CampoMonetario canonico placeholder="Ex.: 1.234,56…" fullWidth size={fechamento ? "small" : "medium"} name="valorTrocoMantido" label="Valor mantido para troco (R$)" value={value.troco} disabled={disabled}
         sx={fechamento ? { "& .MuiInputBase-root": { minHeight: 44 } } : undefined}
         error={fechamento && contado !== null && troco !== null && troco > contado}
         helperText={fechamento && contado !== null && troco !== null && troco > contado ? "O troco não pode exceder o dinheiro contado." : undefined}
-        slotProps={{ htmlInput: { inputMode: "decimal" } }} onChange={e => destinar("troco", e.target.value)} />;
+         onValueChange={v => destinar("troco", v)} />;
     return <Stack spacing={fechamento ? 1.5 : 2} sx={{ minWidth: 0 }}>
         {erro && <Alert severity="warning" action={<Button disabled={disabled} color="inherit" onClick={() => setTentativa(t => t + 1)}>Tentar novamente</Button>}>{erro}</Alert>}
         {fechamento && <>
@@ -61,18 +63,18 @@ export default function EntregaCofreCampos({ value, onChange, valorFixo, disable
                     : "Informe o dinheiro contado para conferir a destinação entre troco e cofre."}
             </Alert>
         </>}
-        {(!fechamento || recolhe) && <TextField select fullWidth name="contaCofre" label="Conta COFRE" value={value.conta} disabled={disabled}
+        {(!fechamento || recolhe) && <CampoTexto select fullWidth name="contaCofre" label="Conta COFRE" value={value.conta} disabled={disabled}
             required={fechamento && recolhe}
             helperText="Use uma conta COFRE ativa já cadastrada em Contas e saldos." onChange={e => alterar({ conta: e.target.value })}>
             <MenuItem value="">Selecione</MenuItem>{cofres.map(c => <MenuItem key={c.id} value={c.id}>{c.nome}</MenuItem>)}
-        </TextField>}
+        </CampoTexto>}
         {!fechamento && valorFixo === undefined && <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             {campoCofre}{!devolucao && campoTroco}
         </Stack>}
-        {(!fechamento || recolhe) && <TextField fullWidth name="responsavelCofre" label="Responsável pelo recebimento" value={value.responsavel} disabled={disabled}
+        {(!fechamento || recolhe) && <CampoTexto placeholder="Nome de quem recebeu o dinheiro…" fullWidth name="responsavelCofre" label="Responsável pelo recebimento" value={value.responsavel} disabled={disabled}
             required={fechamento && recolhe}
             slotProps={{ htmlInput: { maxLength: 150 } }} onChange={e => alterar({ responsavel: e.target.value })} />}
-        <TextField fullWidth multiline minRows={2} name="observacaoCofre" label={fechamento ? "Observação da entrega (opcional)" : "Observação da entrega"} value={value.observacao} disabled={disabled}
+        <CampoTexto fullWidth multiline minRows={2} name="observacaoCofre" label={fechamento ? "Observação da entrega (opcional)" : "Observação da entrega"} value={value.observacao} disabled={disabled}
             slotProps={{ htmlInput: { maxLength: 500 } }} onChange={e => alterar({ observacao: e.target.value })} />
         {(!fechamento || recolhe) && <FormControlLabel control={<Checkbox checked={value.confirmar} disabled={disabled} onChange={e => alterar({ confirmar: e.target.checked })} />}
             label="Confirmo que o dinheiro foi entregue ao responsável informado" />}

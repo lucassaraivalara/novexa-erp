@@ -1,10 +1,11 @@
 import type { ResumoSessaoCaixa, FechamentoCaixaInput } from "../../types/caixa";
 import type { ConfiguracaoRecebimentos } from "../../services/configuracaoRecebimentosService";
+import { numeroDecimal } from "../../utils/numeroFormulario";
 export function valorConferido(texto: string): number | null {
     const normalizado = texto.trim().replace(",", ".");
     if (!/^\d+(\.\d{1,2})?$/.test(normalizado)) return null;
-    const valor = Number(normalizado);
-    return Number.isFinite(valor) && valor >= 0 ? valor : null;
+    const valor = numeroDecimal(normalizado, 2);
+    return valor !== null && valor >= 0 ? valor : null;
 }
 export function conferenciaMeios(resumo: ResumoSessaoCaixa | null, politica: ConfiguracaoRecebimentos | null,
     valores: Record<string, string>, total: string) {

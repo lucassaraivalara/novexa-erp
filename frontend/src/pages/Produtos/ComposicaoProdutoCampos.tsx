@@ -1,11 +1,13 @@
 import { formatarDataHora } from "../../utils/dataHora";
 import { useEffect, useState } from "react";
-import { Alert, Autocomplete, Box, Button, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Autocomplete, Box, Button, Stack, Typography } from "@mui/material";
 import type { Produto } from "../../types/produto";
 import api from "../../services/api";
 import { obterMensagemDaApi, pesquisarProdutos } from "../../services/produtoService";
 import { useRemoteSearch } from "../../hooks/useRemoteSearch";
 import type { LinhaComposicao } from "./composicaoProduto";
+import CampoTexto from "../../components/ui/CampoTexto";
+import CampoDecimal, { CampoQuantidade } from "../../components/ui/CampoDecimal";
 
 type Historico = { id: number; versao: number; produtoId: number; nome: string; quantidade: number; fator: number; unidade: string; unidadeEstoque: string; data: string; usuarioId: number };
 export default function ComposicaoProdutoCampos({ produtoId, valor, onChange, disabled }: {
@@ -40,13 +42,13 @@ export default function ComposicaoProdutoCampos({ produtoId, valor, onChange, di
         <Autocomplete options={opcoes} value={null} inputValue={busca} disabled={disabled || (!!produtoId && valor === null)} filterOptions={x => x}
             getOptionLabel={p => `${p.nome} · ${p.codigoInterno ?? p.id} · ${p.unidadeMedida}`} onInputChange={(_, v) => setBusca(v)}
             onChange={(_, p) => { if (p && !(valor ?? []).some(l => l.produtoId === p.id)) onChange([...(valor ?? []), { produtoId: p.id, nome: p.nome, unidadeEstoque: p.unidadeMedida, unidade: p.unidadeMedida, quantidade: "1", fator: "1" }]); setBusca(""); }}
-            noOptionsText="Busque um produto físico simples" renderInput={params => <TextField {...params} label="Adicionar componente por nome, código ou EAN" name="buscaComponente" autoComplete="off" />} />
+            noOptionsText="Busque um produto físico simples" renderInput={params => <CampoTexto {...params} label="Adicionar componente por nome, código ou EAN" placeholder="Nome, código ou EAN…" name="buscaComponente" autoComplete="off" />} />
         {(valor ?? []).map((l, i) => <Box key={l.produtoId} sx={{ borderBottom: 1, borderColor: "divider", pb: 1.5 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, overflowWrap: "anywhere", mb: 1 }}>{l.nome} · estoque em {l.unidadeEstoque}</Typography>
             <Stack sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr)) auto" }, gap: 1 }}>
-                <TextField label="Quantidade" name={`quantidadeComponente${i}`} value={l.quantidade} disabled={disabled} onChange={e => alterar(i, { quantidade: e.target.value })} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
-                <TextField label="Unidade informada" name={`unidadeComponente${i}`} value={l.unidade} disabled={disabled} onChange={e => alterar(i, { unidade: e.target.value })} slotProps={{ htmlInput: { maxLength: 10 } }} />
-                <TextField label={`Fator para ${l.unidadeEstoque}`} name={`fatorComponente${i}`} value={l.fator} disabled={disabled} onChange={e => alterar(i, { fator: e.target.value })} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
+                <CampoQuantidade canonico label="Quantidade" name={`quantidadeComponente${i}`} value={l.quantidade} disabled={disabled} onValueChange={v => alterar(i, { quantidade: v })} placeholder="Ex.: 1,250…" helperText="Quantidade positiva. Até 3 casas decimais." />
+                <CampoTexto label="Unidade informada" placeholder="Ex.: UN, KG, CX…" name={`unidadeComponente${i}`} value={l.unidade} disabled={disabled} onChange={e => alterar(i, { unidade: e.target.value })} slotProps={{ htmlInput: { maxLength: 10 } }} />
+                <CampoDecimal canonico casas={6} label={`Fator para ${l.unidadeEstoque}`} name={`fatorComponente${i}`} value={l.fator} disabled={disabled} onValueChange={v => alterar(i, { fator: v })} placeholder="Ex.: 0,000001…" helperText="Conversão para estoque. Até 6 casas decimais." />
                 <Button color="error" disabled={disabled} aria-label={`Remover componente ${l.nome}`} onClick={() => onChange((valor ?? []).filter((_, index) => index !== i))}>Remover</Button>
             </Stack>
         </Box>)}

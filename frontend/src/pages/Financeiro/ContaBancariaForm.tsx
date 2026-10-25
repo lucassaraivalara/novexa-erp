@@ -1,5 +1,6 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useEffect, useState } from "react";
-import { Alert, Checkbox, DialogContent, FormControlLabel, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Checkbox, DialogContent, FormControlLabel, MenuItem, Stack, Typography } from "@mui/material";
 import { Controller, useForm, type Resolver, type SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -84,7 +85,7 @@ export default function ContaBancariaForm({ conta, onFechar, onSalvo }: ContaBan
                         name="agenciaId"
                         control={control}
                         render={({ field }) => (
-                            <TextField
+                            <CampoTexto
                                 {...field}
                                 select fullWidth required autoFocus size="small"
                                 label="Agência"
@@ -94,21 +95,21 @@ export default function ContaBancariaForm({ conta, onFechar, onSalvo }: ContaBan
                                 helperText={errors.agenciaId?.message ?? (agencias.length === 0 ? "Cadastre uma agência ativa antes de continuar." : undefined)}
                             >
                                 {agencias.map((a) => <MenuItem key={a.id} value={a.id}>{a.bancoNome} — {a.numero}{a.ativo ? "" : " (inativa)"}</MenuItem>)}
-                            </TextField>
+                            </CampoTexto>
                         )}
                     />
                     {agenciaSelecionada && (
                         <Typography variant="body2" color="text.secondary">Banco: <strong>{agenciaSelecionada.bancoNome}</strong></Typography>
                     )}
                     <Stack direction="row" spacing={2}>
-                        <TextField
+                        <CampoTexto placeholder="Número sem o dígito…"
                             fullWidth required size="small"
                             label="Número da conta"
                             {...register("numero")}
                             error={!!errors.numero}
                             helperText={errors.numero?.message}
                         />
-                        <TextField
+                        <CampoTexto placeholder="Ex.: 1 ou X…"
                             fullWidth size="small"
                             label="Dígito"
                             {...register("digito")}
@@ -116,7 +117,7 @@ export default function ContaBancariaForm({ conta, onFechar, onSalvo }: ContaBan
                             helperText={errors.digito?.message}
                         />
                     </Stack>
-                    <TextField
+                    <CampoTexto placeholder="Nome do titular da conta…"
                         fullWidth size="small"
                         label="Titular"
                         {...register("titular")}
@@ -127,9 +128,9 @@ export default function ContaBancariaForm({ conta, onFechar, onSalvo }: ContaBan
                         name="tipo"
                         control={control}
                         render={({ field }) => (
-                            <TextField {...field} select fullWidth required size="small" label="Tipo" error={!!errors.tipo} helperText={errors.tipo?.message}>
+                            <CampoTexto {...field} select fullWidth required size="small" label="Tipo" error={!!errors.tipo} helperText={errors.tipo?.message}>
                                 {tipos.map(([valor, label]) => <MenuItem key={valor} value={valor}>{label}</MenuItem>)}
-                            </TextField>
+                            </CampoTexto>
                         )}
                     />
                     <Controller

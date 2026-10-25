@@ -1,3 +1,6 @@
+import { numeroDecimal } from "../../utils/numeroFormulario";
+import CampoTexto from "../../components/ui/CampoTexto";
+import { CampoMonetario } from "../../components/ui/CampoDecimal";
 import { hojeBrasilia, formatarData } from "../../utils/dataHora";
 import { useEffect, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -152,8 +155,8 @@ export default function ContasPagar() {
     async function confirmarPagamento(evento: FormEvent<HTMLFormElement>) {
         evento.preventDefault();
         if (!pagamento || processando) return;
-        const valor = Number(valorPago.replace(",", "."));
-        if (!Number.isFinite(valor) || valor <= 0 || Math.abs(valor * 100 - Math.round(valor * 100)) > 0.000001) {
+        const valor = numeroDecimal(valorPago, 2);
+        if (valor === null || valor <= 0 || Math.abs(valor * 100 - Math.round(valor * 100)) > 0.000001) {
             setErro("Informe um valor pago positivo com até duas casas decimais.");
             return;
         }
@@ -293,9 +296,9 @@ export default function ContasPagar() {
                 <DialogTitle id="pagar-conta-titulo">Pagar conta</DialogTitle>
                 <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
                     <Typography variant="body2" color="text.secondary">{pagamento?.descricao}</Typography>
-                    <TextField required fullWidth type="date" label="Data do pagamento" value={dataPagamento}
+                    <CampoTexto required fullWidth type="date" label="Data do pagamento" value={dataPagamento}
                         onChange={(e) => setDataPagamento(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-                    <TextField select required fullWidth label="Conta financeira" value={contaFinanceiraId}
+                    <CampoTexto select required fullWidth label="Conta financeira" value={contaFinanceiraId}
                         onChange={(e) => setContaFinanceiraId(e.target.value ? Number(e.target.value) : "")}>
                         <MenuItem value="">Selecione uma conta financeira</MenuItem>
                         {contasFinanceiras
@@ -305,9 +308,9 @@ export default function ContasPagar() {
                                     {conta.nome} — {rotulosTipoContaFinanceira[conta.tipo]} — {moeda.format(Number(conta.saldoAtual))}
                                 </MenuItem>
                             ))}
-                    </TextField>
-                    <TextField required fullWidth label="Valor pago (R$)" value={valorPago} helperText="O pagamento deve ser integral." slotProps={{ htmlInput: { inputMode: "decimal" } }}
-                        onChange={(e) => setValorPago(e.target.value)} />
+                    </CampoTexto>
+                    <CampoMonetario canonico placeholder="Informe o valor integral…" required fullWidth label="Valor pago (R$)" value={valorPago} helperText="O pagamento deve ser integral."
+                        onValueChange={v => setValorPago(v)} />
                     {erro && <Alert severity="error">{erro}</Alert>}
                 </Stack></DialogContent>
                 <DialogActions><Button onClick={() => setPagamento(null)} disabled={processando}>Cancelar</Button>

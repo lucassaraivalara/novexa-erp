@@ -1,6 +1,9 @@
+import { numeroDecimal } from "../../utils/numeroFormulario";
+import CampoTexto from "../../components/ui/CampoTexto";
+import { CampoMonetario } from "../../components/ui/CampoDecimal";
 import { useEffect, useState, type FormEvent } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { Alert, Box, Button, Drawer, IconButton, Link, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Drawer, IconButton, Link, MenuItem, Stack, Typography } from "@mui/material";
 import { mensagemContaFinanceira, salvarContaFinanceira } from "../../services/contaFinanceiraService";
 import { rotulosTipoContaFinanceira, tiposContaFinanceiraFuncionais, type ContaFinanceira, type TipoContaFinanceira } from "../../types/contaFinanceira";
 import { listarContasBancarias } from "../../services/dadosBancariosService";
@@ -40,15 +43,15 @@ export default function ContaFinanceiraDrawer({ conta, onFechar, onSalvo }: Prop
             setErro("Selecione uma conta bancária para salvar.");
             return;
         }
-        const saldo = Number(saldoInicial.replace(",", "."));
-        if (!conta && (!Number.isFinite(saldo) || saldo < 0 || Math.abs(saldo * 100 - Math.round(saldo * 100)) > 0.000001)) {
+        const saldo = numeroDecimal(saldoInicial, 2);
+        if (!conta && (saldo === null || saldo < 0 || Math.abs(saldo * 100 - Math.round(saldo * 100)) > 0.000001)) {
             setErro("Informe um saldo inicial não negativo com até duas casas decimais.");
             return;
         }
         setSalvando(true); setErro("");
         try { onSalvo(await salvarContaFinanceira({ nome: nome.trim(), tipo,
             contaBancariaId: tipo === "BANCO" ? Number(contaBancariaId) : null,
-            ...(!conta && { saldoInicial: saldo }) }, conta?.id)); }
+            ...(!conta && { saldoInicial: saldo! }) }, conta?.id)); }
         catch (e) { setErro(mensagemContaFinanceira(e, "Não foi possível salvar a conta.")); }
         finally { setSalvando(false); }
     }
@@ -62,13 +65,13 @@ export default function ContaFinanceiraDrawer({ conta, onFechar, onSalvo }: Prop
             </Stack>
             <Stack spacing={2} sx={{ p: 3, flex: 1, overflowY: "auto" }}>
                 {erro && <Alert severity="error">{erro}</Alert>}
-                <TextField autoFocus required fullWidth label="Nome" value={nome} onChange={(e) => setNome(e.target.value)}
+                <CampoTexto placeholder="Ex.: Conta principal…" autoFocus required fullWidth label="Nome" value={nome} onChange={(e) => setNome(e.target.value)}
                     slotProps={{ htmlInput: { maxLength: 150 } }} />
-                <TextField select required fullWidth label="Tipo" value={tipo}
+                <CampoTexto select required fullWidth label="Tipo" value={tipo}
                     onChange={(e) => { const proximo = e.target.value as TipoContaFinanceira;
                         setTipo(proximo); if (proximo !== "BANCO") setContaBancariaId(""); }}>
                     {tipos.map((valor) => <MenuItem key={valor} value={valor}>{rotulosTipoContaFinanceira[valor]}</MenuItem>)}
-                </TextField>
+                </CampoTexto>
                 {tipo === "BANCO" && <>
                     <Typography variant="body2" color="text.secondary">
                         A conta financeira controla saldo e extrato. Os dados bancários identificam banco, agência e conta.
@@ -79,7 +82,7 @@ export default function ContaFinanceiraDrawer({ conta, onFechar, onSalvo }: Prop
                     {erroBancarias && <Alert severity="error" action={<Button color="inherit" onClick={() => {
                         setCarregandoBancarias(true); setTentativa((n) => n + 1);
                     }}>Tentar novamente</Button>}>{erroBancarias}</Alert>}
-                    <TextField select required fullWidth label="Conta bancária" value={contaBancariaId}
+                    <CampoTexto select required fullWidth label="Conta bancária" value={contaBancariaId}
                         disabled={carregandoBancarias || salvando}
                         onChange={(e) => setContaBancariaId(Number(e.target.value))}
                         helperText={carregandoBancarias ? "Carregando contas bancárias…" : undefined}
@@ -87,7 +90,7 @@ export default function ContaFinanceiraDrawer({ conta, onFechar, onSalvo }: Prop
                         {opcoesBancarias.map((b) => <MenuItem key={b.id} value={b.id} sx={{ whiteSpace: "normal" }}>
                             {b.bancoNome} · Ag. {b.agenciaNumero} · {b.tipo === "CORRENTE" ? "CC" : "CP"} {b.numero}{b.digito ? `-${b.digito}` : ""}{!b.ativo ? " (inativa)" : ""}
                         </MenuItem>)}
-                    </TextField>
+                    </CampoTexto>
                     {!carregandoBancarias && !erroBancarias && opcoesBancarias.length === 0 && <Alert severity="info">
                         Nenhuma conta bancária ativa. Cadastre em{' '}
                         <Link href="/financeiro/dados-bancarios" target="_blank" rel="noopener noreferrer">Dados bancários (nova aba)</Link>.
@@ -97,10 +100,10 @@ export default function ContaFinanceiraDrawer({ conta, onFechar, onSalvo }: Prop
                     </Alert>}
                 </>}
                 {conta ? <Stack spacing={2} direction={{ xs: "column", sm: "row" }}>
-                    <TextField fullWidth disabled label="Saldo inicial" value={conta.saldoInicial.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} />
-                    <TextField fullWidth disabled label="Saldo atual" value={conta.saldoAtual.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} />
-                </Stack> : <TextField required fullWidth label="Saldo inicial (R$)" value={saldoInicial}
-                    onChange={(e) => setSaldoInicial(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />}
+                    <CampoTexto fullWidth disabled label="Saldo inicial" value={conta.saldoInicial.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} />
+                    <CampoTexto fullWidth disabled label="Saldo atual" value={conta.saldoAtual.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} />
+                </Stack> : <CampoMonetario canonico placeholder="Ex.: 1.234,56…" required fullWidth label="Saldo inicial (R$)" value={saldoInicial}
+                    onValueChange={v => setSaldoInicial(v)}  />}
             </Stack>
             <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", px: 3, py: 2, borderTop: 1, borderColor: "divider" }}>
                 <Button onClick={onFechar} disabled={salvando}>Cancelar</Button>

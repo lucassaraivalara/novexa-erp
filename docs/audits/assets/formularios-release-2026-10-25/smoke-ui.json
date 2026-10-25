@@ -1,0 +1,585 @@
+[
+  {
+    "artifact": "browser--estoque-aba-entradas.json",
+    "steps": [
+      "login_real",
+      "compra_ui_rascunho_confirmacao_pg"
+    ],
+    "failures": [],
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/fornecedores/buscar",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/estoque/entradas",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/fornecedores/buscar",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/fornecedores/buscar",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/buscar",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/estoque/entradas",
+        "status": 201,
+        "body": {
+          "fornecedorId": 2,
+          "numeroNota": null,
+          "serie": null,
+          "dataEmissao": null,
+          "observacao": null,
+          "chaveRequisicao": "620558cf-d962-4f47-a1b0-5e0991eff35b",
+          "itens": [
+            {
+              "produtoId": 4,
+              "quantidade": 0.125,
+              "valorUnitario": 10.5
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/estoque/entradas/4/confirmar",
+        "status": 200,
+        "body": null
+      },
+      {
+        "method": "GET",
+        "path": "/estoque/entradas",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/estoque/entradas",
+        "status": 200
+      }
+    ]
+  },
+  {
+    "artifact": "browser--estoque.json",
+    "steps": [
+      "login_real",
+      "entrada_estoque_ui_tres_casas_http_201"
+    ],
+    "failures": [],
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/estoque/movimentacoes/entrada",
+        "status": 201,
+        "body": {
+          "produtoId": 4,
+          "quantidade": 0.125
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/produtos",
+        "status": 200
+      }
+    ]
+  },
+  {
+    "artifact": "browser--financeiro-caixas.json",
+    "steps": [
+      "login_real",
+      "fechamento_caixa_ui_diferenca_zero"
+    ],
+    "failures": [],
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/caixas/sessoes/abertas",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/caixas",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/caixas/sessoes/1/painel",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/cofre/resumo",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/configuracoes/recebimentos",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/caixas/sessoes/1/painel",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/financeiro/caixas/1/sessoes/1/fechar",
+        "status": 200,
+        "body": {
+          "saldoFinal": 8,
+          "conferenciaMeios": {
+            "modo": "POR_FORMA_PAGAMENTO",
+            "meios": [
+              {
+                "configuracaoId": 2,
+                "formaPagamentoId": null,
+                "valorInformado": 5.13
+              }
+            ],
+            "observacao": null
+          },
+          "cofre": {
+            "contaCofreId": null,
+            "valor": 0,
+            "valorTroco": 8,
+            "responsavel": null,
+            "observacao": null,
+            "confirmarEntrega": false
+          }
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/caixas/sessoes/abertas",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/caixas",
+        "status": 200
+      }
+    ]
+  },
+  {
+    "artifact": "browser--financeiro-contas-financeiras.json",
+    "steps": [
+      "login_real",
+      "transferencia_ui_http_200"
+    ],
+    "failures": [],
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/cofre/resumo",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/cofre/pendencias",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/cofre/recolhimentos",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/recebimentos-contas/resumo",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-financeiras/resumo",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-financeiras/pagina",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-financeiras",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/financeiro/transferencias",
+        "status": 200,
+        "body": {
+          "chaveRequisicao": "7cd7cc46-19e4-44d7-91b9-f1de39cc6c6f",
+          "contaOrigemId": 1,
+          "contaDestinoId": 2,
+          "valor": 123.45,
+          "dataMovimento": "2026-10-25",
+          "observacao": null
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/cofre/resumo",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/cofre/pendencias",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-financeiras/resumo",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/recebimentos-contas/resumo",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/cofre/recolhimentos",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-financeiras/pagina",
+        "status": 200
+      }
+    ]
+  },
+  {
+    "artifact": "browser--financeiro-contas-pagar.json",
+    "steps": [
+      "login_real",
+      "conta_pagar_ui_precisao_e_http_201"
+    ],
+    "failures": [],
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-pagar/categorias",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-financeiras",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-pagar/resumo",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/fornecedores/buscar",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-pagar",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/fornecedores/buscar",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/financeiro/contas-pagar",
+        "status": 201,
+        "body": {
+          "descricao": "Conta pagar UI 15D",
+          "documento": null,
+          "fornecedorId": null,
+          "categoria": null,
+          "dataEmissao": null,
+          "dataVencimento": "2026-10-25",
+          "valor": 1234.56,
+          "observacao": null
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-pagar/categorias",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-financeiras",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-pagar/resumo",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-pagar",
+        "status": 200
+      }
+    ]
+  },
+  {
+    "artifact": "browser--financeiro-contas-receber.json",
+    "steps": [
+      "login_real",
+      "conta_receber_ui_http_201"
+    ],
+    "failures": [],
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-receber/resumo",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-receber/pagina",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/clientes/buscar",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "path": "/financeiro/contas-receber",
+        "status": 201,
+        "body": {
+          "clienteId": 1,
+          "descricao": "Conta receber UI 15D",
+          "valorOriginal": 10.5,
+          "dataEmissao": null,
+          "dataVencimento": "2026-10-25",
+          "numeroParcela": 1,
+          "totalParcelas": 1,
+          "observacao": null
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-receber/pagina",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-receber/resumo",
+        "status": 200
+      }
+    ]
+  },
+  {
+    "artifact": "browser--financeiro-formas-pagamento.json",
+    "steps": [
+      "login_real",
+      "taxa_ui_quatro_casas_http_200"
+    ],
+    "failures": [],
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/configuracoes-formas-pagamento",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-financeiras",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/financeiro/contas-financeiras",
+        "status": 200
+      },
+      {
+        "method": "PUT",
+        "path": "/financeiro/configuracoes-formas-pagamento/3",
+        "status": 200,
+        "body": {
+          "nomeExibicao": "15D credito",
+          "formaPagamentoId": 4,
+          "ativo": true,
+          "contaFinanceiraDestinoId": 1,
+          "taxaPercentual": 0.0002,
+          "taxaFixa": 0,
+          "prazoRecebimentoDias": 0,
+          "maximoParcelasConsumidor": 3
+        }
+      }
+    ]
+  },
+  {
+    "artifact": "browser--produtos.json",
+    "steps": [
+      "login_real",
+      "kit_edicao_fator_seis_casas_http_200"
+    ],
+    "failures": [],
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/auth/login",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/composicao/capacidade",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/categorias",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/marcas",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/composicao/capacidade",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/5/kits-dependentes",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/5",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/composicao/capacidade",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/5/kits-dependentes",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/categorias",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/marcas",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/5/composicoes",
+        "status": 200
+      },
+      {
+        "method": "PUT",
+        "path": "/produtos/5",
+        "status": 200,
+        "body": {
+          "composto": true,
+          "componentes": [
+            {
+              "produtoId": 4,
+              "quantidade": 500,
+              "fator": 4e-06,
+              "unidade": "CX"
+            }
+          ],
+          "fornecedorId": null,
+          "categoriaId": null,
+          "subcategoriaId": null,
+          "marcaId": null,
+          "fornecedoresAdicionais": [],
+          "codigoInterno": "4",
+          "codigoBarras": null,
+          "ncm": null,
+          "cest": null,
+          "nome": "Kit 15D",
+          "descricao": null,
+          "unidadeMedida": "UN",
+          "precoCusto": 0.01,
+          "precoVenda": 12.34,
+          "estoqueMinimo": 0,
+          "controlaEstoque": true,
+          "ativo": true
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/produtos/composicao/capacidade",
+        "status": 200
+      },
+      {
+        "method": "GET",
+        "path": "/produtos",
+        "status": 200
+      }
+    ]
+  }
+]

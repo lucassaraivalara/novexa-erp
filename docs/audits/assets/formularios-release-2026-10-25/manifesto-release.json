@@ -1,0 +1,1037 @@
+{
+  "head": "71f2ea0224359ad0e886fdc45ab79941f0ce9d17",
+  "entries": [
+    {
+      "path": "frontend/src/components/fornecedores/FornecedorForm.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "3a5a5e0e7262e1fc0fcaa945f3c1059e7e3b1d1e4674974823f2ad70f2528469",
+      "bytes": 8065
+    },
+    {
+      "path": "frontend/src/components/ui/CampoDecimal.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "e58958b799cd870f99e4666978c4cdc7eb35ea24a2787f7714c0d0a41e9114bd",
+      "bytes": 6548
+    },
+    {
+      "path": "frontend/src/components/ui/CampoTexto.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "6b69128bbd695cdca0b03fddff43cad053824a48e1d40ed163f1720ec8e6be99",
+      "bytes": 1120
+    },
+    {
+      "path": "frontend/src/pages/Clientes/ClienteForm.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "77a1e1fdad559c2db25978c5ec1bc156d7919f6d6a2f5faec4cb0ed102fb5964",
+      "bytes": 16718
+    },
+    {
+      "path": "frontend/src/pages/Empresa/EmpresaForm.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "a5a24c298b448683839f9d46ff47a676961ea338e48daabbfd260e92cd65a89b",
+      "bytes": 24250
+    },
+    {
+      "path": "frontend/src/pages/Estoque/EntradaMercadoriaForm.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "58b73cd83fb9b8824610a8f0dc86194f51d6d3e766da2fe54d170f828a2804eb",
+      "bytes": 13878
+    },
+    {
+      "path": "frontend/src/pages/Estoque/EntradaMercadoriaItens.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "7ef758d59c90650f0a0a45c83d1c7378a0eb7536a44313646fd9c5e4195aff07",
+      "bytes": 9132
+    },
+    {
+      "path": "frontend/src/pages/Estoque/EntradaObrigacao.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "d6405f1b050e263591f8534bd931dba97719cbc846ac1851b393caa1606d0a8f",
+      "bytes": 12684
+    },
+    {
+      "path": "frontend/src/pages/Estoque/Estoque.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "2d944e0ebead1316452cebc5b9fca166ccfbd1c894bb7a7ef0bc72e133fb39c0",
+      "bytes": 22022
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/AberturaCaixaDialog.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "0fd56e70bb8bc7770e41161f510a10d2d423bd6b87946f98d6e57ab2ead8cb0e",
+      "bytes": 14299
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/AgenciaForm.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "0c682c71168cc49f1f1d9540ec1c5450f481cfde085271138ac4b24362a04e62",
+      "bytes": 7435
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/BancoForm.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "3d5785f1491cdeb89b37fd479b6772b5a5ab38712dd3f96f1d24c9e30fecbda3",
+      "bytes": 4456
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/Caixa.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "3097cd7da9cdf8c6c2f05ee32c2a2de80af671d08d4f244d5934f5cebd3816f3",
+      "bytes": 66147
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/CaixaForm.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "76274baefb44e6cd5d1bdf2a6c570504fb007966625d21fb445848ef6f41b307",
+      "bytes": 5164
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/CofrePainel.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "faa0e69246e7e71912952d44b3b4fb94076110d5381a8277e835a5aa345fe8dd",
+      "bytes": 14310
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/ConferenciaMeiosPagamento.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "e7b16c52e1d3ee9573813c5451a85aa7deb598f9fdc3fd6bf240c6160bad8dbf",
+      "bytes": 2792
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/ConfiguracaoFormaPagamentoForm.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "76bc93bffc02f98b456548ce25059b4824e0147280c4b8b8923acbf98ad01a86",
+      "bytes": 21213
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/ContaBancariaForm.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "3cfe2ecf34b96d3af8152c2478358130f6d3141176ae80441d1946b59ae1a69d",
+      "bytes": 7554
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/ContaFinanceiraDrawer.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "6abc70a519cd8a71d4d6c052b295eb3d9a4d9be58faad874eab022527c9624b2",
+      "bytes": 8678
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/ContaPagarDrawer.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "7044b69cc979846619b75cfd38cc11bcabbc5485f160a624e6588326dd42efa6",
+      "bytes": 7503
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/ContaReceberBaixaDialog.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "1f2fc1074ed8f61c02496c5b55f25eb673423c500def19a2d4ebb5fc9b053d76",
+      "bytes": 7661
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/ContaReceberDetalhe.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "5cc9d30771763709e445c9e941d6b7ac034bd3b581083f1e07d6762264dad08f",
+      "bytes": 12234
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/ContaReceberForm.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "173521519cb8216ecab326b8609c8af125aad4a28d5c47119079f2d1c7ac5377",
+      "bytes": 5716
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/ContasPagar.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "04048e7e0764a4a629922243b3ebb38fed778031fe7d7a751b97a57122cc8f13",
+      "bytes": 23686
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/EntregaCofreCampos.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "556d796ba83804a68db79d3c4df4546f12bc95fa1ecce8b063cb203ad0ba9e39",
+      "bytes": 7916
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/ExtratoFinanceiroDrawer.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "b50f5856760bd5e4cab9cb824e3f86a246f06b9481c62acc7ad105d179688224",
+      "bytes": 11412
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/FormaPagamentoForm.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "c7c029da92faa380888b1da39db132d055bfeabc18b592d90c3ae488c7f90fd9",
+      "bytes": 5303
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/MovimentacaoFinanceiraDrawer.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "54cb671ae50bf4efca824a033c0931780b8bc116e9ec83f2a4ab222e47f72d7e",
+      "bytes": 5176
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/TransferenciaFinanceiraDrawer.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "00921f142cf7ec16053f2327a64510e6c443b5999154679c967c50420760e369",
+      "bytes": 5887
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/cofreFormulario.ts",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "461e22eba5fdd7ffe7d724050b44fc51820e19ef9a6561a77c441ff9d4badf21",
+      "bytes": 1399
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/conferenciaMeios.ts",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "ae0edaeebe3b24ab9e5391fafd26d9c5ca572d18a30c7b57615c659c61ed6ea9",
+      "bytes": 2495
+    },
+    {
+      "path": "frontend/src/pages/Financeiro/contaReceberUtils.ts",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "c2c01228ab975ce8b07e1a9f6e27c84497eb23c4185fd0ebb6327d27f9fc339d",
+      "bytes": 1468
+    },
+    {
+      "path": "frontend/src/pages/Produtos/CategoriasProdutos.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "92bda9068f79a435e972f0de10e86fc1c6e54e289045274572a7f41835592e47",
+      "bytes": 13893
+    },
+    {
+      "path": "frontend/src/pages/Produtos/ComposicaoProdutoCampos.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "b8238dbdac013a316d2793dd0b6fd67383090a51888b58d864c41e3d092f7a93",
+      "bytes": 6008
+    },
+    {
+      "path": "frontend/src/pages/Produtos/Marcas.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "14d4892657dd16fe456b6af2a9abf36f48352a1baa6b3c41de0863c1ff2d913e",
+      "bytes": 8640
+    },
+    {
+      "path": "frontend/src/pages/Produtos/ProdutoForm.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "16f6d4f165c8fb87a4d56072762615f28249526240dcb002b6d630ebacf8923f",
+      "bytes": 57553
+    },
+    {
+      "path": "frontend/src/pages/Produtos/composicaoProduto.ts",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "97870cba8fa0a485559d76dbce5b39d7663d93b7cf850df5b1d9f61093e345af",
+      "bytes": 1095
+    },
+    {
+      "path": "frontend/src/pages/Usuarios/UsuarioDrawer.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "b85bdb419e81c5b2f86c23cdd1ad5baece0c0aa83c349731beefe05839fb12cf",
+      "bytes": 13080
+    },
+    {
+      "path": "frontend/src/pages/Vendas/PagamentoVendaDialog.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "4945db70da4269d9da174429cb42b2b6e15ec1aceada23e644c351268f7d2b74",
+      "bytes": 22420
+    },
+    {
+      "path": "frontend/src/pages/Vendas/ValorMonetarioPDV.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "b061af0432c18968c7a1268f487245ed715a420346425cc812e7807514b01759",
+      "bytes": 1257
+    },
+    {
+      "path": "frontend/src/pages/Vendas/Vendas.tsx",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "86003e5eb1ba237cfaab950eeb6eae708b75ad0060589f265308610cea577071",
+      "bytes": 53443
+    },
+    {
+      "path": "frontend/src/utils/numeroFormulario.ts",
+      "group": "source",
+      "selection": "whole_worktree_file",
+      "sha256": "ce46c0cb08f0ba947723c3fad4e85482ddbac8968930551eac6863ce333a0b18",
+      "bytes": 2901
+    },
+    {
+      "path": "frontend/tests/caixa-abertura.test.mjs",
+      "group": "tests",
+      "selection": "whole_worktree_file",
+      "sha256": "81335b7f61c2dc11210d9959c3f94ad55ec09396f8650f56936044813d38590f",
+      "bytes": 25557
+    },
+    {
+      "path": "frontend/tests/campos-formulario.test.mjs",
+      "group": "tests",
+      "selection": "whole_worktree_file",
+      "sha256": "1db808a7f710efbbd11ac6a0fa21bd0d66351e5f5760da1f283b73144ceb2966",
+      "bytes": 4290
+    },
+    {
+      "path": "frontend/tests/configuracao-cartao-form.test.mjs",
+      "group": "tests",
+      "selection": "whole_worktree_file",
+      "sha256": "f7e8e3b5beb53ef428e29f24c2c2c00c3ee1298e85d92313c905401ff40aff36",
+      "bytes": 19733
+    },
+    {
+      "path": "frontend/tests/contas-receber.test.mjs",
+      "group": "tests",
+      "selection": "whole_worktree_file",
+      "sha256": "05d786067173576dd6a851147e63c73a9a78d92034192b0a051b6a2d1c5de3e2",
+      "bytes": 53846
+    },
+    {
+      "path": "frontend/tests/correcoes-criticas.test.mjs",
+      "group": "tests",
+      "selection": "whole_worktree_file",
+      "sha256": "2e21476513a69a4b9938da25a720529c9454490aab991c414575f513093ceb87",
+      "bytes": 22556
+    },
+    {
+      "path": "frontend/tests/entrada-mercadoria.test.mjs",
+      "group": "tests",
+      "selection": "whole_worktree_file",
+      "sha256": "0febe76f8c4db0dc007eeb75b3f2d8af080b34492ca6dbdeb2cf0b3244442088",
+      "bytes": 64258
+    },
+    {
+      "path": "frontend/tests/estoque.test.mjs",
+      "group": "tests",
+      "selection": "whole_worktree_file",
+      "sha256": "7edc669bfed8ebe22a8734f52a65877e8f8e4fa33efee64e72c041a5cadaa4a9",
+      "bytes": 6491
+    },
+    {
+      "path": "frontend/tests/formularios-completos.test.mjs",
+      "group": "tests",
+      "selection": "whole_worktree_file",
+      "sha256": "2c093e07c2c096882c4cc103ccb78b20b0f20a257aa49cd7068eeff34980d0ad",
+      "bytes": 17868
+    },
+    {
+      "path": "frontend/tests/pdv-buscas.test.mjs",
+      "group": "tests",
+      "selection": "whole_worktree_file",
+      "sha256": "8d2edfad98da00b89f21266a7dc0398d028b1812593f9bb347f75af974846136",
+      "bytes": 102029
+    },
+    {
+      "path": "frontend/tests/produto-campos-form.test.mjs",
+      "group": "tests",
+      "selection": "whole_worktree_file",
+      "sha256": "6ff80ff3b64366166dc2a9a48df10cece53bdf5c50ccba24ed75a6fa4feb3398",
+      "bytes": 21662
+    },
+    {
+      "path": "docs/architecture/CURRENT_STATE.md",
+      "group": "docs",
+      "selection": "HEAD plus 15/15B/15C prefix and proposed 15D note; exact additive patch in release evidence",
+      "sha256": "748cedcb2059b770403ee546565df8a5cfe2eae06955630eef2d312512a166fa",
+      "bytes": 219509,
+      "validatedBeforeReleaseNoteSha256": "07ebd81e36da2df20958515fe051f1ff7d64f00b94164ac5eba28ccc60db3f53"
+    },
+    {
+      "path": "docs/architecture/frontend.md",
+      "group": "docs",
+      "selection": "whole_worktree_file",
+      "sha256": "2ad67427db5fd6ab792a3944580fe09581797120100257613860cfcaf1855ac0",
+      "bytes": 68803
+    },
+    {
+      "path": "docs/audits/padronizacao-formularios-2026-10-24.md",
+      "group": "docs",
+      "selection": "whole_worktree_file",
+      "sha256": "34339ed361b9eaf5b2dc80786ff3a3d9c73562b9a424a796180abcdf59e7d749",
+      "bytes": 14984
+    },
+    {
+      "path": "docs/audits/padronizacao-formularios-completa-2026-10-24.md",
+      "group": "docs",
+      "selection": "whole_worktree_file",
+      "sha256": "44df22448a7f930fa3358540cb610b01417fc43c6aad38f871bbe25d5bd172a1",
+      "bytes": 29523
+    },
+    {
+      "path": "docs/audits/padronizacao-formularios-auditoria-final-2026-10-25.md",
+      "group": "docs",
+      "selection": "whole_worktree_file",
+      "sha256": "bbb3f518c676397dd4a980986e186aa7d024ac108fe72425790b5d92b4f950a2",
+      "bytes": 39859
+    },
+    {
+      "path": "docs/audits/assets/formularios-2026-10-24/antes-desktop-claro-dados.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "7dec2b500425fbf7b6855e14694bc4376f0fcdadb8474c14d38a752b768e4153",
+      "bytes": 59281
+    },
+    {
+      "path": "docs/audits/assets/formularios-2026-10-24/antes-desktop-claro-precos.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "42e6155690dba8bb0aa30b397478d1172f7477e792c44356cd2d824cb109da5f",
+      "bytes": 68207
+    },
+    {
+      "path": "docs/audits/assets/formularios-2026-10-24/antes-desktop-escuro-precos.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "19699d51308238ca7d1046bec94063271611e43cc7d5573b59b3ffb03c690182",
+      "bytes": 68185
+    },
+    {
+      "path": "docs/audits/assets/formularios-2026-10-24/antes-mobile-claro-precos.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "4ceeee08c32144cb3dbe54e089856e751ab451ed3e171e03853d3108ca525d01",
+      "bytes": 56155
+    },
+    {
+      "path": "docs/audits/assets/formularios-2026-10-24/depois-desktop-claro-dados.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "e60785ddc36e39a92390381d19947b98b579bb1871c129bd37959d50dbca4a78",
+      "bytes": 66327
+    },
+    {
+      "path": "docs/audits/assets/formularios-2026-10-24/depois-desktop-claro-precos.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "8f829583e79246bb9deaf4d2c56d3d03e95e5f59bf74f619fd127f4e71f58e61",
+      "bytes": 74735
+    },
+    {
+      "path": "docs/audits/assets/formularios-2026-10-24/depois-desktop-escuro-precos.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "7f40596661aadc0606e2693dc83bf9159b8fefd18b82a51e1a1f54a785df4119",
+      "bytes": 74875
+    },
+    {
+      "path": "docs/audits/assets/formularios-2026-10-24/depois-mobile-claro-precos.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "ac6a3b60cf924ce6ab749df0e21dae835f626804e167fa2afdaf8321c077d7a3",
+      "bytes": 60852
+    },
+    {
+      "path": "docs/audits/assets/formularios-2026-10-24/medidas.json",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "ae4f98c234ef0274d807f9784cb9d376172ab3d198dcd0f9699904715b07d2c2",
+      "bytes": 942
+    },
+    {
+      "path": "docs/audits/assets/formularios-auditoria-2026-10-25/a11y-runtime.json",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "35a20989d2497cdeb711923f3d2e60413c912d3a57f861cc555ee5502d5eee05",
+      "bytes": 607
+    },
+    {
+      "path": "docs/audits/assets/formularios-auditoria-2026-10-25/extrato-desktop-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "e555d0c3fa0d05ff79358910086d2e366fbe24453647816e207e72b1d43d9863",
+      "bytes": 62208
+    },
+    {
+      "path": "docs/audits/assets/formularios-auditoria-2026-10-25/extrato-mobile-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "135019c1aec21e7133e6c723533156043f39bfefb1395b62782e4a058bee12b9",
+      "bytes": 43159
+    },
+    {
+      "path": "docs/audits/assets/formularios-auditoria-2026-10-25/pdv-desktop-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "b8f92b953379a42540b1db6c5975d1105a93b16236086476ff0733e48b65c484",
+      "bytes": 102446
+    },
+    {
+      "path": "docs/audits/assets/formularios-auditoria-2026-10-25/pdv-mobile-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "01111c2ca156f5c583bb6b65ffb11c55eeb302a95faa9db565aca6d2c4a7a185",
+      "bytes": 76433
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/cliente-antes-desktop-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "de4c922b4657b316133b3ba388c8ac8d68b5cda8679b89060d046da978f53859",
+      "bytes": 52721
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/cliente-antes-desktop-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "0f59954711eb9e08d37ce95d3e36f93bd6e9db15a407b3ee57c09d415b8c1e5e",
+      "bytes": 52970
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/cliente-antes-mobile-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "481fa2dd98994cd65029c8baa737a36767c22b7c185b74e8e59b88490b1ced64",
+      "bytes": 40782
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/cliente-antes-mobile-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "acf2e5e618b47857cc7ea7efd1d167cbd41b10ed439129bd606dbf3577d73773",
+      "bytes": 42577
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/cliente-depois-desktop-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "eb64e9660f3e9e0df80f425a27af80f36108ae16719d5127f45da24ad38089d3",
+      "bytes": 64658
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/cliente-depois-desktop-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "91c696c5c9462ba9fd8c69a46713377a0fd53010698fcfa240e6f22a1ea163e5",
+      "bytes": 65707
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/cliente-depois-mobile-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "c4c4c8ecc15941450ad385107af31c1054241d72cc48e242e4447f8ca4f6def3",
+      "bytes": 53048
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/cliente-depois-mobile-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "4038eaca1d261a6cdd4c8c6072f1db5f122fadae63b1e6956619b9e296caeab4",
+      "bytes": 55768
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/configuracao-antes-desktop-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "bb168f2176ba94e25ae5ed9be4192f94210c40bc303cc70ad52f46234c0a4629",
+      "bytes": 62118
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/configuracao-antes-desktop-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "95c0dea2e472e14c4b938c757c211536e06676c4cabf39738b01d501d5f319c0",
+      "bytes": 65080
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/configuracao-antes-mobile-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "f7cf60e899922c26b487ee4dee9dfe3da14db5358715c98e18effe40f041e026",
+      "bytes": 46825
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/configuracao-antes-mobile-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "5f850bd55cbf8f00d50c0efb3ed3950c38e560ad93193e5635887283458e272d",
+      "bytes": 50192
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/configuracao-depois-desktop-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "afb695bbed6ef42deb3f83a746706e44f3c64f050f5c2a99eb48c39b813a114d",
+      "bytes": 63056
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/configuracao-depois-desktop-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "1bff055e1b8b7f85676461b97e55f6681885569c1e426d7309cc55ae5792931e",
+      "bytes": 66043
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/configuracao-depois-mobile-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "24aaefb5820ecfecfee119d6940483fb2d391881a194e35a0886f05f6851da23",
+      "bytes": 47714
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/configuracao-depois-mobile-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "72a78ed008faf003da427f28d646cc65d8135a74e3a069e2908d9f2115aa6b68",
+      "bytes": 51118
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/entrada-antes-desktop-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "b0088df62b758a30d936cd435921bf3f466e95f16848aad596ccec12ba5955b8",
+      "bytes": 16472
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/entrada-antes-desktop-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "f507b4adf0ae156c68b104b6ea5416ff8d465cc930e63a0fbaea44c2f1297b63",
+      "bytes": 17672
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/entrada-antes-mobile-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "9dbcd12de4e751b35be50fa24b8d072d1e6ceaad7180fb2e3a5c597242c8de41",
+      "bytes": 13033
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/entrada-antes-mobile-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "fbcf538d05fe10ac8010b0adfd081f5842b1ec24bf434bbd6499b057e1e6e59a",
+      "bytes": 14229
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/entrada-depois-desktop-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "5c90bfe827718f26d827855c3ad6fcb680b344c5cc6c3bef303992f064cb8a46",
+      "bytes": 17073
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/entrada-depois-desktop-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "899bd3c2bed18532caee5f53e38fdd163e7d8aaf4c58f7723db393e806999566",
+      "bytes": 18279
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/entrada-depois-mobile-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "9f278b40fe7cad8ac532775891550e0655cd7d02e3b75f5f81e75481a509354e",
+      "bytes": 13582
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/entrada-depois-mobile-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "28e3f3b547228a531ab36780e30553cfda6404d45d9fc4afb284d1227772052c",
+      "bytes": 14817
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/medidas.json",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "3d4229c9f28ac9ae5cc7de1fbbfd6e4e2971769cfbba45bda60ba2837a5e6c74",
+      "bytes": 3470
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/pdv-antes-desktop-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "aab5528793984cf69bf6a7b673de6f80f8bb2a9a0d4af7d40aba516d5688134d",
+      "bytes": 8909
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/pdv-antes-desktop-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "fdb94bef210c3a179afb13d0239eb071fae6c7a234977515531f22927c94700d",
+      "bytes": 9021
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/pdv-antes-mobile-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "c9714e8df0229333310d65c96f89d2ec976ab39288c0d9522b1625a9035632ba",
+      "bytes": 5373
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/pdv-antes-mobile-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "807de6addeb2e707f1f12287bd2ebf182112cfc65fa58a628b703a98b38c08ff",
+      "bytes": 5495
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/pdv-depois-desktop-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "38fca8fc2edcd6a71874e3248ed0a3023d0ac46c347eee21dc439700a5cda8bc",
+      "bytes": 8915
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/pdv-depois-desktop-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "fdb94bef210c3a179afb13d0239eb071fae6c7a234977515531f22927c94700d",
+      "bytes": 9021
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/pdv-depois-mobile-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "c9714e8df0229333310d65c96f89d2ec976ab39288c0d9522b1625a9035632ba",
+      "bytes": 5373
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/pdv-depois-mobile-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "b7a3b1d9b9a67b86d5b7da7dcd33db12a313ebb70125df40456f6760ee274aac",
+      "bytes": 5494
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/usuario-antes-desktop-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "2a192d470f134acc3f0515e75c815eb0309e9bb2da0f0ab74be4a1c5ee3fd6a9",
+      "bytes": 42642
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/usuario-antes-desktop-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "265c2461c143b3d7b7c68b7b54203ae570d869c336810a0f1b84f2f737a0916e",
+      "bytes": 43335
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/usuario-antes-mobile-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "0360b979ecacf3e071b3d36663b81cd5bfaf8773354e58a647f7ae4ec7117ec6",
+      "bytes": 33140
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/usuario-antes-mobile-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "3b323655206878ec3b4033b147db2ef2a5ba143e8e62e91a0871b1d8d9f8c7d5",
+      "bytes": 33988
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/usuario-depois-desktop-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "467408c3a1f174c70ec9fc1a5b080b46c56689bbe060565f259070f2386c2f22",
+      "bytes": 54340
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/usuario-depois-desktop-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "4d7c7a76b2f8cd8978b4de551fa8a7fdd36e3378c5d9bc99df16ccca7458e316",
+      "bytes": 55694
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/usuario-depois-mobile-claro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "5d05641f825bd5e6f17bae27249bc40603ac733fa5c88b4b53d56189fed806fb",
+      "bytes": 43800
+    },
+    {
+      "path": "docs/audits/assets/formularios-completa-2026-10-24/usuario-depois-mobile-escuro.png",
+      "group": "assets",
+      "selection": "whole_worktree_file",
+      "sha256": "37508ddf78cef5a2dd0672fb0ab6cea475fbb00bf9e4acc5130beaea45f31833",
+      "bytes": 45521
+    }
+  ],
+  "counts": {
+    "source": 42,
+    "tests": 10,
+    "docs": 5,
+    "assets": 55
+  },
+  "excluded": [
+    "README.md",
+    "docs/deploy/producao.md",
+    "docs/audits/deploy-performance-14a-14b-2026-10-23.md",
+    "docs/audits/auditoria-operacional-mustache-producao-2026-10-25.md",
+    "docs/audits/investigacao-historica-mustache-2026-10-25.md",
+    "scripts/operacoes/backup_postgres.py",
+    "scripts/operacoes/__pycache__",
+    "tmp-video-*",
+    "videos_referencias/",
+    "other assets outside exact manifest"
+  ],
+  "purpose": "Proposal only; original index unchanged. Exact byte hashes, HEAD plus selected content.",
+  "releaseEvidence": [
+    {
+      "path": "docs/audits/padronizacao-formularios-release-2026-10-25.md",
+      "selection": "whole_file",
+      "sha256": "ccad17a6a8cb7aba2d8fb5f2590249ba0742dff1a319bae78fb3025d07de20bd",
+      "bytes": 24784
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/baseline-head.tap",
+      "selection": "whole_file",
+      "sha256": "2104f9d9bc266bf83ea43b56129b34d36cd22287fd5aa4d05cf2b011a18ad5cf",
+      "bytes": 401902
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/caixa-fechamento.json",
+      "selection": "whole_file",
+      "sha256": "8bf308cca3aef5c9322c80d4915343e48dc476452406c5b62416052f5736203b",
+      "bytes": 2675
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/checks-release.json",
+      "selection": "whole_file",
+      "sha256": "2d0ee64f11e40d37ed2fda175fad7840a3d51070cdbd64d01c50f287cd10cbb9",
+      "bytes": 541
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/CURRENT_STATE-somente-formularios.patch",
+      "selection": "whole_file",
+      "sha256": "b415e830152bf8f5061381a2e21a482ed5cba52ec97d28cba50681075b412efd",
+      "bytes": 4895
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/fechamento.png",
+      "selection": "whole_file",
+      "sha256": "1fc696096c674ab657ae1a33dd922ec94ba55744b755a89dd8d7bba2490415fb",
+      "bytes": 162338
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/frontend-global.tap",
+      "selection": "whole_file",
+      "sha256": "dee09c82a0dfee3b39bfd10e75d9723ef1f83b8008c2985491122e99016f66a6",
+      "bytes": 505212
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/kit-desktop-dark.png",
+      "selection": "whole_file",
+      "sha256": "91b1f9f60c628d1617f2e084f77e4b8f9661260c4bab4d4bf880d7192be264a3",
+      "bytes": 129230
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/kit-desktop-light.png",
+      "selection": "whole_file",
+      "sha256": "04286bd0462eefedce0e4e991f9379cd22c10f1785a62d60e6a2754a38f3d972",
+      "bytes": 132509
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/kit-mobile-dark.png",
+      "selection": "whole_file",
+      "sha256": "aba7630c7002223810143cde87b6eb436678cf35d90c2276935e582f296d1c68",
+      "bytes": 78534
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/kit-mobile-light.png",
+      "selection": "whole_file",
+      "sha256": "3707b1eae82bf3c1e6061e3ca36ccfc4cf5142a84359b44181e02c1134c9e96d",
+      "bytes": 76237
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/pagar-desktop-dark.png",
+      "selection": "whole_file",
+      "sha256": "6767167830e54b3a80dc26a669c10f5c81fa7cbbe2aae4dc0b98c8b887b25c18",
+      "bytes": 120003
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/pagar-desktop-light.png",
+      "selection": "whole_file",
+      "sha256": "b99dc917ead2070811827cde78648e550ddd5053f803ad43314e24ce1dd4684a",
+      "bytes": 121285
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/pagar-mobile-dark.png",
+      "selection": "whole_file",
+      "sha256": "5f7ae147b03101d9c424c160516efb3285b509691b921a3f6fcead58ec2b85ce",
+      "bytes": 66598
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/pagar-mobile-light.png",
+      "selection": "whole_file",
+      "sha256": "6b14cbe19748c9da81fcb2f9f579ab6e4d20c7c0bc03e67ae7960851a77ac04a",
+      "bytes": 63711
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/pdv-desktop-dark.png",
+      "selection": "whole_file",
+      "sha256": "d1427b714641fcaa8193e2005997cfb7689792a475d9cd9a3e7c51c01727617f",
+      "bytes": 89556
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/pdv-desktop-light.png",
+      "selection": "whole_file",
+      "sha256": "60ba8dc1854069fb2ccd6d972a63509b2b849a10fb0d8bc6bf2bd29ea58e852d",
+      "bytes": 87304
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/pdv-misto.png",
+      "selection": "whole_file",
+      "sha256": "23d05f8bd0cb349f70280d64679bb80bdeab6bba6ae4d41760d1aed96b4df5a8",
+      "bytes": 141282
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/pdv-mobile-dark.png",
+      "selection": "whole_file",
+      "sha256": "a2ede284dd6061818bbf63244853e7e2605f3325b7c01e55de6a26bc75553160",
+      "bytes": 66906
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/pdv-mobile-light.png",
+      "selection": "whole_file",
+      "sha256": "57c51e5ca0c9b3e80e8acf40659629ed9a7a289678fb7cdd9ae58e5407e8f517",
+      "bytes": 64872
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/pdv-venda.json",
+      "selection": "whole_file",
+      "sha256": "3dc464bac14c308a721fd7ac56944d6bac77e841a9e9ef4512349be768b19db1",
+      "bytes": 1308
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/pg-integridade.json",
+      "selection": "whole_file",
+      "sha256": "3d9f31d6cb9090b903d3c96c557080d40cb4399d3480e415282a40b788c8b0ce",
+      "bytes": 304
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/preservacao-git.json",
+      "selection": "whole_file",
+      "sha256": "a13458bb07710b875bbb647bdf4d7e3bebd0755153062c220b76985e3a90c987",
+      "bytes": 811
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/qualidade-frontend.log",
+      "selection": "whole_file",
+      "sha256": "9a4581f43e3c8fdd087dfe34e127d75c9ddc6af05bd30680cfa3847919c764e6",
+      "bytes": 3428
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/smoke-http.json",
+      "selection": "whole_file",
+      "sha256": "9129e8afb5abafda4a94b88161aed454ff38df87994b938796c5f143011801af",
+      "bytes": 5546
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/smoke-integracao.mjs",
+      "selection": "whole_file",
+      "sha256": "b99fc13ff2ca8fc39611277bd185fb73a7428d52802ac6925e562dce6e9ed734",
+      "bytes": 11780
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/smoke-ui.json",
+      "selection": "whole_file",
+      "sha256": "df3411cc35691bddca5210257437945ceb205b6768530362cce71f7e4b9fa6f2",
+      "bytes": 13726
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/smoke-visual.mjs",
+      "selection": "whole_file",
+      "sha256": "ea98e9fd828d627716595014989086d9d86fd5b4c5a44c9bc155d728cdebc0ed",
+      "bytes": 3467
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/taxa-quatro-casas.png",
+      "selection": "whole_file",
+      "sha256": "2868f21f6a8a3a35d452ff780eb81018d3897e0241ce04ea253e467e93b736a3",
+      "bytes": 136531
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/testes-resumo.json",
+      "selection": "whole_file",
+      "sha256": "e16697ecc74bf356430d80448c47fb6c77b75ac51581be1dc977d710c6ed7141",
+      "bytes": 1543
+    },
+    {
+      "path": "docs/audits/assets/formularios-release-2026-10-25/visuais.json",
+      "selection": "whole_file",
+      "sha256": "d25113f4699b4c8b4e028c80ef4abac460b6fba330ebf5703c640490b7e201e3",
+      "bytes": 3010
+    }
+  ],
+  "manifestPath": "docs/audits/assets/formularios-release-2026-10-25/manifesto-release.json",
+  "selfDigestExcluded": true,
+  "proposedPathsTotal": 144,
+  "publicationPreparation": {
+    "stage": "15E",
+    "functionalFilesIdenticalTo15D": true,
+    "evidenceOnlyAdjustments": [
+      {
+        "path": "docs/audits/assets/formularios-release-2026-10-25/CURRENT_STATE-somente-formularios.patch",
+        "beforeSha256": "c2784df22a39b95eff8fc0cdb4498d1c84496bb40579663917401956063a9529",
+        "afterSha256": "b415e830152bf8f5061381a2e21a482ed5cba52ec97d28cba50681075b412efd",
+        "reason": "evidence whitespace only; patch equivalent without context"
+      },
+      {
+        "path": "docs/audits/assets/formularios-release-2026-10-25/baseline-head.tap",
+        "beforeSha256": "a2728df0b34351f4230cdb0db060dfb4bdcb4776dc3d3090d776e23fbd8c8159",
+        "afterSha256": "2104f9d9bc266bf83ea43b56129b34d36cd22287fd5aa4d05cf2b011a18ad5cf",
+        "reason": "evidence whitespace only; patch equivalent without context"
+      },
+      {
+        "path": "docs/audits/assets/formularios-release-2026-10-25/frontend-global.tap",
+        "beforeSha256": "dcfb2fc453ae25c0441aab69132f8e21433ec6f924d9ea8bdc2bf90e221b397a",
+        "afterSha256": "dee09c82a0dfee3b39bfd10e75d9723ef1f83b8008c2985491122e99016f66a6",
+        "reason": "evidence whitespace only; patch equivalent without context"
+      },
+      {
+        "path": "docs/audits/assets/formularios-release-2026-10-25/qualidade-frontend.log",
+        "beforeSha256": "3abacda51b845a225287ad41c9937e83ecc192041ff5f03f9d7a161dfd437a98",
+        "afterSha256": "9a4581f43e3c8fdd087dfe34e127d75c9ddc6af05bd30680cfa3847919c764e6",
+        "reason": "evidence whitespace only; patch equivalent without context"
+      },
+      {
+        "path": "docs/audits/assets/formularios-release-2026-10-25/smoke-integracao.mjs",
+        "beforeSha256": "4f7b75d45dded1ada1bbf8698a7510eed289e0094be3c56a85cbdf81ca797f93",
+        "afterSha256": "b99fc13ff2ca8fc39611277bd185fb73a7428d52802ac6925e562dce6e9ed734",
+        "reason": "evidence whitespace only; patch equivalent without context"
+      }
+    ],
+    "originalWorktreeFilesPreserved": true
+  }
+}

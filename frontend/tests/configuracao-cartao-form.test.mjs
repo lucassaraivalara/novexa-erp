@@ -145,8 +145,8 @@ for (const [nome, id] of [["Débito", 3], ["Crédito", 4]]) {
         const fixa = page.getByLabel("Taxa fixa (R$)");
         const prazo = page.getByLabel("Prazo de recebimento (dias)");
         await percentual.waitFor();
-        assert.equal(await percentual.inputValue(), "0");
-        assert.equal(await fixa.inputValue(), "0");
+        assert.equal(await percentual.inputValue(), "0,0000");
+        assert.equal(await fixa.inputValue(), "0,00");
         assert.equal(await prazo.inputValue(), "0");
         await salvar(page);
         await page.getByText("A conta financeira de destino é obrigatória para este tipo.").waitFor();
@@ -177,9 +177,30 @@ test("valida taxa percentual, taxa fixa e prazo de cartão sem enviar payload in
     assert.equal(requests.length, 0);
 }));
 
+test("texto inválido e precisão excedida não viram taxa nula; trocar para dinheiro não valida campos ocultos", () => withEditor(async (page, requests) => {
+    await page.getByLabel("Nome de exibição").fill("Config teste");
+    await selecionar(page, tipo(page), "Crédito");
+    await selecionar(page, destino(page), "Banco Teste — Banco");
+    await page.getByLabel("Taxa percentual (%)").fill("abc");
+    await page.getByLabel("Taxa fixa (R$)").fill("0,0002");
+    await salvar(page);
+    await page.getByText("Informe uma taxa percentual válida.", {exact: true}).waitFor();
+    await page.getByText("Informe a taxa fixa com até duas casas decimais.", {exact: true}).waitFor();
+    assert.equal(requests.length, 0);
+    await page.getByLabel("Taxa fixa (R$)").fill("0,00");
+    await page.getByLabel("Taxa percentual (%)").fill("1e1");
+    await salvar(page);
+    await page.getByText("Informe uma taxa percentual válida.", {exact: true}).waitFor();
+    assert.equal(requests.length, 0);
+    await selecionar(page, tipo(page), "Dinheiro");
+    await salvar(page);
+    await page.getByText("Configuração salva com sucesso.").waitFor();
+    assertPayload(requests[0], 1, null);
+}));
+
 test("edição carrega e preserva valores existentes de cartão", () => withEditor(async (page, requests) => {
-    assert.equal(await page.getByLabel("Taxa percentual (%)").inputValue(), "2.5");
-    assert.equal(await page.getByLabel("Taxa fixa (R$)").inputValue(), "0.75");
+    assert.equal(await page.getByLabel("Taxa percentual (%)").inputValue(), "2,5000");
+    assert.equal(await page.getByLabel("Taxa fixa (R$)").inputValue(), "0,75");
     assert.equal(await page.getByLabel("Prazo de recebimento (dias)").inputValue(), "45");
     await salvar(page, true);
     await page.getByText("Configuração salva com sucesso.").waitFor();

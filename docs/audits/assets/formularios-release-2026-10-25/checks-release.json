@@ -1,0 +1,21 @@
+{
+  "head": "71f2ea0224359ad0e886fdc45ab79941f0ce9d17",
+  "candidateEntries": 112,
+  "hashMismatches": [],
+  "java": "21.0.12.1",
+  "postgres": "18.6",
+  "flyway": "58",
+  "springBoot": "3.5.4",
+  "backendJarSha256": "e3f1701005baace0aea2a7059fa4405595060db005ba3e71e624865f62775c25",
+  "health": "UP",
+  "database": "novexa_forms_test",
+  "onlyLoopback": true,
+  "originalPortsPreserved": [
+    5432,
+    8080,
+    5173
+  ],
+  "codeChangedIn15D": false,
+  "migrationsChangedIn15D": false,
+  "productionAccessed": false
+}

@@ -1,3 +1,6 @@
+import CampoTexto from "../../components/ui/CampoTexto";
+import { CampoQuantidade } from "../../components/ui/CampoDecimal";
+import { numeroDecimal } from "../../utils/numeroFormulario";
 import { formatarDataHora } from "../../utils/dataHora";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import InputRoundedIcon from "@mui/icons-material/InputRounded";
@@ -155,8 +158,8 @@ function SaldoEstoque() {
 
     async function confirmarMovimentacao() {
         if (!dialogo || salvando) return;
-        const valor = Number(quantidade.replace(",", "."));
-        if (!Number.isFinite(valor) || valor < 0 || (dialogo.operacao !== "AJUSTE" && valor <= 0)) {
+        const valor = numeroDecimal(quantidade, 3);
+        if (valor === null || valor < 0 || (dialogo.operacao !== "AJUSTE" && valor <= 0)) {
             setErro(dialogo.operacao === "AJUSTE" ? "Informe um novo saldo físico válido." : "Informe uma quantidade maior que zero."); return;
         }
         setSalvando(true); setErro("");
@@ -234,12 +237,12 @@ function SaldoEstoque() {
         <Dialog open={dialogo !== null} onClose={salvando ? undefined : () => setDialogo(null)} fullWidth maxWidth="xs" aria-labelledby="estoque-movimentacao-titulo">
             <DialogTitle id="estoque-movimentacao-titulo">{tituloOperacao}</DialogTitle>
             <DialogContent>{dialogo && <Stack spacing={2} sx={{ pt: 1 }}>
-                <TextField name="produto" autoComplete="off" label="Produto" value={`${dialogo.produto.nome} · ${codigoProduto(dialogo.produto)}`} slotProps={{ input: { readOnly: true } }} />
+                <CampoTexto name="produto" autoComplete="off" label="Produto" value={`${dialogo.produto.nome} · ${codigoProduto(dialogo.produto)}`} slotProps={{ input: { readOnly: true } }} />
                 <Typography variant="body2" color="text.secondary">Saldo atual: <strong>{quantidadeFormatada.format(dialogo.produto.estoqueAtual)}</strong></Typography>
-                <TextField name="quantidade" autoComplete="off" autoFocus required label={operacao === "AJUSTE" ? "Novo saldo físico" : "Quantidade"} value={quantidade}
-                    onChange={(e) => setQuantidade(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void confirmarMovimentacao(); } }} slotProps={{ htmlInput: { inputMode: "decimal", min: 0, "aria-describedby": "estoque-quantidade-ajuda" } }} />
+                <CampoQuantidade canonico descricaoId="estoque-quantidade-ajuda" placeholder="Ex.: 1,250…" name="quantidade" autoComplete="off" autoFocus required label={operacao === "AJUSTE" ? "Novo saldo físico" : "Quantidade"} value={quantidade}
+                    onValueChange={v => setQuantidade(v)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void confirmarMovimentacao(); } }}  />
                 <Typography id="estoque-quantidade-ajuda" variant="caption" color="text.secondary">Informe um valor decimal; entrada e saída exigem valor maior que zero.</Typography>
-                <TextField name="motivo" autoComplete="off" label="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} multiline minRows={2} />
+                <CampoTexto helperText="Justificativa registrada no histórico do estoque." placeholder="Justifique a movimentação…" name="motivo" autoComplete="off" label="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} multiline minRows={2} />
                 <Typography variant="body2" color="text.secondary">Novo saldo esperado: <strong>{saldoEsperado !== null ? quantidadeFormatada.format(saldoEsperado) : "—"}</strong></Typography>
             </Stack>}</DialogContent>
             <DialogActions><Button type="button" onClick={() => setDialogo(null)} disabled={salvando}>Cancelar</Button><Button type="button" variant="contained" onClick={() => void confirmarMovimentacao()} disabled={salvando}>{salvando ? "Registrando…" : "Confirmar"}</Button></DialogActions>

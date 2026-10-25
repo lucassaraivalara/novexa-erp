@@ -1,3 +1,5 @@
+import CampoTexto from "../../components/ui/CampoTexto";
+import { CampoMonetario } from "../../components/ui/CampoDecimal";
 import { formatarDataHora } from "../../utils/dataHora";
 import { consultarConfiguracaoRecebimentos, type ConfiguracaoRecebimentos } from "../../services/configuracaoRecebimentosService";
 import { conferenciaMeios } from "./conferenciaMeios";
@@ -21,7 +23,7 @@ import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import {
     Alert, alpha, Box, Button, Checkbox, FormControlLabel, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer,
-    FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tab, Tabs, TextField, Typography,
+    FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tab, Tabs, Typography,
 } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
@@ -343,9 +345,9 @@ export default function Caixa() {
         }} /></Box>}
 
         {modalAbertura && <AberturaCaixaDialog caixasAtivos={caixasAtivos} onClose={() => setModalAbertura(false)} onSucesso={() => { setModalAbertura(false); void recarregar(); }} />}
-        <Dialog open={modalMovimento !== null} fullWidth maxWidth="xs" aria-labelledby="caixa-movimento-titulo" onClose={() => !processando && setModalMovimento(null)}><form onSubmit={movimentar}><DialogTitle id="caixa-movimento-titulo">{modalMovimento === "SANGRIA" ? "Registrar Sangria" : "Registrar Suprimento"}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}>{erroModal && <Alert severity="error">{erroModal}</Alert>}<TextField required autoFocus name="valor" autoComplete="off" label="Valor (R$)" value={saldo} onChange={(e) => setSaldo(e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />{modalMovimento === "SANGRIA" && <><FormControlLabel control={<Checkbox checked={destinarAoCofre} disabled={processando} onChange={e => setDestinarAoCofre(e.target.checked)} />} label="Destino desta sangria: COFRE" />
+        <Dialog open={modalMovimento !== null} fullWidth maxWidth="xs" aria-labelledby="caixa-movimento-titulo" onClose={() => !processando && setModalMovimento(null)}><form onSubmit={movimentar}><DialogTitle id="caixa-movimento-titulo">{modalMovimento === "SANGRIA" ? "Registrar Sangria" : "Registrar Suprimento"}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}>{erroModal && <Alert severity="error">{erroModal}</Alert>}<CampoMonetario canonico placeholder="Informe o valor contado…" required autoFocus name="valor" autoComplete="off" label="Valor (R$)" value={saldo} onValueChange={v => setSaldo(v)}  />{modalMovimento === "SANGRIA" && <><FormControlLabel control={<Checkbox checked={destinarAoCofre} disabled={processando} onChange={e => setDestinarAoCofre(e.target.checked)} />} label="Destino desta sangria: COFRE" />
                 {destinarAoCofre && <EntregaCofreCampos value={entregaCofre} onChange={setEntregaCofre} disabled={processando} valorFixo={valorDecimal(saldo) ?? 0} />}</>}
-                <TextField name="observacao" autoComplete="off" label="Observação" value={observacao} onChange={(e) => setObservacao(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} /></Stack></DialogContent><DialogActions><Button type="button" onClick={() => setModalMovimento(null)}>Cancelar</Button><Button type="submit" variant="contained" disabled={processando}>{processando ? "Registrando…" : "Confirmar"}</Button></DialogActions></form></Dialog>
+                <CampoTexto placeholder="Justifique a operação…" name="observacao" autoComplete="off" label="Observação" value={observacao} onChange={(e) => setObservacao(e.target.value)} slotProps={{ htmlInput: { maxLength: 500 } }} /></Stack></DialogContent><DialogActions><Button type="button" onClick={() => setModalMovimento(null)}>Cancelar</Button><Button type="submit" variant="contained" disabled={processando}>{processando ? "Registrando…" : "Confirmar"}</Button></DialogActions></form></Dialog>
         <Dialog open={modalFechamento} fullWidth maxWidth="md" aria-labelledby="caixa-fechamento-titulo" aria-describedby="caixa-fechamento-descricao" onClose={() => { if (!processando) { setObservacaoFechamento(""); setModalFechamento(false); } }}
             slotProps={{ paper: { sx: { m: { xs: 1, md: 3 }, width: "calc(100% - 16px)", maxHeight: "calc(100dvh - 32px)", borderRadius: 2 } } }}>
             <Box component="form" onSubmit={fechar} sx={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
@@ -374,9 +376,9 @@ export default function Caixa() {
                             <Box component="section" aria-label="Conferência do dinheiro" sx={{ py: 1, minWidth: 0 }}>
                             <Typography component="h3" variant="h6" sx={{ fontSize: 18, fontWeight: 700 }}>Conferência do dinheiro</Typography>
                             <Typography id="caixa-fechamento-descricao" variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>Informe o valor físico contado no caixa.</Typography>
-                            <TextField id="input-saldoFinal" required autoFocus fullWidth name="saldoFinal" autoComplete="off" label="Dinheiro físico contado (R$)" value={saldo}
-                                disabled={processando} onChange={(e) => informarDinheiroContado(e.target.value)}
-                                slotProps={{ htmlInput: { inputMode: "decimal", "aria-describedby": "caixa-fechamento-descricao" } }} />
+                            <CampoMonetario canonico placeholder="Informe o valor contado…" id="input-saldoFinal" required autoFocus fullWidth name="saldoFinal" autoComplete="off" label="Dinheiro físico contado (R$)" value={saldo}
+                                disabled={processando} onValueChange={v => informarDinheiroContado(v)}
+                                 />
                             <Box role="status" aria-live="polite" sx={{ mt: 1.5, borderRadius: 1.5, bgcolor: theme => alpha(temDiferencaDinheiro ? theme.palette.warning.main : theme.palette.primary.main, .06), p: 1.5 }}>
                                 {diferencaFechamento === null ? <Typography variant="body2">Informe o dinheiro contado para conferir a diferença.</Typography>
                                     : <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
@@ -396,7 +398,7 @@ export default function Caixa() {
                         {politicaFechamento && (conferencia.porTotal || conferencia.linhas.length > 0) && <ConferenciaMeiosPagamento politica={politicaFechamento} conferencia={conferencia}
                             valores={valoresConferidos} total={totalConferido} onTotal={setTotalConferido} disabled={processando}
                             onValor={(chave, valor) => setValoresConferidos(atuais => ({ ...atuais, [chave]: valor }))} />}
-                        {temDiferencaFechamento && <TextField required multiline minRows={2} fullWidth name="observacaoFechamento" autoComplete="off"
+                        {temDiferencaFechamento && <CampoTexto placeholder="Descreva a sobra ou falta identificada…" required multiline minRows={2} fullWidth name="observacaoFechamento" autoComplete="off"
                             label="Observação da divergência" value={observacaoFechamento} onChange={(e) => setObservacaoFechamento(e.target.value)}
                             helperText="Obrigatório: descreva a sobra ou falta identificada para concluir o fechamento com divergência."
                             slotProps={{ htmlInput: { maxLength: 500 } }} />}

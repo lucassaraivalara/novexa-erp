@@ -1,3 +1,4 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { formatarDataHora } from "../../utils/dataHora";
 import { useEffect, useState, type FormEvent } from "react";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Paper, Stack, Tab, Tabs, TextField, Typography } from "@mui/material";
@@ -130,9 +131,9 @@ export default function CofrePainel({ versao, onAlterado }: { versao: number; on
                 <DialogTitle id="cofre-form-titulo">{modal === "devolver" ? "Devolver dinheiro para troco" : `Destinar dinheiro da sessão #${modal?.sessaoId}`}</DialogTitle>
                 <DialogContent dividers><Stack spacing={2}>
                     {erroModal && <Alert severity="error">{erroModal}</Alert>}
-                    {modal === "devolver" && <TextField select required label="Sessão aberta de destino" value={sessaoId} disabled={processando} onChange={e => setSessaoId(e.target.value)}>
+                    {modal === "devolver" && <CampoTexto select required label="Sessão aberta de destino" value={sessaoId} disabled={processando} onChange={e => setSessaoId(e.target.value)}>
                         {sessoes.map(s => <MenuItem key={s.sessaoId} value={s.sessaoId}>#{s.sessaoId} · {s.descricaoCaixa} · {s.operadorAbertura.nome}</MenuItem>)}
-                    </TextField>}
+                    </CampoTexto>}
                     <EntregaCofreCampos value={form} onChange={setForm} disabled={processando} devolucao={modal === "devolver"} />
                 </Stack></DialogContent>
                 <DialogActions><Button disabled={processando} onClick={() => setModal(null)}>Voltar</Button><Button type="submit" variant="contained" disabled={processando}>{processando ? "Registrando…" : "Registrar destinação"}</Button></DialogActions>

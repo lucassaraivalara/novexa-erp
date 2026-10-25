@@ -301,7 +301,9 @@ test("formulários compartilhados expõem campos e ações acessíveis", async (
     const empresa = await readFile(new URL("../src/pages/Empresa/EmpresaForm.tsx", import.meta.url), "utf8");
 
     assert.match(produto, /name="precoVenda"/);
-    assert.match(produto, /inputMode: "decimal"/);
+    assert.match(produto, /<CampoMonetario/);
+    const decimal = await readFile(new URL("../src/components/ui/CampoDecimal.tsx", import.meta.url), "utf8");
+    assert.match(decimal, /inputMode: casas === 0 \? "numeric" : "decimal"/);
     assert.match(produto, /role="button"/);
     assert.match(produto, /name="imagem"/);
     assert.match(produto, /aria-label="Remover imagem do produto"/);

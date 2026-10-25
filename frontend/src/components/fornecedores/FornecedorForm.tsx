@@ -1,5 +1,6 @@
+import CampoTexto from "../ui/CampoTexto";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Alert, Box, Divider, FormControlLabel, Stack, Switch, TextField, Typography } from "@mui/material";
+import { Alert, Box, Divider, FormControlLabel, Stack, Switch, Typography } from "@mui/material";
 import CadastroDialog from "../ui/CadastroDialog";
 import { atualizarFornecedor, criarFornecedor, fornecedorParaInput, mensagemFornecedor } from "../../services/fornecedorService";
 import type { FornecedorCompleto, FornecedorInput } from "../../types/fornecedor";
@@ -37,10 +38,17 @@ export default function FornecedorForm({ modo, fornecedor = null, dadosIniciais,
     const [ativo, setAtivo] = useState(fornecedor?.ativo ?? true);
     const [salvando, setSalvando] = useState(false);
     const [erro, setErro] = useState("");
+    const exemplos: Record<keyof Campos, string> = {
+        razaoSocial: "Digite o nome ou a razão social…", nomeFantasia: "Nome comercial, se houver…",
+        cpfCnpj: "Digite o CPF ou CNPJ…", telefone: "Ex.: (11) 99999-9999…", email: "Ex.: contato@empresa.com.br…",
+        cep: "Ex.: 01001-000…", logradouro: "Rua, avenida ou estrada…", numero: "Ex.: 125 ou s/n…",
+        complemento: "Ex.: sala, bloco ou apartamento…", bairro: "Nome do bairro…", cidade: "Nome da cidade…",
+        uf: "Ex.: SP…", observacao: "Informações adicionais sobre o fornecedor…",
+    };
     const definir = (campo: keyof Campos, valor: string) => { setForm((atual) => ({ ...atual, [campo]: valor })); setErro(""); };
     const campo = (nome: keyof Campos, rotulo: string, extra: object = {}) =>
-        <TextField label={rotulo} name={nome} value={form[nome]} onChange={(e) => definir(nome, e.target.value)} {...extra} />;
-    const documento = <TextField label="CPF/CNPJ" name="cpfCnpj" value={form.cpfCnpj}
+        <CampoTexto placeholder={exemplos[nome]} label={rotulo} name={nome} value={form[nome]} onChange={(e) => definir(nome, e.target.value)} {...extra} />;
+    const documento = <CampoTexto autoComplete="off" placeholder="Digite o CPF ou CNPJ…" label="CPF/CNPJ" name="cpfCnpj" value={form.cpfCnpj}
         onChange={(e) => definir("cpfCnpj", formatarDocumentoEmpresa(e.target.value, true))} />;
 
     async function enviar(evento: FormEvent<HTMLFormElement>) {
@@ -90,7 +98,7 @@ export default function FornecedorForm({ modo, fornecedor = null, dadosIniciais,
                 {campo("bairro", "Bairro", { slotProps: { htmlInput: { maxLength: 100 } } })}
             </Box><Box sx={grade("1fr 100px")}>
                 {campo("cidade", "Cidade", { slotProps: { htmlInput: { maxLength: 100 } } })}
-                <TextField label="UF" name="uf" value={form.uf} slotProps={{ htmlInput: { maxLength: 2 } }}
+                <CampoTexto placeholder="Ex.: SP…" label="UF" name="uf" value={form.uf} slotProps={{ htmlInput: { maxLength: 2 } }}
                     onChange={(e) => definir("uf", e.target.value.toUpperCase())} />
             </Box></Secao>
             <Secao titulo="Observação">

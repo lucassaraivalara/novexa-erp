@@ -1,5 +1,8 @@
+import CampoTexto from "../../components/ui/CampoTexto";
+import { numeroDecimal } from "../../utils/numeroFormulario";
+import CampoDecimal, { CampoMonetario } from "../../components/ui/CampoDecimal";
 import { useRef, useState, type FormEvent } from "react";
-import { Alert, Stack, TextField } from "@mui/material";
+import { Alert, Stack, } from "@mui/material";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import ClienteAutocomplete from "../../components/clientes/ClienteAutocomplete";
 import type { Cliente } from "../../types/cliente";
@@ -23,11 +26,11 @@ export default function ContaReceberForm({ conta, clienteInicial, onFechar, onSa
         evento.preventDefault();
         if (emAndamento.current) return;
         const valor = valorMonetario(form.valor);
-        const numeroParcela = Number(form.numeroParcela), totalParcelas = Number(form.totalParcelas);
+        const numeroParcela = numeroDecimal(form.numeroParcela, 0), totalParcelas = numeroDecimal(form.totalParcelas, 0);
         if (!cliente?.ativo) { setErro("Selecione um cliente ativo."); return; }
         if (!form.descricao.trim() || !form.dataVencimento) { setErro("Informe a descrição e o vencimento."); return; }
         if (valor === null) { setErro("Informe um valor positivo com até duas casas decimais."); return; }
-        if (!Number.isInteger(numeroParcela) || !Number.isInteger(totalParcelas) || numeroParcela < 1 || totalParcelas < numeroParcela) {
+        if (numeroParcela === null || totalParcelas === null || !Number.isInteger(numeroParcela) || !Number.isInteger(totalParcelas) || numeroParcela < 1 || totalParcelas < numeroParcela) {
             setErro("Informe parcelas válidas: a parcela deve estar entre 1 e o total."); return;
         }
         const dados: ContaReceberInput = { clienteId: cliente.id, descricao: form.descricao.trim(), valorOriginal: valor,
@@ -45,23 +48,23 @@ export default function ContaReceberForm({ conta, clienteInicial, onFechar, onSa
             {erro && <Alert severity="error">{erro}</Alert>}
             <ClienteAutocomplete label="Cliente *" value={cliente} onChange={setCliente} disabled={salvando} />
             {cliente && !cliente.ativo && <Alert severity="warning">O cliente está inativo. Selecione um cliente ativo para salvar.</Alert>}
-            <TextField required autoFocus label="Descrição" value={form.descricao} disabled={salvando}
+            <CampoTexto placeholder="Identifique a operação…" required autoFocus label="Descrição" value={form.descricao} disabled={salvando}
                 onChange={e => alterar("descricao", e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-            <TextField required fullWidth label="Valor original (R$)" value={form.valor} disabled={salvando}
-                onChange={e => alterar("valor", e.target.value)} slotProps={{ htmlInput: { inputMode: "decimal" } }} />
-                <TextField required fullWidth type="date" label="Vencimento" value={form.dataVencimento} disabled={salvando}
+            <CampoMonetario canonico placeholder="Ex.: 1.234,56…" required fullWidth label="Valor original (R$)" value={form.valor} disabled={salvando}
+                onValueChange={v => alterar("valor", v)}  />
+                <CampoTexto required fullWidth type="date" label="Vencimento" value={form.dataVencimento} disabled={salvando}
                     onChange={e => alterar("dataVencimento", e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
             </Stack>
             <Stack direction="row" spacing={1.5}>
-                <TextField fullWidth type="number" label="Parcela" value={form.numeroParcela} disabled={salvando}
-                    onChange={e => alterar("numeroParcela", e.target.value)} slotProps={{ htmlInput: { min: 1, step: 1 } }} />
-                <TextField fullWidth type="number" label="Total de parcelas" value={form.totalParcelas} disabled={salvando}
-                    onChange={e => alterar("totalParcelas", e.target.value)} slotProps={{ htmlInput: { min: 1, step: 1 } }} />
+                <CampoDecimal canonico passo="1" minimo={1} casas={0} fullWidth label="Parcela" value={form.numeroParcela} disabled={salvando}
+                    onValueChange={v => alterar("numeroParcela", v)}  />
+                <CampoDecimal canonico passo="1" minimo={1} casas={0} fullWidth label="Total de parcelas" value={form.totalParcelas} disabled={salvando}
+                    onValueChange={v => alterar("totalParcelas", v)}  />
             </Stack>
-            <TextField fullWidth type="date" label="Emissão" value={form.dataEmissao} disabled={salvando}
+            <CampoTexto fullWidth type="date" label="Emissão" value={form.dataEmissao} disabled={salvando}
                 onChange={e => alterar("dataEmissao", e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField multiline minRows={2} label="Observação" value={form.observacao} disabled={salvando}
+            <CampoTexto placeholder="Informações adicionais sobre a operação…" multiline minRows={2} label="Observação" value={form.observacao} disabled={salvando}
                 onChange={e => alterar("observacao", e.target.value)} slotProps={{ htmlInput: { maxLength: 1000 } }} />
         </Stack>
     </CadastroDialog>;

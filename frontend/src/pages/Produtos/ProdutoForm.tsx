@@ -1,4 +1,5 @@
 import ComposicaoProdutoCampos from "./ComposicaoProdutoCampos";
+import CampoTexto from "../../components/ui/CampoTexto";
 import { prepararComposicao, type LinhaComposicao } from "./composicaoProduto";
 import ClassificacaoProdutoCampos from "./ClassificacaoProdutoCampos";
 import { type ClassificacaoProduto } from "./classificacaoProdutoUtils";
@@ -28,6 +29,8 @@ import {
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import CadastroDialog from "../../components/ui/CadastroDialog";
+import { CampoMonetario, CampoQuantidade } from "../../components/ui/CampoDecimal";
+import { numeroDecimal } from "../../utils/numeroFormulario";
 import type {Produto, ProdutoFornecedorVinculoInput, ProdutoInput} from "../../types/produto";
 import {cadastrarProduto, listarKitsDependentes, obterMensagemDaApi, type KitDependente} from "../../services/produtoService";
 import FornecedorAutocomplete, { type FornecedorOpcao } from "../../components/fornecedores/FornecedorAutocomplete";
@@ -122,23 +125,10 @@ function numeroParaCampo(valor: number, casas: number): string {
 
 function campoParaNumero(
     valor: string,
-    maximoCasasDecimais: number
+    maximoCasasDecimais: number,
+    moeda = false
 ): number | null {
-    const normalizado = valor.trim().replace(",", ".");
-
-    if (!normalizado || !/^\d+(\.\d+)?$/.test(normalizado)) {
-        return null;
-    }
-
-    const casasDecimais = normalizado.split(".")[1]?.length ?? 0;
-
-    if (casasDecimais > maximoCasasDecimais) {
-        return null;
-    }
-
-    const numero = Number(normalizado);
-
-    return Number.isFinite(numero) ? numero : null;
+    return numeroDecimal(valor, maximoCasasDecimais, moeda);
 }
 
 function ProdutoForm({
@@ -306,8 +296,8 @@ function ProdutoForm({
             Record<keyof EstadoFormulario, string>
         > = {};
 
-        const precoCusto = campoParaNumero(formulario.precoCusto, 2);
-        const precoVenda = campoParaNumero(formulario.precoVenda, 2);
+        const precoCusto = campoParaNumero(formulario.precoCusto, 2, true);
+        const precoVenda = campoParaNumero(formulario.precoVenda, 2, true);
         const estoqueMinimo = campoParaNumero(
             formulario.estoqueMinimo,
             3
@@ -413,7 +403,8 @@ function ProdutoForm({
                     return null;
                 }
                 const fator = linha.fatorConversao.trim();
-                if (fator && (!/^\d+(?:[.,]\d{1,3})?$/.test(fator) || Number(fator.replace(",", ".")) <= 0)) {
+                const fatorNumerico = fator ? numeroDecimal(fator, 3) : null;
+                if (fator && (!/^\d+(?:[.,]\d{1,3})?$/.test(fator) || fatorNumerico === null || fatorNumerico <= 0)) {
                     setErroVinculos("Informe um fator de conversão maior que zero (ex.: 20 para 1 maço = 20 unidades).");
                     setAbaAtual(2);
                     return null;
@@ -421,7 +412,7 @@ function ProdutoForm({
                 vinculosValidos.push({
                     fornecedorId: linha.fornecedor.id,
                     codigoReferencia: linha.codigoReferencia.trim() || null,
-                    fatorConversao: fator ? Number(fator.replace(",", ".")) : null,
+                    fatorConversao: fatorNumerico,
                 });
             }
             setErroVinculos("");
@@ -514,7 +505,7 @@ function ProdutoForm({
                     <CircularProgress size={32}/>
                 </Box>
             ) : (
-                <Stack spacing={2.25}>
+                <Stack spacing={2.25} sx={{ "& input::placeholder, & textarea::placeholder": { color: "text.secondary", opacity: 1 } }}>
                     {mensagemErro && (
                         <Alert severity="error">
                             {mensagemErro}
@@ -560,6 +551,7 @@ function ProdutoForm({
                                     </Box>}
                                     {!rapido && (!duplicando || !codigoAutomatico) && <TextField
                                         label="Código interno"
+                                        placeholder="SKU ou referência…"
                                         name="codigoInterno"
                                         autoComplete="off"
                                         value={formulario.codigoInterno}
@@ -580,6 +572,7 @@ function ProdutoForm({
                                                 : "Opcional: gerado automaticamente ao cadastrar.")
                                         }
                                         slotProps={{
+                                            inputLabel: { shrink: true },
                                             htmlInput: {
                                                 maxLength: 60,
                                                 spellCheck: false,
@@ -590,6 +583,7 @@ function ProdutoForm({
 
                                     <TextField
                                         label="Código de barras"
+                                        placeholder="Ex.: 7891234567895…"
                                         name="codigoBarras"
                                         autoComplete="off"
                                         value={formulario.codigoBarras}
@@ -603,11 +597,13 @@ function ProdutoForm({
                                             erros.codigoBarras
                                         )}
                                         helperText={
-                                            erros.codigoBarras
+                                            erros.codigoBarras || "Identificador GTIN/EAN do produto. Opcional."
                                         }
                                         slotProps={{
+                                            inputLabel: { shrink: true },
                                             htmlInput: {
                                                 maxLength: 60,
+                                                spellCheck: false,
                                             },
                                         }}
                                     />
@@ -616,6 +612,7 @@ function ProdutoForm({
                                 <TextField
                                     required
                                     label="Nome"
+                                    placeholder="Digite o nome do produto…"
                                     name="nome"
                                     autoComplete="off"
                                     autoFocus={!carregandoProduto && (rapido || abaAtual === 0)}
@@ -629,6 +626,7 @@ function ProdutoForm({
                                     error={Boolean(erros.nome)}
                                     helperText={erros.nome}
                                     slotProps={{
+                                        inputLabel: { shrink: true },
                                         htmlInput: {
                                             maxLength: 150,
                                         },
@@ -639,6 +637,7 @@ function ProdutoForm({
 
                                 {!rapido && <TextField
                                     label="Descrição"
+                                    placeholder="Informe detalhes adicionais do produto…"
                                     name="descricao"
                                     autoComplete="off"
                                     value={formulario.descricao}
@@ -658,6 +657,7 @@ function ProdutoForm({
                                     multiline
                                     minRows={2}
                                     slotProps={{
+                                        inputLabel: { shrink: true },
                                         htmlInput: {
                                             maxLength: 2000,
                                         },
@@ -780,6 +780,7 @@ function ProdutoForm({
                             <TextField
                                 required
                                 label="Unidade de medida"
+                                placeholder="Ex.: UN, KG, CX…"
                                 name="unidadeMedida"
                                 autoComplete="off"
                                 value={formulario.unidadeMedida}
@@ -794,73 +795,44 @@ function ProdutoForm({
                                 )}
                                 helperText={
                                     erros.unidadeMedida ??
-                                    "Ex.: UN, KG, LT"
+                                    "Unidade utilizada na movimentação do produto."
                                 }
                                 slotProps={{
+                                    inputLabel: { shrink: true },
                                     htmlInput: {
                                         maxLength: 10,
+                                        spellCheck: false,
                                     },
                                 }}
                             />
 
-                            <TextField
+                            <CampoMonetario
+                                required={!composto}
                                 label="Preço de custo"
                                 name="precoCusto"
                                 disabled={composto}
                                 autoComplete="off"
                                 value={formulario.precoCusto}
-                                onChange={(e) =>
-                                    alterarCampo(
-                                        "precoCusto",
-                                        e.target.value
-                                    )
-                                }
+                                onValueChange={valor => alterarCampo("precoCusto", valor)}
                                 error={Boolean(
                                     erros.precoCusto
                                 )}
-                                helperText={composto ? "Calculado pelos componentes." : erros.precoCusto}
-                                slotProps={{
-                                    input: {
-                                        startAdornment: (
-                                            <Typography
-                                                sx={{mr: 1}}
-                                            >
-                                                R$
-                                            </Typography>
-                                        ),
-                                    },
-                                    htmlInput: { inputMode: "decimal" },
-                                }}
+                                placeholder="0,00"
+                                helperText={erros.precoCusto || (composto ? "Calculado pelos componentes." : "Custo cadastrado. Até 2 casas decimais.")}
                             />
 
-                            <TextField
+                            <CampoMonetario
                                 required
                                 label="Preço de venda"
                                 name="precoVenda"
                                 autoComplete="off"
                                 value={formulario.precoVenda}
-                                onChange={(e) =>
-                                    alterarCampo(
-                                        "precoVenda",
-                                        e.target.value
-                                    )
-                                }
+                                onValueChange={valor => alterarCampo("precoVenda", valor)}
                                 error={Boolean(
                                     erros.precoVenda
                                 )}
                                 helperText={erros.precoVenda}
-                                slotProps={{
-                                    input: {
-                                        startAdornment: (
-                                            <Typography
-                                                sx={{mr: 1}}
-                                            >
-                                                R$
-                                            </Typography>
-                                        ),
-                                    },
-                                    htmlInput: { inputMode: "decimal" },
-                                }}
+                                placeholder="Ex.: 1.250,90…"
                             />
                         </Box>
                     </Stack>
@@ -935,30 +907,28 @@ function ProdutoForm({
                                 />
                             </Box>
 
-                            <TextField
+                            <CampoQuantidade
+                                required={formulario.controlaEstoque}
                                 label="Estoque mínimo"
                                 name="estoqueMinimo"
                                 autoComplete="off"
                                 value={formulario.estoqueMinimo}
-                                onChange={(e) =>
-                                    alterarCampo(
-                                        "estoqueMinimo",
-                                        e.target.value
-                                    )
-                                }
+                                onValueChange={valor => alterarCampo("estoqueMinimo", valor)}
+                                passo="1"
+                                unidade={formulario.unidadeMedida}
+                                placeholder="0,000"
                                 error={Boolean(
                                     erros.estoqueMinimo
                                 )}
                                 helperText={
                                     erros.estoqueMinimo ??
                                     (formulario.controlaEstoque
-                                        ? "Até 3 casas decimais"
+                                        ? "Nível de alerta. Até 3 casas decimais."
                                         : "Não utilizado sem controle de estoque")
                                 }
                                 disabled={
                                     !formulario.controlaEstoque
                                 }
-                                slotProps={{ htmlInput: { inputMode: "decimal" } }}
                             />
                         </Box>
 
@@ -1102,8 +1072,9 @@ function ProdutoForm({
                                     disabled={salvando}
                                     mostrarErroConsulta
                                 />
-                                <TextField
+                                <CampoTexto
                                     label="Cód. referência/fabricante"
+                                    placeholder="Código usado pelo fornecedor…"
                                     name={`codigoReferencia-${indice}`}
                                     autoComplete="off"
                                     value={linha.codigoReferencia}
@@ -1111,15 +1082,15 @@ function ProdutoForm({
                                     disabled={salvando}
                                     slotProps={{ htmlInput: { maxLength: 60 } }}
                                 />
-                                <TextField
+                                <CampoQuantidade canonico
                                     label="Qtd. por embalagem"
                                     name={`fatorConversao-${indice}`}
                                     autoComplete="off"
                                     value={linha.fatorConversao}
-                                    onChange={(e) => atualizarVinculo(indice, { fatorConversao: e.target.value })}
+                                    onValueChange={v => atualizarVinculo(indice, { fatorConversao: v })}
                                     disabled={salvando}
-                                    helperText="1 emb. = X un."
-                                    slotProps={{ htmlInput: { inputMode: "decimal" } }}
+                                    placeholder="Ex.: 6,000…"
+                                    helperText="1 embalagem = X unidades. Até 3 casas decimais."
                                 />
                                 <IconButton
                                     aria-label={`Remover fornecedor adicional ${indice + 1}`}
@@ -1174,8 +1145,8 @@ function ProdutoForm({
                         <Divider/>
 
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
-                            <TextField label="NCM" name="ncm" autoComplete="off" value={formulario.ncm} onChange={e => alterarCampo("ncm", e.target.value)} error={Boolean(erros.ncm)} helperText={erros.ncm} slotProps={{ htmlInput: { maxLength: 8, inputMode: "numeric" } }} />
-                            <TextField label="CEST" name="cest" autoComplete="off" value={formulario.cest} onChange={e => alterarCampo("cest", e.target.value)} error={Boolean(erros.cest)} helperText={erros.cest} slotProps={{ htmlInput: { maxLength: 7, inputMode: "numeric" } }} />
+                            <TextField label="NCM" name="ncm" autoComplete="off" placeholder="Ex.: 10011010…" value={formulario.ncm} onChange={e => alterarCampo("ncm", e.target.value)} error={Boolean(erros.ncm)} helperText={erros.ncm || "Metadado fiscal opcional. Informe 8 dígitos."} slotProps={{ inputLabel: { shrink: true }, htmlInput: { maxLength: 8, inputMode: "numeric", spellCheck: false } }} />
+                            <TextField label="CEST" name="cest" autoComplete="off" placeholder="Ex.: 0100300…" value={formulario.cest} onChange={e => alterarCampo("cest", e.target.value)} error={Boolean(erros.cest)} helperText={erros.cest || "Metadado fiscal opcional. Informe 7 dígitos."} slotProps={{ inputLabel: { shrink: true }, htmlInput: { maxLength: 7, inputMode: "numeric", spellCheck: false } }} />
                         </Box>
                     </Stack>}
                 </Stack>

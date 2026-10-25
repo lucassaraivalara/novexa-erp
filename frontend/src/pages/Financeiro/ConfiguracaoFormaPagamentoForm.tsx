@@ -1,5 +1,7 @@
+import CampoTexto from "../../components/ui/CampoTexto";
+import { numeroDecimal } from "../../utils/numeroFormulario";
 import { useEffect, useState } from "react";
-import { Alert, Button, Checkbox, Dialog, DialogContent, DialogTitle, FormControlLabel, Link, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Button, Checkbox, Dialog, DialogContent, DialogTitle, FormControlLabel, Link, MenuItem, Stack, Typography } from "@mui/material";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -11,6 +13,7 @@ import type { ConfiguracaoFormaPagamento, ConfiguracaoFormaPagamentoInput, TipoF
 import { rotulosTipoFormaPagamento, tiposFormaPagamentoComContaDestino } from "../../types/configuracaoFormaPagamento";
 import type { ContaFinanceira } from "../../types/contaFinanceira";
 import { rotulosTipoContaFinanceira } from "../../types/contaFinanceira";
+import CampoDecimal, { CampoMonetario, CampoPercentual } from "../../components/ui/CampoDecimal";
 
 const tiposContaDestinoPermitidos: ContaFinanceira["tipo"][] = ["BANCO", "CARTEIRA_DIGITAL"];
 
@@ -28,9 +31,12 @@ const ehTipoCartao = (id: number) => {
     return tipo === "DEBITO" || tipo === "CREDITO";
 };
 
-const numeroOpcional = () => yup.number().transform((valor, original) =>
-    original === "" || original === null || original === undefined || Number.isNaN(valor) ? null : valor,
-).nullable();
+const numeroOpcional = () => yup.number().transform((valor, original) => {
+    if (original === "" || original === null || original === undefined) return null;
+    if (typeof original !== "string") return valor;
+    const texto = original.trim();
+    return /^-?\d+(?:[.,]\d*)?$/.test(texto) ? Number(texto.replace(",", ".")) : Number.NaN;
+}).nullable();
 
 const criarSchema = (legadaSemDestino: boolean) => yup.object({
     nomeExibicao: yup.string().trim().required("O nome de exibição é obrigatório.").max(150, "O nome deve ter no máximo 150 caracteres."),
@@ -46,21 +52,30 @@ const criarSchema = (legadaSemDestino: boolean) => yup.object({
     taxaPercentual: numeroOpcional().when("formaPagamentoId", {
         is: ehTipoCartao,
         then: (campo) => campo.min(0, "A taxa percentual não pode ser negativa.")
-            .max(100, "A taxa percentual não pode ultrapassar 100%.").typeError("Informe uma taxa percentual válida."),
+            .max(100, "A taxa percentual não pode ultrapassar 100%.").typeError("Informe uma taxa percentual válida.")
+            .test("precisao", "Informe a taxa com até quatro casas decimais.", (v, c) => v == null || numeroDecimal(String(c.originalValue), 4) !== null),
+        otherwise: campo => campo.transform(() => null),
     }),
     taxaFixa: numeroOpcional().when("formaPagamentoId", {
         is: ehTipoCartao,
-        then: (campo) => campo.min(0, "A taxa fixa não pode ser negativa.").typeError("Informe uma taxa fixa válida."),
+        then: (campo) => campo.min(0, "A taxa fixa não pode ser negativa.").typeError("Informe uma taxa fixa válida.")
+            .test("precisao", "Informe a taxa fixa com até duas casas decimais.", (v, c) => v == null || numeroDecimal(String(c.originalValue), 2) !== null),
+        otherwise: campo => campo.transform(() => null),
     }),
     prazoRecebimentoDias: numeroOpcional().when("formaPagamentoId", {
         is: ehTipoCartao,
         then: (campo) => campo.integer("O prazo deve ser um número inteiro.")
-            .min(0, "O prazo não pode ser negativo.").typeError("Informe um prazo válido."),
+            .min(0, "O prazo não pode ser negativo.").typeError("Informe um prazo válido.")
+            .test("inteiro", "Informe um prazo válido.", (v, c) => v == null || numeroDecimal(String(c.originalValue), 0) !== null),
+        otherwise: campo => campo.transform(() => null),
     }),
     maximoParcelasConsumidor: numeroOpcional().when("formaPagamentoId", {
         is: 4,
         then: campo => campo.required("Informe o máximo de parcelas do consumidor.")
-            .integer("Informe um número inteiro de parcelas.").min(1, "Informe de 1 a 12 parcelas.").max(12, "Informe de 1 a 12 parcelas."),
+            .integer("Informe um número inteiro de parcelas.").min(1, "Informe de 1 a 12 parcelas.").max(12, "Informe de 1 a 12 parcelas.")
+            .typeError("Informe um número inteiro de parcelas.")
+            .test("inteiro", "Informe um número inteiro de parcelas.", (v, c) => v == null || numeroDecimal(String(c.originalValue), 0) !== null),
+        otherwise: campo => campo.transform(() => null),
     }),
 });
 
@@ -172,7 +187,7 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                             Esta configuração de cartão não possui conta financeira de destino. Selecione uma conta para usá-la em novas vendas. É possível inativá-la sem definir destino.
                         </Alert>}
 
-                        <TextField
+                        <CampoTexto placeholder="Ex.: Crédito da loja…"
                             fullWidth
                             required
                             autoFocus
@@ -188,7 +203,7 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                             name="formaPagamentoId"
                             control={control}
                             render={({ field }) => (
-                                <TextField
+                                <CampoTexto
                                     {...field}
                                     onChange={(evento) => {
                                         const id = Number(evento.target.value);
@@ -212,7 +227,7 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                                             {tipo.descricao}
                                         </MenuItem>
                                     ))}
-                                </TextField>
+                                </CampoTexto>
                             )}
                         />
 
@@ -225,7 +240,7 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                                     name="contaFinanceiraDestinoId"
                                     control={control}
                                     render={({ field }) => (
-                                        <TextField
+                                        <CampoTexto
                                             {...field}
                                             value={field.value ?? ""}
                                             onChange={(evento) => field.onChange(evento.target.value === "" ? null : Number(evento.target.value))}
@@ -247,7 +262,7 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                                                     {conta.nome} — {rotulosTipoContaFinanceira[conta.tipo]}
                                                 </MenuItem>
                                             ))}
-                                        </TextField>
+                                        </CampoTexto>
                                     )}
                                 />
                                 {erroContas && <Alert severity="error" action={<Button type="button" color="inherit" size="small" onClick={atualizarDestinos}>Tentar novamente</Button>}>{erroContas}</Alert>}
@@ -260,32 +275,32 @@ export default function ConfiguracaoFormaPagamentoForm({ config, onFechar, onSal
                                 )}
                                 {ehCartao && <>
                                     {tipoSelecionado === "CREDITO" && <Controller name="maximoParcelasConsumidor" control={control} render={({ field }) => (
-                                        <TextField {...field} value={field.value ?? ""} fullWidth type="number" autoComplete="off"
+                                        <CampoDecimal {...field} inputRef={field.ref} canonico casas={0} minimo={1} maximo={12} passo="1" value={String(field.value ?? "")} fullWidth autoComplete="off"
                                             label="Máximo de parcelas do consumidor" error={!!errors.maximoParcelasConsumidor}
-                                            onChange={evento => field.onChange(evento.target.value === "" ? null : Number(evento.target.value))}
+                                            onValueChange={v => field.onChange(v === "" ? null : v)}
                                             helperText={errors.maximoParcelasConsumidor?.message ?? "1 permite apenas crédito à vista. Não altera taxas nem o prazo de recebimento da empresa."}
-                                            slotProps={{ htmlInput: { min: 1, max: 12, step: 1, inputMode: "numeric" } }} />
+                                            />
                                     )} />}
                                     <Controller name="taxaPercentual" control={control} render={({ field }) => (
-                                        <TextField {...field} value={field.value ?? ""}
-                                            onChange={(evento) => field.onChange(evento.target.value === "" ? null : Number(evento.target.value))}
-                                            fullWidth type="number" label="Taxa percentual (%)" error={!!errors.taxaPercentual}
+                                        <CampoPercentual {...field} inputRef={field.ref} canonico casas={4} maximo={100} value={String(field.value ?? "")}
+                                            onValueChange={v => field.onChange(v === "" ? null : v)}
+                                            fullWidth label="Taxa percentual (%)" error={!!errors.taxaPercentual}
                                             helperText={errors.taxaPercentual?.message}
-                                            slotProps={{ htmlInput: { min: 0, max: 100, step: "0.0001" } }} />
+                                            placeholder="Ex.: 3,0000…" />
                                     )} />
                                     <Controller name="taxaFixa" control={control} render={({ field }) => (
-                                        <TextField {...field} value={field.value ?? ""}
-                                            onChange={(evento) => field.onChange(evento.target.value === "" ? null : Number(evento.target.value))}
-                                            fullWidth type="number" label="Taxa fixa (R$)" error={!!errors.taxaFixa}
+                                        <CampoMonetario {...field} inputRef={field.ref} canonico value={String(field.value ?? "")}
+                                            onValueChange={v => field.onChange(v === "" ? null : v)}
+                                            fullWidth label="Taxa fixa (R$)" error={!!errors.taxaFixa}
                                             helperText={errors.taxaFixa?.message}
-                                            slotProps={{ htmlInput: { min: 0, step: "0.01" } }} />
+                                            placeholder="Ex.: 1,25…" />
                                     )} />
                                     <Controller name="prazoRecebimentoDias" control={control} render={({ field }) => (
-                                        <TextField {...field} value={field.value ?? ""}
-                                            onChange={(evento) => field.onChange(evento.target.value === "" ? null : Number(evento.target.value))}
-                                            fullWidth type="number" label="Prazo de recebimento (dias)" error={!!errors.prazoRecebimentoDias}
+                                        <CampoDecimal {...field} inputRef={field.ref} canonico casas={0} value={String(field.value ?? "")}
+                                            onValueChange={v => field.onChange(v === "" ? null : v)}
+                                            fullWidth label="Prazo de recebimento (dias)" error={!!errors.prazoRecebimentoDias}
                                             helperText={errors.prazoRecebimentoDias?.message}
-                                            slotProps={{ htmlInput: { min: 0, step: 1 } }} />
+                                            placeholder="Ex.: 1…" />
                                     )} />
                                 </>}
                             </>

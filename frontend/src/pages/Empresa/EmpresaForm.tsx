@@ -1,9 +1,10 @@
+import CampoTexto from "../../components/ui/CampoTexto";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useBlocker } from "react-router-dom";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import {
     Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle,
-    FormControlLabel, IconButton, Link, MenuItem, Paper, Stack, Tab, Tabs, TextField, Typography,
+    FormControlLabel, IconButton, Link, MenuItem, Paper, Stack, Tab, Tabs, Typography,
 } from "@mui/material";
 import { buscarCoordenadas, consultarGeocodificacao, mensagemEmpresa, salvarEmpresa } from "../../services/empresaService";
 import type { CoordenadaEmpresa, EmpresaCompleta, InscricaoSt } from "../../types/empresa";
@@ -153,13 +154,13 @@ export default function EmpresaForm({ empresa, abaInicial = 0, onFechar, onSalvo
                                 : item.nome === "cadastro.uf" ? "address-level1" : "off";
         const inputMode: "numeric" | "decimal" | "tel" | undefined = item.nome === "telefone" ? "tel"
             : item.tipo === "digitos" ? "numeric" : item.tipo === "decimal" ? "decimal" : undefined;
-        return <TextField key={item.nome} name={item.nome} label={item.label} required={item.required} autoComplete={autoComplete} autoFocus={item.nome === gruposEmpresa[0]?.campos[0]?.nome} fullWidth
+        return <CampoTexto placeholder={item.opcoes ? undefined : item.tipo === "decimal" ? "Ex.: -23,5505…" : `Informe ${item.label.toLowerCase()}…`} key={item.nome} name={item.nome} label={item.label} required={item.required} autoComplete={autoComplete} autoFocus={item.nome === gruposEmpresa[0]?.campos[0]?.nome} fullWidth
             value={documento ? formatarDocumentoEmpresa(valor, form.cadastro.produtorRural) : valor} select={!!item.opcoes} type={item.nome === "telefone" ? "tel" : item.tipo === "email" ? "email" : "text"}
             error={!!erros[item.nome]} helperText={erros[item.nome] || item.ajuda}
             slotProps={{ htmlInput: { maxLength: item.max, inputMode } }}
             onChange={e => alterar(item.nome, documento ? formatarDocumentoEmpresa(e.target.value, form.cadastro.produtorRural) : item.tipo === "digitos" ? e.target.value.replace(/\D/g, "") : e.target.value)}>
             {item.opcoes && [<MenuItem key="vazio" value="">Não informado</MenuItem>, ...item.opcoes.map(([valor, label]) => <MenuItem key={valor} value={valor}>{label}</MenuItem>)]}
-        </TextField>;
+        </CampoTexto>;
     }
 
     return <Dialog open fullWidth maxWidth="lg" onClose={fechar} aria-labelledby="empresa-form-titulo">
@@ -265,8 +266,8 @@ function InscricoesSt({ valor, ufEmpresa, erro, disabled, onChange, onDirty }: {
             <DialogTitle id="inscricao-st-titulo">{edicao?.index === -1 ? "Adicionar inscrição ST" : "Editar inscrição ST"}</DialogTitle>
             {edicao && <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
                 {erroLocal && <Alert severity="error">{erroLocal}</Alert>}
-                <TextField select name="uf" autoComplete="address-level1" label="UF da inscrição" value={edicao.dados.uf} onChange={e => alterar({ ...edicao.dados, uf: e.target.value })}>{ufs.filter(uf => uf !== ufEmpresa).map(uf => <MenuItem key={uf} value={uf}>{uf}</MenuItem>)}</TextField>
-                <TextField autoFocus required name="inscricaoEstadual" autoComplete="off" label="Inscrição Estadual (IEST)" value={edicao.dados.inscricaoEstadual} slotProps={{ htmlInput: { maxLength: 20 } }} onChange={e => alterar({ ...edicao.dados, inscricaoEstadual: e.target.value })} />
+                <CampoTexto select name="uf" autoComplete="address-level1" label="UF da inscrição" value={edicao.dados.uf} onChange={e => alterar({ ...edicao.dados, uf: e.target.value })}>{ufs.filter(uf => uf !== ufEmpresa).map(uf => <MenuItem key={uf} value={uf}>{uf}</MenuItem>)}</CampoTexto>
+                <CampoTexto placeholder="Inscrição no estado selecionado…" autoFocus required name="inscricaoEstadual" autoComplete="off" label="Inscrição Estadual (IEST)" value={edicao.dados.inscricaoEstadual} slotProps={{ htmlInput: { maxLength: 20 } }} onChange={e => alterar({ ...edicao.dados, inscricaoEstadual: e.target.value })} />
                 <FormControlLabel control={<Checkbox slotProps={{ input: { name: "difal" } }} checked={edicao.dados.difal} onChange={e => alterar({ ...edicao.dados, difal: e.target.checked })} />} label="Utilizada para DIFAL EC 87/15 (registro 0015)" />
             </Stack></DialogContent>}
             <DialogActions><Button type="button" onClick={fechar}>Cancelar</Button><Button type="button" variant="contained" onClick={adicionar}>Confirmar inscrição</Button></DialogActions>
