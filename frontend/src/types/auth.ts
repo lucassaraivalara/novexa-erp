@@ -13,6 +13,7 @@ export type EmpresaAtiva = {
     telefone: string;
     endereco: string;
     ativo: boolean;
+    controlaEstoque?: boolean;
     permitirVendaEstoqueNegativo?: boolean;
     logomarca?: string | null;
 };

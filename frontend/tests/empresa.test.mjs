@@ -91,3 +91,15 @@ test("a UI de Empresa usa quatro abas, status textuais e máscara de documento",
     assert.match(fonte, /Inscrições estaduais\/municipais/);
     assert.match(form, /formatarDocumentoEmpresa/);
 });
+
+
+test("controle empresarial preserva default legado e preferencia independente de estoque negativo", () => {
+    assert.equal(criarFormulario(null).controlaEstoque, true);
+    const legado = gerarInput(preenchido()); delete legado.controlaEstoque;
+    assert.equal(criarFormulario({ ...legado, id: 7 }).controlaEstoque, true);
+    const f = preenchido(); f.controlaEstoque = false; f.permitirVendaEstoqueNegativo = true;
+    const payload = gerarInput(f);
+    assert.equal(payload.controlaEstoque, false);
+    assert.equal(payload.permitirVendaEstoqueNegativo, true);
+    assert.equal(criarFormulario({ ...payload, id: 7 }).controlaEstoque, false);
+});

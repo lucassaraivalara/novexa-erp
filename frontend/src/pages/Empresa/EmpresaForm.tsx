@@ -184,6 +184,16 @@ export default function EmpresaForm({ empresa, abaInicial = 0, onFechar, onSalvo
                                 <FormControlLabel control={<Checkbox slotProps={{ input: { name: "cadastro.produtorRural" } }} checked={form.cadastro.produtorRural} onChange={e => alterar("cadastro.produtorRural", e.target.checked)} />} label="Produtor rural" />
                                 <FormControlLabel control={<Checkbox slotProps={{ input: { name: "ativo" } }} checked={form.ativo} onChange={e => alterar("ativo", e.target.checked)} />} label="Empresa ativa" />
                             </Stack>}
+                            {index === 0 && <Stack spacing={0.5}>
+                                <FormControlLabel control={<Checkbox checked={form.controlaEstoque}
+                                    slotProps={{ input: { name: "controlaEstoque", "aria-describedby": "empresa-controle-estoque-ajuda" } }}
+                                    onChange={e => alterar("controlaEstoque", e.target.checked)} />}
+                                    label="Controlar estoque dos produtos" />
+                                <Typography id="empresa-controle-estoque-ajuda" variant="body2" color="text.secondary">
+                                    Aplica o controle individual dos produtos nas novas vendas. Desativar preserva saldos e preferências.
+                                    Ao reativar, confira os saldos: vendas anteriores não serão baixadas retroativamente.
+                                </Typography>
+                            </Stack>}
                             {index === 0 && <FormControlLabel control={<Checkbox checked={form.permitirVendaEstoqueNegativo}
                                 onChange={e => alterar("permitirVendaEstoqueNegativo", e.target.checked)} />}
                                 label="Permitir venda com estoque insuficiente, mediante confirmação" />}

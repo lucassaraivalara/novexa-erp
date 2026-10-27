@@ -883,7 +883,7 @@ function ProdutoForm({
                                         variant="caption"
                                         color="text.secondary"
                                     >
-                                        Habilita saldo e estoque mínimo.
+                                        Aplicado nas vendas quando o controle de estoque da empresa está ativado.
                                     </Typography>
                                 </Box>
 

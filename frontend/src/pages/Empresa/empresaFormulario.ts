@@ -6,7 +6,7 @@ export const regimes = [["MEI", "MEI"], ["SIMPLES_NACIONAL", "Simples Nacional"]
 export const abasEmpresa = ["Dados", "Endereço", "Contato", "Fiscal / SPED"];
 export type EstadoEmpresa = {
     razaoSocial: string; nomeFantasia: string; cnpj: string; inscricaoEstadual: string;
-    telefone: string; email: string; endereco: string; ativo: boolean; permitirVendaEstoqueNegativo: boolean;
+    telefone: string; email: string; endereco: string; ativo: boolean; controlaEstoque: boolean; permitirVendaEstoqueNegativo: boolean;
     cadastro: CadastroFormulario; logomarca: string | null; inscricoesSt: InscricaoSt[];
 };
 export type NomeCampo = Exclude<keyof EstadoEmpresa, "cadastro" | "inscricoesSt" | "logomarca"> | `cadastro.${keyof CadastroFormulario}`;
@@ -58,6 +58,7 @@ export function criarFormulario(empresa: EmpresaCompleta | null): EstadoEmpresa 
     }
     return { razaoSocial: empresa?.razaoSocial ?? "", nomeFantasia: empresa?.nomeFantasia ?? "", cnpj: empresa?.cnpj ?? "", inscricaoEstadual: empresa?.inscricaoEstadual ?? "",
         email: empresa?.email ?? "", telefone: empresa?.telefone ?? "", endereco: empresa?.endereco ?? "", ativo: empresa?.ativo ?? true,
+        controlaEstoque: empresa?.controlaEstoque ?? true,
         permitirVendaEstoqueNegativo: empresa?.permitirVendaEstoqueNegativo ?? false,
         cadastro, logomarca: empresa?.logomarca ?? null, inscricoesSt: empresa?.inscricoesSt?.map(i => ({ ...i })) ?? [] };
 }
