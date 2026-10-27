@@ -1,4 +1,8 @@
 
+## Caixa — polling da Tarefa 19 (27/10/2026, local)
+
+Painel atual atualiza a cada 10s após concluir a consulta; aba oculta e Histórico suspendem chamadas periódicas. Retorno à aba visível, retry e operações concluídas atualizam imediatamente, compartilhando consultas em andamento e exigindo releitura nova após escrita. Timers/listeners e requisições são encerrados na desmontagem; layout e contratos preservados. Ainda sem publicação; testes e limites em [Tarefa 19](../audits/otimizacao-egress-supabase-tarefa19.md).
+
 ## Campos dos formulários — expansão local 15B (2026-10-24)
 
 Cadastros, Estoque/Entradas, Financeiro, PDV e Administração reutilizam os campos do piloto onde necessário. `CampoTexto` mantém o contrato do MUI e seus slots/refs, com label visível e orientação pelo tema. `CampoDecimal` aceita entrega canônica aos parsers já existentes, leitura histórica e nomes/descrições acessíveis. Valores financeiros não recebem spinbox; metadados de parcelas e estoque mínimo mantêm incremento apropriado. No PDV, quantidades inteiras continuam compactas, sem agrupamento de milhar ambíguo, e frações usam vírgula com até três casas; o componente monetário e os atalhos operacionais existentes são preservados.

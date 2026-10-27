@@ -4,7 +4,7 @@ import { formatarDataHora } from "../../utils/dataHora";
 import { consultarConfiguracaoRecebimentos, type ConfiguracaoRecebimentos } from "../../services/configuracaoRecebimentosService";
 import { conferenciaMeios } from "./conferenciaMeios";
 import ConferenciaMeiosPagamento from "./ConferenciaMeiosPagamento";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import axios from "axios";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
@@ -46,7 +46,7 @@ import { podeExecutarAcaoGerencial, podeFecharSessao } from "../../utils/auth/pe
 import { obterSessao } from "../../utils/auth/sessao";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const intervaloAtualizacaoSessao = 2000;
+const intervaloAtualizacaoSessao = 10000;
 const dinheiro = (valor: number | null | undefined) => moeda.format(valor ?? 0);
 const data = formatarDataHora;
 const valorDecimal = (texto: string) => {
@@ -109,6 +109,7 @@ export default function Caixa() {
     const [saldo, setSaldo] = useState("");
     const [observacao, setObservacao] = useState("");
     const fechamentoEmAndamento = useRef(false);
+    const consultaPainel = useRef<{ id: number; controller: AbortController; promessa: Promise<void> } | null>(null);
     const erroFechamento = useRef<HTMLDivElement>(null);
 
     useEffect(() => { if (modalFechamento && erroModal) erroFechamento.current?.focus(); }, [modalFechamento, erroModal]);
@@ -131,11 +132,13 @@ export default function Caixa() {
         });
     }
 
-    function recarregar() {
+    function recarregar(atualizarPainel = true) {
         setCarregando(true);
         setErro("");
         recarregarHistorico();
-        return carregar();
+        return carregar().then(() => {
+            if (atualizarPainel && sessaoId !== null) return carregarSessao(sessaoId, undefined, true);
+        });
     }
 
     function recarregarHistorico() {
@@ -144,35 +147,76 @@ export default function Caixa() {
         setVersaoHistorico(atual => atual + 1);
     }
 
-    async function carregarSessao(id: number, signal?: AbortSignal) {
-        const painel = await buscarPainelSessao(id, signal);
+    const carregarSessao = useCallback(async function consultarSessao(id: number, signal?: AbortSignal, aposOperacao = false): Promise<void> {
         if (signal?.aborted) return;
-        setResumo(painel.resumo);
-        setTimeline(criarTimeline(painel.movimentacoes, painel.vendas));
-    }
+        const anterior = consultaPainel.current;
+        if (anterior?.id === id && !anterior.controller.signal.aborted) {
+            if (!aposOperacao) return anterior.promessa;
+            // Uma leitura iniciada antes da escrita não substitui a releitura após seu commit.
+            await anterior.promessa.catch(() => {});
+            return consultarSessao(id, signal);
+        }
+        anterior?.controller.abort();
+        const controller = new AbortController();
+        const abortar = () => controller.abort();
+        signal?.addEventListener("abort", abortar, { once: true });
+        const consulta = { id, controller, promessa: Promise.resolve() };
+        consultaPainel.current = consulta;
+        consulta.promessa = buscarPainelSessao(id, controller.signal).then(painel => {
+            if (controller.signal.aborted || consultaPainel.current !== consulta) return;
+            setResumo(painel.resumo);
+            setTimeline(criarTimeline(painel.movimentacoes, painel.vendas));
+        }).finally(() => {
+            signal?.removeEventListener("abort", abortar);
+            if (consultaPainel.current === consulta) consultaPainel.current = null;
+        });
+        return consulta.promessa;
+    }, []);
 
     useEffect(() => {
         const controller = new AbortController();
         void carregar(controller.signal);
-        return () => controller.abort();
+        return () => { controller.abort(); consultaPainel.current?.controller.abort(); };
     }, []);
 
     useEffect(() => {
         if (sessaoId === null || aba !== 0) return;
         const controller = new AbortController();
-        let intervalo: ReturnType<typeof window.setTimeout>;
+        let intervalo: ReturnType<typeof window.setTimeout> | undefined;
+        let atualizando = false;
+        let relerAoConcluir = false;
+        const agendar = () => {
+            window.clearTimeout(intervalo);
+            if (!controller.signal.aborted && !document.hidden)
+                intervalo = window.setTimeout(() => void atualizar(), intervaloAtualizacaoSessao);
+        };
         const atualizar = async () => {
+            if (controller.signal.aborted || document.hidden || atualizando) return;
+            atualizando = true;
             try {
                 await carregarSessao(sessaoId, controller.signal);
             } catch (e) {
                 if (!controller.signal.aborted) setErro(mensagemCaixa(e, "Não foi possível carregar o resumo do Caixa."));
             } finally {
-                if (!controller.signal.aborted) intervalo = window.setTimeout(() => void atualizar(), intervaloAtualizacaoSessao);
+                atualizando = false;
+                if (relerAoConcluir) { relerAoConcluir = false; void atualizar(); }
+                else agendar();
             }
         };
+        const visibilidade = () => {
+            window.clearTimeout(intervalo);
+            if (!document.hidden) {
+                if (atualizando) relerAoConcluir = true;
+                else void atualizar();
+            }
+        };
+        document.addEventListener("visibilitychange", visibilidade);
         void atualizar();
-        return () => { controller.abort(); window.clearTimeout(intervalo); };
-    }, [sessaoId, aba]);
+        return () => {
+            controller.abort(); window.clearTimeout(intervalo);
+            document.removeEventListener("visibilitychange", visibilidade);
+        };
+    }, [sessaoId, aba, carregarSessao]);
 
     useEffect(() => {
         if (aba !== 1) return;
@@ -212,8 +256,8 @@ export default function Caixa() {
         setProcessando(true); setErroModal("");
         try {
             await acao();
-            await recarregar();
-            if (atualizarSessaoId !== null && atualizarSessaoId !== undefined) await carregarSessao(atualizarSessaoId);
+            await recarregar(false);
+            if (atualizarSessaoId !== null && atualizarSessaoId !== undefined) await carregarSessao(atualizarSessaoId, undefined, true);
         } catch (e) {
             setErroModal(e instanceof Error && !("isAxiosError" in e) ? e.message : mensagemCaixa(e, mensagem));
         } finally {
@@ -250,11 +294,11 @@ export default function Caixa() {
                 throw new Error("Informe cofre e responsável pelo recebimento.");
             await fecharSessaoCaixa(sessaoAtual.caixaId, sessaoId, { saldoFinal: final, conferenciaMeios: conferencia.pedido(observacaoFechamento), cofre });
             setModalFechamento(false); setSaldo(""); setObservacaoFechamento(""); setValoresConferidos({});
-            await recarregar();
+            await recarregar(false);
         } catch (e) {
             if (axios.isAxiosError(e) && e.response?.status === 409) {
                 setErroModal(`${mensagemCaixa(e, "O resumo do Caixa mudou.")} Atualize o resumo e confira os valores novamente.`);
-                await carregarSessao(sessaoId).catch(() => {});
+                await carregarSessao(sessaoId, undefined, true).catch(() => {});
             } else {
                 const mensagem = e instanceof Error && !("isAxiosError" in e) ? e.message : mensagemCaixa(e, "Não foi possível fechar o Caixa.");
                 setErroModal(/^Requisi[çc][ãa]o inv[áa]lida\.?$/i.test(mensagem)

@@ -5,7 +5,7 @@ import { chromium, expect } from "@playwright/test";
 
 let vite, browser, base;
 before(async () => {
-    const fixture = `import React from 'react';import {createRoot} from 'react-dom/client';import {ThemeProvider} from '@mui/material';import theme from '/src/theme/theme.ts';import Caixa from '/src/pages/Financeiro/Caixa.tsx';createRoot(document.getElementById('root')).render(React.createElement(ThemeProvider,{theme},React.createElement(Caixa)));`;
+    const fixture = `import React from 'react';import {createRoot} from 'react-dom/client';import {ThemeProvider} from '@mui/material';import theme from '/src/theme/theme.ts';import Caixa from '/src/pages/Financeiro/Caixa.tsx';const root=createRoot(document.getElementById('root'));window.desmontarCaixa=()=>root.unmount();root.render(React.createElement(ThemeProvider,{theme},React.createElement(Caixa)));`;
     vite = await createServer({
         cacheDir: "node_modules/.vite-caixa-performance-tests", server: { host: "127.0.0.1", port: 0, hmr: false },
         plugins: [{ name: "caixa-performance-fixture",
@@ -34,6 +34,7 @@ const historico = [{ sessaoId: 8, caixaId: 1, descricaoCaixa: "Turno anterior", 
 
 async function ambiente(t, op = {}) {
     const page = await browser.newPage({ viewport: op.viewport ?? { width: 1440, height: 900 } });
+    if (op.relogio) await page.clock.install();
     t.after(() => page.close()); const chamadas = [], erros = [];
     page.on("pageerror", error => erros.push(error.message));
     await page.addInitScript(() => localStorage.setItem("novexa-auth", JSON.stringify({ token: "fixture", perfil: "ADMIN", id: 4, empresa: { id: 1 } })));
@@ -45,7 +46,11 @@ async function ambiente(t, op = {}) {
         let data, status = 200;
         if (path.endsWith("/abertas")) data = [resumo];
         else if (path === "/financeiro/caixas") data = [{ id: 1, descricao: "Caixa principal", ativo: true }];
-        else if (path.endsWith("/painel")) { await op.aguardarPainel?.(); data = painel; }
+        else if (path.endsWith("/painel")) {
+            if (op.falharPainel?.()) { status = 500; data = { detail: "Falha sintética no painel." }; }
+            else { data = op.painel?.() ?? painel; await op.aguardarPainel?.(); }
+        }
+        else if (path.endsWith("/movimentacoes") && request.method() === "POST") { await op.movimentar?.(); data = {}; }
         else if (path.endsWith("/fechadas")) {
             if (op.falharHistorico?.()) { status = 500; data = "Falha ao consultar o histórico. Tente novamente."; }
             else data = historico;
@@ -73,14 +78,15 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
 
 test("requisição lenta não se sobrepõe e histórico interrompe o polling", async t => {
     let liberar; const pendente = new Promise(resolve => { liberar = resolve; });
-    const a = await ambiente(t, { aguardarPainel: () => pendente });
+    const a = await ambiente(t, { aguardarPainel: () => pendente, relogio: true });
     await expect.poll(a.paineis).toBe(1);
-    await a.page.waitForTimeout(2500); assert.equal(a.paineis(), 1);
+    await a.page.clock.fastForward(30000); assert.equal(a.paineis(), 1);
     liberar(); await expect(a.page.getByRole("heading", { name: "Saldo esperado em dinheiro" })).toBeVisible();
-    await expect.poll(a.paineis, { timeout: 5000 }).toBe(2);
+    await a.page.clock.fastForward(9000); assert.equal(a.paineis(), 1);
+    await a.page.clock.fastForward(1000); await expect.poll(a.paineis).toBe(2);
     await a.page.getByRole("tab", { name: "Caixas Anteriores" }).click();
     await expect(a.page.getByRole("cell", { name: "Turno anterior", exact: true })).toBeVisible();
-    const antes = a.paineis(); await a.page.waitForTimeout(2500); assert.equal(a.paineis(), antes);
+    const antes = a.paineis(); await a.page.clock.fastForward(30000); assert.equal(a.paineis(), antes);
     await a.page.getByRole("tab", { name: "Caixa Atual", exact: true }).click();
     await expect.poll(a.paineis).toBe(antes + 1); assert.deepEqual(a.erros, []);
 });
@@ -96,4 +102,57 @@ test("falha no histórico tem retry próprio e não bloqueia Caixa Atual", async
     await a.page.getByRole("tab", { name: "Caixa Atual", exact: true }).click();
     await expect(a.page.getByRole("heading", { name: "Saldo esperado em dinheiro" })).toBeVisible();
     await expect(a.page.getByRole("alert")).toHaveCount(0); assert.deepEqual(a.erros, []);
+});
+
+test("polling pausa na aba oculta, retoma imediatamente e termina no unmount", async t => {
+    const a = await ambiente(t, { relogio: true });
+    await expect(a.page.getByRole("heading", { name: "Saldo esperado em dinheiro" })).toBeVisible();
+    await a.page.evaluate(() => {
+        Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+        document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await a.page.clock.fastForward(60000); assert.equal(a.paineis(), 1);
+    await a.page.evaluate(() => {
+        Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+        document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await expect.poll(a.paineis).toBe(2);
+    await a.page.evaluate(() => window.desmontarCaixa());
+    await a.page.clock.fastForward(60000); assert.equal(a.paineis(), 2);
+    assert.deepEqual(a.erros, []);
+});
+
+test("retry manual atualiza o painel sem esperar o próximo polling", async t => {
+    let falhar = true;
+    const a = await ambiente(t, { relogio: true, falharPainel: () => falhar });
+    await expect(a.page.getByRole("alert")).toContainText("Falha sintética no painel");
+    falhar = false;
+    await a.page.getByRole("button", { name: "Tentar novamente" }).click();
+    await expect(a.page.getByRole("heading", { name: "Saldo esperado em dinheiro" })).toBeVisible();
+    assert.equal(a.paineis(), 2);
+    assert.deepEqual(a.erros, []);
+});
+
+test("suprimento espera polling pendente e faz releitura imediata após a escrita", async t => {
+    let chamadas = 0, alterado = false, liberar;
+    const pendente = new Promise(resolve => { liberar = resolve; });
+    const a = await ambiente(t, {
+        relogio: true,
+        aguardarPainel: () => ++chamadas === 2 ? pendente : undefined,
+        movimentar: () => { alterado = true; },
+        painel: () => alterado ? { ...painel, resumo: { ...resumo, suprimentos: 20, saldoEsperadoDinheiro: 120 } } : painel,
+    });
+    await expect(a.page.getByRole("heading", { name: "Saldo esperado em dinheiro" })).toBeVisible();
+    await a.page.clock.fastForward(10000);
+    await expect.poll(a.paineis).toBe(2);
+    await a.page.getByRole("button", { name: "Registrar suprimento", exact: true }).click();
+    const dialog = a.page.getByRole("dialog", { name: "Registrar Suprimento" });
+    await dialog.getByRole("textbox", { name: /Valor/ }).fill("20,00");
+    await dialog.getByRole("button", { name: "Confirmar", exact: true }).click();
+    await expect.poll(() => alterado).toBe(true);
+    assert.equal(a.paineis(), 2);
+    liberar();
+    await expect.poll(a.paineis).toBe(3);
+    await expect(a.page.getByText("R$ 120,00", { exact: true }).first()).toBeVisible();
+    assert.deepEqual(a.erros, []);
 });
