@@ -54,6 +54,8 @@ public class SupabaseStorageService implements ArquivoStorageService {
 
             headers.setBearerAuth(supabaseSecretKey);
             headers.set("apikey", supabaseSecretKey);
+            // UUID por objeto: substituicao gera outra URL.
+            headers.setCacheControl("public, max-age=31536000, immutable");
 
             if (arquivo.getContentType() != null) {
                 headers.setContentType(

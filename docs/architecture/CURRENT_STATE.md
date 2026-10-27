@@ -1,3 +1,9 @@
+## Egress Supabase — Tarefa 19, implementação local (2026-10-27)
+
+Logomarca passa a ser carregada por atributo somente quando solicitada, com enhancement Maven restrito a EmpresaEntity, sem alterar o dado/schema ou os contratos de login/Empresa. Painel/resumo de Caixa usam projeção e snapshot read-only; locks das escritas preservados. Polling 10s, pausa em aba oculta e releitura após operações; novos uploads UUID recebem cache imutável de um ano. Nenhuma publicação nesta tarefa; Sprint 17A/17B e V59 preservadas.
+
+233 casos backend e 36 frontend distintos aprovados, um caso backend opcional ignorado; builds/TypeScript e lint direcionado aprovados. Redução medida apenas na fixture local, sem comprovação de redução da cota produtiva; HTTP 402 do Storage depende da situação externa do provedor. Evidências, SQL, arquivos compartilhados com Upload, riscos e plano de publicação em [Tarefa 19](../audits/otimizacao-egress-supabase-tarefa19.md).
+
 ## Estoque 17A/17B — validação local (2026-10-26)
 
 Precisão/reversão de Entradas, bloqueio de movimentação nova em produto inativo e auditoria de DELETE corrigidos. Controle empresarial V59 integrado ao controle individual, faturamento/Kits, snapshot do item e cancelamento histórico; formulário de Empresas reutilizado. Padrão `true` preserva empresas existentes, sem recompor histórico. Autorização empresarial existente ADMIN mantida; GERENTE/OPERADOR/USUARIO não recebem novos privilégios.

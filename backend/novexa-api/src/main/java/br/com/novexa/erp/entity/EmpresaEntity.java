@@ -70,6 +70,8 @@ public class EmpresaEntity {
     private EmpresaCadastroDados cadastro = new EmpresaCadastroDados();
 
     @jakarta.persistence.Column(columnDefinition = "text")
+    @jakarta.persistence.Basic(fetch = jakarta.persistence.FetchType.LAZY)
+    @org.hibernate.annotations.LazyGroup("logomarca")
     private String logomarca;
 
     @OneToMany(mappedBy = "empresa", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)

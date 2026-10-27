@@ -180,6 +180,8 @@ public class UsuarioService {
             throw new AutenticacaoException("A empresa vinculada ao usuário está inativa.");
         }
 
+        // O contrato de login inclui a imagem; inicializar antes de sair da transação.
+        usuario.getEmpresa().getLogomarca();
         return usuario;
     }
 

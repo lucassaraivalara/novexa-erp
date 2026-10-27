@@ -55,10 +55,13 @@ public class CaixaOperacionalService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Somente quem abriu o Caixa pode ver esta sessão.");
     }
 
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public PainelSessaoCaixaDTO painel(Long sessaoId, UsuarioAutenticado usuario) {
-        exigirAcessoLeitura(sessaoId, usuario);
-        // Mesmo lock do resumo/fechamento; as três leituras compartilham a transação.
-        return new PainelSessaoCaixaDTO(resumo(sessaoId, usuario.empresaId()),
+        var sessao = lerResumo(sessaoId, usuario.empresaId());
+        if (!podeVer(sessao.status(), sessao.usuarioId(), usuario))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Somente quem abriu o Caixa pode ver esta sessão.");
+        // Snapshot consistente entre resumo/timeline, sem bloquear as escritas.
+        return new PainelSessaoCaixaDTO(calcular(sessao),
                 movimentos.listarParaCaixa(sessaoId, usuario.empresaId()),
                 vendas.listarTimelineCaixa(usuario.empresaId(), sessaoId));
     }
@@ -125,7 +128,7 @@ public class CaixaOperacionalService {
                 || usuarioAberturaId.equals(usuario.usuarioId());
     }
 
-    // Venda, movimentação manual, resumo e fechamento compartilham o lock desta sessão.
+    // Venda, movimentação manual e fechamento compartilham o lock desta sessão.
     @Transactional(propagation = Propagation.MANDATORY)
     public SessaoCaixaEntity bloquear(Long sessaoId, Long empresaId) {
         var sessao = sessoes.bloquear(sessaoId, empresaId).orElseThrow(() ->
@@ -221,8 +224,9 @@ public class CaixaOperacionalService {
                 sessao, usuario, null, pedido.chaveRequisicao(), pedido.tipo(), pedido.valor(), pedido.observacao())));
     }
 
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public ResumoSessaoCaixaDTO resumo(Long sessaoId, Long empresaId) {
-        return calcular(bloquear(sessaoId, empresaId));
+        return calcular(lerResumo(sessaoId, empresaId));
     }
 
     @Transactional(readOnly = true)
@@ -234,7 +238,24 @@ public class CaixaOperacionalService {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public ResumoSessaoCaixaDTO calcular(SessaoCaixaEntity sessao) {
-        var registros = pagamentos.resumirParaCaixa(sessao.getEmpresa().getId(), sessao.getId());
+        return calcular(new DadosResumo(sessao.getId(), sessao.getEmpresa().getId(), sessao.getCaixa().getId(),
+                sessao.getStatus(), sessao.getSaldoInicial(), sessao.getSaldoFinal(), sessao.getCaixa().getDescricao(),
+                sessao.getDataAbertura(), sessao.getUsuarioAbertura().getId(), sessao.getUsuarioAbertura().getNomeUsuario()));
+    }
+
+    private record DadosResumo(Long id, Long empresaId, Long caixaId, StatusSessaoCaixa status,
+            BigDecimal saldoInicial, BigDecimal saldoFinal, String descricaoCaixa,
+            java.time.LocalDateTime dataAbertura, Long usuarioId, String usuarioNome) { }
+
+    private DadosResumo lerResumo(Long id, Long empresaId) {
+        var s = sessoes.buscarResumoLeitura(id, empresaId).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão de Caixa não encontrada."));
+        return new DadosResumo(s.getId(), s.getEmpresaId(), s.getCaixaId(), s.getStatus(), s.getSaldoInicial(),
+                s.getSaldoFinal(), s.getDescricaoCaixa(), s.getDataAbertura(), s.getUsuarioAberturaId(), s.getUsuarioAberturaNome());
+    }
+
+    private ResumoSessaoCaixaDTO calcular(DadosResumo sessao) {
+        var registros = pagamentos.resumirParaCaixa(sessao.empresaId(), sessao.id());
         Map<Long, ResumoSessaoCaixaDTO.TotalForma> porForma = new LinkedHashMap<>();
         Map<String, ResumoSessaoCaixaDTO.TotalConfiguracao> porConfiguracao = new LinkedHashMap<>();
         BigDecimal total = BigDecimal.ZERO;
@@ -257,8 +278,8 @@ public class CaixaOperacionalService {
                     p.getFormaDescricao(), tipo, p.getValor().add(anterior == null ? BigDecimal.ZERO : anterior.total())));
         }
         BigDecimal dinheiro = BigDecimal.ZERO, suprimentos = BigDecimal.ZERO, sangrias = BigDecimal.ZERO;
-        var chaveAbertura = chaveSaldoInicial(sessao.getId());
-        for (var m : movimentos.resumirParaCaixa(sessao.getId(), sessao.getEmpresa().getId())) {
+        var chaveAbertura = chaveSaldoInicial(sessao.id());
+        for (var m : movimentos.resumirParaCaixa(sessao.id(), sessao.empresaId())) {
             if (m.getTipo() == TipoMovimentacaoCaixa.SUPRIMENTO
                     && chaveAbertura.equals(m.getChaveRequisicao())) continue;
             switch (m.getTipo()) {
@@ -268,12 +289,12 @@ public class CaixaOperacionalService {
                 case SANGRIA -> sangrias = sangrias.add(m.getValor());
             }
         }
-        var esperado = sessao.getSaldoInicial().add(dinheiro).add(suprimentos).subtract(sangrias);
-        return new ResumoSessaoCaixaDTO(sessao.getId(), sessao.getCaixa().getId(), sessao.getStatus(),
-                sessao.getSaldoInicial(), total, List.copyOf(porForma.values()), suprimentos, sangrias,
-            esperado, sessao.getSaldoFinal(), sessao.getSaldoFinal() == null ? null : sessao.getSaldoFinal().subtract(esperado),
-            sessao.getCaixa().getDescricao(), sessao.getDataAbertura(),
-            new ResumoSessaoCaixaDTO.Operador(sessao.getUsuarioAbertura().getId(), sessao.getUsuarioAbertura().getNomeUsuario()), List.copyOf(porConfiguracao.values()));
+        var esperado = sessao.saldoInicial().add(dinheiro).add(suprimentos).subtract(sangrias);
+        return new ResumoSessaoCaixaDTO(sessao.id(), sessao.caixaId(), sessao.status(),
+                sessao.saldoInicial(), total, List.copyOf(porForma.values()), suprimentos, sangrias,
+            esperado, sessao.saldoFinal(), sessao.saldoFinal() == null ? null : sessao.saldoFinal().subtract(esperado),
+            sessao.descricaoCaixa(), sessao.dataAbertura(),
+            new ResumoSessaoCaixaDTO.Operador(sessao.usuarioId(), sessao.usuarioNome()), List.copyOf(porConfiguracao.values()));
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

@@ -8,6 +8,29 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SessaoCaixaRepository extends JpaRepository<SessaoCaixaEntity, Long> {
+    interface ResumoLeitura {
+        Long getId();
+        Long getEmpresaId();
+        Long getCaixaId();
+        String getDescricaoCaixa();
+        StatusSessaoCaixa getStatus();
+        java.math.BigDecimal getSaldoInicial();
+        java.math.BigDecimal getSaldoFinal();
+        java.time.LocalDateTime getDataAbertura();
+        Long getUsuarioAberturaId();
+        String getUsuarioAberturaNome();
+    }
+
+    @org.springframework.data.jpa.repository.Query("""
+            select s.id as id, s.empresa.id as empresaId, s.caixa.id as caixaId,
+              s.caixa.descricao as descricaoCaixa, s.status as status,
+              s.saldoInicial as saldoInicial, s.saldoFinal as saldoFinal,
+              s.dataAbertura as dataAbertura, s.usuarioAbertura.id as usuarioAberturaId,
+              s.usuarioAbertura.nomeUsuario as usuarioAberturaNome
+            from SessaoCaixaEntity s where s.id = :id and s.empresa.id = :empresaId
+            """)
+    Optional<ResumoLeitura> buscarResumoLeitura(Long id, Long empresaId);
+
     interface AcessoSessao {
         StatusSessaoCaixa getStatus();
         Long getUsuarioAberturaId();
