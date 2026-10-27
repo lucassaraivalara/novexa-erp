@@ -242,6 +242,16 @@ Não avançar para módulos fora do escopo da tarefa atual.
 Se uma implementação tecnicamente correta entrar em conflito com os princípios de simplicidade operacional do Novexa, sinalize o conflito antes de executá-la.
 
 
+## Performance e sustentabilidade operacional
+
+Toda funcionalidade de alto impacto deve ser avaliada quanto à correção funcional, segurança, performance e custo operacional. A avaliação deve ser proporcional ao risco; alterações triviais não exigem auditoria completa.
+
+- Verificar campos grandes desnecessários (Base64/BLOB/textos), EAGER, N+1, consultas repetidas e falta de paginação. Preferir projeções ou carregamento seletivo comprovado por SQL; não presumir que LAZY isoladamente funciona.
+- Revisar polling, retries, timers e requisições duplicadas/sobrepostas; suspender atualizações periódicas em abas ocultas, limpar recursos ao desmontar e preservar atualizações após ações. No Caixa, manter a referência de 10 segundos, salvo requisito comprovado.
+- Avaliar tamanho de payloads/arquivos, cache e invalidação, CPU, memória, rede, banco e conexões, considerando o efeito multiplicador por empresas e usuários e as cotas/custos da infraestrutura.
+- Proteger regressões relevantes com testes direcionados e observabilidade sem dados pessoais ou credenciais. Preservar locks de escrita, concorrência e isolamento multiempresa.
+- Separar medições locais, projeções e consumo real do provedor. Para releases de impacto, usar o checklist em `docs/deploy/producao.md`.
+
 ## Regra para auditorias, prompts antigos e trabalho entre agentes
 
 Antes de implementar qualquer correção baseada em:

@@ -1,3 +1,7 @@
+## Prevenção de performance e custos — Tarefa 19D (2026-10-27)
+
+**PERFORMANCE GUARDRAILS READY — implementação local, não publicada.** Diretrizes proporcionais no `AGENTS.md`, checklist de release e procedimento manual diário de egress em `producao.md`. Testes protegem SQL sem logomarca, leitura explícita/login/edição, orçamento de consultas/bytes e métricas HTTP sem exposição pública. `RequestIdFilter` alerta acima de 2.000 ms, com teste de relógio simulado. Validados 13 testes backend direcionados (12 H2/unitários + 1 PostgreSQL), 7 de polling, builds backend/frontend, TypeScript e lint direcionado. Fixture PostgreSQL: 6 SQL, zero SELECT com logomarca, 20.351 bytes de texto JDBC no painel; não é medição de egress faturado. Sem alteração financeira, V59, Upload ou produção. Detalhes e limitações em [relatório 19D](../audits/prevencao-performance-custos-tarefa19d.md).
+
 ## Egress Supabase — Tarefa 19, implementação local (2026-10-27)
 
 Logomarca passa a ser carregada por atributo somente quando solicitada, com enhancement Maven restrito a EmpresaEntity, sem alterar o dado/schema ou os contratos de login/Empresa. Painel/resumo de Caixa usam projeção e snapshot read-only; locks das escritas preservados. Polling 10s, pausa em aba oculta e releitura após operações; novos uploads UUID recebem cache imutável de um ano. Nenhuma publicação nesta tarefa; Sprint 17A/17B e V59 preservadas.

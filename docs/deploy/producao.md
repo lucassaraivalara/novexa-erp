@@ -256,6 +256,44 @@ Executar git a partir da raiz (se estiver no backend, retornar antes do `cd`). R
 - [ ] Logs/alertas e acesso ao suporte por request ID revisados, sem payload/PII ou secrets.
 - [ ] Reboot/restart testados; observar 5xx, latencia, conexoes e integridade; plano de rollback revisado.
 
+### Checklist Preventivo de Performance e Custos (Tarefas com Impacto Operacional)
+
+Aplicavel a alteracoes em fluxos operacionais, consultas frequentes, banco de dados ou timers frontend (nao obrigatorio para tarefas cosmeticas/triviais):
+
+1. **A alteracao introduz consultas frequentes?** Justificar a cadencia operacional e assegurar que leituras frequentes utilizem projecoes enxutas, sem trazer entidades completas.
+2. **Existe carregamento desnecessario de dados?** Assegurar que colunas pesadas (Base64, BLOBs, textos longos, JSONs complexos) nao sejam carregadas sem solicitacao explicita (fetch LAZY com enhancement ou DTOs especificos).
+3. **O numero de usuarios multiplica o custo?** Avaliar se 10, 50 ou 100 caixas/usuarios concorrentes manterao o trafego de egress, o pool de conexoes (Hikari/Supavisor) e a CPU dentro das cotas planejadas.
+4. **Existem polling, retries ou timers?** Garantir intervalos minimos adequados (>= 10s), suspensao quando a aba estiver oculta (document.hidden), ausencia de requisicoes sobrepostas e limpeza no unmount.
+5. **Ha risco de N+1 ou listagens sem limite?** Verificar SQL executado, acessos EAGER e paginacao com limites sanitizados.
+6. **Os testes relevantes protegem contra regressoes?** Testes automatizados (ex.: PerformanceGuardrailsH2Test e caixa-performance.test.mjs) verificam ausencia de colunas pesadas em SQL e estabilidade de polling.
+7. **O backend continua seguro sob concorrencia?** Locks e transacoes em escritas financeiras/estoque permanecem integros; leituras operacionais utilizam snapshots sem locks pessimistas desnecessarios.
+8. **E possivel identificar problemas apos publicacao?** Rotas mapeadas no RequestIdFilter com alertas http_lento para duracoes elevadas (> 2000ms) e metricas http.server.requests no Actuator.
+9. **Existe recuperacao compativel com a alteracao?** Procedimento de rollback (imagem Docker anterior qualificada e compatibilidade de schema Flyway) validado antes do deploy.
+
+### Acompanhamento mínimo de recursos e egress (19D)
+
+Sem novo serviço: `http.server.requests` já coleta contagem, tempo total/máximo e status por template de rota; a taxa de erro é a proporção de 4xx/5xx no período. Métricas Micrometer são locais ao processo e reiniciam com ele; não há exportador/histórico central instalado. Produção expõe somente health, sem detalhes; **não abrir `/actuator/metrics` na internet**. Hikari acompanha conexões ativas/ociosas/pendentes quando disponível.
+
+Para acompanhamento operacional, usar os logs privados já existentes (`http` e `http_lento`, duração > 2.000 ms), agrupando por método/template/status em janelas equivalentes. Priorizar Caixa, Produtos e autenticação; comparar contagem, duração e erros antes/depois. Não coletar corpo, query string, CPF, tokens ou identificadores de empresa/usuário como tags. Request ID permite correlação. Agregação de durações fornece tendência; percentis não estão pré-configurados.
+
+Polling: referência por aba visível e ociosa do Caixa é até 6 chamadas/minuto (intervalo após resposta), zero periódicas em aba oculta. Ações e retorno à aba produzem atualizações extras legítimas; volume agregado depende do número de abas. Crescimento inesperado exige conferir versão do bundle/abas antigas e timers, sem concluir duplicidade apenas pelo agregado. Não há bloqueio automático nem novo rastreamento de usuários.
+
+Consultas lentas: no painel privado do PostgreSQL, usar Query Performance/`pg_stat_statements` quando disponível. Comparar deltas de `calls` e `total_exec_time`, média, máximo e linhas por `queryid`, sem exportar texto SQL/parâmetros ou dados pessoais. Se a extensão não estiver disponível, registrar a lacuna; esta entrega não instala extensão nem habilita logs de binds. `http_lento` identifica HTTP lento, não prova que o banco é a causa. Nenhuma consulta produtiva é necessária para executar os testes locais.
+
+Egress: responsável operacional deve consultar **Organization → Usage**, selecionar ciclo e **cada projeto**, mantendo também o total da organização. No primeiro dia após release e diariamente durante operação, registrar data/hora/fuso, ciclo, projeto, acumulado, consumo diário e distribuição disponível (Shared Pooler, Database, Storage, cached e demais serviços). Comparar períodos completos equivalentes, considerando atraso de atualização. O limite é compartilhado pela organização: não atribuir toda a cota a cada projeto.
+
+| Cota de referência uncached: 5 GB | Ação |
+|---|---|
+| 50% — 2,50 GB | Atenção: revisar variação diária e tendência do ciclo. |
+| 75% — 3,75 GB | Investigar crescimento por projeto/serviço e requisições anormais. |
+| 90% — 4,50 GB | Risco de restrição: comunicar responsável e decidir regularização oficial; não alterar plano automaticamente. |
+
+Projeção simples = acumulado + média dos últimos dias completos × dias restantes; rotular como **estimativa**, sem garantia. Cached e uncached têm franquias próprias: cache não significa tráfego ilimitado/gratuito. Supavisor aparece como Shared Pooler; PostgREST como Database Egress. Os contadores JDBC locais e `docker stats` não equivalem a egress faturado nem comprovam percentual de redução no provedor.
+
+A referência pública da Management API consultada não oferece um contrato de consumo faturado por serviço suficiente para esta automação; usar o painel oficial, sem scraping ou integrações artificiais. O 402 histórico por cota excedida requer verificar ciclo/restrições e opções oficiais com o responsável/Supabase; correção de código não garante desbloqueio nem zera o acumulado. Mudança de plano/cobrança exige autorização específica.
+
+Referências: [egress e categorias oficiais](https://supabase.com/docs/guides/platform/manage-your-usage/egress), [Management API](https://supabase.com/docs/reference/api/introduction), [restrições e cobrança](https://supabase.com/docs/guides/platform/billing-faq).
+
 ## Tarefa 10 — registro de publicação e validação, 2026-10-22
 
 - Git: `main`, push normal de `2189ec4e6825901e29f405bc27f28148415b2f01`; `fe3b69b`, `9e2a6e7` e `7abb43a` já estavam no remoto. Somente os seis arquivos aprovados de estabilização/documentação estavam nesse push; untracked paralelos preservados.

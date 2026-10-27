@@ -59,4 +59,25 @@ class RequestIdFilterTest {
         assertThat(response.getHeader("X-Request-ID")).isNotBlank();
         assertThat(MDC.get("requestId")).isNull();
     }
+
+    @Test void emiteAlertaQuandoRequisicaoExcedeLimiteOperacional() throws Exception {
+        var request = new MockHttpServletRequest("GET", "/financeiro/caixas/sessoes/1/painel");
+        var response = new MockHttpServletResponse();
+        var logger = (Logger) LoggerFactory.getLogger(RequestIdFilter.class);
+        var appender = new ListAppender<ILoggingEvent>();
+        appender.start(); logger.addAppender(appender);
+        var clock = new java.util.concurrent.atomic.AtomicLong();
+        try {
+            new RequestIdFilter(clock::get).doFilter(request, response, (req, res) -> {
+                req.setAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE, "/financeiro/caixas/sessoes/{id}/painel");
+                clock.set(java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(2001));
+            });
+            assertThat(appender.list).hasSize(1);
+            var event = appender.list.getFirst();
+            assertThat(event.getLevel()).isEqualTo(ch.qos.logback.classic.Level.WARN);
+            assertThat(event.getFormattedMessage()).contains("http_lento", "route=/financeiro/caixas/sessoes/{id}/painel");
+        } finally {
+            logger.detachAppender(appender); appender.stop(); MDC.clear();
+        }
+    }
 }

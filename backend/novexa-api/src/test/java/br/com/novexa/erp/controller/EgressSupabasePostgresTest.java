@@ -111,6 +111,12 @@ class EgressSupabasePostgresTest extends CaixaPainelPostgresTest {
                     "decodedJdbcTextBytes",BYTES.get(),"medianMs",tempos.get(2),"sql",List.copyOf(SQL)));
             if(!antes) {
                 assertThat(logos).as(op.getKey()+" não deve buscar logomarca").isZero();
+                // 85 vendas sintéticas: referência de 20.351 bytes/6 SQL no painel.
+                // Folga de >6x em bytes e 2 SQL aceita evolução, mas detecta uma imagem (~972 KB)
+                // ou retorno ao plano legado de 10 SQL. Não compara tempo absoluto.
+                assertThat(BYTES.get()).as(op.getKey()+" orçamento JDBC sintético").isLessThan(128 * 1024L);
+                assertThat(SQL.size()).as(op.getKey()+" orçamento de consultas")
+                        .isLessThanOrEqualTo(op.getKey().equals("painel") ? 8 : 3);
                 if(op.getKey().equals("painel")) assertThat(SQL).noneMatch(s->s.toLowerCase(Locale.ROOT).contains("for no key update") || s.toLowerCase(Locale.ROOT).contains("for update"));
             }
         }

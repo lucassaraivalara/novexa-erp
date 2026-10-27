@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.function.LongSupplier;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
@@ -24,6 +25,16 @@ public class RequestIdFilter extends OncePerRequestFilter {
     public static final String HEADER = "X-Request-ID";
     private static final Pattern VALID_ID = Pattern.compile("[A-Za-z0-9._-]{1,64}");
     private static final Logger log = LoggerFactory.getLogger(RequestIdFilter.class);
+    private static final long LIMITE_LENTO_MS = 2000;
+    private final LongSupplier nanoTime;
+
+    public RequestIdFilter() {
+        this(System::nanoTime);
+    }
+
+    RequestIdFilter(LongSupplier nanoTime) {
+        this.nanoTime = nanoTime;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -33,7 +44,7 @@ public class RequestIdFilter extends OncePerRequestFilter {
         String previous = MDC.get("requestId");
         MDC.put("requestId", id);
         response.setHeader(HEADER, id);
-        long start = System.nanoTime();
+        long start = nanoTime.getAsLong();
         boolean failed = false;
         try {
             chain.doFilter(request, response);
@@ -43,9 +54,14 @@ public class RequestIdFilter extends OncePerRequestFilter {
         } finally {
             // Use the route template, not URL/query/body/credentials or personal data.
             Object route = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-            log.info("http method={} route={} status={} durationMs={}", request.getMethod(),
-                    route == null ? "unmapped" : route, failed ? 500 : response.getStatus(),
-                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+            long durationMs = TimeUnit.NANOSECONDS.toMillis(nanoTime.getAsLong() - start);
+            if (durationMs > LIMITE_LENTO_MS) {
+                log.warn("http_lento method={} route={} status={} durationMs={}", request.getMethod(),
+                        route == null ? "unmapped" : route, failed ? 500 : response.getStatus(), durationMs);
+            } else {
+                log.info("http method={} route={} status={} durationMs={}", request.getMethod(),
+                        route == null ? "unmapped" : route, failed ? 500 : response.getStatus(), durationMs);
+            }
             if (previous == null) MDC.remove("requestId"); else MDC.put("requestId", previous);
         }
     }
