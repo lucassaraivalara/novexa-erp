@@ -1,0 +1,60 @@
+{
+  "status": "PERFORMANCE PRODUCTION PARTIAL",
+  "backend_commit": "dafff828ba66db3c7dc022ff9cf9664263d507b9",
+  "image": "sha256:0f8ebbf6c87f3a0c16983d6df17ebae62a6e6a365216b013b7603b4102cbfa79",
+  "health": "UP",
+  "flyway": "59",
+  "migrations_applied": 0,
+  "only_executable_change": "RequestIdFilter.class",
+  "frontend_executable_changes": false,
+  "recovery_image": "sha256:bb48883a5da850fc6fa8a9ce6ec68be16305393996d8a7f941f1c8a2747a9659",
+  "recovery_archive_verified": true,
+  "smoke_authenticated": "pending session/browser control",
+  "public_smoke": {
+    "/actuator/health": {
+      "status": 200,
+      "request_id": "172018a0-5f82-4dbf-8fdb-a8a3f57ae2c6",
+      "body": "{\"status\":\"UP\",\"groups\":[\"liveness\",\"readiness\"]}"
+    },
+    "/actuator/health/liveness": {
+      "status": 200,
+      "request_id": "f4e5245a-6257-4e8e-ba01-73b7e585e001",
+      "body": "{\"status\":\"UP\"}"
+    },
+    "/actuator/health/readiness": {
+      "status": 200,
+      "request_id": "ba043a10-f958-4d18-b939-3b91c6dbe214",
+      "body": "{\"status\":\"UP\"}"
+    },
+    "/actuator/metrics": {
+      "status": 401,
+      "request_id": "38a67c84-198d-4227-9950-e1524a2e980f"
+    },
+    "/empresas/pagina?page=0&size=1": {
+      "status": 401,
+      "request_id": "f8b3b869-c5ff-4189-81c5-7ab663346f05"
+    },
+    "/produtos/pagina?page=0&size=1": {
+      "status": 401,
+      "request_id": "ce1ef603-44b1-4f77-9824-a37ba0cada86"
+    },
+    "/financeiro/caixas/sessoes/9/painel": {
+      "status": 401,
+      "request_id": "ec038fb5-9de9-41b4-be56-14917795aa89"
+    }
+  },
+  "logs": {
+    "flyway": [
+      "Current version of schema \"public\": 59"
+    ],
+    "http_counts": {
+      "http method=GET route=/actuator/health/** status=200": 4,
+      "http method=GET route=/actuator/health status=200": 1,
+      "http method=GET route=unmapped status=401": 4
+    },
+    "http_levels": {
+      "INFO": 9
+    },
+    "critical_errors": 0
+  }
+}
