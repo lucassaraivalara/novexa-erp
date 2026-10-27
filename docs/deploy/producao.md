@@ -1,5 +1,9 @@
 # Publicacao do Novexa: Oracle Cloud VM / Docker
 
+## Versão vigente — guardrails 19D, 27/10/2026
+
+Backend `dafff828ba66db3c7dc022ff9cf9664263d507b9`, imagem `sha256:0f8ebbf6c87f3a0c16983d6df17ebae62a6e6a365216b013b7603b4102cbfa79`, apenas filtro HTTP alterado. Compose original mais `/home/ubuntu/novexa-release19d-20261027/compose.guardrails19d.yml`; Flyway V59, nenhuma migration aplicada. Health/probes UP. Recuperação direta para a imagem 19B abaixo, arquivada e íntegra; não restaurar banco para esta mudança. Frontend permanece funcionalmente 19B. Smoke autenticado pendente de sessão disponível. [Registro 19D](../audits/publicacao-performance-custos-tarefa19d.md).
+
 ## Horário oficial
 
 Preservar `TZ=America/Sao_Paulo` no Compose e `-Duser.timezone=America/Sao_Paulo` nas opções da JVM da imagem. O bootstrap também fixa a zona antes do Spring iniciar; o startup registra `Horário oficial Novexa: America/Sao_Paulo; zona JVM: America/Sao_Paulo`. Conexões da aplicação executam `SET TIME ZONE 'America/Sao_Paulo'` somente na própria sessão; nenhuma alteração global no PostgreSQL é necessária. Não alterar timestamps históricos durante deploy. O relógio operacional explícito continua correto mesmo quando a máquina usa outra zona. Uma alteração de `JAVA_TOOL_OPTIONS` substitui os defaults completos e deve preservar a opção de timezone. Esta documentação não comprova o runtime da VM; confirmar o log no deploy manual.

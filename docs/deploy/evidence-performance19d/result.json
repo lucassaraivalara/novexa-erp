@@ -56,5 +56,14 @@
       "INFO": 9
     },
     "critical_errors": 0
-  }
+  },
+  "vercel": {
+    "production_deployment": "dpl_Caopn5zN4B6Bsm7D6bcUGQV6H6ic",
+    "state": "READY",
+    "sha": "2a663060865fc2d758e7bf764ae01d2f4d8dd33e",
+    "asset": "/assets/index-C2gEyIYx.js",
+    "unnecessary_auto_build": "dpl_4V6EJQQPpB8oUGTQci5L8pbtXNvD",
+    "auto_build_state": "CANCELED"
+  },
+  "git_staging_head_worktrees_preserved": true
 }
