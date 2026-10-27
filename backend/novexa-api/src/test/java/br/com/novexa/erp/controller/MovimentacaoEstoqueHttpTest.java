@@ -76,6 +76,16 @@ class MovimentacaoEstoqueHttpTest {
     }
 
     @Test
+    void entradaEmProdutoInativoNaoAlteraSaldoNemHistorico() throws Exception {
+        produto1.setAtivo(false); produtos.saveAndFlush(produto1);
+        mvc.perform(post("/estoque/movimentacoes/entrada").header(HttpHeaders.AUTHORIZATION,authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("produtoId",produto1.getId(),"quantidade",1))))
+                .andExpect(status().isConflict());
+        assertThat(movimentos.count()).isZero();
+        assertThat(produtos.findById(produto1.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("100");
+    }
+
+    @Test
     void entradaAutenticadaRetornaSucesso() throws Exception {
         mvc.perform(post("/estoque/movimentacoes/entrada")
                         .header(HttpHeaders.AUTHORIZATION, authorization)

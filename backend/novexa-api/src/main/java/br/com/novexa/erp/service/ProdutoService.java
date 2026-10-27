@@ -326,9 +326,12 @@ public class ProdutoService {
     }
 
     @Transactional
-    public void inativar(Long id, Long empresaId) {
+    public void inativar(Long id, Long empresaId, Long usuarioId) {
         ProdutoEntity produto = buscarPorId(id, empresaId);
+        if (composicoes != null) composicoes.bloquearEdicao(id, empresaId, java.util.List.of());
+        var anterior = produto.getAtivo();
         produto.setAtivo(false);
+        registrarAuditoria(produto, "ativo", anterior, false, usuarioId);
         produtoRepository.save(produto);
     }
 

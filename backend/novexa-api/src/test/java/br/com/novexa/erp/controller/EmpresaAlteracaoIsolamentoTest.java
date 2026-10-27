@@ -61,6 +61,29 @@ class EmpresaAlteracaoIsolamentoTest {
         authorization = br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios, jwtService, empresaA, PerfilUsuario.ADMIN, "02360684663");
     }
 
+    @Test void controleEmpresarialPersisteEPayloadAntigoPreservaValor() throws Exception {
+        var dados=json.readTree(corpoPut());
+        ((com.fasterxml.jackson.databind.node.ObjectNode)dados).put("controlaEstoque",false);
+        mvc.perform(put("/empresas/"+empresaA.getId()).header(HttpHeaders.AUTHORIZATION,authorization)
+            .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(dados)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.controlaEstoque").value(false));
+        mvc.perform(put("/empresas/"+empresaA.getId()).header(HttpHeaders.AUTHORIZATION,authorization)
+            .contentType(MediaType.APPLICATION_JSON).content(corpoPut()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.controlaEstoque").value(false));
+        mvc.perform(get("/empresas/"+empresaA.getId()).header(HttpHeaders.AUTHORIZATION,authorization))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.controlaEstoque").value(false));
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value=PerfilUsuario.class,names={"GERENTE","OPERADOR","USUARIO"})
+    void politicaDeEmpresaContinuaExclusivaDoAdmin(PerfilUsuario perfil) throws Exception {
+        var token=br.com.novexa.erp.support.AutenticacaoTeste.token(usuarios,jwtService,empresaA,perfil,"11144477735");
+        var dados=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(corpoPut()); dados.put("controlaEstoque",false);
+        mvc.perform(put("/empresas/"+empresaA.getId()).header(HttpHeaders.AUTHORIZATION,token)
+            .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(dados))).andExpect(status().isForbidden());
+        mvc.perform(get("/empresas/"+empresaA.getId()).header(HttpHeaders.AUTHORIZATION,token))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.controlaEstoque").value(true));
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     void usuarioAutenticadoAtualizaPropriaEmpresa(boolean informarOutraEmpresa) throws Exception {

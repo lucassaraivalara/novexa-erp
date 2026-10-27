@@ -14,6 +14,12 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "itens_venda")
 public class ItemVendaEntity {
+    @Column private Boolean controleEstoqueAplicado;
+    public Boolean getControleEstoqueAplicado() { return controleEstoqueAplicado; }
+    public void registrarControleEstoque(boolean aplicado) {
+        if (controleEstoqueAplicado != null) throw new IllegalStateException("Controle de estoque já registrado no faturamento.");
+        controleEstoqueAplicado = aplicado;
+    }
     @Column(nullable=false) private long composicaoVersao;
     public long getComposicaoVersao(){return composicaoVersao;}
     @jakarta.persistence.OneToMany(mappedBy="item")

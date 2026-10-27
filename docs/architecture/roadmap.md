@@ -1,5 +1,9 @@
 # Roadmap do Projeto - Novexa ERP
 
+## Estoque — sprint 17A/17B (26/10/2026, local)
+
+Correções de precisão/reversão, produto inativo/auditoria e controle empresarial integrado ao produto implementados e validados em PostgreSQL descartável. Próximo passo: revisão e isolamento dos hunks compartilhados, seguido de publicação autorizada do backend/V59 antes do frontend. Importação de estoque, ajustes em massa e inventário físico não foram iniciados. Evidências e limites no [relatório 17A/17B](../audits/evolucao-estoque-17a-17b-2026-10-26.md).
+
 Auditoria de 2026-10-18 sobre `main/e940972`: descrições históricas abaixo (inclusive fases financeiras marcadas como futuras) não substituem o código atual. Pagamento misto, prazo, PIX e cartão já possuem implementação e testes; a liberação integral permanece pendente por lacunas de validação. Estado e próximos passos comprovados em [CURRENT_STATE.md](CURRENT_STATE.md) e na [auditoria contínua do MVP](../audits/MVP_AUDITORIA_CONTINUA_2026-10-18.md). Nenhuma nova funcionalidade foi priorizada ou implementada nesta revisão.
 
 Balanço posterior das quatro etapas no [relatório final do MVP](../audits/MVP_RELATORIO_FINAL_2026-10-18.md): fixtures/expectativas corrigidas localmente, leitura autenticada concluída e backup V43 restaurável validado. Prioridade restante: homologação operacional integrada em ambiente seguro, comprovação do fechamento por forma em PostgreSQL e decisão fiscal conforme o piloto; sem antecipar módulos ou declarar CONTRACT READY global.

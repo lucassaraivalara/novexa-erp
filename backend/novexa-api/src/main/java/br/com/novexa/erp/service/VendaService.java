@@ -325,16 +325,18 @@ public class VendaService {
         BigDecimal total = subtotal.subtract(desconto).setScale(2, RoundingMode.HALF_UP);
         if (subtotal.compareTo(venda.getSubtotal()) != 0 || total.compareTo(venda.getTotal()) != 0
                 || total.compareTo(pedido.totalEsperado()) != 0) throw conflito("O total mudou. Revise os itens antes de finalizar.");
-        var necessidades = composicoes.necessidades(venda, produtosMap);
-        var insuficientes = necessidades.values().stream()
-            .filter(n -> n.produto().getEstoqueAtual().compareTo(n.quantidade()) < 0)
-            .map(n -> new br.com.novexa.erp.exception.ConfirmacaoEstoqueException.Item(n.produto().getId(),
-                n.produto().getNome(),n.produto().getEstoqueAtual(),n.quantidade())).toList();
-        boolean permitido = Boolean.TRUE.equals(operador.getEmpresa().getPermitirVendaEstoqueNegativo());
-        if (!insuficientes.isEmpty() && (!permitido || !Boolean.TRUE.equals(pedido.confirmarEstoqueInsuficiente())))
-            throw new br.com.novexa.erp.exception.ConfirmacaoEstoqueException(permitido, insuficientes);
         var empresaPolitica = politicasEmpresa.politicaComLock(autenticado.empresaId()).orElseThrow(() -> conflito("Empresa indisponível."));
         entityManager.refresh(empresaPolitica);
+        boolean controlaEstoque = Boolean.TRUE.equals(empresaPolitica.getControlaEstoque());
+        // Validar composicao/atividade mesmo quando a venda nao baixar estoque.
+        var necessidades = composicoes.necessidades(venda, produtosMap);
+        var insuficientes = necessidades.values().stream()
+            .filter(n -> controlaEstoque && n.produto().getEstoqueAtual().compareTo(n.quantidade()) < 0)
+            .map(n -> new br.com.novexa.erp.exception.ConfirmacaoEstoqueException.Item(n.produto().getId(),
+                n.produto().getNome(),n.produto().getEstoqueAtual(),n.quantidade())).toList();
+        boolean permitido = Boolean.TRUE.equals(empresaPolitica.getPermitirVendaEstoqueNegativo());
+        if (!insuficientes.isEmpty() && (!permitido || !Boolean.TRUE.equals(pedido.confirmarEstoqueInsuficiente())))
+            throw new br.com.novexa.erp.exception.ConfirmacaoEstoqueException(permitido, insuficientes);
         var parcelas = prepararPagamentos(pedido, autenticado.empresaId(), total);
         if (empresaPolitica.getModoRecebimentoFinanceiro() == ModoRecebimentoFinanceiro.SIMPLIFICADO
                 && parcelas.stream().anyMatch(p -> (p.forma().getTipo() == TipoFormaPagamento.DEBITO
@@ -345,6 +347,9 @@ public class VendaService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         venda.vincularSessaoCaixa(caixaOperacional.resolverSessao(pedido.sessaoCaixaId(), autenticado.empresaId(), autenticado.usuarioId()));
         for (var item : venda.getItens()) {
+            boolean controleEfetivo = controlaEstoque && Boolean.TRUE.equals(produtosMap.get(item.getProduto().getId()).getControlaEstoque());
+            item.registrarControleEstoque(controleEfetivo);
+            if (!controleEfetivo) continue;
             if (item.getProduto().isComposto()) {
                 composicoes.consumir(item, autenticado.usuarioId(), Boolean.TRUE.equals(pedido.confirmarEstoqueInsuficiente()), estoque);
             } else if (Boolean.TRUE.equals(produtosMap.get(item.getProduto().getId()).getControlaEstoque())) {

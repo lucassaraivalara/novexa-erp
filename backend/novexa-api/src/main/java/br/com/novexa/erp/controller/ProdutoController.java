@@ -147,7 +147,7 @@ public class ProdutoController {
             @PathVariable Long id,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
 
-        produtoService.inativar(id, usuario.empresaId());
+        produtoService.inativar(id, usuario.empresaId(), usuario.usuarioId());
         return ResponseEntity.noContent().build();
     }
 

@@ -27,6 +27,7 @@ public class EmpresaService {
     // POST
     // metodo para cadastrar empresa
     public EmpresaEntity salvar(EmpresaEntity empresa) {
+        empresa.setControlaEstoque(!Boolean.FALSE.equals(empresa.getControlaEstoque()));
         empresa.setPermitirVendaEstoqueNegativo(Boolean.TRUE.equals(empresa.getPermitirVendaEstoqueNegativo()));
         preparar(empresa);
 
@@ -100,7 +101,7 @@ public class EmpresaService {
         // Primeiro verifica se a empresa que queremos
         // atualizar realmente existe.
         EmpresaEntity empresaExistente =
-                empresaRepository.findById(id)
+                empresaRepository.politicaParaAlterar(id)
                         .orElseThrow(() ->
                                 new EmpresaNotFoundException(
                                         "Empresa não encontrada com o ID: " + id
@@ -132,6 +133,9 @@ public class EmpresaService {
         empresaExistente.setTelefone(empresa.getTelefone());
         empresaExistente.setEndereco(empresa.getEndereco());
         empresaExistente.setAtivo(empresa.getAtivo());
+        // Contratos antigos que omitem o campo preservam a configuracao vigente.
+        if (empresa.getControlaEstoque() != null)
+            empresaExistente.setControlaEstoque(empresa.getControlaEstoque());
         if (empresa.getPermitirVendaEstoqueNegativo() != null)
             empresaExistente.setPermitirVendaEstoqueNegativo(empresa.getPermitirVendaEstoqueNegativo());
         empresaExistente.setCadastro(empresa.getCadastro());

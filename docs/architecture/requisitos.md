@@ -1,5 +1,9 @@
 # Requisitos do Sistema - Novexa ERP
 
+## Controle de estoque empresarial — 17B (implementação local)
+
+Novas vendas movimentam estoque apenas com controle empresarial e individual ativos. Desativar/reativar preserva preferências, saldos e movimentos, sem baixas retroativas. Entradas/ajustes explícitos e reversões históricas seguem suas próprias validações. Configuração empresarial reutiliza a autorização ADMIN existente; não amplia privilégios do GERENTE. Precisão, concorrência e snapshots descritos em [estoque.md](estoque.md).
+
 Código interno pode ser omitido no cadastro de Produto: a criação deve persistir um código numérico único por empresa, gerado transacionalmente no backend/PostgreSQL (V47). Código informado mantém a normalização atual e não é substituído; duplicidade é conflito. Edição vazia preserva o código, sem renumerar produtos legados. A mesma geração atende ao procedimento operacional sem código; regras em [produtos.md](produtos.md).
 
 ## Ajustes operacionais aprovados — 2026-10-19

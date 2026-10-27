@@ -1,3 +1,9 @@
+## Estoque 17A/17B — validação local (2026-10-26)
+
+Precisão/reversão de Entradas, bloqueio de movimentação nova em produto inativo e auditoria de DELETE corrigidos. Controle empresarial V59 integrado ao controle individual, faturamento/Kits, snapshot do item e cancelamento histórico; formulário de Empresas reutilizado. Padrão `true` preserva empresas existentes, sem recompor histórico. Autorização empresarial existente ADMIN mantida; GERENTE/OPERADOR/USUARIO não recebem novos privilégios.
+
+336 testes backend aprovados e dois ignorados; 118 frontend aprovados e dois opcionais ignorados, sem somar rodadas sobrepostas. PostgreSQL 18 descartável: HTTP real, matriz empresa/produto, concorrência da configuração, Flyway vazio/V58→V59 e Hibernate validate. Builds/TypeScript aprovados; lint sem erros e dois avisos fora do escopo; diff check aprovado. Sem commit, push, deploy ou intervenção na Mustache. Manifesto, evidências, limites de rollback e trabalhos paralelos no [relatório 17A/17B](../audits/evolucao-estoque-17a-17b-2026-10-26.md).
+
 ## Preparação de publicação dos formulários — 15D (2026-10-25)
 
 **FORM UX RELEASE READY**, restrito à composição frontend isolada e à preparação para autorização. Smoke real em PostgreSQL descartável cobriu Produtos, compras, estoque, kits, PDV com pagamento misto, abertura/fechamento de Caixa, contas a pagar/receber, transferências e estornos. Global: 650 casos, 629 aprovados, 18 falhas preexistentes reproduzidas no HEAD e três opcionais ignorados; o caso HTTP real de Produto foi executado separadamente e aprovado. Build, TypeScript, lint sem erros e diff-check aprovados. Manifesto seletivo, evidências e checklist em [relatório 15D](../audits/padronizacao-formularios-release-2026-10-25.md). Nenhuma publicação autorizada ou realizada; staging paralelo preservado.

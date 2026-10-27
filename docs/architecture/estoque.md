@@ -1,5 +1,17 @@
 # Estoque — Arquitetura e Regras de Negócio
 
+## Controle empresarial e integridade — V59 (17A/17B, implementação local)
+
+Nas novas vendas, `controleEfetivo = empresa.controlaEstoque && produto.controlaEstoque`. O campo empresarial é obrigatório no banco, com padrão `true` para empresas existentes e novas; omissão no PUT preserva o valor atual. A edição reutiliza Empresas e sua autorização vigente (ADMIN). Permitir estoque negativo continua independente e só é aplicado quando há baixa efetiva.
+
+Desativar preserva saldo, preferência individual e histórico. Reativar não recupera vendas do intervalo nem cria movimentos retroativos. Entradas e ajustes explícitos continuam disponíveis pelas regras individuais existentes. Cada item faturado registra `controle_estoque_aplicado`; legado permanece `null`, sem inferência. Cancelamento usa os movimentos originais, mesmo após mudar os controles. Um item novo com snapshot `false` não tem baixa a repor; registros legados mantêm as verificações anteriores de integridade, inclusive de Kits.
+
+Faturamento mantém lock compartilhado da política empresarial até o commit; a edição usa lock exclusivo. Uma mudança concorrente aguarda a venda que já leu a política. Kits preservam as validações estruturais, de atividade e precisão da composição; com controle empresarial desligado não geram consumos nem baixas. Não foi liberada composição com componentes sem controle individual.
+
+Conversões de Entrada são normalizadas em três casas, `HALF_UP`, antes do cálculo do saldo, reproduzindo a escala PostgreSQL existente. Resultado arredondado a zero ou fora de `NUMERIC(19,3)` é rejeitado. Cancelamento confere a integridade e reverte a quantidade persistida, não a multiplicação sem escala. Novas movimentações de produto inativo são bloqueadas; reversões históricas continuam permitidas. DELETE de Produto registra a alteração de `ativo` na auditoria cadastral existente.
+
+Validação, limites e plano de publicação: [relatório 17A/17B](../audits/evolucao-estoque-17a-17b-2026-10-26.md). Nenhuma alteração produtiva ou reparo histórico foi realizado.
+
 ## Composição de Produtos — V46
 
 Kit/Combo não mantém saldo físico nem recebe entrada, saída ou ajuste avulso. Disponibilidade é o menor quociente entre saldo físico disponível de cada componente e seu consumo por kit, truncado a três casas; saldo negativo ou componente inativo/sem controle resulta em disponibilidade zero. Esse resultado é calculado na consulta, inclusive filtros e ordenação remotos; não há outra fonte persistida de saldo nem reserva no rascunho. O MVP tem estoque por empresa, sem depósitos.

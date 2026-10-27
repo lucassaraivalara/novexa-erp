@@ -54,6 +54,11 @@ public class CancelamentoVendaService {
         List<MovimentacaoEstoqueEntity> originais = new ArrayList<>();
         Set<Long> idsMovimentos = new HashSet<>();
         for (var item : venda.getItens()) {
+            if (Boolean.FALSE.equals(item.getControleEstoqueAplicado())) {
+                if (item.getMovimentacaoEstoqueId() != null || !item.getComponentesConsumidos().isEmpty())
+                    throw conflito("Item sem controle de estoque com baixa inesperada. Revise o histórico da venda.");
+                continue;
+            }
             if(item.getComposicaoVersao()>0 && item.getComponentesConsumidos().isEmpty())
                 throw conflito("Histórico de consumo do Kit/Combo incompleto. Cancelamento integral bloqueado.");
             // Ausência de baixa significa item vendido sem controle: não inventar entrada.

@@ -35,11 +35,12 @@ class ProdutoServiceTest {
         @Mock
         private ArquivoStorageService arquivoStorageService;
 
+    @Mock private br.com.novexa.erp.repository.UsuarioRepository usuarios;
     private ProdutoService produtoService;
 
     @BeforeEach
     void configurar() {
-                produtoService = new ProdutoService(produtoRepository, empresaService, arquivoStorageService, fornecedorRepository, org.mockito.Mockito.mock(br.com.novexa.erp.repository.CategoriaProdutoRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.SubcategoriaProdutoRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.MarcaRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.ProdutoFornecedorRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.UsuarioRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.ProdutoAuditoriaRepository.class));
+                produtoService = new ProdutoService(produtoRepository, empresaService, arquivoStorageService, fornecedorRepository, org.mockito.Mockito.mock(br.com.novexa.erp.repository.CategoriaProdutoRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.SubcategoriaProdutoRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.MarcaRepository.class), org.mockito.Mockito.mock(br.com.novexa.erp.repository.ProdutoFornecedorRepository.class), usuarios, org.mockito.Mockito.mock(br.com.novexa.erp.repository.ProdutoAuditoriaRepository.class));
     }
 
     @Test
@@ -128,7 +129,10 @@ class ProdutoServiceTest {
         when(produtoRepository.findByIdAndEmpresaId(1L, 2L))
                 .thenReturn(Optional.of(produto));
 
-        produtoService.inativar(1L, 2L);
+        var usuario = new br.com.novexa.erp.entity.UsuarioEntity();
+        usuario.setEmpresa(empresa);
+        when(usuarios.findByIdAndEmpresaId(3L, 2L)).thenReturn(Optional.of(usuario));
+        produtoService.inativar(1L, 2L, 3L);
 
         assertThat(produto.getAtivo()).isFalse();
         verify(produtoRepository).save(produto);

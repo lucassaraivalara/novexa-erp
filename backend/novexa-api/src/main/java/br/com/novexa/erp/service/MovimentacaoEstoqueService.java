@@ -65,6 +65,9 @@ public class MovimentacaoEstoqueService {
         ProdutoEntity produto = buscarProdutoComLock(produtoId, empresaId);
         UsuarioEntity usuario = buscarUsuario(usuarioId, empresaId);
 
+        if (!Boolean.TRUE.equals(produto.getAtivo()))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "Produto inativo. Reative o cadastro antes de registrar uma nova movimentação.");
         validarProdutoControlaEstoque(produto);
         validarEmpresaUsuario(produto, usuario, empresa);
 

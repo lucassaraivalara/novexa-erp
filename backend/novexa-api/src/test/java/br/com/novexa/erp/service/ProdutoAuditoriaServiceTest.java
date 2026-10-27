@@ -83,6 +83,21 @@ class ProdutoAuditoriaServiceTest {
     }
 
     @Test
+    void inativacaoRegistraAutoriaUmaVezEPreservaProduto() {
+        produtoService.inativar(7001L, 7001L, 7001L);
+        produtoService.inativar(7001L, 7001L, 7001L);
+        assertThat(auditoria.findByEmpresaIdAndProdutoIdOrderByDataHoraDescIdDesc(7001L,7001L))
+            .singleElement().satisfies(r -> {
+                assertThat(r.campo).isEqualTo("ativo");
+                assertThat(r.valorAnterior).isEqualTo("true");
+                assertThat(r.valorNovo).isEqualTo("false");
+                assertThat(r.usuario.getId()).isEqualTo(7001L);
+                assertThat(r.dataHora).isNotNull();
+            });
+        assertThat(jdbc.queryForObject("select count(*) from produtos where id=7001 and not ativo",Integer.class)).isEqualTo(1);
+    }
+
+    @Test
     void atualizacaoSemMudancaNaoGeraAuditoria() {
         produtoService.atualizar(7001L, dadosAlterados(true, true), 7001L, null, false, null, 7001L);
 

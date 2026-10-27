@@ -154,7 +154,7 @@ class EmpresaCadastroTest {
         existente.setEndereco("Endereço anterior");
         var usuario = new UsuarioEntity(); existente.getUsuarios().add(usuario);
         var inscricao = existente.getInscricoesSt().getFirst();
-        when(repository.findById(7L)).thenReturn(Optional.of(existente));
+        when(repository.politicaParaAlterar(7L)).thenReturn(Optional.of(existente));
         var dto = dados(); dto.setEndereco("Endereço anterior");
         dto.setInscricoesSt(List.of(new EmpresaInscricaoStDTO("MG", "0000888", false), new EmpresaInscricaoStDTO("RJ", "0000999", true)));
         var salva = service.atualizarPorId(7L, mapper.paraEntity(dto));

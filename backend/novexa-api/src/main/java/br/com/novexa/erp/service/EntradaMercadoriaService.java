@@ -99,7 +99,7 @@ public class EntradaMercadoriaService {
         for (var item : entrada.getItens()) {
             validarProduto(bloqueados.get(item.getProduto().getId()));
             if (item.getMovimentacaoEstoqueId() != null) throw conflito("Rascunho com movimentacao inconsistente.");
-            var quantidadeEstoque = item.getQuantidade().multiply(item.getFatorConversao());
+            var quantidadeEstoque = quantidadeEstoque(item);
             var movimento = estoque.movimentar(usuario.empresaId(), item.getProduto().getId(), usuario.usuarioId(),
                     TipoMovimentacaoEstoque.ENTRADA, OrigemMovimentacaoEstoque.COMPRA, quantidadeEstoque,
                     "Entrada de mercadoria " + entrada.getId());
@@ -127,7 +127,8 @@ public class EntradaMercadoriaService {
             if (!Objects.equals(original.getProduto().getId(), item.getProduto().getId())
                     || original.getTipo() != TipoMovimentacaoEstoque.ENTRADA
                     || original.getOrigem() != OrigemMovimentacaoEstoque.COMPRA
-                    || original.getQuantidade().compareTo(item.getQuantidade().multiply(item.getFatorConversao())) != 0)
+                    || original.getQuantidade().compareTo(quantidadeEstoque(item)) != 0
+                    || original.getSaldoPosterior().subtract(original.getSaldoAnterior()).compareTo(original.getQuantidade()) != 0)
                 throw conflito("Movimentacao original inconsistente.");
             var reversao = estoque.reverterEntradaCompra(original, usuario.usuarioId(), "Cancelamento da entrada " + id);
             item.setMovimentacaoCancelamentoId(reversao.getId());
@@ -152,6 +153,15 @@ public class EntradaMercadoriaService {
         String padrao = "%" + busca.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
         return PaginaResponseDTO.de(entradas.listarPagina(empresaId, padrao, status, origem, fornecedorId, inicio, fim, pageable),
                 e -> EntradaMercadoriaResponseDTO.de(e, false));
+    }
+
+    // Mesma escala e arredondamento do NUMERIC(19,3) existente, antes de calcular o saldo.
+    // O cancelamento usa o movimento persistido; esta conversao apenas confere sua integridade.
+    private BigDecimal quantidadeEstoque(ItemEntradaMercadoriaEntity item) {
+        var quantidade = item.getQuantidade().multiply(item.getFatorConversao()).setScale(3, RoundingMode.HALF_UP);
+        if (quantidade.signum() <= 0 || quantidade.precision() > 19)
+            throw conflito("Quantidade convertida fora do limite do estoque (três casas decimais). Revise a quantidade ou o fator de conversão.");
+        return quantidade;
     }
 
     private void preencher(EntradaMercadoriaEntity entrada, EntradaMercadoriaRequestDTO p, Long empresaId) {

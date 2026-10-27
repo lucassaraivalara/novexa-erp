@@ -66,6 +66,7 @@ class EstoqueConcorrenciaTest {
     void preparar() {
         sqlProbe.observar = sql -> {};
         transacao().executeWithoutResult(status -> {
+            entityManager.createQuery("delete from ProdutoAuditoriaEntity").executeUpdate();
             movimentos.deleteAllInBatch();
             produtos.deleteAllInBatch();
             usuarios.deleteAllInBatch();
@@ -249,7 +250,7 @@ class EstoqueConcorrenciaTest {
         try (var workers = Executors.newFixedThreadPool(2)) {
             Future<?> edicao = workers.submit(() -> {
                 Runnable alterar = () -> {
-                    if (inativar) cadastro.inativar(produtoId, empresaId);
+                    if (inativar) cadastro.inativar(produtoId, empresaId, usuarioId);
                     else cadastro.atualizar(produtoId, dadosCadastrais(), empresaId);
                 };
                 if (transacaoExterna) transacao().executeWithoutResult(status -> alterar.run());

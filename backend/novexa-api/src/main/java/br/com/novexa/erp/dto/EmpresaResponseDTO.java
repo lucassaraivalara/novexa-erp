@@ -21,6 +21,10 @@ public class EmpresaResponseDTO {
     private Boolean ativo;
 
     private Boolean permitirVendaEstoqueNegativo;
+    private Boolean controlaEstoque;
+    public Boolean getControlaEstoque() { return controlaEstoque; }
+    public void setControlaEstoque(Boolean valor) { controlaEstoque = valor; }
+
 
     public Boolean getPermitirVendaEstoqueNegativo() { return permitirVendaEstoqueNegativo; }
     public void setPermitirVendaEstoqueNegativo(Boolean valor) { permitirVendaEstoqueNegativo = valor; }

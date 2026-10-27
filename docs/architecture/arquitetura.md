@@ -32,6 +32,8 @@ Código interno de novos Produtos é atribuído pelo PostgreSQL quando ausente (
 
 ## Produtos compostos — V46
 
+Complemento local V59: `Empresa.controlaEstoque` condiciona as novas baixas juntamente com a preferência do produto. `ItemVenda.controleEstoqueAplicado` preserva a decisão no faturamento; legado fica nulo. Um kit vendido com snapshot falso não cria consumo físico, e seu cancelamento não fabrica reposição. Regras e locks em [estoque.md](estoque.md).
+
 `Produto(composto, composicaoVersao) → componentes_produto` mantém revisões imutáveis da receita, quantidades/fatores e auditoria. `ItemVenda → consumos_kit_venda → MovimentacaoEstoque` preserva componentes, custo, versão e saída/reversão efetivos. Estoque físico permanece somente nos componentes; disponibilidade e custo do composto são consultas calculadas no banco. Faturamento/cancelamento reutilizam a transação e os efeitos financeiros existentes. Contratos aditivos e limites em [produtos.md](produtos.md).
 
 ## Execucao em producao

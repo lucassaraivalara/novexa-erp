@@ -35,6 +35,70 @@ class EntradaMercadoriaPostgresTest extends EntradaMercadoriaHttpTest {
     @AfterAll static void limparSchema() throws Exception {
         try (var c = DriverManager.getConnection(URL,USER,PASSWORD); var s = c.createStatement()) { s.execute("DROP SCHEMA IF EXISTS " + SCHEMA + " CASCADE"); }
     }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"0.003,0.5,0.002", "1.250,0.5,0.625", "0.001,0.5,0.001", "2.001,0.333,0.666"})
+    void conversaoFracionadaConservaSaldoNoCancelamento(String quantidade, String fator, String efetiva) throws Exception {
+        jdbc.update("insert into produto_fornecedor(empresa_id,produto_id,fornecedor_id,fator_conversao) values (?,?,?,?)",
+                empresa.getId(),produto.getId(),fornecedor.getId(),new BigDecimal(fator));
+        var p=pedido(); p.put("itens",List.of(item(produto,quantidade,"10")));
+        long id=id(criar(p).andExpect(status().isCreated()));
+        operacao(id,"confirmar").andExpect(status().isOk());
+        operacao(id,"confirmar").andExpect(status().isOk());
+        assertThat(saldo(produto)).isEqualByComparingTo(new BigDecimal("10").add(new BigDecimal(efetiva)));
+        assertThat(movimentos.findAll()).singleElement().satisfies(m -> {
+            assertThat(m.getQuantidade()).isEqualByComparingTo(efetiva);
+            assertThat(m.getSaldoPosterior().subtract(m.getSaldoAnterior())).isEqualByComparingTo(efetiva);
+        });
+        operacao(id,"cancelar").andExpect(status().isOk());
+        operacao(id,"cancelar").andExpect(status().isOk());
+        assertThat(saldo(produto)).isEqualByComparingTo("10");
+        assertThat(movimentos.findAll()).hasSize(2).allSatisfy(m -> assertThat(m.getQuantidade()).isEqualByComparingTo(efetiva));
+    }
+    @Test void conversaoQueZerariaEstoqueRejeitaSemEfeitos() throws Exception {
+        jdbc.update("insert into produto_fornecedor(empresa_id,produto_id,fornecedor_id,fator_conversao) values (?,?,?,0.1)",
+                empresa.getId(),produto.getId(),fornecedor.getId());
+        var p=pedido(); p.put("itens",List.of(item(produto2,"1","10"),item(produto,"0.001","10")));
+        long id=id(criar(p).andExpect(status().isCreated()));
+        operacao(id,"confirmar").andExpect(status().isConflict());
+        assertThat(saldo(produto)).isEqualByComparingTo("10");
+        assertThat(saldo(produto2)).isEqualByComparingTo("10");
+        assertThat(movimentos.count()).isZero();
+    }
+
+    @Test void empresaDesligadaPermiteEntradaExplicitaEAjusteEReversaoHistorica() throws Exception {
+        empresa.setControlaEstoque(false); empresas.saveAndFlush(empresa);
+        long id=criarEntrada(); operacao(id,"confirmar").andExpect(status().isOk());
+        assertThat(saldo(produto)).isEqualByComparingTo("15");
+        produto=produtos.findById(produto.getId()).orElseThrow();
+        produto.setAtivo(false); produto.setControlaEstoque(false); produtos.saveAndFlush(produto);
+        operacao(id,"cancelar").andExpect(status().isOk());
+        assertThat(saldo(produto)).isEqualByComparingTo("10");
+        mvc.perform(post("/estoque/movimentacoes/ajuste").header("Authorization",authorization)
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+            .content(json.writeValueAsBytes(Map.of("produtoId",produto2.getId(),"quantidade",7))))
+            .andExpect(status().isCreated());
+        assertThat(saldo(produto2)).isEqualByComparingTo("7");
+    }
+
+    @Test void inativacaoHttpAuditaUmaVezEBloqueiaTenantEAnonimo() throws Exception {
+        mvc.perform(delete("/produtos/"+produto.getId())).andExpect(status().isUnauthorized());
+        mvc.perform(delete("/produtos/"+produto.getId()).header("Authorization",authorizationB)).andExpect(status().isNotFound());
+        mvc.perform(delete("/produtos/"+produto.getId()).header("Authorization",authorization)).andExpect(status().isNoContent());
+        mvc.perform(delete("/produtos/"+produto.getId()).header("Authorization",authorization)).andExpect(status().isNoContent());
+        var rows=jdbc.queryForList("select empresa_id,usuario_id,valor_anterior,valor_novo,data_hora from produto_auditoria where produto_id=? and campo='ativo'",produto.getId());
+        assertThat(rows).singleElement().satisfies(row -> {
+            assertThat(row.get("empresa_id")).isEqualTo(empresa.getId());
+            assertThat(row.get("usuario_id")).isNotNull(); assertThat(row.get("data_hora")).isNotNull();
+            assertThat(row.get("valor_anterior")).isEqualTo("true"); assertThat(row.get("valor_novo")).isEqualTo("false");
+        });
+        assertThat(saldo(produto)).isEqualByComparingTo("10");
+        mvc.perform(post("/estoque/movimentacoes/entrada").header("Authorization",authorization)
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+            .content(json.writeValueAsBytes(Map.of("produtoId",produto.getId(),"quantidade",1))))
+            .andExpect(status().isConflict());
+        assertThat(movimentos.count()).isZero();
+    }
+
     @Test void flywayDoZeroHibernateValidateEPostgres18() {
         assertThat(jdbc.queryForObject("select count(*) from flyway_schema_history where version='34' and success",Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("select version()",String.class)).contains("PostgreSQL 18");

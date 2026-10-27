@@ -56,6 +56,13 @@ public class EmpresaEntity {
     @jakarta.persistence.Column(nullable = false)
     private Boolean permitirVendaEstoqueNegativo = false;
 
+    @jakarta.persistence.Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("true")
+    private Boolean controlaEstoque = true;
+    public Boolean getControlaEstoque() { return controlaEstoque; }
+    public void setControlaEstoque(Boolean valor) { controlaEstoque = valor; }
+
+
     public Boolean getPermitirVendaEstoqueNegativo() { return permitirVendaEstoqueNegativo; }
     public void setPermitirVendaEstoqueNegativo(Boolean valor) { permitirVendaEstoqueNegativo = valor; }
 

@@ -1,5 +1,9 @@
 # Produtos
 
+## Controle efetivo e inativação — 17A/17B (local, 26/10/2026)
+
+O controle individual é preservado; para novas baixas por venda depende também de `empresa.controlaEstoque` (V59), conforme [estoque.md](estoque.md). DELETE continua inativação lógica e agora registra `ativo: true → false`, usuário autenticado, empresa e horário em `produto_auditoria`, reutilizando a mesma trilha da edição. Repetição não cria alteração fictícia. A inativação bloqueia/atualiza o produto antes da escrita para preservar movimentos concorrentes. Novas entradas manuais em produto inativo são 409; reversões históricas usam o movimento original e não exigem reativar o cadastro.
+
 ## Fator de conversão e memória de código de fabricante — V52
 
 A aba **Fornecedores** do cadastro completo passa a aceitar, por vínculo, o **fator de conversão** (`produto_fornecedor.fator_conversao`, `NUMERIC(12,3)` opcional): "1 embalagem comprada desse fornecedor = X unidades do produto" (ex.: 1 maço = 20). Nulo = sem conversão (1:1), comportamento atual. Contrato: `fornecedoresAdicionais[{fornecedorId, codigoReferencia, fatorConversao?}]`; fator inválido (≤ 0 ou mais de 3 casas) é 400. O fornecedor **principal pode constar nos vínculos**: a tabela é a carteira de códigos de fabricante/fator por fornecedor, inclusive do principal, que segue sem campo próprio.
