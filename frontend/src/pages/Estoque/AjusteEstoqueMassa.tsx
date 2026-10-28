@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination, Typography } from "@mui/material";
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, MenuItem, Paper, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination, Tabs, TextField, Typography } from "@mui/material";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
+import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import CampoTexto from "../../components/ui/CampoTexto";
 import { CampoQuantidade } from "../../components/ui/CampoDecimal";
 import { numeroDecimal } from "../../utils/numeroFormulario";
+import { formatarDataHora } from "../../utils/dataHora";
 import { obterSessao } from "../../utils/auth/sessao";
-import { listarProdutosEstoque } from "../../services/estoqueService";
+import { listarHistoricoProduto, listarProdutosEstoque, obterMensagemEstoque, type MovimentacaoEstoque } from "../../services/estoqueService";
 import { confirmarAjusteLote, previaAjusteLote, previaImportacaoEstoque, type PedidoAjusteLote, type ResultadoAjusteLote, type PreviaImportacaoEstoque } from "../../services/ajusteEstoqueLoteService";
 import type { Produto } from "../../types/produto";
 
@@ -13,8 +19,12 @@ const formatar = (v: number | null) => v === null ? "—" : v.toLocaleString("pt
 const decimalPlanilha = (v: string | null) => v == null ? "—" : v.replace(".", ",");
 type Selecionado = { produto: Produto; valor: string };
 
-export default function AjusteEstoqueMassa({ onConcluido }: { onConcluido: () => void }) {
+type Props = { onConcluido: () => void; telaAjuste?: boolean; onTelaAjusteChange?: (aberta: boolean) => void };
+
+export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjusteControlada, onTelaAjusteChange }: Props) {
     const [aberto, setAberto] = useState(false);
+    const [telaAjusteLocal, setTelaAjusteLocal] = useState(false);
+    const telaAjuste = telaAjusteControlada ?? telaAjusteLocal;
     const [modoImportacao, setModoImportacao] = useState(false);
     const [arquivo, setArquivo] = useState<File | null>(null);
     const [busca, setBusca] = useState("");
@@ -32,12 +42,23 @@ export default function AjusteEstoqueMassa({ onConcluido }: { onConcluido: () =>
     const [erro, setErro] = useState("");
     const [enviando, setEnviando] = useState(false);
     const [pendente, setPendente] = useState<PedidoAjusteLote | null>(null);
+    const [abaConferencia, setAbaConferencia] = useState(0);
+    const [produtoHistoricoId, setProdutoHistoricoId] = useState<number | "">("");
+    const [historico, setHistorico] = useState<MovimentacaoEstoque[]>([]);
+    const [paginaHistorico, setPaginaHistorico] = useState(0);
+    const [sizeHistorico, setSizeHistorico] = useState(10);
+    const [totalHistorico, setTotalHistorico] = useState(0);
+    const [carregandoHistorico, setCarregandoHistorico] = useState(false);
+    const [erroHistorico, setErroHistorico] = useState("");
+    const [filtrosHistorico, setFiltrosHistorico] = useState({ tipo: "", origem: "", dataInicial: "", dataFinal: "", sort: "dataHora,desc" });
     const emEnvio = useRef(false);
+    const gatilhoAjuste = useRef<HTMLButtonElement>(null);
+    const telaAnterior = useRef(telaAjuste);
     const admin = obterSessao()?.perfil === "ADMIN";
     const editavel = !previa && !resultado && !pendente && !enviando;
 
     useEffect(() => {
-        if (!aberto || !editavel || modoImportacao) return;
+        if (!telaAjuste || !editavel || modoImportacao || !busca.trim()) return;
         const controller = new AbortController();
         const timer = setTimeout(() => {
             setCarregando(true);
@@ -47,11 +68,36 @@ export default function AjusteEstoqueMassa({ onConcluido }: { onConcluido: () =>
                 .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
         }, 250);
         return () => { clearTimeout(timer); controller.abort(); };
-    }, [aberto, editavel, modoImportacao, busca, pagina]);
+    }, [telaAjuste, editavel, modoImportacao, busca, pagina]);
 
+    const produtoHistorico = itens.find(i => i.produto.id === produtoHistoricoId)?.produto;
+    useEffect(() => {
+        if (!telaAjuste || abaConferencia !== 1 || !produtoHistorico) return;
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => {
+            setCarregandoHistorico(true); setErroHistorico("");
+            listarHistoricoProduto(produtoHistorico.id, { page: paginaHistorico, size: sizeHistorico,
+                sort: filtrosHistorico.sort, tipo: filtrosHistorico.tipo || undefined, origem: filtrosHistorico.origem || undefined,
+                dataInicial: filtrosHistorico.dataInicial || undefined, dataFinal: filtrosHistorico.dataFinal || undefined }, controller.signal)
+                .then(resposta => { if (!controller.signal.aborted) { setHistorico(resposta.items); setTotalHistorico(resposta.totalItems); } })
+                .catch(e => { if (!controller.signal.aborted) { setHistorico([]); setErroHistorico(obterMensagemEstoque(e, "Não foi possível carregar o histórico.")); } })
+                .finally(() => { if (!controller.signal.aborted) setCarregandoHistorico(false); });
+        }, 0);
+        return () => { window.clearTimeout(timer); controller.abort(); };
+    }, [telaAjuste, abaConferencia, produtoHistorico, paginaHistorico, sizeHistorico, filtrosHistorico]);
+
+    function trocarTelaAjuste(aberta: boolean) {
+        setTelaAjusteLocal(aberta); onTelaAjusteChange?.(aberta);
+    }
+    useEffect(() => {
+        if (!telaAjuste && telaAnterior.current) gatilhoAjuste.current?.focus();
+        telaAnterior.current = telaAjuste;
+    }, [telaAjuste]);
     function abrir(importar: boolean) {
         if (resultado) { setItens([]); setMotivo(""); setArquivo(null); }
-        setModoImportacao(importar); setAberto(true); setResultado(null); setPrevia(null); setImportacao(null); setErro("");
+        setModoImportacao(importar); setResultado(null); setPrevia(null); setImportacao(null); setErro("");
+        if (importar) setAberto(true);
+        else { setAbaConferencia(0); setBusca(""); setPagina(0); setProdutos([]); setTotal(0); setCarregando(false); trocarTelaAjuste(true); }
     }
     async function solicitarPrevia() {
         if (emEnvio.current) return;
@@ -107,10 +153,142 @@ export default function AjusteEstoqueMassa({ onConcluido }: { onConcluido: () =>
     }
 
     return <>
-        <Stack direction="row" spacing={1}>
-            <Button variant="outlined" onClick={() => abrir(false)}>Ajuste em massa</Button>
+        {!telaAjuste && <Stack direction="row" spacing={1}>
+            <Button ref={gatilhoAjuste} variant="outlined" startIcon={<TuneRoundedIcon />} onClick={() => abrir(false)}>Ajuste em massa</Button>
             <Button variant="outlined" onClick={() => abrir(true)}>Importar planilha</Button>
-        </Stack>
+        </Stack>}
+        {telaAjuste && <>
+        {telaAjusteControlada === undefined && <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => trocarTelaAjuste(false)}>Voltar para saldos</Button>}
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(360px, .88fr) minmax(520px, 1.12fr)" }, alignItems: "start", gap: 2 }}>
+            <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, minWidth: 0 }}>
+                <Stack spacing={2}>
+                    <Box>
+                        <Typography variant="h6" component="h2">Novo ajuste em massa</Typography>
+                        <Typography variant="body2" color="text.secondary">Informe o saldo físico final. O lote aplica todos os ajustes ou nenhum. Limite de 200 produtos.</Typography>
+                    </Box>
+                    {erro && <Alert severity="error" role="alert">{erro}</Alert>}
+                    <Box>
+                        <CampoTexto name="busca-produto-ajuste" autoComplete="off" label="Pesquisar produtos" placeholder="Código, nome ou código de barras…" value={busca} disabled={!editavel}
+                            onChange={e => { setBusca(e.target.value); setProdutos([]); setTotal(0); setCarregando(false); setPagina(0); }} />
+                        {!busca.trim() && editavel && <Typography variant="caption" color="text.secondary">Pesquise para ver produtos disponíveis.</Typography>}
+                        {busca.trim() && editavel && <Box sx={{ mt: 1, border: 1, borderColor: "divider", borderRadius: 1, maxHeight: 220, overflowY: "auto" }}>
+                            {carregando ? <Typography role="status" sx={{ p: 1.5 }}>Pesquisando…</Typography> : produtos.length === 0 ? <Typography sx={{ p: 1.5 }} color="text.secondary">Nenhum produto encontrado.</Typography> :
+                                <Stack component="ul" role="list" divider={<Divider />} sx={{ listStyle: "none", p: 0, m: 0 }}>
+                                    {produtos.map(p => <Box component="li" key={p.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, px: 1.5, py: 0.75 }}>
+                                        <Box sx={{ minWidth: 0 }}><Typography variant="body2" noWrap>{p.codigoInterno} · {p.nome}</Typography><Typography variant="caption" color="text.secondary">Saldo: {formatar(p.estoqueAtual)}</Typography></Box>
+                                        <Button size="small" startIcon={<AddRoundedIcon />} disabled={!editavel || itens.length >= 200 || itens.some(i => i.produto.id === p.id) || !p.ativo || !p.controlaEstoque || p.composto}
+                                            aria-label={`Adicionar ${p.nome}`} onClick={() => { setItens(atual => [...atual, { produto: p, valor: "" }]); setProdutoHistoricoId(atual => atual || p.id); }}>
+                                            {itens.some(i => i.produto.id === p.id) ? "Adicionado" : "Adicionar"}
+                                        </Button>
+                                    </Box>)}
+                                </Stack>}
+                            {total > 10 && <TablePagination component="div" count={total} page={pagina} rowsPerPage={10} rowsPerPageOptions={[10]} onPageChange={(_, p) => setPagina(p)} />}
+                        </Box>}
+                    </Box>
+                    <Stack direction="row" sx={{ alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
+                        <Typography variant="subtitle2">Produtos selecionados</Typography><Typography variant="caption" color="text.secondary">{itens.length}/200</Typography>
+                    </Stack>
+                    {itens.length === 0 ? <Typography variant="body2" color="text.secondary">Nenhum produto selecionado. Pesquise e adicione produtos para começar.</Typography> :
+                        <Stack divider={<Divider />} sx={{ maxHeight: { xs: 340, lg: 430 }, overflowY: "auto", pr: 0.5 }}>
+                            {itens.slice(paginaItensAtual * 25, (paginaItensAtual + 1) * 25).map(i => {
+                                const linha = linhas?.find(x => x.produtoId === i.produto.id);
+                                return <Box key={i.produto.id} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr) auto", sm: "minmax(0, 1fr) minmax(145px, .55fr) auto" }, alignItems: "center", gap: 1.25, py: 1.25 }}>
+                                    <Box sx={{ minWidth: 0 }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{i.produto.nome}</Typography>
+                                        <Typography variant="caption" color="text.secondary">{i.produto.codigoInterno} · Saldo atual {formatar(linha?.saldoAnterior ?? i.produto.estoqueAtual)}</Typography>
+                                    </Box>
+                                    {editavel ? <CampoQuantidade canonico label={`Saldo físico ${i.produto.nome}`} value={i.valor}
+                                        onValueChange={valor => setItens(atual => atual.map(x => x.produto.id === i.produto.id ? { ...x, valor } : x))} /> :
+                                        <Typography variant="body2" sx={{ fontVariantNumeric: "tabular-nums", gridColumn: { xs: "1 / 2", sm: "auto" } }}>Informado: {formatar(linha?.saldoFinal ?? null)}</Typography>}
+                                    {editavel && <IconButton size="small" aria-label={`Remover ${i.produto.nome}`} onClick={() => {
+                                        const restantes = itens.filter(x => x.produto.id !== i.produto.id); setItens(restantes);
+                                        if (produtoHistoricoId === i.produto.id) setProdutoHistoricoId(restantes[0]?.produto.id ?? "");
+                                    }}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton>}
+                                </Box>;
+                            })}
+                        </Stack>}
+                    {itens.length > 25 && <TablePagination component="div" count={itens.length} page={paginaItensAtual} rowsPerPage={25} rowsPerPageOptions={[25]} onPageChange={(_, p) => setPaginaItens(p)} />}
+                    <CampoTexto name="motivo-ajuste-massa" autoComplete="off" label="Motivo do ajuste em massa" required multiline value={motivo} disabled={!!resultado || !!pendente || enviando}
+                        helperText="Obrigatório; registrado no histórico (até 255 caracteres)." onChange={e => setMotivo(e.target.value)} />
+                    {previa && !resultado ? <Button onClick={() => { setPrevia(null); setImportacao(null); setErro(""); }} disabled={enviando || !!pendente}>Revisar dados</Button> :
+                        !resultado && <Button variant="contained" onClick={() => void solicitarPrevia()} disabled={!valido || enviando || !!pendente}>
+                            {enviando ? "Gerando prévia…" : "Gerar prévia"}
+                        </Button>}
+                </Stack>
+            </Paper>
+            <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, minWidth: 0 }}>
+                <Tabs value={abaConferencia} onChange={(_, v: number) => setAbaConferencia(v)} aria-label="Conferência do estoque" variant="fullWidth">
+                    <Tab label="Prévia de ajustes" id="conferencia-tab-0" aria-controls="conferencia-panel-0" />
+                    <Tab icon={<HistoryRoundedIcon fontSize="small" />} iconPosition="start" label="Histórico" id="conferencia-tab-1" aria-controls="conferencia-panel-1" />
+                </Tabs>
+                <Box role="tabpanel" id={`conferencia-panel-${abaConferencia}`} aria-labelledby={`conferencia-tab-${abaConferencia}`} sx={{ pt: 2 }}>
+                    {abaConferencia === 0 && <Stack spacing={1.5}>
+                        {!previa ? <Box sx={{ py: { xs: 3, sm: 6 }, textAlign: "center" }}>
+                            <Typography variant="subtitle1">A conferência aparecerá aqui</Typography>
+                            <Typography variant="body2" color="text.secondary">Selecione produtos, informe as quantidades físicas e gere a prévia para revisar cada diferença.</Typography>
+                        </Box> : <>
+                            <Alert severity={previsaoValida ? "info" : "warning"}>
+                                {linhas?.length ?? 0} produtos · {linhas?.filter(l => l.erros.length === 0 && l.status !== "SEM_ALTERACAO").length ?? 0} com diferença · {linhas?.filter(l => l.status === "SEM_ALTERACAO").length ?? 0} sem alteração · {linhas?.filter(l => l.erros.length > 0).length ?? 0} inválidos
+                            </Alert>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" } }}>Deslize a tabela para conferir as colunas.</Typography>
+                            <TableContainer tabIndex={0} aria-label="Prévia de diferenças do ajuste" sx={{ maxHeight: { xs: 420, lg: 560 }, overflow: "auto" }}>
+                                <Table size="small" stickyHeader sx={{ minWidth: 650, "& td:nth-of-type(n+2):nth-of-type(-n+4)": { fontVariantNumeric: "tabular-nums" } }}>
+                                    <TableHead><TableRow><TableCell>Produto</TableCell><TableCell align="right">Saldo atual</TableCell><TableCell align="right">Saldo informado</TableCell><TableCell align="right">Diferença</TableCell><TableCell>Validação</TableCell></TableRow></TableHead>
+                                    <TableBody>{itens.slice(paginaItensAtual * 25, (paginaItensAtual + 1) * 25).map(i => {
+                                        const l = linhas?.find(x => x.produtoId === i.produto.id);
+                                        return <TableRow key={i.produto.id}>
+                                            <TableCell>{i.produto.codigoInterno} · {l?.nome ?? i.produto.nome}</TableCell>
+                                            <TableCell align="right">{formatar(l?.saldoAnterior ?? null)}</TableCell>
+                                            <TableCell align="right">{formatar(l?.saldoFinal ?? null)}</TableCell>
+                                            <TableCell align="right">{l?.diferenca != null ? `${l.diferenca > 0 ? "+" : ""}${formatar(l.diferenca)}` : "—"}</TableCell>
+                                            <TableCell>{l?.erros.length ? <Typography variant="caption" color="error">{l.erros.join(" ")}</Typography> : l?.status === "SEM_ALTERACAO" ? "Sem alteração" : resultado ? `Aplicado · movimento ${l?.movimentacaoId ?? "—"}` : "Válido"}</TableCell>
+                                        </TableRow>;
+                                    })}</TableBody>
+                                </Table>
+                            </TableContainer>
+                            {itens.length > 25 && <TablePagination component="div" count={itens.length} page={paginaItensAtual} rowsPerPage={25} rowsPerPageOptions={[25]} onPageChange={(_, p) => setPaginaItens(p)} />}
+                            {resultado ? <Alert severity="success" role="status">Lote confirmado: {resultado.alterados} ajustes aplicados e {resultado.semAlteracao} sem alteração.</Alert> :
+                                <Button variant="contained" onClick={() => void confirmar()} disabled={enviando || !previsaoValida}>
+                                    {enviando ? "Confirmando…" : pendente ? "Tentar novamente com a mesma chave" : "Confirmar ajustes"}
+                                </Button>}
+                        </>}
+                    </Stack>}
+                    {abaConferencia === 1 && <Stack spacing={1.5}>
+                        <TextField select size="small" label="Produto do histórico" value={produtoHistoricoId} onChange={e => { setProdutoHistoricoId(e.target.value ? Number(e.target.value) : ""); setPaginaHistorico(0); }}>
+                            <MenuItem value="">Selecione um produto</MenuItem>{itens.map(i => <MenuItem key={i.produto.id} value={i.produto.id}>{i.produto.codigoInterno} · {i.produto.nome}</MenuItem>)}
+                        </TextField>
+                        {produtoHistorico ? <>
+                            <Stack direction={{ xs: "column", sm: "row" }} useFlexGap spacing={1} sx={{ flexWrap: "wrap" }}>
+                                <TextField select size="small" label="Tipo" value={filtrosHistorico.tipo} sx={{ minWidth: 130 }} onChange={e => { setPaginaHistorico(0); setFiltrosHistorico(f => ({ ...f, tipo: e.target.value })); }}>
+                                    <MenuItem value="">Todos</MenuItem>{["ENTRADA", "SAIDA", "AJUSTE"].map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
+                                </TextField>
+                                <TextField select size="small" label="Origem" value={filtrosHistorico.origem} sx={{ minWidth: 140 }} onChange={e => { setPaginaHistorico(0); setFiltrosHistorico(f => ({ ...f, origem: e.target.value })); }}>
+                                    <MenuItem value="">Todas</MenuItem>{["MANUAL", "VENDA", "COMPRA", "AJUSTE", "CANCELAMENTO"].map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
+                                </TextField>
+                                <TextField type="date" size="small" label="Data inicial" value={filtrosHistorico.dataInicial} slotProps={{ inputLabel: { shrink: true } }} onChange={e => { setPaginaHistorico(0); setFiltrosHistorico(f => ({ ...f, dataInicial: e.target.value })); }} />
+                                <TextField type="date" size="small" label="Data final" value={filtrosHistorico.dataFinal} slotProps={{ inputLabel: { shrink: true } }} onChange={e => { setPaginaHistorico(0); setFiltrosHistorico(f => ({ ...f, dataFinal: e.target.value })); }} />
+                                <TextField select size="small" label="Ordem" value={filtrosHistorico.sort} onChange={e => { setPaginaHistorico(0); setFiltrosHistorico(f => ({ ...f, sort: e.target.value })); }}>
+                                    <MenuItem value="dataHora,desc">Mais recentes</MenuItem><MenuItem value="dataHora,asc">Mais antigas</MenuItem>
+                                </TextField>
+                            </Stack>
+                            {erroHistorico && <Alert severity="error" role="alert">{erroHistorico}</Alert>}
+                            <TableContainer sx={{ maxHeight: { xs: 420, lg: 560 }, overflow: "auto" }}>
+                                <Table size="small" stickyHeader>
+                                    <TableHead><TableRow><TableCell>Data</TableCell><TableCell>Tipo / origem</TableCell><TableCell align="right">Quantidade</TableCell><TableCell>Motivo</TableCell></TableRow></TableHead>
+                                    <TableBody>{carregandoHistorico ? <TableRow><TableCell colSpan={4}><Typography role="status">Carregando histórico…</Typography></TableCell></TableRow> : historico.length === 0 ? <TableRow><TableCell colSpan={4}>Nenhuma movimentação encontrada.</TableCell></TableRow> : historico.map(m => <TableRow key={m.id}>
+                                        <TableCell>{formatarDataHora(m.dataHora)}</TableCell><TableCell>{m.tipo} · {m.origem}</TableCell>
+                                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{formatar(m.quantidade)}</TableCell><TableCell>{m.motivo || "Sem motivo informado"}</TableCell>
+                                    </TableRow>)}</TableBody>
+                                </Table>
+                            </TableContainer>
+                            <TablePagination component="div" count={totalHistorico} page={paginaHistorico} rowsPerPage={sizeHistorico} rowsPerPageOptions={[10, 25, 50]}
+                                onPageChange={(_, p) => setPaginaHistorico(p)} onRowsPerPageChange={e => { setSizeHistorico(Number(e.target.value)); setPaginaHistorico(0); }} />
+                        </> : <Typography color="text.secondary">Adicione um produto ao ajuste para consultar as movimentações dele.</Typography>}
+                    </Stack>}
+                </Box>
+            </Paper>
+        </Box>
+        </>}
         <Dialog open={aberto} fullWidth maxWidth="lg" aria-labelledby="ajuste-massa-titulo" onClose={() => { if (!enviando && !pendente) setAberto(false); }}>
             <DialogTitle id="ajuste-massa-titulo">{modoImportacao ? "Importar estoque por planilha" : "Ajuste em massa · Saldo físico"}</DialogTitle>
             <DialogContent dividers>

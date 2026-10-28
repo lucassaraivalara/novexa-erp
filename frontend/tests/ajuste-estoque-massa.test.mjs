@@ -39,6 +39,11 @@ async function ambiente(t, options = {}) {
         if (url.pathname === "/produtos") {
             buscas.push(Object.fromEntries(url.searchParams));
             data = { items: produtos, page: 0, size: 10, totalItems: 2, totalPages: 1 };
+        } else if (url.pathname.startsWith("/estoque/movimentacoes/produto/")) {
+            pedidos.push({ path: url.pathname, params: Object.fromEntries(url.searchParams) });
+            data = { items: [{ id: 90, produtoId: 1, produtoNome: "Produto A", tipo: "AJUSTE", origem: "AJUSTE", quantidade: 2,
+                saldoAnterior: 10, saldoPosterior: 12, motivo: "Contagem anterior", dataHora: "2026-10-27T12:00:00-03:00", usuarioId: 1, nomeUsuario: "Admin" }],
+                page: Number(url.searchParams.get("page") ?? 0), size: Number(url.searchParams.get("size") ?? 10), totalItems: 1, totalPages: 1 };
         } else if (url.pathname.endsWith("/importacao/previa")) {
             assert.match(req.headers()["content-type"], /multipart\/form-data/);
             pedidos.push({ path: url.pathname });
@@ -78,7 +83,7 @@ async function ambiente(t, options = {}) {
 }
 async function preencher(page) {
     await page.getByRole("button", { name: "Ajuste em massa", exact: true }).click();
-    await page.getByRole("textbox", { name: "Pesquisar produtos para ajuste" }).fill("Produto");
+    await page.getByRole("textbox", { name: "Pesquisar produtos" }).fill("Produto");
     await page.getByRole("button", { name: "Adicionar Produto A", exact: true }).click();
     await page.getByRole("textbox", { name: "Saldo físico Produto A", exact: true }).fill("15.125");
     await page.getByRole("textbox", { name: "Motivo do ajuste em massa" }).fill("Contagem de conferência");
@@ -95,7 +100,7 @@ for (const mobile of [false, true]) test(`seleção, fração, prévia e confirm
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
     await page.getByRole("button", { name: "Confirmar ajustes", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Lote confirmado");
-    await expect(page.getByText("Movimento 41", { exact: true })).toBeVisible();
+    await expect(page.getByRole("cell").filter({ hasText: "movimento 41" })).toBeVisible();
     assert.equal(await page.evaluate(() => window.atualizacoes), 1);
     assert.equal(pedidos[1].itens[0].saldoEsperado, 10);
     assert.ok(pedidos[1].chaveRequisicao); assert.equal(buscas.at(-1).size, "10"); assert.deepEqual(erros, []);
@@ -124,6 +129,7 @@ test("motivo obrigatório, prévia inválida e teclado", async t => {
     const { page } = await ambiente(t, { invalido: true });
     await page.getByRole("button", { name: "Ajuste em massa", exact: true }).focus(); await page.keyboard.press("Enter");
     await expect(page.getByRole("button", { name: "Gerar prévia", exact: true })).toBeDisabled();
+    await page.getByRole("textbox", { name: "Pesquisar produtos" }).fill("Produto A");
     await page.getByRole("button", { name: "Adicionar Produto A", exact: true }).focus(); await page.keyboard.press("Enter");
     await page.getByRole("textbox", { name: "Saldo físico Produto A", exact: true }).fill("1");
     await expect(page.getByRole("button", { name: "Gerar prévia", exact: true })).toBeDisabled();
@@ -143,11 +149,34 @@ test("confirmação em andamento desabilita ações e não apresenta sucesso ant
         await preencher(page); await page.getByRole("button", { name: "Gerar prévia", exact: true }).click();
         await page.getByRole("button", { name: "Confirmar ajustes", exact: true }).click();
         await expect(page.getByRole("button", { name: "Confirmando…", exact: true })).toBeDisabled();
-        await expect(page.getByRole("button", { name: "Cancelar", exact: true })).toBeDisabled();
+        await expect(page.getByRole("button", { name: "Revisar dados", exact: true })).toBeDisabled();
         await expect(page.getByText("Lote confirmado", { exact: false })).toHaveCount(0);
         assert.equal(pedidos.filter(p => p.path.endsWith("confirmar")).length, 1);
         liberar(); await expect(page.getByRole("status")).toContainText("Lote confirmado");
     } finally { liberar(); }
+});
+
+for (const mobile of [false, true]) test(`tela dedicada mantém seleção ao voltar e reutiliza histórico ${mobile ? "mobile" : "desktop"}`, async t => {
+    const { page, pedidos } = await ambiente(t, { mobile });
+    await page.getByRole("button", { name: "Ajuste em massa", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Novo ajuste em massa" })).toBeVisible();
+    await page.getByRole("textbox", { name: "Pesquisar produtos" }).fill("Produto A");
+    await page.getByRole("button", { name: "Adicionar Produto A", exact: true }).click();
+    await page.getByRole("textbox", { name: "Saldo físico Produto A", exact: true }).fill("12,5");
+    await page.getByRole("textbox", { name: "Motivo do ajuste em massa" }).fill("Contagem parcial");
+    await page.getByRole("tab", { name: "Histórico" }).click();
+    await page.getByRole("combobox", { name: "Tipo" }).click();
+    await page.getByRole("option", { name: "SAIDA", exact: true }).click();
+    await expect(page.getByRole("cell", { name: "Contagem anterior" })).toBeVisible();
+    if (!mobile) await page.screenshot({ path: "node_modules/sprint20g-historico-desktop.png", fullPage: true, animations: "disabled" });
+    const consulta = pedidos.find(p => p.path.startsWith("/estoque/movimentacoes/produto/") && p.params.tipo === "SAIDA");
+    assert.equal(consulta.path, "/estoque/movimentacoes/produto/1");
+    assert.equal(consulta.params.tipo, "SAIDA");
+    await page.getByRole("button", { name: "Voltar para saldos", exact: true }).click();
+    await page.getByRole("button", { name: "Ajuste em massa", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: "Saldo físico Produto A", exact: true })).toHaveValue("12,500");
+    await expect(page.getByRole("textbox", { name: "Motivo do ajuste em massa" })).toHaveValue("Contagem parcial");
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
 });
 
 test("importa CSV gera previa e confirma pelo contrato 20B", async t => {

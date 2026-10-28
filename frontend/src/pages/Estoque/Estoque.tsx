@@ -3,6 +3,7 @@ import { CampoQuantidade } from "../../components/ui/CampoDecimal";
 import { numeroDecimal } from "../../utils/numeroFormulario";
 import { formatarDataHora } from "../../utils/dataHora";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import InputRoundedIcon from "@mui/icons-material/InputRounded";
 import OutputRoundedIcon from "@mui/icons-material/OutputRounded";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
@@ -88,6 +89,7 @@ function SaldoEstoque() {
     const [salvando, setSalvando] = useState(false);
     const [totalItems, setTotalItems] = useState(0);
     const [revisao, setRevisao] = useState(0);
+    const [telaAjusteMassa, setTelaAjusteMassa] = useState(false);
     const [situacao, setSituacao] = useState(situacaoInicial && situacoesFiltro.includes(situacaoInicial) ? situacaoInicial : "");
     const [ordenacao, setOrdenacao] = useState({ campo: "nome", direcao: "asc" as "asc" | "desc" });
     const [paginaHistorico, setPaginaHistorico] = useState(0);
@@ -196,8 +198,9 @@ function SaldoEstoque() {
         ? novoSaldoEsperado(operacao!, dialogo.produto.estoqueAtual, valor) : null;
 
     return <PageContainer>
-        <PageHeader titulo="Saldo" descricao="Consulte saldos. A entrada avulsa movimenta um produto; o ajuste define o novo saldo físico." />
-        <AjusteEstoqueMassa onConcluido={() => setRevisao(r => r + 1)} />
+        <PageHeader titulo={telaAjusteMassa ? "Ajuste de estoque em massa" : "Saldo"} descricao={telaAjusteMassa ? "Informe saldos físicos e confira as diferenças antes de confirmar." : "Consulte saldos e movimentações de estoque."} acoesSecundarias={telaAjusteMassa ? <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => setTelaAjusteMassa(false)}>Voltar para saldos</Button> : undefined} />
+        <AjusteEstoqueMassa onConcluido={() => setRevisao(r => r + 1)} telaAjuste={telaAjusteMassa} onTelaAjusteChange={setTelaAjusteMassa} />
+        <Box sx={{ display: telaAjusteMassa ? "none" : undefined }}>
         {erro && <Alert severity="error" onClose={() => setErro("")}>{erro}</Alert>}
         <Stack spacing={1.5}>
             <PageFilters
@@ -292,5 +295,6 @@ function SaldoEstoque() {
                 onRowsPerPageChange={e => { setSizeHistorico(Number(e.target.value)); setPaginaHistorico(0); }} />
             <DialogActions><Button type="button" onClick={() => setHistoricoProduto(null)}>Fechar</Button></DialogActions>
         </Dialog>
+        </Box>
     </PageContainer>;
 }
