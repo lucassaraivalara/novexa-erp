@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, MenuItem, Paper, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination, Tabs, TextField, Typography } from "@mui/material";
+import { Alert, Autocomplete, Box, Button, ClickAwayListener, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, MenuItem, Paper, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination, Tabs, TextField, Typography } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
@@ -28,6 +28,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
     const [modoImportacao, setModoImportacao] = useState(false);
     const [arquivo, setArquivo] = useState<File | null>(null);
     const [busca, setBusca] = useState("");
+    const [buscaAberta, setBuscaAberta] = useState(false);
     const [pagina, setPagina] = useState(0);
     const [paginaItens, setPaginaItens] = useState(0);
     const [paginaImportacao, setPaginaImportacao] = useState(0);
@@ -159,19 +160,22 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
         </Stack>}
         {telaAjuste && <>
         {telaAjusteControlada === undefined && <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => trocarTelaAjuste(false)}>Voltar para saldos</Button>}
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(360px, .88fr) minmax(520px, 1.12fr)" }, alignItems: "start", gap: 2 }}>
-            <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, minWidth: 0 }}>
-                <Stack spacing={2}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, .9fr) minmax(0, 1.1fr)" }, alignItems: "start", gap: 1.5 }}>
+            <Paper variant="outlined" sx={{ p: 1.5, minWidth: 0 }}>
+                <Stack spacing={1.5}>
                     <Box>
-                        <Typography variant="h6" component="h2">Novo ajuste em massa</Typography>
+                        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }}>Novo ajuste em massa</Typography>
                         <Typography variant="body2" color="text.secondary">Informe o saldo físico final. O lote aplica todos os ajustes ou nenhum. Limite de 200 produtos.</Typography>
                     </Box>
                     {erro && <Alert severity="error" role="alert">{erro}</Alert>}
-                    <Box>
-                        <CampoTexto name="busca-produto-ajuste" autoComplete="off" label="Pesquisar produtos" placeholder="Código, nome ou código de barras…" value={busca} disabled={!editavel}
-                            onChange={e => { setBusca(e.target.value); setProdutos([]); setTotal(0); setCarregando(false); setPagina(0); }} />
+                    <ClickAwayListener onClickAway={() => setBuscaAberta(false)}><Box sx={{ position: "relative" }} onKeyDown={e => {
+                        if (e.key === "Escape") { setBuscaAberta(false); e.stopPropagation(); }
+                        if (e.key === "ArrowDown" && e.target instanceof HTMLInputElement) { e.preventDefault(); e.currentTarget.querySelector<HTMLButtonElement>('button[aria-label^="Adicionar"]:not(:disabled)')?.focus(); }
+                    }}>
+                        <CampoTexto fullWidth size="small" name="busca-produto-ajuste" autoComplete="off" label="Pesquisar produtos" placeholder="Código, nome ou código de barras…" value={busca} disabled={!editavel}
+                            onClick={() => setBuscaAberta(true)} onFocus={() => setBuscaAberta(true)} onChange={e => { setBuscaAberta(true); setBusca(e.target.value); setProdutos([]); setTotal(0); setCarregando(false); setPagina(0); }} />
                         {!busca.trim() && editavel && <Typography variant="caption" color="text.secondary">Pesquise para ver produtos disponíveis.</Typography>}
-                        {busca.trim() && editavel && <Box sx={{ mt: 1, border: 1, borderColor: "divider", borderRadius: 1, maxHeight: 220, overflowY: "auto" }}>
+                        {buscaAberta && busca.trim() && editavel && <Paper variant="outlined" role="region" aria-label="Resultados da pesquisa" sx={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 5, mt: 0.5, maxHeight: 240, overflowY: "auto", boxShadow: 2 }}>
                             {carregando ? <Typography role="status" sx={{ p: 1.5 }}>Pesquisando…</Typography> : produtos.length === 0 ? <Typography sx={{ p: 1.5 }} color="text.secondary">Nenhum produto encontrado.</Typography> :
                                 <Stack component="ul" role="list" divider={<Divider />} sx={{ listStyle: "none", p: 0, m: 0 }}>
                                     {produtos.map(p => <Box component="li" key={p.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, px: 1.5, py: 0.75 }}>
@@ -183,32 +187,37 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                                     </Box>)}
                                 </Stack>}
                             {total > 10 && <TablePagination component="div" count={total} page={pagina} rowsPerPage={10} rowsPerPageOptions={[10]} onPageChange={(_, p) => setPagina(p)} />}
-                        </Box>}
-                    </Box>
+                        </Paper>}
+                    </Box></ClickAwayListener>
                     <Stack direction="row" sx={{ alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
                         <Typography variant="subtitle2">Produtos selecionados</Typography><Typography variant="caption" color="text.secondary">{itens.length}/200</Typography>
                     </Stack>
                     {itens.length === 0 ? <Typography variant="body2" color="text.secondary">Nenhum produto selecionado. Pesquise e adicione produtos para começar.</Typography> :
-                        <Stack divider={<Divider />} sx={{ maxHeight: { xs: 340, lg: 430 }, overflowY: "auto", pr: 0.5 }}>
+                        <Box>
+                        <Box aria-hidden="true" sx={{ display: { xs: "none", sm: "grid" }, gridTemplateColumns: "minmax(0, 1fr) 72px 132px 36px", gap: 1, py: 0.75, px: 0.5, bgcolor: "action.hover", fontSize: 12, color: "text.secondary" }}>
+                            <span>Produto</span><Box sx={{ textAlign: "right" }}>Atual</Box><Box sx={{ textAlign: "right" }}>Saldo físico</Box><span />
+                        </Box>
+                        <Stack divider={<Divider />} sx={{ maxHeight: { xs: 280, lg: "clamp(150px, 32vh, 350px)" }, overflowY: "auto", overscrollBehavior: "contain" }}>
                             {itens.slice(paginaItensAtual * 25, (paginaItensAtual + 1) * 25).map(i => {
                                 const linha = linhas?.find(x => x.produtoId === i.produto.id);
-                                return <Box key={i.produto.id} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr) auto", sm: "minmax(0, 1fr) minmax(145px, .55fr) auto" }, alignItems: "center", gap: 1.25, py: 1.25 }}>
-                                    <Box sx={{ minWidth: 0 }}>
-                                        <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{i.produto.nome}</Typography>
-                                        <Typography variant="caption" color="text.secondary">{i.produto.codigoInterno} · Saldo atual {formatar(linha?.saldoAnterior ?? i.produto.estoqueAtual)}</Typography>
+                                return <Box key={i.produto.id} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr) 132px 36px", sm: "minmax(0, 1fr) 72px 132px 36px" }, alignItems: "center", gap: 1, py: 0.75, px: 0.5 }}>
+                                    <Box sx={{ minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
+                                        <Typography variant="body2" title={i.produto.nome} sx={{ fontWeight: 500, overflowWrap: "anywhere" }}>{i.produto.nome}</Typography>
+                                        <Typography variant="caption" color="text.secondary">{i.produto.codigoInterno}</Typography>
                                     </Box>
-                                    {editavel ? <CampoQuantidade canonico label={`Saldo físico ${i.produto.nome}`} value={i.valor}
+                                    <Typography variant="body2" sx={{ textAlign: { xs: "left", sm: "right" }, fontVariantNumeric: "tabular-nums" }}><Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>Atual: </Box>{formatar(linha?.saldoAnterior ?? i.produto.estoqueAtual)}</Typography>
+                                    {editavel ? <CampoQuantidade canonico size="small" label="Saldo físico" rotuloAcessivel={`Saldo físico ${i.produto.nome}`} value={i.valor}
                                         onValueChange={valor => setItens(atual => atual.map(x => x.produto.id === i.produto.id ? { ...x, valor } : x))} /> :
-                                        <Typography variant="body2" sx={{ fontVariantNumeric: "tabular-nums", gridColumn: { xs: "1 / 2", sm: "auto" } }}>Informado: {formatar(linha?.saldoFinal ?? null)}</Typography>}
+                                        <Typography variant="body2" sx={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{formatar(linha?.saldoFinal ?? null)}</Typography>}
                                     {editavel && <IconButton size="small" aria-label={`Remover ${i.produto.nome}`} onClick={() => {
                                         const restantes = itens.filter(x => x.produto.id !== i.produto.id); setItens(restantes);
                                         if (produtoHistoricoId === i.produto.id) setProdutoHistoricoId(restantes[0]?.produto.id ?? "");
-                                    }}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton>}
+                                    }} sx={{ minWidth: 36, minHeight: 36 }}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton>}
                                 </Box>;
                             })}
-                        </Stack>}
+                        </Stack></Box>}
                     {itens.length > 25 && <TablePagination component="div" count={itens.length} page={paginaItensAtual} rowsPerPage={25} rowsPerPageOptions={[25]} onPageChange={(_, p) => setPaginaItens(p)} />}
-                    <CampoTexto name="motivo-ajuste-massa" autoComplete="off" label="Motivo do ajuste em massa" required multiline value={motivo} disabled={!!resultado || !!pendente || enviando}
+                    <CampoTexto fullWidth size="small" maxRows={3} name="motivo-ajuste-massa" autoComplete="off" label="Motivo do ajuste em massa" required multiline value={motivo} disabled={!!resultado || !!pendente || enviando}
                         helperText="Obrigatório; registrado no histórico (até 255 caracteres)." onChange={e => setMotivo(e.target.value)} />
                     {previa && !resultado ? <Button onClick={() => { setPrevia(null); setImportacao(null); setErro(""); }} disabled={enviando || !!pendente}>Revisar dados</Button> :
                         !resultado && <Button variant="contained" onClick={() => void solicitarPrevia()} disabled={!valido || enviando || !!pendente}>
@@ -216,22 +225,22 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                         </Button>}
                 </Stack>
             </Paper>
-            <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, minWidth: 0 }}>
+            <Paper variant="outlined" sx={{ p: 1.5, minWidth: 0, "& .MuiTableCell-root": { py: 0.75, px: 1, fontSize: 13, overflowWrap: "anywhere" }, "& .MuiTableCell-head": { fontWeight: 600 } }}>
                 <Tabs value={abaConferencia} onChange={(_, v: number) => setAbaConferencia(v)} aria-label="Conferência do estoque" variant="fullWidth">
                     <Tab label="Prévia de ajustes" id="conferencia-tab-0" aria-controls="conferencia-panel-0" />
                     <Tab icon={<HistoryRoundedIcon fontSize="small" />} iconPosition="start" label="Histórico" id="conferencia-tab-1" aria-controls="conferencia-panel-1" />
                 </Tabs>
-                <Box role="tabpanel" id={`conferencia-panel-${abaConferencia}`} aria-labelledby={`conferencia-tab-${abaConferencia}`} sx={{ pt: 2 }}>
+                <Box role="tabpanel" id={`conferencia-panel-${abaConferencia}`} aria-labelledby={`conferencia-tab-${abaConferencia}`} sx={{ pt: 1.5 }}>
                     {abaConferencia === 0 && <Stack spacing={1.5}>
-                        {!previa ? <Box sx={{ py: { xs: 3, sm: 6 }, textAlign: "center" }}>
-                            <Typography variant="subtitle1">A conferência aparecerá aqui</Typography>
+                        {!previa ? <Box sx={{ py: 1 }}>
+                            <Typography variant="subtitle2">A conferência aparecerá aqui</Typography>
                             <Typography variant="body2" color="text.secondary">Selecione produtos, informe as quantidades físicas e gere a prévia para revisar cada diferença.</Typography>
                         </Box> : <>
                             <Alert severity={previsaoValida ? "info" : "warning"}>
                                 {linhas?.length ?? 0} produtos · {linhas?.filter(l => l.erros.length === 0 && l.status !== "SEM_ALTERACAO").length ?? 0} com diferença · {linhas?.filter(l => l.status === "SEM_ALTERACAO").length ?? 0} sem alteração · {linhas?.filter(l => l.erros.length > 0).length ?? 0} inválidos
                             </Alert>
                             <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" } }}>Deslize a tabela para conferir as colunas.</Typography>
-                            <TableContainer tabIndex={0} aria-label="Prévia de diferenças do ajuste" sx={{ maxHeight: { xs: 420, lg: 560 }, overflow: "auto" }}>
+                            <TableContainer tabIndex={0} aria-label="Prévia de diferenças do ajuste" sx={{ maxHeight: { xs: 360, lg: "clamp(180px, 48vh, 520px)" }, overflow: "auto" }}>
                                 <Table size="small" stickyHeader sx={{ minWidth: 650, "& td:nth-of-type(n+2):nth-of-type(-n+4)": { fontVariantNumeric: "tabular-nums" } }}>
                                     <TableHead><TableRow><TableCell>Produto</TableCell><TableCell align="right">Saldo atual</TableCell><TableCell align="right">Saldo informado</TableCell><TableCell align="right">Diferença</TableCell><TableCell>Validação</TableCell></TableRow></TableHead>
                                     <TableBody>{itens.slice(paginaItensAtual * 25, (paginaItensAtual + 1) * 25).map(i => {
@@ -254,9 +263,9 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                         </>}
                     </Stack>}
                     {abaConferencia === 1 && <Stack spacing={1.5}>
-                        <TextField select size="small" label="Produto do histórico" value={produtoHistoricoId} onChange={e => { setProdutoHistoricoId(e.target.value ? Number(e.target.value) : ""); setPaginaHistorico(0); }}>
-                            <MenuItem value="">Selecione um produto</MenuItem>{itens.map(i => <MenuItem key={i.produto.id} value={i.produto.id}>{i.produto.codigoInterno} · {i.produto.nome}</MenuItem>)}
-                        </TextField>
+                        <Autocomplete size="small" options={itens.map(i => i.produto)} value={produtoHistorico ?? null} isOptionEqualToValue={(a, b) => a.id === b.id}
+                            getOptionLabel={p => `${p.codigoInterno} · ${p.nome}`} onChange={(_, p) => { setProdutoHistoricoId(p?.id ?? ""); setPaginaHistorico(0); }}
+                            renderInput={params => <TextField {...params} label="Produto do histórico" placeholder="Pesquisar nos selecionados…" />} />
                         {produtoHistorico ? <>
                             <Stack direction={{ xs: "column", sm: "row" }} useFlexGap spacing={1} sx={{ flexWrap: "wrap" }}>
                                 <TextField select size="small" label="Tipo" value={filtrosHistorico.tipo} sx={{ minWidth: 130 }} onChange={e => { setPaginaHistorico(0); setFiltrosHistorico(f => ({ ...f, tipo: e.target.value })); }}>
@@ -272,12 +281,13 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                                 </TextField>
                             </Stack>
                             {erroHistorico && <Alert severity="error" role="alert">{erroHistorico}</Alert>}
-                            <TableContainer sx={{ maxHeight: { xs: 420, lg: 560 }, overflow: "auto" }}>
-                                <Table size="small" stickyHeader>
-                                    <TableHead><TableRow><TableCell>Data</TableCell><TableCell>Tipo / origem</TableCell><TableCell align="right">Quantidade</TableCell><TableCell>Motivo</TableCell></TableRow></TableHead>
-                                    <TableBody>{carregandoHistorico ? <TableRow><TableCell colSpan={4}><Typography role="status">Carregando histórico…</Typography></TableCell></TableRow> : historico.length === 0 ? <TableRow><TableCell colSpan={4}>Nenhuma movimentação encontrada.</TableCell></TableRow> : historico.map(m => <TableRow key={m.id}>
-                                        <TableCell>{formatarDataHora(m.dataHora)}</TableCell><TableCell>{m.tipo} · {m.origem}</TableCell>
-                                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{formatar(m.quantidade)}</TableCell><TableCell>{m.motivo || "Sem motivo informado"}</TableCell>
+                            <TableContainer tabIndex={0} aria-label="Histórico de movimentações" sx={{ maxHeight: { xs: 360, lg: "clamp(180px, 48vh, 520px)" }, overflow: "auto" }}>
+                                <Table size="small" stickyHeader sx={{ minWidth: 940 }}>
+                                    <TableHead><TableRow><TableCell>Data</TableCell><TableCell>Código</TableCell><TableCell>Produto</TableCell><TableCell>Tipo / origem</TableCell><TableCell>Entrada / saída</TableCell><TableCell align="right">Quantidade</TableCell><TableCell>Motivo</TableCell><TableCell>Usuário</TableCell></TableRow></TableHead>
+                                    <TableBody>{carregandoHistorico ? <TableRow><TableCell colSpan={8}><Typography role="status">Carregando histórico…</Typography></TableCell></TableRow> : historico.length === 0 ? <TableRow><TableCell colSpan={8}>Nenhuma movimentação encontrada.</TableCell></TableRow> : historico.map(m => <TableRow key={m.id}>
+                                        <TableCell sx={{ whiteSpace: "nowrap" }}>{formatarDataHora(m.dataHora)}</TableCell><TableCell>{produtoHistorico.codigoInterno}</TableCell><TableCell sx={{ minWidth: 140, maxWidth: 200 }}>{m.produtoNome}</TableCell><TableCell>{m.tipo} · {m.origem}</TableCell>
+                                        <TableCell>{m.saldoPosterior > m.saldoAnterior ? "Entrada" : m.saldoPosterior < m.saldoAnterior ? "Saída" : "Sem variação"}</TableCell>
+                                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{formatar(m.quantidade)}</TableCell><TableCell sx={{ minWidth: 140, maxWidth: 220 }}>{m.motivo || "Sem motivo informado"}</TableCell><TableCell>{m.nomeUsuario || "—"}</TableCell>
                                     </TableRow>)}</TableBody>
                                 </Table>
                             </TableContainer>
