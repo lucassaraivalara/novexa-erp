@@ -74,6 +74,7 @@ public class SecurityConfig {
                             .hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.PUT, "/financeiro/caixas/**").hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.DELETE, "/financeiro/caixas/**").hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers("/estoque/ajustes-lote", "/estoque/ajustes-lote/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 // Registrado apenas na cadeia do Spring Security, evitando execução dupla pelo servlet container.
                 .addFilterBefore(new JwtAuthenticationFilter(jwtService, errorHandler, usuarios),

@@ -74,6 +74,16 @@ public class MovimentacaoEstoqueService {
         return aplicarMovimentacao(empresa, produto, usuario, tipo, origem, quantidade, motivo);
     }
 
+    // Exclusivo do lote: produtos já bloqueados e validados na transação atômica do chamador.
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    MovimentacaoEstoqueEntity ajustarLote(EmpresaEntity empresa, ProdutoEntity produto, UsuarioEntity usuario,
+            BigDecimal saldoFinal, String motivo) {
+        validarProdutoControlaEstoque(produto);
+        validarEmpresaUsuario(produto,usuario,empresa);
+        return aplicarMovimentacao(empresa,produto,usuario,TipoMovimentacaoEstoque.AJUSTE,
+                OrigemMovimentacaoEstoque.AJUSTE,saldoFinal,motivo);
+    }
+
     // Exclusivo do núcleo de cancelamento, sob lock da Venda e na transação do chamador.
     // Reverte uma baixa histórica mesmo se o cadastro deixou de controlar estoque.
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
