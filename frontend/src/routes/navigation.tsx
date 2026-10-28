@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- Metadados compartilhados de navega??o com componentes lazy est?veis. */
 import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
 import AccountBalanceRoundedIcon from "@mui/icons-material/AccountBalanceRounded";
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
@@ -8,29 +9,29 @@ import AddShoppingCartRoundedIcon from "@mui/icons-material/AddShoppingCartRound
 import WarehouseRoundedIcon from "@mui/icons-material/WarehouseRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import PaymentsRoundedIcon from "@mui/icons-material/PaymentsRounded";
-import type { ReactNode } from "react";
-import Caixa from "../pages/Financeiro/Caixa";
-import Clientes from "../pages/Clientes/Clientes";
-import Dashboard from "../pages/Dashboard/Dashboard";
-import Empresa from "../pages/Empresa/Empresa";
-import Estoque from "../pages/Estoque/Estoque";
-import Produtos from "../pages/Produtos/ProdutosArea";
-import CentralVendas from "../pages/Vendas/CentralVendas";
-import Vendas from "../pages/Vendas/Vendas";
-import DadosBancarios from "../pages/Financeiro/DadosBancarios";
-import FormasPagamento from "../pages/Financeiro/FormasPagamento";
-import Usuarios from "../pages/Usuarios/Usuarios";
-import ContasPagar from "../pages/Financeiro/ContasPagar";
-import ContasReceber from "../pages/Financeiro/ContasReceber";
+import { lazy, type ReactNode } from "react";
+const Caixa = lazy(() => import("../pages/Financeiro/Caixa"));
+const Clientes = lazy(() => import("../pages/Clientes/Clientes"));
+const Dashboard = lazy(() => import("../pages/Dashboard/Dashboard"));
+const Empresa = lazy(() => import("../pages/Empresa/Empresa"));
+const Estoque = lazy(() => import("../pages/Estoque/Estoque"));
+const Produtos = lazy(() => import("../pages/Produtos/ProdutosArea"));
+const CentralVendas = lazy(() => import("../pages/Vendas/CentralVendas"));
+const Vendas = lazy(() => import("../pages/Vendas/Vendas"));
+const DadosBancarios = lazy(() => import("../pages/Financeiro/DadosBancarios"));
+const FormasPagamento = lazy(() => import("../pages/Financeiro/FormasPagamento"));
+const Usuarios = lazy(() => import("../pages/Usuarios/Usuarios"));
+const ContasPagar = lazy(() => import("../pages/Financeiro/ContasPagar"));
+const ContasReceber = lazy(() => import("../pages/Financeiro/ContasReceber"));
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
 import SavingsRoundedIcon from "@mui/icons-material/SavingsRounded";
-import ContasFinanceiras from "../pages/Financeiro/ContasFinanceiras";
+const ContasFinanceiras = lazy(() => import("../pages/Financeiro/ContasFinanceiras"));
 import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
-import Recebiveis from "../pages/Financeiro/Recebiveis";
-import ConfiguracaoRecebimentos from "../pages/Configuracoes/ConfiguracaoRecebimentos";
-import Configuracoes from "../pages/Configuracoes/Configuracoes";
-import CategoriasProdutos from "../pages/Produtos/CategoriasProdutos";
-import Marcas from "../pages/Produtos/Marcas";
+const Recebiveis = lazy(() => import("../pages/Financeiro/Recebiveis"));
+const ConfiguracaoRecebimentos = lazy(() => import("../pages/Configuracoes/ConfiguracaoRecebimentos"));
+const Configuracoes = lazy(() => import("../pages/Configuracoes/Configuracoes"));
+const CategoriasProdutos = lazy(() => import("../pages/Produtos/CategoriasProdutos"));
+const Marcas = lazy(() => import("../pages/Produtos/Marcas"));
 
 export type RotaInterna = {
     caminho: string;

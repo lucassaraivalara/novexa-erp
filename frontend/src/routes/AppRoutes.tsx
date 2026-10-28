@@ -1,7 +1,8 @@
-import { type ReactNode } from "react";
+import { lazy, type ReactNode } from "react";
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
-import Login from "../pages/Login/Login";
+import RouteContent from "./RouteContent";
+const Login = lazy(() => import("../pages/Login/Login"));
 import { obterSessao, possuiSessao } from "../utils/auth/sessao";
 import { podeGerenciarUsuarios } from "../utils/auth/perfis";
 import { rotaPdv, rotasInternas } from "./navigation";
@@ -34,20 +35,20 @@ function AppRoutes() {
                 path="/login"
                 element={
                     <RotaPublica>
-                        <Login />
+                        <RouteContent><Login /></RouteContent>
                     </RotaPublica>
                 }
             />
 
             <Route element={<RotaProtegida />}>
-                <Route path={rotaPdv.caminho} element={rotaPdv.elemento} />
+                <Route path={rotaPdv.caminho} element={<RouteContent>{rotaPdv.elemento}</RouteContent>} />
                 <Route element={<MainLayout />}>
                     {rotasInternas.map((rota) => (
                         <Route
                             key={rota.caminho}
                             path={rota.caminho}
                             element={rota.caminho === "usuarios" && !podeGerenciarUsuarios(obterSessao()?.perfil)
-                                ? <Navigate to="/dashboard" replace /> : rota.elemento}
+                                ? <Navigate to="/dashboard" replace /> : <RouteContent key={rota.caminho}>{rota.elemento}</RouteContent>}
                         />
                     ))}
                 </Route>
