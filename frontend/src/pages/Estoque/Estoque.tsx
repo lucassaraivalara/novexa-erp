@@ -25,6 +25,7 @@ import {
 } from "../../services/estoqueService";
 import { novoSaldoEsperado, situacaoEstoque, type SituacaoEstoque } from "./estoqueRegras";
 import EntradasMercadoria from "./EntradasMercadoria";
+import AjusteEstoqueMassa from "./AjusteEstoqueMassa";
 
 const quantidadeFormatada = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 });
 type Operacao = TipoMovimentacaoEstoque;
@@ -196,6 +197,7 @@ function SaldoEstoque() {
 
     return <PageContainer>
         <PageHeader titulo="Saldo" descricao="Consulte saldos. A entrada avulsa movimenta um produto; o ajuste define o novo saldo físico." />
+        <AjusteEstoqueMassa onConcluido={() => setRevisao(r => r + 1)} />
         {erro && <Alert severity="error" onClose={() => setErro("")}>{erro}</Alert>}
         <Stack spacing={1.5}>
             <PageFilters
