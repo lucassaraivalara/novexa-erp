@@ -6,12 +6,12 @@ import fs from 'node:fs';
 
 let vite, browser, base;
 const beforeView = process.env.NOVEXA_G1_BEFORE === '1';
-const output = '../docs/audits/assets/sprint20g1';
+const output = '../docs/audits/assets/sprint20g2';
 before(async () => {
     fs.mkdirSync(output, { recursive: true });
     const component = beforeView ? 'AjusteEstoqueMassa20g1Before' : 'AjusteEstoqueMassa';
     const fixture = `import React from 'react';import {createRoot} from 'react-dom/client';import {CssBaseline} from '@mui/material';import {ThemeModeProvider} from '/src/theme/ThemeModeProvider.tsx';import Ajuste from '/src/pages/Estoque/${component}.tsx';createRoot(document.getElementById('root')).render(React.createElement(ThemeModeProvider,null,React.createElement(CssBaseline),React.createElement('div',{style:{padding:16}},React.createElement(Ajuste,{onConcluido:()=>{}}))));`;
-    vite = await createServer({ cacheDir: 'node_modules/.vite-compact-test', server: { host: '127.0.0.1', port: 0, hmr: false }, plugins: [{
+    vite = await createServer({ optimizeDeps: { entries: ["src/pages/Estoque/AjusteEstoqueMassa.tsx"], include: ["react", "react-dom/client"] }, cacheDir: 'node_modules/.vite-compact-test', server: { host: '127.0.0.1', port: 0, hmr: false }, plugins: [{
         name: 'compact-fixture', resolveId(id) { if (id === '/compact.tsx') return '\0compact.tsx'; },
         load(id) { if (id === '\0compact.tsx') return fixture; },
         configureServer(server) { server.middlewares.use('/__compact', async (_, res) => { res.setHeader('Content-Type', 'text/html'); res.end(await server.transformIndexHtml('/__compact', '<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="/compact.tsx"></script>')); }); },
@@ -64,6 +64,7 @@ for (const [width, height] of [[1366, 768], [1920, 1080], [390, 844]]) for (cons
             }
             if (!beforeView) {
                 assert.equal(await page.getByRole('textbox', { name: /^Saldo físico Produto/ }).count(), 25, 'renderização limitada à página');
+                await page.getByRole('textbox', { name: 'Motivo do ajuste em massa' }).scrollIntoViewIfNeeded();
                 await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toBeInViewport();
                 await page.getByRole('textbox', { name: 'Motivo do ajuste em massa' }).fill('Contagem sintética');
                 await page.getByRole('button', { name: 'Remover Produto 001', exact: true }).click();

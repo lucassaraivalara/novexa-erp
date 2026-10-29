@@ -6,7 +6,7 @@ import { chromium, expect } from "@playwright/test";
 let vite, browser, base;
 before(async () => {
     const fixture = `import React from 'react';import {createRoot} from 'react-dom/client';import {CssBaseline} from '@mui/material';import {ThemeModeProvider} from '/src/theme/ThemeModeProvider.tsx';import Ajuste from '/src/pages/Estoque/AjusteEstoqueMassa.tsx';window.atualizacoes=0;createRoot(document.getElementById('root')).render(React.createElement(ThemeModeProvider,null,React.createElement(CssBaseline),React.createElement(Ajuste,{onConcluido:()=>window.atualizacoes++})));`;
-    vite = await createServer({ cacheDir: "node_modules/.vite-ajuste-massa", server: { host: "127.0.0.1", port: 0, hmr: false },
+    vite = await createServer({ optimizeDeps: { entries: ["src/pages/Estoque/AjusteEstoqueMassa.tsx"], include: ["react", "react-dom/client"] }, cacheDir: "node_modules/.vite-ajuste-massa", server: { host: "127.0.0.1", port: 0, hmr: false },
         plugins: [{ name: "ajuste-massa-fixture",
             resolveId(id) { if (id === "/ajuste-massa.js") return "\0ajuste-massa.js"; },
             load(id) { if (id === "\0ajuste-massa.js") return fixture; },
@@ -24,6 +24,7 @@ after(async () => { await browser?.close(); await vite?.close(); });
 const produtos = [{ id: 1, nome: "Produto A", codigoInterno: "001", ativo: true, controlaEstoque: true, composto: false, estoqueAtual: 10 },
     { id: 2, nome: "Produto B", codigoInterno: "002", ativo: true, controlaEstoque: true, composto: false, estoqueAtual: 20 }];
 async function ambiente(t, options = {}) {
+    const catalogo = options.catalogo ?? produtos;
     const page = await browser.newPage({ viewport: options.mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 } });
     t.after(() => page.close());
     await page.addInitScript(mode => localStorage.setItem("novexa-theme-choice", mode), options.theme ?? "light");
@@ -38,7 +39,7 @@ async function ambiente(t, options = {}) {
         let data, status = 200;
         if (url.pathname === "/produtos") {
             buscas.push(Object.fromEntries(url.searchParams));
-            data = { items: produtos, page: 0, size: 10, totalItems: 2, totalPages: 1 };
+            data = { items: catalogo, page: 0, size: 10, totalItems: catalogo.length, totalPages: 1 };
         } else if (url.pathname.startsWith("/estoque/movimentacoes/produto/")) {
             pedidos.push({ path: url.pathname, params: Object.fromEntries(url.searchParams) });
             data = { items: [{ id: 90, produtoId: 1, produtoNome: "Produto A", tipo: "AJUSTE", origem: "AJUSTE", quantidade: 2,
@@ -61,6 +62,8 @@ async function ambiente(t, options = {}) {
             };
         } else {
             const p = req.postDataJSON(); pedidos.push({ path: url.pathname, ...p });
+            if (options.falhaRedePrevia && url.pathname.endsWith('/previa')) return route.abort('failed');
+            if (options.erroPrevia && url.pathname.endsWith('/previa')) return route.fulfill({ status: options.erroPrevia, headers: { ...headers, 'x-request-id': 'fixture-request', 'access-control-expose-headers': 'x-request-id' }, json: options.mensagemPrevia ?? 'Detalhe técnico que não deve aparecer em erro interno' });
             assert.equal(p.empresaId, undefined); assert.equal(p.usuarioId, undefined);
             const confirmacao = url.pathname.endsWith("confirmar");
             if (confirmacao && options.falharUmaVez && pedidos.filter(p => p.path.endsWith("confirmar")).length === 1) return route.abort("failed");
@@ -68,7 +71,7 @@ async function ambiente(t, options = {}) {
             if (confirmacao && options.conflito) { status = 409; data = "Atualize a prévia"; }
             else {
                 data = { chaveRequisicao: p.chaveRequisicao ?? null, alterados: confirmacao ? p.itens.length : 0, semAlteracao: 0,
-                    itens: p.itens.map(i => { const produto = produtos.find(p => p.id === i.produtoId); return {
+                    itens: p.itens.map(i => { const produto = catalogo.find(p => p.id === i.produtoId); return {
                         produtoId: i.produtoId, nome: produto.nome, codigoInterno: produto.codigoInterno, unidade: "UN",
                         saldoAnterior: produto.estoqueAtual, saldoFinal: Number(i.valor), diferenca: Number(i.valor) - produto.estoqueAtual,
                         ultimaMovimentacaoId: null, status: options.invalido ? "INVALIDO" : confirmacao ? "APLICADO" : "VALIDO",
@@ -88,6 +91,65 @@ async function preencher(page) {
     await page.getByRole("textbox", { name: "Saldo físico Produto A", exact: true }).fill("15.125");
     await page.getByRole("textbox", { name: "Motivo do ajuste em massa" }).fill("Contagem de conferência");
 }
+
+test('P014 saldo zero e físico 10,000 envia decimal canônico e mostra entrada +10,000', async t => {
+    const { page, pedidos, erros } = await ambiente(t, { catalogo: [{ ...produtos[0], id: 14, nome: 'Bala de Menta', codigoInterno: 'P014', estoqueAtual: 0 }] });
+    await page.getByRole('button', { name: 'Ajuste em massa', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Pesquisar produtos' }).fill('P014');
+    await page.getByRole('button', { name: 'Adicionar Bala de Menta', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Saldo físico Bala de Menta', exact: true }).fill('10,000');
+    await page.getByRole('textbox', { name: 'Motivo do ajuste em massa' }).fill('teste');
+    await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
+    await expect(page.getByRole('cell', { name: '+10,000', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Entrada', exact: true })).toBeVisible();
+    assert.equal(pedidos.length, 1); assert.equal(pedidos[0].itens[0].produtoId, 14); assert.equal(pedidos[0].itens[0].valor, '10.000');
+    assert.equal(pedidos[0].motivo, 'teste'); assert.deepEqual(erros, []);
+    await expect(page.getByRole('button', { name: 'Gerar prévia', exact: true })).toBeEnabled();
+    await page.screenshot({ path: 'node_modules/sprint20g2-menta-previa.png', fullPage: true, animations: 'disabled' });
+});
+
+test('erros de prévia explicam HTTP sem descartar rascunho ou expor erro interno', async t => {
+    for (const [status, expected] of [[400, 'Motivo obrigatório.'], [401, 'Sessão não autorizada'], [403, 'ADMIN'], [404, 'versão do backend local'], [500, 'HTTP 500']]) {
+        const { page, pedidos } = await ambiente(t, { erroPrevia: status, mensagemPrevia: status === 400 ? 'Motivo obrigatório.' : undefined });
+        await preencher(page);
+        await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
+        await expect(page.getByRole('alert').filter({ hasText: expected })).toBeVisible();
+        await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('Contagem de conferência');
+        await expect(page.getByRole('button', { name: 'Confirmar ajustes', exact: true })).toHaveCount(0);
+        if (status === 500) { await expect(page.getByText('Detalhe técnico que não deve aparecer em erro interno')).toHaveCount(0); await expect(page.getByText(/fixture-request/)).toBeVisible(); }
+        assert.equal(pedidos.length, 1);
+    }
+});
+
+test('falha de rede na prévia informa indisponibilidade e preserva o rascunho', async t => {
+    const { page, pedidos } = await ambiente(t, { falhaRedePrevia: true });
+    await preencher(page);
+    await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Não foi possível acessar a API de estoque');
+    await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('Contagem de conferência');
+    await expect(page.getByRole('button', { name: 'Confirmar ajustes', exact: true })).toHaveCount(0);
+    assert.equal(pedidos.length, 1);
+});
+
+test('saída, zero e edição invalidam a prévia anterior; lixeira mantém tooltip', async t => {
+    const { page, pedidos } = await ambiente(t);
+    await preencher(page);
+    const input = page.getByRole('textbox', { name: 'Saldo físico Produto A', exact: true });
+    await input.fill('7,500');
+    await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
+    await expect(page.getByRole('cell', { name: '-2,500', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Saída', exact: true })).toBeVisible();
+    await input.fill('10,000');
+    await expect(page.getByRole('button', { name: 'Confirmar ajustes', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
+    await expect(page.getByRole('cell', { name: '0,000', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Sem alteração', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Remover Produto A', exact: true }).hover();
+    await expect(page.getByRole('tooltip', { name: 'Remover Produto A' })).toBeVisible();
+    await page.getByRole('button', { name: 'Remover Produto A', exact: true }).click();
+    await expect(page.getByText('0/200', { exact: true })).toBeVisible();
+    assert(pedidos.every(p => !p.path.endsWith('confirmar')));
+});
 for (const mobile of [false, true]) test(`seleção, fração, prévia e confirmação ${mobile ? "mobile" : "desktop"}`, async t => {
     const { page, pedidos, buscas, erros } = await ambiente(t, { mobile });
     await preencher(page);
