@@ -25,6 +25,8 @@ const produtos = [{ id: 1, nome: "Produto A", codigoInterno: "001", ativo: true,
     { id: 2, nome: "Produto B", codigoInterno: "002", ativo: true, controlaEstoque: true, composto: false, estoqueAtual: 20 }];
 async function ambiente(t, options = {}) {
     const catalogo = options.catalogo ?? produtos;
+    const saldos = new Map(catalogo.map(p => [p.id, p.estoqueAtual]));
+    const resultadosConfirmados = new Map(), movimentosGerados = [];
     const page = await browser.newPage({ viewport: options.mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 } });
     t.after(() => page.close());
     await page.addInitScript(mode => localStorage.setItem("novexa-theme-choice", mode), options.theme ?? "light");
@@ -39,12 +41,17 @@ async function ambiente(t, options = {}) {
         let data, status = 200;
         if (url.pathname === "/produtos") {
             buscas.push(Object.fromEntries(url.searchParams));
-            data = { items: catalogo, page: 0, size: 10, totalItems: catalogo.length, totalPages: 1 };
+            data = { items: options.atualizarSaldos ? catalogo.map(p => ({ ...p, estoqueAtual: saldos.get(p.id) })) : catalogo, page: 0, size: 10, totalItems: catalogo.length, totalPages: 1 };
         } else if (url.pathname.startsWith("/estoque/movimentacoes/produto/")) {
             pedidos.push({ path: url.pathname, params: Object.fromEntries(url.searchParams) });
+            if (options.falharHistoricoUmaVez && pedidos.filter(p => p.path.startsWith('/estoque/movimentacoes/produto/')).length === 1) return route.fulfill({ status: 500, headers, json: 'Falha sintética de histórico.' });
             data = { items: [{ id: 90, produtoId: 1, produtoNome: "Produto A", tipo: "AJUSTE", origem: "AJUSTE", quantidade: 2,
                 saldoAnterior: 10, saldoPosterior: 12, motivo: "Contagem anterior", dataHora: "2026-10-27T12:00:00-03:00", usuarioId: 1, nomeUsuario: "Admin" }],
                 page: Number(url.searchParams.get("page") ?? 0), size: Number(url.searchParams.get("size") ?? 10), totalItems: 1, totalPages: 1 };
+            if (options.atualizarSaldos) {
+                const itensHistorico = movimentosGerados.filter(m => m.produtoId === Number(url.pathname.split('/').at(-1)));
+                data = { ...data, items: itensHistorico, totalItems: itensHistorico.length };
+            }
         } else if (url.pathname.endsWith("/importacao/previa")) {
             assert.match(req.headers()["content-type"], /multipart\/form-data/);
             pedidos.push({ path: url.pathname });
@@ -68,21 +75,36 @@ async function ambiente(t, options = {}) {
             const confirmacao = url.pathname.endsWith("confirmar");
             if (confirmacao && options.falharUmaVez && pedidos.filter(p => p.path.endsWith("confirmar")).length === 1) return route.abort("failed");
             if (confirmacao) await options.aguardarConfirmacao?.();
+            if (confirmacao && options.erroConfirmacao) return route.fulfill({ status: options.erroConfirmacao, headers, json: 'Confirmação recusada pelo cenário sintético.' });
             if (confirmacao && options.conflito) { status = 409; data = "Atualize a prévia"; }
             else {
                 data = { chaveRequisicao: p.chaveRequisicao ?? null, alterados: confirmacao ? p.itens.length : 0, semAlteracao: 0,
                     itens: p.itens.map(i => { const produto = catalogo.find(p => p.id === i.produtoId); return {
                         produtoId: i.produtoId, nome: produto.nome, codigoInterno: produto.codigoInterno, unidade: "UN",
-                        saldoAnterior: produto.estoqueAtual, saldoFinal: Number(i.valor), diferenca: Number(i.valor) - produto.estoqueAtual,
+                        saldoAnterior: options.atualizarSaldos ? saldos.get(i.produtoId) : produto.estoqueAtual, saldoFinal: Number(i.valor), diferenca: Number(i.valor) - (options.atualizarSaldos ? saldos.get(i.produtoId) : produto.estoqueAtual),
                         ultimaMovimentacaoId: null, status: options.invalido ? "INVALIDO" : confirmacao ? "APLICADO" : "VALIDO",
                         erros: options.invalido ? ["Produto inativo. Reative o cadastro."] : [], movimentacaoId: confirmacao ? 41 : null,
                     }; }),
                 };
+                if (confirmacao && options.atualizarSaldos) {
+                    if (resultadosConfirmados.has(p.chaveRequisicao)) data = resultadosConfirmados.get(p.chaveRequisicao);
+                    else {
+                        data.itens = data.itens.map(item => ({ ...item, status: item.diferenca === 0 ? 'SEM_ALTERACAO' : 'APLICADO' }));
+                        data.alterados = data.itens.filter(item => item.diferenca !== 0).length;
+                        data.semAlteracao = data.itens.length - data.alterados;
+                        for (const item of data.itens) {
+                            if (item.diferenca !== 0) movimentosGerados.push({ id: 100 + movimentosGerados.length, produtoId: item.produtoId, produtoNome: item.nome, tipo: 'AJUSTE', origem: 'AJUSTE', quantidade: item.saldoFinal, saldoAnterior: item.saldoAnterior, saldoPosterior: item.saldoFinal, motivo: p.motivo, dataHora: '2026-10-29T12:00:00-03:00', usuarioId: 1, nomeUsuario: 'Admin' });
+                            saldos.set(item.produtoId, item.saldoFinal);
+                        }
+                        resultadosConfirmados.set(p.chaveRequisicao, data);
+                        if (options.perderRespostaAposConfirmar) return route.abort('failed');
+                    }
+                }
             }
         }
         await route.fulfill({ status, headers, contentType: "application/json", body: JSON.stringify(data) });
     });
-    await page.goto(base); return { page, pedidos, buscas, erros };
+    await page.goto(base); return { page, pedidos, buscas, erros, movimentosGerados };
 }
 async function preencher(page) {
     await page.getByRole("button", { name: "Ajuste em massa", exact: true }).click();
@@ -91,6 +113,98 @@ async function preencher(page) {
     await page.getByRole("textbox", { name: "Saldo físico Produto A", exact: true }).fill("15.125");
     await page.getByRole("textbox", { name: "Motivo do ajuste em massa" }).fill("Contagem de conferência");
 }
+
+test('sucesso libera dois ajustes consecutivos do mesmo produto com nova chave e saldo atualizado', async t => {
+    const { page, pedidos, buscas } = await ambiente(t, { atualizarSaldos: true, falharHistoricoUmaVez: true });
+    await preencher(page);
+    await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
+    await page.getByRole('tab', { name: 'Histórico' }).click();
+    await expect(page.getByRole('alert')).toContainText('histórico');
+    await page.getByRole('tab', { name: 'Prévia de ajustes' }).click();
+    await page.getByRole('button', { name: 'Confirmar ajustes', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('');
+    await expect(page.getByRole('textbox', { name: 'Pesquisar produtos', exact: true })).toHaveValue('');
+    await expect(page.getByText('0/200', { exact: true })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Saldo físico Produto A', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('cell', { name: '+5,125', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Confirmar ajustes', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('status')).toContainText('Ajuste realizado com sucesso. 1 produto atualizado.');
+    assert.equal(await page.evaluate(() => window.atualizacoes), 1);
+    await page.getByRole('tab', { name: 'Histórico' }).click();
+    await expect(page.getByRole('cell', { name: 'Contagem de conferência', exact: true })).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await page.getByRole('tab', { name: 'Prévia de ajustes' }).click();
+    await page.getByRole('textbox', { name: 'Pesquisar produtos', exact: true }).fill('Produto');
+    await expect(page.getByRole('button', { name: 'Adicionar Produto A', exact: true })).toBeEnabled();
+    assert(buscas.length >= 2, 'a busca precisa consultar novamente o saldo');
+    await page.getByRole('button', { name: 'Adicionar Produto A', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Saldo físico Produto A', exact: true }).fill('20,000');
+    await page.getByRole('textbox', { name: 'Motivo do ajuste em massa' }).fill('Segundo ajuste');
+    await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
+    await expect(page.getByRole('cell', { name: '+4,875', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Confirmar ajustes', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('');
+    const confirmacoes = pedidos.filter(p => p.path.endsWith('confirmar'));
+    assert.equal(confirmacoes.length, 2);
+    assert.notEqual(confirmacoes[0].chaveRequisicao, confirmacoes[1].chaveRequisicao);
+    assert.equal(confirmacoes[1].itens[0].saldoEsperado, 15.125);
+    assert.equal(await page.evaluate(() => window.atualizacoes), 2);
+    await page.getByRole('tab', { name: 'Histórico' }).click();
+    await expect(page.getByRole('cell', { name: 'Segundo ajuste', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Contagem de conferência', exact: true })).toBeVisible();
+    await page.getByRole('tab', { name: 'Prévia de ajustes' }).click();
+    await page.getByRole('textbox', { name: 'Pesquisar produtos', exact: true }).fill('Produto B');
+    await page.getByRole('button', { name: 'Adicionar Produto B', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Saldo físico Produto B', exact: true })).toBeEmpty();
+});
+
+for (const status of [400, 422, 500]) test(`confirmação HTTP ${status} preserva os campos sem sucesso falso`, async t => {
+    const { page, pedidos } = await ambiente(t, { erroConfirmacao: status });
+    await preencher(page);
+    await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
+    await page.getByRole('button', { name: 'Confirmar ajustes', exact: true }).click();
+    await expect(page.getByRole('alert').filter({ hasText: status === 500 ? 'mesma chave' : 'recusada' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('Contagem de conferência');
+    if (status === 500) await expect(page.getByRole('cell', { name: '15,125', exact: true })).toBeVisible();
+    else await expect(page.getByRole('textbox', { name: 'Saldo físico Produto A', exact: true })).toHaveValue('15,125');
+    await expect(page.getByRole('textbox', { name: 'Pesquisar produtos', exact: true })).toHaveValue('Produto');
+    await expect(page.getByText('1/200', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Ajuste realizado com sucesso/)).toHaveCount(0);
+    assert.equal(await page.evaluate(() => window.atualizacoes), 0);
+    assert.equal(pedidos.filter(p => p.path.endsWith('confirmar')).length, 1);
+});
+
+test('replay idempotente confirmado limpa somente após resposta e não duplica movimentos', async t => {
+    const { page, pedidos, movimentosGerados } = await ambiente(t, { atualizarSaldos: true, perderRespostaAposConfirmar: true });
+    await preencher(page);
+    await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
+    await page.getByRole('button', { name: 'Confirmar ajustes', exact: true }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'mesma chave' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('Contagem de conferência');
+    await expect(page.getByRole('cell', { name: '15,125', exact: true })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toBeDisabled();
+    await expect(page.getByText(/Ajuste realizado com sucesso/)).toHaveCount(0);
+    assert.equal(movimentosGerados.length, 1, 'servidor simulado já confirmou antes de perder a resposta');
+    await page.getByRole('button', { name: 'Tentar novamente com a mesma chave', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('1 produto atualizado');
+    await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('');
+    const confirmacoes = pedidos.filter(p => p.path.endsWith('confirmar'));
+    assert.equal(confirmacoes.length, 2); assert.deepEqual(confirmacoes[0], confirmacoes[1]);
+    assert.equal(movimentosGerados.length, 1);
+    assert.equal(await page.evaluate(() => window.atualizacoes), 1);
+});
+
+test('lote sem diferença também libera novo ajuste sem inventar produto atualizado', async t => {
+    const { page, movimentosGerados } = await ambiente(t, { atualizarSaldos: true });
+    await preencher(page);
+    await page.getByRole('textbox', { name: 'Saldo físico Produto A', exact: true }).fill('10,000');
+    await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
+    await page.getByRole('button', { name: 'Confirmar ajustes', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('0 produtos atualizados. 1 sem alteração.');
+    await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('');
+    await expect(page.getByRole('textbox', { name: 'Pesquisar produtos', exact: true })).toBeEnabled();
+    assert.equal(movimentosGerados.length, 0);
+});
 
 test('P014 saldo zero e físico 20,000 envia decimal canônico e mostra entrada +20,000', async t => {
     const { page, pedidos, erros } = await ambiente(t, { catalogo: [{ ...produtos[0], id: 14, nome: 'Bala de Menta', codigoInterno: 'P014', estoqueAtual: 0 }] });
@@ -161,8 +275,8 @@ for (const mobile of [false, true]) test(`seleção, fração, prévia e confirm
     await page.screenshot({ path: `node_modules/sprint20c-${mobile ? "mobile" : "desktop"}.png`, fullPage: true, animations: "disabled" });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
     await page.getByRole("button", { name: "Confirmar ajustes", exact: true }).click();
-    await expect(page.getByRole("status")).toContainText("Lote confirmado");
-    await expect(page.getByRole("cell").filter({ hasText: "movimento 41" })).toBeVisible();
+    await expect(page.getByRole("status")).toContainText("Ajuste realizado com sucesso");
+    await expect(page.getByRole("textbox", { name: "Motivo do ajuste em massa" })).toHaveValue("");
     assert.equal(await page.evaluate(() => window.atualizacoes), 1);
     assert.equal(pedidos[1].itens[0].saldoEsperado, 10);
     assert.ok(pedidos[1].chaveRequisicao); assert.equal(buscas.at(-1).size, "10"); assert.deepEqual(erros, []);
@@ -172,10 +286,10 @@ test("perda de resposta conserva dados e UUID sem falso sucesso", async t => {
     await page.getByRole("button", { name: "Gerar prévia", exact: true }).click();
     await page.getByRole("button", { name: "Confirmar ajustes", exact: true }).click();
     await expect(page.getByRole("alert").filter({ hasText: "mesma chave" })).toBeVisible();
-    await expect(page.getByText("Lote confirmado", { exact: false })).toHaveCount(0);
+    await expect(page.getByText("Ajuste realizado com sucesso", { exact: false })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Revisar dados", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "Tentar novamente com a mesma chave", exact: true }).click();
-    await expect(page.getByRole("status")).toContainText("Lote confirmado");
+    await expect(page.getByRole("status")).toContainText("Ajuste realizado com sucesso");
     const c = pedidos.filter(p => p.path.endsWith("confirmar")); assert.deepEqual(c[0], c[1]);
 });
 test("conflito pede nova prévia mantendo motivo e quantidades", async t => {
@@ -209,12 +323,16 @@ test("confirmação em andamento desabilita ações e não apresenta sucesso ant
     const { page, pedidos } = await ambiente(t, { aguardarConfirmacao: () => pendente });
     try {
         await preencher(page); await page.getByRole("button", { name: "Gerar prévia", exact: true }).click();
-        await page.getByRole("button", { name: "Confirmar ajustes", exact: true }).click();
+        await page.getByRole("button", { name: "Confirmar ajustes", exact: true }).evaluate(button => { button.click(); button.click(); });
         await expect(page.getByRole("button", { name: "Confirmando…", exact: true })).toBeDisabled();
         await expect(page.getByRole("button", { name: "Revisar dados", exact: true })).toBeDisabled();
-        await expect(page.getByText("Lote confirmado", { exact: false })).toHaveCount(0);
+        await expect(page.getByText("Ajuste realizado com sucesso", { exact: false })).toHaveCount(0);
+        await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('Contagem de conferência');
+        await expect(page.getByRole('cell', { name: '15,125', exact: true })).toBeVisible();
         assert.equal(pedidos.filter(p => p.path.endsWith("confirmar")).length, 1);
-        liberar(); await expect(page.getByRole("status")).toContainText("Lote confirmado");
+        liberar(); await expect(page.getByRole("status")).toContainText("Ajuste realizado com sucesso");
+        await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('');
+        assert.equal(pedidos.filter(p => p.path.endsWith('confirmar')).length, 1);
     } finally { liberar(); }
 });
 
@@ -302,7 +420,7 @@ test("valida tema claro/escuro, responsividade e estados visuais da Sprint 20", 
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
         await page.screenshot({ path: `node_modules/sprint20e-${theme}-${size}-previa.png`, fullPage: true, animations: "disabled" });
         await page.getByRole("button", { name: "Confirmar ajustes", exact: true }).click();
-        await expect(page.getByRole("status")).toContainText("Lote confirmado");
+        await expect(page.getByRole("status")).toContainText("Ajuste realizado com sucesso");
         await page.screenshot({ path: `node_modules/sprint20e-${theme}-${size}-resultado.png`, fullPage: true, animations: "disabled" });
         assert.deepEqual(erros, []);
     }

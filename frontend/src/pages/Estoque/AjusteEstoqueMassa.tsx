@@ -78,6 +78,8 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
     const [previa, setPrevia] = useState<ResultadoAjusteLote | null>(null);
     const [importacao, setImportacao] = useState<PreviaImportacaoEstoque | null>(null);
     const [resultado, setResultado] = useState<ResultadoAjusteLote | null>(null);
+    const [sucesso, setSucesso] = useState("");
+    const [produtosUltimoLote, setProdutosUltimoLote] = useState<Produto[]>([]);
     const [erro, setErro] = useState("");
     const [enviando, setEnviando] = useState(false);
     const [pendente, setPendente] = useState<PedidoAjusteLote | null>(null);
@@ -91,6 +93,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
     const [erroHistorico, setErroHistorico] = useState("");
     const [filtrosHistorico, setFiltrosHistorico] = useState({ tipo: "", origem: "", dataInicial: "", dataFinal: "", sort: "dataHora,desc" });
     const emEnvio = useRef(false);
+    const previaConcluida = useRef<ResultadoAjusteLote | null>(null);
     const gatilhoAjuste = useRef<HTMLButtonElement>(null);
     const telaAnterior = useRef(telaAjuste);
     const admin = obterSessao()?.perfil === "ADMIN";
@@ -109,7 +112,8 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
         return () => { clearTimeout(timer); controller.abort(); };
     }, [telaAjuste, editavel, modoImportacao, busca, pagina]);
 
-    const produtoHistorico = itens.find(i => i.produto.id === produtoHistoricoId)?.produto;
+    const produtosDoHistorico = Array.from(new Map([...produtosUltimoLote, ...itens.map(i => i.produto)].map(p => [p.id, p])).values());
+    const produtoHistorico = produtosDoHistorico.find(p => p.id === produtoHistoricoId);
     useEffect(() => {
         if (!telaAjuste || abaConferencia !== 1 || !produtoHistorico) return;
         const controller = new AbortController();
@@ -134,7 +138,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
     }, [telaAjuste]);
     function abrir(importar: boolean) {
         if (resultado) { setItens([]); setMotivo(""); setArquivo(null); }
-        setModoImportacao(importar); setResultado(null); setPrevia(null); setImportacao(null); setErro("");
+        setModoImportacao(importar); setResultado(null); setPrevia(null); setImportacao(null); setErro(""); setSucesso("");
         if (importar) setAberto(true);
         else { setAbaConferencia(0); setBusca(""); setPagina(0); setProdutos([]); setTotal(0); setCarregando(false); trocarTelaAjuste(true); }
     }
@@ -158,7 +162,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
         } finally { emEnvio.current = false; setEnviando(false); }
     }
     async function confirmar() {
-        if (!previa || emEnvio.current) return;
+        if (!previa || emEnvio.current || previaConcluida.current === previa) return;
         const pedido: PedidoAjusteLote = pendente ?? {
             modo: "SALDO_FINAL" as const, motivo: motivo.trim(), chaveRequisicao: crypto.randomUUID(),
             itens: previa.itens.map(l => {
@@ -167,8 +171,23 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                     saldoEsperado: linha?.saldoAtual ?? l.saldoAnterior!, ultimaMovimentacaoIdEsperada: l.ultimaMovimentacaoId };
             }),
         };
-        emEnvio.current = true; setPendente(pedido); setEnviando(true); setErro("");
-        try { const resposta = await confirmarAjusteLote(pedido); setResultado(resposta); setPendente(null); onConcluido(); }
+        emEnvio.current = true; setPendente(pedido); setEnviando(true); setErro(""); setSucesso("");
+        try {
+            const resposta = await confirmarAjusteLote(pedido);
+            previaConcluida.current = previa;
+            setPendente(null);
+            if (modoImportacao) setResultado(resposta);
+            else {
+                setSucesso(`Ajuste realizado com sucesso. ${resposta.alterados} ${resposta.alterados === 1 ? "produto atualizado" : "produtos atualizados"}.${resposta.semAlteracao ? ` ${resposta.semAlteracao} sem alteração.` : ""}`);
+                setProdutosUltimoLote(itens.map(i => ({ ...i.produto, estoqueAtual: resposta.itens.find(l => l.produtoId === i.produto.id)?.saldoFinal ?? i.produto.estoqueAtual })));
+                setItens([]); setMotivo(""); setBusca(""); setBuscaAberta(false); setPagina(0); setPaginaItens(0);
+                setProdutos([]); setTotal(0); setCarregando(false); setPrevia(null); setImportacao(null); setResultado(null); setArquivo(null); setPaginaImportacao(0);
+                setProdutoHistoricoId(pedido.itens[0]?.produtoId ?? ""); setHistorico([]); setTotalHistorico(0); setPaginaHistorico(0); setErroHistorico(""); setCarregandoHistorico(false);
+                setFiltrosHistorico({ tipo: "", origem: "", dataInicial: "", dataFinal: "", sort: "dataHora,desc" });
+                setAbaConferencia(0);
+            }
+            onConcluido();
+        }
         catch (e) {
             const status = axios.isAxiosError(e) ? e.response?.status : undefined;
             if (status && status >= 400 && status < 500 && status !== 408 && status !== 429) {
@@ -275,6 +294,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                 </Stack>
             </Paper>
             <Paper component="section" aria-label="Conferência do ajuste" variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, minWidth: 0, "& .MuiTableCell-root": { py: .75, px: 1, fontSize: 13, overflowWrap: "anywhere" }, "& .MuiTableCell-head": { fontWeight: 500 } }}>
+                {sucesso && <Alert severity="success" role="status" sx={{ mb: 1.5 }}>{sucesso}</Alert>}
                 <Tabs value={abaConferencia} onChange={(_, v: number) => setAbaConferencia(v)} aria-label="Conferência do estoque" variant="fullWidth">
                     <Tab icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Prévia de ajustes" id="conferencia-tab-0" aria-controls="conferencia-panel-0" />
                     <Tab icon={<HistoryRoundedIcon fontSize="small" />} iconPosition="start" label="Histórico" id="conferencia-tab-1" aria-controls="conferencia-panel-1" />
@@ -316,7 +336,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                         </>}
                     </Stack>}
                     {abaConferencia === 1 && <Stack spacing={1.5}>
-                        <Autocomplete size="small" options={itens.map(i => i.produto)} value={produtoHistorico ?? null} isOptionEqualToValue={(a, b) => a.id === b.id}
+                        <Autocomplete size="small" options={produtosDoHistorico} value={produtoHistorico ?? null} isOptionEqualToValue={(a, b) => a.id === b.id}
                             getOptionLabel={p => `${p.codigoInterno} · ${p.nome}`} onChange={(_, p) => { setProdutoHistoricoId(p?.id ?? ""); setPaginaHistorico(0); }}
                             renderInput={params => <TextField {...params} label="Produto do histórico" placeholder="Pesquisar nos selecionados…" />} />
                         {produtoHistorico ? <>
