@@ -6,7 +6,9 @@ import fs from 'node:fs';
 
 let vite, browser, base;
 const beforeView = process.env.NOVEXA_G1_BEFORE === '1';
-const output = '../docs/audits/assets/sprint20g2';
+const beforeG4 = process.env.NOVEXA_G4_BEFORE === '1';
+const sampleG4 = process.env.NOVEXA_G4_SAMPLE === '1';
+const output = '../docs/audits/assets/sprint20g4';
 before(async () => {
     fs.mkdirSync(output, { recursive: true });
     const component = beforeView ? 'AjusteEstoqueMassa20g1Before' : 'AjusteEstoqueMassa';
@@ -38,7 +40,7 @@ for (const [width, height] of [[1366, 768], [1920, 1080], [390, 844]]) for (cons
         try {
             await page.goto(base);
             await page.getByRole('button', { name: 'Ajuste em massa', exact: true }).click();
-            const counts = beforeView ? [0, 3] : [0, 3, 20, 200];
+            const counts = beforeView || beforeG4 || sampleG4 ? [0, 3] : [0, 3, 20, 200];
             let selected = 0;
             for (const count of counts) {
                 if (count > selected) {
@@ -60,9 +62,9 @@ for (const [width, height] of [[1366, 768], [1920, 1080], [390, 844]]) for (cons
                 await expect(page.getByText(`${count}/200`, { exact: true })).toBeVisible();
                 assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
                 await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toBeVisible();
-                await page.screenshot({ path: `${output}/${beforeView ? 'antes' : 'depois'}-${width}-${theme}-${count}.png`, fullPage: true, animations: 'disabled' });
+                await page.screenshot({ path: `${output}/${beforeView || beforeG4 ? 'antes' : 'depois'}-${width}-${theme}-${count}.png`, fullPage: true, animations: 'disabled' });
             }
-            if (!beforeView) {
+            if (!beforeView && !beforeG4 && !sampleG4) {
                 assert.equal(await page.getByRole('textbox', { name: /^Saldo físico Produto/ }).count(), 25, 'renderização limitada à página');
                 await page.getByRole('textbox', { name: 'Motivo do ajuste em massa' }).scrollIntoViewIfNeeded();
                 await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toBeInViewport();
@@ -74,3 +76,36 @@ for (const [width, height] of [[1366, 768], [1920, 1080], [390, 844]]) for (cons
         } finally { await page.close(); }
     });
 }
+
+test('proporções seguem a área disponível e motivo permanece fora da rolagem dos produtos', async () => {
+    const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+    const products = Array.from({ length: 3 }, (_, i) => ({ id: i + 1, nome: `Produto ${i + 1} com descrição longa para conferir o painel estreito`, codigoInterno: `P00${i + 1}`, estoqueAtual: 0, ativo: true, controlaEstoque: true, composto: false }));
+    await page.addInitScript(() => localStorage.setItem('novexa-auth', JSON.stringify({ token: 'fixture', perfil: 'ADMIN', empresa: { id: 1 } })));
+    await page.route('http://localhost:8080/**', route => {
+        assert.equal(route.request().method(), 'GET');
+        return route.fulfill({ json: { items: products, totalItems: 3, page: 0, size: 10, totalPages: 1 } });
+    });
+    try {
+        await page.goto(base);
+        await page.getByRole('button', { name: 'Ajuste em massa', exact: true }).click();
+        await page.getByRole('textbox', { name: 'Pesquisar produtos', exact: true }).fill('Produto');
+        for (const p of products) await page.getByRole('button', { name: `Adicionar ${p.nome}`, exact: true }).click();
+        await page.getByRole('textbox', { name: 'Pesquisar produtos', exact: true }).press('Escape');
+        for (const [width, contentWidth] of [[1920, 1888], [1366, 1334], [1366, 1080], [390, 358]]) {
+            await page.setViewportSize({ width, height: 844 });
+            await page.locator('#root > div').evaluate((element, max) => { element.style.maxWidth = `${max + 32}px`; }, contentWidth);
+            const left = await page.getByRole('region', { name: 'Produtos do ajuste', exact: true }).boundingBox();
+            const right = await page.getByRole('region', { name: 'Conferência do ajuste', exact: true }).boundingBox();
+            if (width >= 1000) {
+                assert(left.width / (left.width + right.width) >= .35 && left.width / (left.width + right.width) <= .405);
+                assert(Math.abs(left.y - right.y) < 1);
+            } else assert(right.y >= left.y + left.height);
+            const list = page.getByRole('region', { name: 'Produtos selecionados para ajuste' });
+            assert(await list.evaluate(element => element.scrollWidth <= element.clientWidth));
+            assert.equal(await list.getByRole('textbox', { name: 'Motivo do ajuste em massa' }).count(), 0);
+            await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toBeEnabled();
+            assert.equal(await page.getByRole('button', { name: 'Gerar prévia', exact: true }).locator('svg').count(), 1);
+            await page.screenshot({ path: `${output}/depois-area-${width}-${contentWidth}.png`, fullPage: true, animations: 'disabled' });
+        }
+    } finally { await page.close(); }
+});

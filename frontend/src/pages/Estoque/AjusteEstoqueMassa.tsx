@@ -25,6 +25,7 @@ import type { Produto } from "../../types/produto";
 const formatar = (v: number | null) => v === null ? "—" : v.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 const decimalPlanilha = (v: string | null) => v == null ? "—" : v.replace(".", ",");
 type Selecionado = { produto: Produto; valor: string };
+const painelEstreito = "@container produtos-ajuste (max-width: 480px)";
 
 function Diferenca({ valor }: { valor: number | null }) {
     const Icone = valor === null || valor === 0 ? RemoveRoundedIcon : valor > 0 ? ArrowUpwardRoundedIcon : ArrowDownwardRoundedIcon;
@@ -197,9 +198,10 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
         </Stack>}
         {telaAjuste && <>
         {telaAjusteControlada === undefined && <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => trocarTelaAjuste(false)}>Voltar para saldos</Button>}
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1.02fr) minmax(0, 1fr)" }, alignItems: "start", gap: 2 }}>
-            <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
-                <Stack spacing={2}>
+        <Box sx={{ containerType: "inline-size", containerName: "ajuste-massa" }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", "@container ajuste-massa (min-width: 1000px)": { gridTemplateColumns: "minmax(0, 2fr) minmax(0, 3fr)" }, "@container ajuste-massa (min-width: 1500px)": { gridTemplateColumns: "minmax(0, .61fr) minmax(0, 1fr)" }, alignItems: "start", gap: 2 }}>
+            <Paper component="section" aria-label="Produtos do ajuste" variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, minWidth: 0, containerType: "inline-size", containerName: "produtos-ajuste" }}>
+                <Stack spacing={1.5}>
                     <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                         <Box sx={{ p: 1.5, display: "flex", borderRadius: 1, bgcolor: "action.hover", color: "primary.main" }}><ViewInArOutlinedIcon /></Box>
                         <Box><Typography variant="h6" component="h2">Novo ajuste em massa</Typography>
@@ -235,31 +237,31 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                     </Stack>
                     {itens.length === 0 ? <Typography variant="body2" color="text.secondary">Nenhum produto selecionado. Pesquise e adicione produtos para começar.</Typography> :
                         <Box>
-                        <Box aria-hidden="true" sx={{ display: { xs: "none", sm: "grid" }, gridTemplateColumns: "minmax(120px, 1fr) 54px 120px 96px 36px", gap: 1, py: 1, px: 1, bgcolor: "action.hover", fontSize: 12, color: "text.secondary" }}>
+                        <Box aria-hidden="true" sx={{ display: { xs: "none", sm: "grid" }, gridTemplateColumns: "minmax(120px, 1fr) 54px 120px 96px 36px", gap: 1, py: .75, px: 1, bgcolor: "action.hover", fontSize: 12, color: "text.secondary", [painelEstreito]: { display: "none" } }}>
                             <span>Produto</span><Box sx={{ textAlign: "right" }}>Atual</Box><Box sx={{ textAlign: "right" }}>Saldo físico</Box><Box sx={{ textAlign: "center" }}>Diferença</Box><span />
                         </Box>
-                        <Stack divider={<Divider />} sx={{ maxHeight: { xs: 280, lg: "clamp(150px, 32vh, 350px)" }, overflowY: "auto", overscrollBehavior: "contain" }}>
+                        <Stack role="region" aria-label="Produtos selecionados para ajuste" divider={<Divider />} sx={{ maxHeight: { xs: 280, lg: "clamp(150px, 32vh, 350px)" }, overflowY: "auto", overscrollBehavior: "contain" }}>
                             {itens.slice(paginaItensAtual * 25, (paginaItensAtual + 1) * 25).map(i => {
                                 const linha = linhas?.find(x => x.produtoId === i.produto.id);
                                 const fisico = numeroDecimal(i.valor, 3);
                                 const diferenca = linha?.diferenca ?? (fisico === null ? null : Number((fisico - i.produto.estoqueAtual).toFixed(3)));
-                                return <Box key={i.produto.id} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr) 120px 36px", sm: "minmax(120px, 1fr) 54px 120px 96px 36px" }, alignItems: "center", gap: 1, py: 1, px: 1 }}>
-                                    <Box sx={{ minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" } }}>
+                                return <Box key={i.produto.id} sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr) 120px 36px", sm: "minmax(120px, 1fr) 54px 120px 96px 36px" }, alignItems: "center", gap: 1, py: .75, px: 1, [painelEstreito]: { gridTemplateColumns: "minmax(0, 1fr) 120px 36px" } }}>
+                                    <Box sx={{ minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" }, [painelEstreito]: { gridColumn: "1 / -1" } }}>
                                         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}><ViewInArOutlinedIcon sx={{ color: "text.secondary", display: { xs: "none", md: "block" } }} /><Box sx={{ minWidth: 0 }}>
-                                        <Typography variant="body2" title={i.produto.nome} sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>{i.produto.nome}</Typography>
+                                        <Typography variant="body2" title={i.produto.nome} sx={{ fontWeight: 600, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{i.produto.nome}</Typography>
                                         <Typography variant="caption" color="text.secondary">{i.produto.codigoInterno}</Typography>
                                         </Box></Stack>
                                     </Box>
-                                    <Typography variant="body2" sx={{ textAlign: { xs: "left", sm: "right" }, fontVariantNumeric: "tabular-nums" }}><Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>Atual: </Box>{formatar(linha?.saldoAnterior ?? i.produto.estoqueAtual)}</Typography>
+                                    <Typography variant="body2" sx={{ textAlign: { xs: "left", sm: "right" }, fontVariantNumeric: "tabular-nums", [painelEstreito]: { textAlign: "left" } }}><Box component="span" sx={{ display: { xs: "inline", sm: "none" }, [painelEstreito]: { display: "inline" } }}>Atual: </Box>{formatar(linha?.saldoAnterior ?? i.produto.estoqueAtual)}</Typography>
                                     {editavel ? <CampoQuantidade canonico size="small" label="Saldo físico" rotuloAcessivel={`Saldo físico ${i.produto.nome}`} value={i.valor}
                                         onValueChange={valor => { setPrevia(null); setItens(atual => atual.map(x => x.produto.id === i.produto.id ? { ...x, valor } : x)); }} /> :
                                         <Typography variant="body2" sx={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{formatar(linha?.saldoFinal ?? null)}</Typography>}
-                                    <Box sx={{ display: { xs: "none", sm: "block" }, textAlign: "center" }}><Diferenca valor={diferenca} /></Box>
+                                    <Box sx={{ display: { xs: "none", sm: "block" }, textAlign: "center", [painelEstreito]: { display: "none" } }}><Diferenca valor={diferenca} /></Box>
                                     {editavel && <Tooltip title={`Remover ${i.produto.nome}`}><IconButton size="small" aria-label={`Remover ${i.produto.nome}`} onClick={() => {
                                         const restantes = itens.filter(x => x.produto.id !== i.produto.id); setPrevia(null); setItens(restantes);
                                         if (produtoHistoricoId === i.produto.id) setProdutoHistoricoId(restantes[0]?.produto.id ?? "");
                                     }} sx={{ minWidth: 36, minHeight: 36 }}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip>}
-                                    <Box sx={{ gridColumn: { xs: "1 / -1", sm: "1 / -1" }, display: { xs: "flex", sm: "none" }, justifyContent: "space-between", alignItems: "center" }}><Diferenca valor={diferenca} /><DirecaoAjuste valor={diferenca} /></Box>
+                                    <Box sx={{ gridColumn: "1 / -1", display: { xs: "flex", sm: "none" }, justifyContent: "space-between", alignItems: "center", [painelEstreito]: { display: "flex" } }}><Diferenca valor={diferenca} /><DirecaoAjuste valor={diferenca} /></Box>
                                 </Box>;
                             })}
                         </Stack></Box>}
@@ -272,14 +274,14 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                         </Button>}
                 </Stack>
             </Paper>
-            <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0, "& .MuiTableCell-root": { py: 1, px: 1, fontSize: 13, overflowWrap: "anywhere" }, "& .MuiTableCell-head": { fontWeight: 500 } }}>
+            <Paper component="section" aria-label="Conferência do ajuste" variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, minWidth: 0, "& .MuiTableCell-root": { py: .75, px: 1, fontSize: 13, overflowWrap: "anywhere" }, "& .MuiTableCell-head": { fontWeight: 500 } }}>
                 <Tabs value={abaConferencia} onChange={(_, v: number) => setAbaConferencia(v)} aria-label="Conferência do estoque" variant="fullWidth">
                     <Tab icon={<DescriptionOutlinedIcon fontSize="small" />} iconPosition="start" label="Prévia de ajustes" id="conferencia-tab-0" aria-controls="conferencia-panel-0" />
                     <Tab icon={<HistoryRoundedIcon fontSize="small" />} iconPosition="start" label="Histórico" id="conferencia-tab-1" aria-controls="conferencia-panel-1" />
                 </Tabs>
                 <Box role="tabpanel" id={`conferencia-panel-${abaConferencia}`} aria-labelledby={`conferencia-tab-${abaConferencia}`} sx={{ pt: 1.5 }}>
                     {abaConferencia === 0 && <Stack spacing={1.5}>
-                        {!previa ? <Box sx={{ py: 1 }}>
+                        {!previa ? <Box sx={{ py: .5 }}>
                             <Typography variant="subtitle2">A conferência aparecerá aqui</Typography>
                             <Typography variant="body2" color="text.secondary">Selecione produtos, informe as quantidades físicas e gere a prévia para revisar cada diferença.</Typography>
                         </Box> : <>
@@ -348,7 +350,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                     </Stack>}
                 </Box>
             </Paper>
-        </Box>
+        </Box></Box>
         </>}
         <Dialog open={aberto} fullWidth maxWidth="lg" aria-labelledby="ajuste-massa-titulo" onClose={() => { if (!enviando && !pendente) setAberto(false); }}>
             <DialogTitle id="ajuste-massa-titulo">{modoImportacao ? "Importar estoque por planilha" : "Ajuste em massa · Saldo físico"}</DialogTitle>

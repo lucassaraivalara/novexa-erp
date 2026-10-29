@@ -92,20 +92,20 @@ async function preencher(page) {
     await page.getByRole("textbox", { name: "Motivo do ajuste em massa" }).fill("Contagem de conferência");
 }
 
-test('P014 saldo zero e físico 10,000 envia decimal canônico e mostra entrada +10,000', async t => {
+test('P014 saldo zero e físico 20,000 envia decimal canônico e mostra entrada +20,000', async t => {
     const { page, pedidos, erros } = await ambiente(t, { catalogo: [{ ...produtos[0], id: 14, nome: 'Bala de Menta', codigoInterno: 'P014', estoqueAtual: 0 }] });
     await page.getByRole('button', { name: 'Ajuste em massa', exact: true }).click();
     await page.getByRole('textbox', { name: 'Pesquisar produtos' }).fill('P014');
     await page.getByRole('button', { name: 'Adicionar Bala de Menta', exact: true }).click();
-    await page.getByRole('textbox', { name: 'Saldo físico Bala de Menta', exact: true }).fill('10,000');
+    await page.getByRole('textbox', { name: 'Saldo físico Bala de Menta', exact: true }).fill('20,000');
     await page.getByRole('textbox', { name: 'Motivo do ajuste em massa' }).fill('teste');
     await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
-    await expect(page.getByRole('cell', { name: '+10,000', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: '+20,000', exact: true })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Entrada', exact: true })).toBeVisible();
-    assert.equal(pedidos.length, 1); assert.equal(pedidos[0].itens[0].produtoId, 14); assert.equal(pedidos[0].itens[0].valor, '10.000');
+    assert.equal(pedidos.length, 1); assert.equal(pedidos[0].itens[0].produtoId, 14); assert.equal(pedidos[0].itens[0].valor, '20.000');
     assert.equal(pedidos[0].motivo, 'teste'); assert.deepEqual(erros, []);
     await expect(page.getByRole('button', { name: 'Gerar prévia', exact: true })).toBeEnabled();
-    await page.screenshot({ path: 'node_modules/sprint20g2-menta-previa.png', fullPage: true, animations: 'disabled' });
+    await page.screenshot({ path: 'node_modules/sprint20g4-menta-previa.png', fullPage: true, animations: 'disabled' });
 });
 
 test('erros de prévia explicam HTTP sem descartar rascunho ou expor erro interno', async t => {
