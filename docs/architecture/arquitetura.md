@@ -132,3 +132,7 @@ POST/PUT /produtos recebe categoriaId, subcategoriaId e marcaId opcionais e posi
 ## Metadados de Produtos e legado V42
 
 NCM/CEST opcionais permanecem no cadastro e nos contratos normais de Produto. A V42 aplicada permanece imutável; `importacoes_produtos` fica como estrutura legada, sem Entity, repository, endpoints ou uso pela aplicação. A carga inicial é procedimento operacional separado, sem API.
+
+### Snapshot de encargos de Contas a Pagar — V61
+
+MovimentacaoFinanceira preserva o valor original, juros, multa e desconto da baixa integral. Colunas opcionais imutáveis, sem backfill; apenas CONTAS_A_PAGAR/SAIDA aceita snapshot completo cuja soma coincida com o valor debitado. Sem nova entidade ou segunda saída. ContaPagar mantém original/status/total pago e vínculo existente; reabertura não apaga o movimento anterior. Regras e contrato em [financeiro.md](financeiro.md#contas-a-pagar--mvp-operacional).

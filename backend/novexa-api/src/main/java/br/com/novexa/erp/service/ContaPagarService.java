@@ -97,13 +97,17 @@ public class ContaPagarService {
     public ContaPagarResponseDTO pagar(Long id, Long empresaId, Long usuarioId, PagamentoContaPagarRequestDTO pedido) {
         var conta = buscarParaAlterar(id, empresaId);
         exigirAberta(conta);
+        var juros = encargo(pedido.juros());
+        var multa = encargo(pedido.multa());
+        var desconto = encargo(pedido.desconto());
+        var total = conta.getValor().add(juros).add(multa).subtract(desconto);
         BigDecimal pago = pedido.valorPago();
         if (pago.signum() <= 0 || pago.scale() > 2 || pago.precision() - pago.scale() > 17)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe um valor pago positivo com até duas casas decimais.");
-        if (pago.compareTo(conta.getValor()) != 0)
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O pagamento deve corresponder ao valor integral da conta.");
+        if (total.signum() <= 0 || pago.compareTo(total) != 0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O total pago deve ser positivo e corresponder ao valor original + juros + multa − desconto. Pagamentos parciais não são permitidos.");
         var movimento = financeiro.registrarSaidaContaPagar(empresaId, usuarioId, pedido.contaFinanceiraId(),
-                "Pagamento conta a pagar #" + conta.getId(), pago, pedido.dataPagamento());
+                "Pagamento conta a pagar #" + conta.getId(), pago, pedido.dataPagamento(), conta.getValor(), juros, multa, desconto);
         conta.pagar(pedido.dataPagamento(), pago, movimento);
         return ContaPagarResponseDTO.de(contas.saveAndFlush(conta));
     }
@@ -142,6 +146,13 @@ public class ContaPagarService {
     }
 
     private String opcional(String texto) { return texto == null || texto.isBlank() ? null : texto.trim(); }
+
+    private BigDecimal encargo(BigDecimal valor) {
+        if (valor == null) return new BigDecimal("0.00");
+        if (valor.signum() < 0 || valor.scale() > 2 || valor.precision() - valor.scale() > 17)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Juros, multa e desconto devem ser não negativos, com até duas casas decimais.");
+        return valor.setScale(2);
+    }
 
     private ContaPagarEntity buscarParaAlterar(Long id, Long empresaId) {
         var conta = contas.buscarParaAlterar(id, empresaId).orElseThrow(() ->

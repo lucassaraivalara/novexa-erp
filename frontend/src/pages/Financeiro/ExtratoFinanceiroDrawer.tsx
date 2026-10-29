@@ -71,6 +71,7 @@ export default function ExtratoFinanceiroDrawer({ conta, onFechar, onSaldoAltera
         { campo: "descricao", cabecalho: "Descrição", largura: 180, render: (_, item) => <Box>
             <Typography variant="body2">{descricaoMovimentacaoFinanceira(item)}</Typography>
             <Typography variant="caption" color="text.secondary">{rotulosOrigemMovimentacaoFinanceira[item.origem]}</Typography>
+            {item.origem === "CONTAS_A_PAGAR" && item.observacao && <Typography variant="caption" sx={{ display: "block", whiteSpace: "normal", overflowWrap: "anywhere" }}>{item.observacao}</Typography>}
         </Box> },
         { campo: "tipo", cabecalho: "Tipo", largura: 80, render: (_, item) => item.tipo === "ENTRADA" ? "Entrada" : "Saída" },
         { campo: "valor", cabecalho: "Valor", largura: 110, alinhar: "right", render: (_, item) =>

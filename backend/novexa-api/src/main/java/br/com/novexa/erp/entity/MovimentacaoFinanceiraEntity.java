@@ -33,6 +33,10 @@ public class MovimentacaoFinanceiraEntity {
     @Column(nullable = false, precision = 19, scale = 2, updatable = false) private BigDecimal valor;
     @Column(nullable = false, updatable = false) private LocalDate dataMovimento;
     @Column(length = 1000, updatable = false) private String observacao;
+    @Column(precision = 19, scale = 2, updatable = false) private BigDecimal contaPagarValorOriginal;
+    @Column(precision = 19, scale = 2, updatable = false) private BigDecimal contaPagarJuros;
+    @Column(precision = 19, scale = 2, updatable = false) private BigDecimal contaPagarMulta;
+    @Column(precision = 19, scale = 2, updatable = false) private BigDecimal contaPagarDesconto;
     @ManyToOne(optional = false) @JoinColumn(name = "usuario_id", nullable = false, updatable = false)
     private UsuarioEntity usuario;
     @Column(nullable = false, updatable = false) private LocalDateTime dataCriacao;
@@ -154,6 +158,16 @@ public class MovimentacaoFinanceiraEntity {
     public BigDecimal getValor() { return valor; }
     public LocalDate getDataMovimento() { return dataMovimento; }
     public String getObservacao() { return observacao; }
+    public BigDecimal getContaPagarJuros() { return contaPagarJuros; }
+    public BigDecimal getContaPagarMulta() { return contaPagarMulta; }
+    public BigDecimal getContaPagarDesconto() { return contaPagarDesconto; }
+    public void discriminarContaPagar(BigDecimal original, BigDecimal juros, BigDecimal multa, BigDecimal desconto) {
+        if (id != null || origem != OrigemMovimentacaoFinanceira.CONTAS_A_PAGAR
+                || original.signum() <= 0 || juros.signum() < 0 || multa.signum() < 0 || desconto.signum() < 0
+                || valor.compareTo(original.add(juros).add(multa).subtract(desconto)) != 0)
+            throw new IllegalArgumentException("Discriminação de pagamento inválida.");
+        contaPagarValorOriginal = original; contaPagarJuros = juros; contaPagarMulta = multa; contaPagarDesconto = desconto;
+    }
     public UsuarioEntity getUsuario() { return usuario; }
     public LocalDateTime getDataCriacao() { return dataCriacao; }
     public boolean isEstornada() { return estornada; }

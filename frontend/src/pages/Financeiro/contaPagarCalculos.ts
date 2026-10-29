@@ -1,4 +1,5 @@
 import { somarDias } from "../../utils/dataHora";
+import { normalizarDecimal } from "../../utils/numeroFormulario";
 import type { ContaPagar } from "../../types/contaPagar";
 
 export type FiltrosContaPagar = {
@@ -14,8 +15,29 @@ export type FiltrosContaPagar = {
 
 const normalizar = (texto: string) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-export const emAberto = (conta: ContaPagar) => conta.status === "CANCELADA" ? 0 :
+export const emAberto = (conta: ContaPagar) => conta.status !== "ABERTA" ? 0 :
     Math.max(0, Number(conta.valor) - Number(conta.valorPago ?? 0));
+
+/** Valores do formulário em centavos inteiros, sem soma monetária em ponto flutuante. */
+export function centavosPagamento(texto: string): bigint | null {
+    const normalizado = normalizarDecimal(texto, 2);
+    if (!normalizado) return null;
+    const [inteiro, fracao = ""] = normalizado.split(".");
+    return BigInt(inteiro) * 100n + BigInt(fracao.padEnd(2, "0"));
+}
+
+export function decimalPagamento(centavos: bigint): string {
+    return `${centavos / 100n}.${(centavos % 100n).toString().padStart(2, "0")}`;
+}
+
+export function calcularPagamento(original: string, juros: string, multa: string, desconto: string) {
+    const valores = [original, juros, multa, desconto].map(centavosPagamento);
+    if (valores.some(v => v === null)) return null;
+    const [base, j, m, d] = valores as bigint[];
+    const total = base + j + m - d;
+    return base > 0n && total > 0n && total <= BigInt(Number.MAX_SAFE_INTEGER)
+        ? { total, valorPago: decimalPagamento(total) } : null;
+}
 
 export function filtrarContas(contas: ContaPagar[], filtros: FiltrosContaPagar) {
     const termo = normalizar(filtros.busca.trim());

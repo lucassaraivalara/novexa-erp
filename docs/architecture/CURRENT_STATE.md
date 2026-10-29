@@ -1,3 +1,7 @@
+## Contas a Pagar — juros, multa e desconto (29/10/2026)
+
+Implementação qualificada para publicação: baixa integral por original + juros + multa − desconto, com valor original preservado. V61 adiciona snapshot imutável ao movimento financeiro, incluindo os encargos estornados; uma única saída debita o total. Frontend calcula centavos exatos, informa total e consulta discriminação no detalhe/extrato. Testes sintéticos direcionados, migration V60→V61 e restauração do backup aprovados. Estado da publicação e limites em [relatório financeiro](../audits/correcao-contas-pagar-juros-multas-descontos.md).
+
 ## Prevenção de performance e custos — Tarefa 19D (2026-10-27)
 
 Publicação posterior: backend `dafff828`, imagem `0f8ebbf6c87f`, ativo com health/probes UP e Flyway V59 inalterada; somente `RequestIdFilter.class` difere da 19B. Smoke autenticado pendente de sessão disponível; sem alteração frontend. [Registro de publicação](../audits/publicacao-performance-custos-tarefa19d.md). A implementação local e seus testes abaixo são o registro da etapa anterior.

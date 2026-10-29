@@ -120,15 +120,20 @@ public class ContaFinanceiraService {
 
     @Transactional
     public MovimentacaoFinanceiraEntity registrarSaidaContaPagar(Long empresaId, Long usuarioId,
-            Long contaFinanceiraId, String descricao, BigDecimal valor, java.time.LocalDate dataPagamento) {
+            Long contaFinanceiraId, String descricao, BigDecimal valor, java.time.LocalDate dataPagamento,
+            BigDecimal original, BigDecimal juros, BigDecimal multa, BigDecimal desconto) {
         var conta = buscarConta(contaFinanceiraId, empresaId);
+        entityManager.refresh(conta);
         if (!conta.isAtivo())
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Conta financeira inativa não aceita movimentações.");
         validarSaldo(conta.getSaldoAtual().subtract(valor));
         var usuario = buscarUsuario(usuarioId, empresaId);
         conta.aplicar(valor.negate());
         var movimento = new MovimentacaoFinanceiraEntity(conta, TipoMovimentacaoFinanceira.SAIDA,
-                OrigemMovimentacaoFinanceira.CONTAS_A_PAGAR, descricao, valor, dataPagamento, null, usuario);
+                OrigemMovimentacaoFinanceira.CONTAS_A_PAGAR, descricao, valor, dataPagamento,
+                "Original: " + original.toPlainString() + "; Juros: " + juros.toPlainString()
+                        + "; Multa: " + multa.toPlainString() + "; Desconto: " + desconto.toPlainString(), usuario);
+        movimento.discriminarContaPagar(original, juros, multa, desconto);
         contas.saveAndFlush(conta);
         return movimentos.saveAndFlush(movimento);
     }

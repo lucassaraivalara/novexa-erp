@@ -13,6 +13,9 @@ export type ContaPagar = {
     status: StatusContaPagar;
     dataPagamento: string | null;
     valorPago: number | null;
+    juros?: number | null;
+    multa?: number | null;
+    desconto?: number | null;
     movimentacaoFinanceiraId?: number;
     observacao: string | null;
     entradaMercadoriaId?: number | null;
@@ -25,5 +28,8 @@ export type ContaPagarInput = Pick<ContaPagar, "descricao" | "documento" | "forn
 export type PagamentoContaPagarInput = {
     contaFinanceiraId: number;
     dataPagamento: string;
-    valorPago: number;
+    valorPago: number | string;
+    juros?: string;
+    multa?: string;
+    desconto?: string;
 };

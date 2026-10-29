@@ -1,4 +1,3 @@
-import { numeroDecimal } from "../../utils/numeroFormulario";
 import CampoTexto from "../../components/ui/CampoTexto";
 import { CampoMonetario } from "../../components/ui/CampoDecimal";
 import { hojeBrasilia, formatarData } from "../../utils/dataHora";
@@ -25,7 +24,7 @@ import type { ContaPagar, StatusContaPagar } from "../../types/contaPagar";
 import type { ContaFinanceira } from "../../types/contaFinanceira";
 import { rotulosTipoContaFinanceira } from "../../types/contaFinanceira";
 import ContaPagarDrawer from "./ContaPagarDrawer";
-import { emAberto } from "./contaPagarCalculos";
+import { calcularPagamento, centavosPagamento, emAberto } from "./contaPagarCalculos";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const data = formatarData;
@@ -61,7 +60,7 @@ export default function ContasPagar() {
     const [editor, setEditor] = useState<{ conta: ContaPagar | null } | null>(null);
     const [pagamento, setPagamento] = useState<ContaPagar | null>(null);
     const [dataPagamento, setDataPagamento] = useState("");
-    const [valorPago, setValorPago] = useState("");
+    const [encargos, setEncargos] = useState({ juros: "0.00", multa: "0.00", desconto: "0.00" });
     const [contaFinanceiraId, setContaFinanceiraId] = useState<number | "" >("");
     const [confirmacao, setConfirmacao] = useState<{ conta: ContaPagar; tipo: "cancelar" | "estornar" } | null>(null);
     const [processando, setProcessando] = useState(false);
@@ -142,7 +141,7 @@ export default function ContasPagar() {
     function abrirPagamento(conta: ContaPagar) {
         setPagamento(conta);
         setDataPagamento(hoje());
-        setValorPago(String(conta.valor).replace(".", ","));
+        setEncargos({ juros: "0.00", multa: "0.00", desconto: "0.00" });
         setContaFinanceiraId("");
         setErro("");
     }
@@ -155,13 +154,9 @@ export default function ContasPagar() {
     async function confirmarPagamento(evento: FormEvent<HTMLFormElement>) {
         evento.preventDefault();
         if (!pagamento || processando) return;
-        const valor = numeroDecimal(valorPago, 2);
-        if (valor === null || valor <= 0 || Math.abs(valor * 100 - Math.round(valor * 100)) > 0.000001) {
-            setErro("Informe um valor pago positivo com até duas casas decimais.");
-            return;
-        }
-        if (Math.abs(valor - Number(pagamento.valor)) > 0.000001) {
-            setErro("O pagamento deve corresponder ao valor integral da conta.");
+        const calculo = calcularPagamento(String(pagamento.valor), encargos.juros, encargos.multa, encargos.desconto);
+        if (!calculo) {
+            setErro("Informe juros, multa e desconto não negativos com até duas casas decimais. O total a pagar deve ser positivo e ter precisão segura.");
             return;
         }
         if (!contaFinanceiraId) {
@@ -173,13 +168,14 @@ export default function ContasPagar() {
             setErro("Conta financeira selecionada não encontrada.");
             return;
         }
-        if (Number(contaSelecionada.saldoAtual) < valor) {
+        const saldo = centavosPagamento(String(contaSelecionada.saldoAtual));
+        if (saldo === null || saldo < calculo.total) {
             setErro("Saldo insuficiente na conta financeira selecionada.");
             return;
         }
         setProcessando(true); setErro("");
         try {
-            await pagarConta(pagamento.id, { contaFinanceiraId, dataPagamento, valorPago: valor });
+            await pagarConta(pagamento.id, { contaFinanceiraId, dataPagamento, valorPago: calculo.valorPago, ...encargos });
             setPagamento(null); setSucesso("Pagamento registrado.");
             setTentativa((n) => n + 1);
         } catch (e) { setErro(mensagemContaPagar(e, "Não foi possível registrar o pagamento.")); }
@@ -232,11 +228,9 @@ export default function ContasPagar() {
     ];
 
     const contaFinanceiraSelecionada = contasFinanceiras.find((c) => c.id === contaFinanceiraId);
-    const saldoInsuficiente = Boolean(
-        pagamento &&
-        contaFinanceiraSelecionada &&
-        Number(contaFinanceiraSelecionada.saldoAtual) < Number(pagamento.valor)
-    );
+    const calculoPagamento = pagamento ? calcularPagamento(String(pagamento.valor), encargos.juros, encargos.multa, encargos.desconto) : null;
+    const saldoSelecionado = contaFinanceiraSelecionada ? centavosPagamento(String(contaFinanceiraSelecionada.saldoAtual)) : null;
+    const saldoInsuficiente = Boolean(calculoPagamento && contaFinanceiraSelecionada && (saldoSelecionado === null || saldoSelecionado < calculoPagamento.total));
 
     return <PageContainer>
         <PageHeader titulo="Contas a Pagar" descricao="Consulte vencimentos e valores em aberto. Pagar registra o pagamento integral na conta financeira de origem."
@@ -296,9 +290,9 @@ export default function ContasPagar() {
                 <DialogTitle id="pagar-conta-titulo">Pagar conta</DialogTitle>
                 <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
                     <Typography variant="body2" color="text.secondary">{pagamento?.descricao}</Typography>
-                    <CampoTexto required fullWidth type="date" label="Data do pagamento" value={dataPagamento}
+                    <CampoTexto required fullWidth type="date" label="Data do pagamento" value={dataPagamento} disabled={processando}
                         onChange={(e) => setDataPagamento(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-                    <CampoTexto select required fullWidth label="Conta financeira" value={contaFinanceiraId}
+                    <CampoTexto select required fullWidth label="Conta financeira" value={contaFinanceiraId} disabled={processando}
                         onChange={(e) => setContaFinanceiraId(e.target.value ? Number(e.target.value) : "")}>
                         <MenuItem value="">Selecione uma conta financeira</MenuItem>
                         {contasFinanceiras
@@ -309,12 +303,19 @@ export default function ContasPagar() {
                                 </MenuItem>
                             ))}
                     </CampoTexto>
-                    <CampoMonetario canonico placeholder="Informe o valor integral…" required fullWidth label="Valor pago (R$)" value={valorPago} helperText="O pagamento deve ser integral."
-                        onValueChange={v => setValorPago(v)} />
+                    <Typography variant="body2">Valor original: <strong>{moeda.format(pagamento?.valor ?? 0)}</strong></Typography>
+                    {([ ["juros", "Juros (R$)"], ["multa", "Multa (R$)"], ["desconto", "Desconto (R$)"] ] as const).map(([campo, label]) =>
+                        <CampoMonetario key={campo} canonico required fullWidth label={label} value={encargos[campo]} disabled={processando}
+                            onValueChange={v => setEncargos(atual => ({ ...atual, [campo]: v }))} />)}
+                    <Box role="status" sx={{ borderTop: 1, borderColor: "divider", pt: 1.5 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>Total a pagar: {calculoPagamento ? moeda.format(Number(calculoPagamento.valorPago)) : "Revise os valores"}</Typography>
+                        <Typography variant="caption" color="text.secondary">Este é o valor debitado da conta financeira para quitar a obrigação integralmente.</Typography>
+                    </Box>
+                    {saldoInsuficiente && <Alert severity="warning">Saldo insuficiente na conta financeira selecionada para o total a pagar.</Alert>}
                     {erro && <Alert severity="error">{erro}</Alert>}
                 </Stack></DialogContent>
                 <DialogActions><Button onClick={() => setPagamento(null)} disabled={processando}>Cancelar</Button>
-                    <Button type="submit" variant="contained" disabled={!!processando || !contaFinanceiraId || saldoInsuficiente}>
+                    <Button type="submit" variant="contained" disabled={!!processando || !contaFinanceiraId || saldoInsuficiente || !calculoPagamento}>
                         {processando ? "Salvando…" : "Confirmar pagamento"}
                     </Button></DialogActions>
             </form>
