@@ -39,6 +39,11 @@ public class AnaliseVendasService {
                     "Informe um período válido de até 366 dias, sem datas futuras.");
     }
 
+    public Pagamentos pagamentos(long empresa, LocalDate inicio, LocalDate fim) {
+        validarPeriodo(inicio, fim);
+        return repository.pagamentos(empresa, inicio, fim);
+    }
+
     public Ranking produtos(long empresa, LocalDate inicio, LocalDate fim, String ordem, String unidade, int page, int size) {
         validarPeriodo(inicio, fim);
         br.com.novexa.erp.util.Paginacao.criar(page, size, "id,asc", java.util.Set.of("id"), org.springframework.data.domain.Sort.Direction.ASC);
@@ -59,8 +64,7 @@ public class AnaliseVendasService {
 
     public Distribuicao categorias(long empresa, LocalDate inicio, LocalDate fim) {
         validarPeriodo(inicio, fim); repository.validarItens(empresa, inicio, fim);
-        var total = repository.resumo(empresa, inicio, fim).faturamento();
-        return new Distribuicao(repository.categorias(empresa, inicio, fim, total), total);
+        return repository.distribuicaoCategorias(empresa, inicio, fim);
     }
 
     public byte[] exportar(long empresa, LocalDate inicio, LocalDate fim, String secao, String ordem, String unidade) {

@@ -31,6 +31,13 @@ public class AnaliseVendasController {
         return service.resumo(usuario.empresaId(), dataInicial, dataFinal);
     }
 
+    @GetMapping("/pagamentos")
+    public Pagamentos pagamentos(@AuthenticationPrincipal UsuarioAutenticado usuario,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicial,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFinal) {
+        return service.pagamentos(usuario.empresaId(), dataInicial, dataFinal);
+    }
+
     @GetMapping("/produtos")
     public Ranking produtos(@AuthenticationPrincipal UsuarioAutenticado usuario,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicial,

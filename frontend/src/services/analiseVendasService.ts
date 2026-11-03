@@ -3,16 +3,21 @@ import axios from "axios";
 import type { PaginaResponse } from "../types/paginacao";
 
 export type PeriodoAnalise = { dataInicial: string; dataFinal: string };
-export type IndicadoresVendas = { faturamento: number; quantidadeVendas: number; ticketMedio: number; descontos: number };
+export type IndicadoresVendas = { faturamento: number; quantidadeVendas: number; ticketMedio: number; descontos: number; participacaoDescontos?: number };
 export type ResumoAnaliseVendas = {
     periodo: PeriodoAnalise & { incompleto: boolean; geradoEm: string };
     vendasSemDataFaturamento: number;
     atual: IndicadoresVendas;
     periodoAnterior: PeriodoAnalise;
     anterior: IndicadoresVendas;
-    evolucao: { data: string; faturamento: number }[];
-    evolucaoAnterior: { data: string; faturamento: number }[];
+    evolucao: DiaAnalise[];
+    evolucaoAnterior: DiaAnalise[];
 };
+export type DiaAnalise = { data: string; faturamento: number; quantidadeVendas?: number; ticketMedio?: number; descontos?: number };
+export type MeioAnalise = { nome: string; valor: number; participacao: number };
+export type PagamentosAnalise = { items: MeioAnalise[]; faturamentoPeriodo: number };
+export const consultarPagamentosAnalise = async (periodo: PeriodoAnalise, signal?: AbortSignal) =>
+    (await api.get<PagamentosAnalise>("/vendas/analise/pagamentos", { params: periodo, signal })).data;
 
 export const consultarResumoVendas = async (periodo: PeriodoAnalise, signal?: AbortSignal) =>
     (await api.get<ResumoAnaliseVendas>("/vendas/analise/resumo", { params: periodo, signal })).data;

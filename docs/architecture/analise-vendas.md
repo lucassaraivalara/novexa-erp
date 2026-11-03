@@ -64,6 +64,14 @@ Validação histórica desta correção no worktree real (V54 local, anterior à
 
  Limites restantes: dados anteriores sem snapshots não podem ser reconstruídos com segurança; categorias atuais; cancelamentos recalculam períodos anteriores; comparação de hoje incompleto com dias anteriores completos é explicitamente sinalizada. Seções usam transações de leitura independentes; divergência de totais entre respostas orienta atualizar. Não há certificação de desempenho para bases de grande volume nem alteração de histórico fiscal/financeiro.
 
+## Dashboard gerencial — Sprint 22
+
+Quatro KPIs e tendências, evolução atual/anterior, destaques, meta não configurada, donut de pagamentos comerciais, categorias e comparação. Recharts é carregado no chunk lazy da análise; Consulta, ranking detalhado e CSV permanecem disponíveis. O acabamento visual segue a Sprint 22.1.
+
+`GET /vendas/analise/pagamentos` retorna distribuição comercial por forma e total do período; não soma recebíveis ou liquidações. Filtros, perfil gerencial, empresa do JWT, vendas FATURADAS e datas civis seguem os contratos existentes. O resumo amplia a série com quantidade/ticket/descontos e participação dos descontos sobre o bruto.
+
+Otimização 22.3: pagamentos reutiliza a relação filtrada dentro de uma consulta; categorias deriva seu total do rateio integral validado. Sem cache entre empresas, migration ou mudança de regras comerciais. Medidos 8 SQLs por período (5 resumo, 1 pagamentos, 2 categorias), com respostas equivalentes ao baseline e laboratório de 23.866 vendas sintéticas. Gate 22.4 aprovado localmente; egress faturável não foi medido. Filtros cancelam chamadas antigas, não há polling e as respostas permanecem agregadas, sem logos ou listas de vendas.
+
 ## Backfill de implantação (22/10/2026)
 
 Operação excepcional de dados, autorizada pelo gestor e executada fora do Flyway: `UPDATE vendas SET data_faturamento = data_hora WHERE status = 'FATURADA' AND data_faturamento IS NULL` (102 vendas de 19/10–21/10, transação única com validação prévia e posterior). Justificativa: cliente em fase de implantação e vendas sempre faturadas no ato, o que torna `data_hora` evidência válida de faturamento para o legado. Esta operação é histórica e não deve ser reexecutada; vendas novas preenchem `data_faturamento` no ato do faturamento (V56 em diante).

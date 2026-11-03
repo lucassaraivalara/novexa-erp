@@ -1,15 +1,14 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Alert, Box, Button, Menu, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Button, Menu, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import LoadingState from "../../components/ui/LoadingState";
 import { consultarResumoVendas, exportarAnalise, type CriterioRanking, type PeriodoAnalise, type ResumoAnaliseVendas, type SecaoExportacao } from "../../services/analiseVendasService";
 import { mensagemVenda } from "../../services/vendaService";
 import { formatarData, hojeBrasilia } from "../../utils/dataHora";
-import { moedaVenda } from "./centralVendasUtils";
-import { erroPeriodo, periodoAnalise, variacao } from "./analiseVendasUtils";
-import EvolucaoVendas from "./EvolucaoVendas";
+import { erroPeriodo, periodoAnalise } from "./analiseVendasUtils";
+const DashboardAnalise = lazy(() => import("./DashboardAnalise"));
 import RankingsVendas from "./RankingsVendas";
 
 export default function AnaliseVendas({ onVerVendas }: { onVerVendas: (periodo: PeriodoAnalise) => void }) {
@@ -19,6 +18,7 @@ export default function AnaliseVendas({ onVerVendas }: { onVerVendas: (periodo: 
     const [resultado, setResumo] = useState<ResumoAnaliseVendas | null>(null);
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
+    const [rankingAberto, setRankingAberto] = useState(false);
     const [tentativa, setTentativa] = useState(0);
     const [menuExportacao, setMenuExportacao] = useState<HTMLElement | null>(null);
     const [exportando, setExportando] = useState(false);
@@ -77,6 +77,7 @@ export default function AnaliseVendas({ onVerVendas }: { onVerVendas: (periodo: 
                 <TextField size="small" type="date" label="Data inicial" value={dataInicial} slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: hojeBrasilia() } }} onChange={e => atualizarPeriodo(e.target.value, dataFinal)} />
                 <TextField size="small" type="date" label="Data final" value={dataFinal} slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: hojeBrasilia() } }} onChange={e => atualizarPeriodo(dataInicial, e.target.value)} />
             </Stack>
+            <Button variant="text" onClick={() => setTentativa(v => v + 1)} disabled={Boolean(invalido) || carregando}>Atualizar análise</Button>
             <Button variant="outlined" startIcon={<ReceiptLongOutlinedIcon />} onClick={verVendas} disabled={Boolean(invalido)} sx={{ ml: { lg: "auto" } }}>Ver vendas do período</Button>
             <Button id="exportar-analise" variant="contained" startIcon={<FileDownloadOutlinedIcon />} onClick={e => setMenuExportacao(e.currentTarget)} disabled={Boolean(invalido) || carregando || !resumo || exportando}
                 aria-busy={exportando} aria-haspopup="menu" aria-expanded={Boolean(menuExportacao)} aria-controls={menuExportacao ? "opcoes-exportar-analise" : undefined}>{exportando ? "Exportando…" : "Exportar CSV"}</Button>
@@ -90,24 +91,13 @@ export default function AnaliseVendas({ onVerVendas }: { onVerVendas: (periodo: 
         {invalido ? <Alert severity="warning">{invalido}</Alert> : erro ? <Alert severity="error" action={<Button color="inherit" onClick={() => setTentativa(v => v + 1)}>Tentar novamente</Button>}>{erro}</Alert>
             : carregando || !resumo ? <LoadingState mensagem="Consultando vendas do período…" /> : <>
                 <Typography variant="body2" color="text.secondary">{formatarData(dataInicial)} a {formatarData(dataFinal)} · Comparado a {formatarData(resumo.periodoAnterior.dataInicial)} a {formatarData(resumo.periodoAnterior.dataFinal)}.{resumo.periodo.incompleto ? " Período atual incompleto: o dia de hoje ainda está em andamento; a comparação anterior usa dias completos." : ""}</Typography>
-                <Paper component="section" aria-label="Resumo do período" aria-live="polite" variant="outlined" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" }, overflow: "hidden" }}>
-                    {[
-                        ["Faturamento", moedaVenda(resumo.atual.faturamento), variacao(resumo.atual.faturamento, resumo.anterior.faturamento)],
-                        ["Vendas realizadas", resumo.atual.quantidadeVendas.toLocaleString("pt-BR"), variacao(resumo.atual.quantidadeVendas, resumo.anterior.quantidadeVendas)],
-                        ["Ticket médio", moedaVenda(resumo.atual.ticketMedio), variacao(resumo.atual.ticketMedio, resumo.anterior.ticketMedio)],
-                        ["Descontos concedidos", moedaVenda(resumo.atual.descontos), "Descontos gerais das vendas faturadas"],
-                    ].map(([label, valor, comparacao]) => <Box key={label} sx={{ p: 2.5, minWidth: 0 }}>
-                        <Typography variant="body2" color="text.secondary">{label}</Typography>
-                        <Typography sx={{ mt: 0.75, fontSize: "1.75rem", fontWeight: 650, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>{valor}</Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>{comparacao}</Typography>
-                    </Box>)}
-                </Paper>
+                <Suspense fallback={<LoadingState mensagem="Carregando painel..." />}><DashboardAnalise resumo={resumo} /></Suspense>
                 {resumo.atual.quantidadeVendas === 0 && <Alert severity="info">{resumo.vendasSemDataFaturamento > 0
                     ? "Nenhuma venda com data de faturamento registrada neste período."
                     : "Nenhuma venda faturada neste período."}</Alert>}
                 {resumo.vendasSemDataFaturamento > 0 && <Alert severity="warning">Há {resumo.vendasSemDataFaturamento} venda(s) faturada(s) na empresa sem data de faturamento confiável. Elas não entram em nenhum período da análise e continuam disponíveis na Consulta por criação.</Alert>}
-                <EvolucaoVendas resumo={resumo} />
-                <RankingsVendas key={chavePeriodo} periodo={periodo} criterio={criterio} onCriterio={c => setCriterio({ ...c, periodo: chavePeriodo })} faturamento={resumo.atual.faturamento} onAtualizar={() => setTentativa(v => v + 1)} />
+                <Button onClick={() => setRankingAberto(v => !v)} aria-expanded={rankingAberto}>Consultar ranking de produtos e categorias</Button>
+                {rankingAberto && <RankingsVendas mostrarCategorias={false} key={chavePeriodo} periodo={periodo} criterio={criterio} onCriterio={c => setCriterio({ ...c, periodo: chavePeriodo })} faturamento={resumo.atual.faturamento} onAtualizar={() => setTentativa(v => v + 1)} />}
                 <Typography variant="caption" color="text.secondary">Vendas abertas e canceladas não entram nos resultados. Cancelamentos posteriores retiram a venda do período em que foi faturada.</Typography>
             </>}
     </Stack>;

@@ -80,6 +80,23 @@ class AnaliseVendasPostgresTest {
     }
     @AfterEach void encerrar() { if (tempo != null) tempo.close(); }
 
+    @Test void pagamentosDashboardVazioProtegidoETenantSeguro() throws Exception {
+        endpoint("pagamentos").andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0));
+        mvc.perform(get("/vendas/analise/pagamentos").param("dataInicial","2026-10-22").param("dataFinal","2026-10-22")).andExpect(status().isUnauthorized());
+        venda(usuario(outra,"11144477735",PerfilUsuario.ADMIN),"2026-10-22T10:00:00","999","0",StatusVenda.FATURADA);
+        endpoint("pagamentos").andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0));
+        admin.setPerfil(PerfilUsuario.OPERADOR);usuarios.saveAndFlush(admin);token="Bearer "+jwt.gerarToken(admin);
+        endpoint("pagamentos").andExpect(status().isForbidden());
+    }
+
+    @Test void descontosESerieDashboardNaoInventamPercentuais() throws Exception {
+        venda(admin,"2026-10-22T10:00:00","90","10",StatusVenda.FATURADA);
+        endpoint("resumo").andExpect(status().isOk()).andExpect(jsonPath("$.atual.participacaoDescontos").value(10))
+            .andExpect(jsonPath("$.evolucao[0].quantidadeVendas").value(1)).andExpect(jsonPath("$.evolucao[0].descontos").value(10));
+        endpoint("pagamentos").andExpect(status().isOk()).andExpect(jsonPath("$.items[0].nome").value("Não discriminado no histórico"))
+            .andExpect(jsonPath("$.items[0].valor").value(90)).andExpect(jsonPath("$.items[0].participacao").value(100));
+    }
+
     @Test void resumoUsaTodosOsFaturadosDoTenantSemConfundirRecebimento() throws Exception {
         venda(admin, "2026-10-21T23:59:59", "100.00", "10.00", StatusVenda.FATURADA);
         venda(admin, "2026-10-22T00:00:00", "50.00", "5.00", StatusVenda.FATURADA);
@@ -165,6 +182,8 @@ class AnaliseVendasPostgresTest {
         var pix = formas.saveAndFlush(new FormaPagamentoEntity("PIX sintético", TipoFormaPagamento.PIX, true));
         pagamentos.saveAndFlush(new PagamentoEntity(v, admin, dinheiro, null, 1, new BigDecimal("30"), new BigDecimal("50")));
         pagamentos.saveAndFlush(new PagamentoEntity(v, admin, pix, null, 2, new BigDecimal("70"), null));
+        endpoint("pagamentos").andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(2))
+            .andExpect(jsonPath("$.items[0].valor").value(70)).andExpect(jsonPath("$.items[1].valor").value(30));
         var externo = produto("Não deve aparecer", "UN", null); externo.setEmpresa(outra); produtos.saveAndFlush(externo);
         var u = usuario(outra, "11144477735", PerfilUsuario.ADMIN);
         var outraVenda = venda(u, "2026-10-22T12:00:00", "900", "0", StatusVenda.FATURADA);
@@ -250,6 +269,8 @@ class AnaliseVendasPostgresTest {
         em.flush(); em.clear();
         assertThat(vendas.findById(id).orElseThrow().getDataFaturamento()).isEqualTo(faturada.getDataFaturamento());
         consulta("2026-10-22", "2026-10-22").andExpect(jsonPath("$.atual.faturamento").value(0));
+        endpoint("pagamentos").andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0))
+                .andExpect(jsonPath("$.faturamentoPeriodo").value(0));
     }
 
     @Test void vendaMesmoDiaEUnidadesHistoricasNaoSeMisturamAposEditarProduto() throws Exception {
@@ -288,6 +309,9 @@ class AnaliseVendasPostgresTest {
         assertThat(vendas.findById(id).orElseThrow().getDataFaturamento()).isEqualTo(LocalDateTime.parse("2026-10-22T14:03:00"));
         assertThat(pagamentos.count()).isZero();
         consulta("2026-10-22", "2026-10-22").andExpect(jsonPath("$.atual.faturamento").value(10));
+        endpoint("pagamentos").andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].nome").value("A prazo"))
+                .andExpect(jsonPath("$.items[0].valor").value(10)).andExpect(jsonPath("$.items[0].participacao").value(100));
     }
 
     @Test void legadoSemDataNaoRecebeDataFicticiaEUnidadeDesconhecidaNaoViraQuantidade() throws Exception {

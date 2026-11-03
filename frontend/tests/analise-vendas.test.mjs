@@ -50,7 +50,11 @@ async function abrir(opcoes = {}) {
                 anterior: { faturamento: 0, quantidadeVendas: 0, ticketMedio: 0, descontos: 0 },
                 evolucao: [{ data: "2026-10-21", faturamento: e.vazio ? 0 : 150 }, { data: "2026-10-22", faturamento: 0 }],
                 evolucaoAnterior: [{ data: "2026-10-19", faturamento: 0 }, { data: "2026-10-20", faturamento: 0 }] };
-        } else if (u.pathname === "/vendas/analise/produtos") {
+        } else if (u.pathname === "/vendas/analise/pagamentos") {
+            if (e.erroPagamento) { status = 503; dados = { detail: "Pagamentos comerciais indisponíveis." }; }
+            else dados = e.vazio ? [] : [{ nome: "PIX", valor: 100, participacao: 66.67 }, { nome: "Dinheiro", valor: 50, participacao: 33.33 }];
+        }
+        else if (u.pathname === "/vendas/analise/produtos") {
             if (e.erroRanking) { status = 503; dados = { detail: "Ranking indisponível. Tente novamente." }; }
             else {
                 const unidades = ["KG", "UN"];
@@ -66,11 +70,51 @@ async function abrir(opcoes = {}) {
             else return route.fulfill({ status: 200, headers: { "access-control-allow-origin": "*" }, contentType: "text/csv;charset=UTF-8", body: '\uFEFF"Nome";"Valor"\r\n"Produto sintético";"150,00"' });
         } else if (u.pathname === "/vendas") dados = { items: [], page: 0, size: 25, totalItems: 0, totalPages: 0 };
         else throw new Error(`Requisição não simulada: ${u.pathname}`);
+        if (e.painel22 && u.pathname.endsWith("/resumo")) {
+            dados.atual = { faturamento: 150, quantidadeVendas: 12, ticketMedio: 12.5, descontos: 15, participacaoDescontos: 9.09 };
+            dados.anterior = { faturamento: 120, quantidadeVendas: 14, ticketMedio: 8.57, descontos: 12 };
+            dados.periodo.incompleto = false;
+            dados.periodoAnterior = { dataInicial: "2026-10-16", dataFinal: "2026-10-22" };
+            dados.evolucao = [10, 20, 30, 0, 40, 20, 30].map((faturamento, i) => ({ data: `2026-10-${23+i}`, faturamento, quantidadeVendas: faturamento ? 2 : 0, ticketMedio: faturamento/2, descontos: i === 0 ? 15 : 0 }));
+            dados.evolucaoAnterior = [20, 10, 20, 10, 30, 10, 20].map((faturamento, i) => ({ data: `2026-10-${16+i}`, faturamento }));
+        }
+        if (u.pathname.endsWith("/pagamentos") && status === 200) dados = { items: dados, faturamentoPeriodo: e.vazio ? 0 : 150 };
         await route.fulfill({ status, headers: { "access-control-allow-origin": "*" }, contentType: "application/json", body: JSON.stringify(dados) });
     });
     await p.goto(`${url}/vendas${e.query ?? "?aba=analise&dataInicial=2026-10-21&dataFinal=2026-10-22"}`);
     return { p, e };
 }
+
+test("Sprint22 dashboard completo nas quatro resoluções sem consultas duplicadas", async () => {
+    await mkdir("../docs/audits/assets/sprint22", { recursive: true });
+    for (const width of [1920, 1366, 768, 390]) {
+        const { p, e } = await abrir({ painel22: true, query: "?aba=analise&dataInicial=2026-10-23&dataFinal=2026-10-29", tema: "dark", viewport: { width, height: width === 1920 ? 1080 : width === 1366 ? 768 : width === 768 ? 1024 : 844 } });
+        try {
+            await expect(p.getByRole("heading", { name: "Evolução do faturamento" })).toBeVisible();
+            await expect(p.getByText("Meta não configurada", { exact: true })).toBeVisible();
+            await expect(p.getByText(/Comparado a 16\/10\/2026 a 22\/10\/2026/)).toBeVisible();
+            await expect(p.getByRole("region", { name: "Formas de pagamento", exact: true }).getByText("PIX", { exact: true })).toBeVisible();
+            assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), JSON.stringify(await p.locator("body *").evaluateAll(nodes => nodes.filter(n => n.getBoundingClientRect().right > innerWidth + 1).slice(-12).map(n => ({ tag: n.tagName, text: n.textContent?.slice(0,80), right: n.getBoundingClientRect().right })))));
+            assert.equal(e.chamadas.filter(c => c.path.endsWith("/resumo")).length, 1);
+            assert.equal(e.chamadas.filter(c => c.path.endsWith("/categorias")).length, 1);
+            assert.equal(e.chamadas.filter(c => c.path.endsWith("/pagamentos")).length, 1);
+            assert.equal(e.chamadas.filter(c => c.path.endsWith("/produtos")).length, 0);
+            await p.screenshot({ path: `../docs/audits/assets/sprint22/dashboard-dark-${width}.png`, fullPage: true, animations: "disabled" });
+            assert.deepEqual(e.erros, []);
+        } finally { await p.close(); }
+    }
+});
+
+test("falha de pagamentos não mascara faturamento e permite atualização", async () => {
+    const { p, e } = await abrir({ erroPagamento: true });
+    try {
+        await expect(p.getByText("Pagamentos comerciais indisponíveis.")).toBeVisible();
+        await expect(p.getByRole("region", { name: "Resumo do período" }).getByText("R$ 150,00", { exact: true })).toBeVisible();
+        e.erroPagamento = false;
+        await p.getByRole("button", { name: "Atualizar análise" }).click();
+        await expect(p.getByRole("region", { name: "Formas de pagamento" }).getByText("PIX", { exact: true })).toBeVisible();
+    } finally { await p.close(); }
+});
 
 test("resumo gerencial usa dados reais do contrato e abre Consulta com o período FATURADA", async () => {
     const { p, e } = await abrir();
@@ -111,7 +155,7 @@ test("perfil operacional mantém Consulta e não dispara análise gerencial", as
 test("comparação sem base não inventa percentual e os valores diários são acessíveis por teclado", async () => {
     const { p } = await abrir();
     try {
-        await expect(p.getByText("Sem base anterior para comparação percentual")).toHaveCount(3);
+        await expect(p.getByRole("region", { name: "Resumo do per\u00edodo", exact: true }).getByText("Sem base anterior", { exact: true })).toHaveCount(3);
         await expect(p.getByRole("img", { name: "Faturamento diário atual e anterior" })).toBeVisible();
         const dados = p.locator("summary"); await dados.focus(); await dados.press("Enter");
         await expect(p.getByRole("table", { name: "Valores diários da evolução" })).toBeVisible();
@@ -122,6 +166,7 @@ test("comparação sem base não inventa percentual e os valores diários são a
 test("ranking pagina cinco produtos, compara quantidade na mesma unidade e exporta sem limite de página", async () => {
     const { p, e } = await abrir();
     try {
+        await p.getByRole("button", { name: "Consultar ranking de produtos e categorias" }).click();
         const lista = p.getByRole("list", { name: "Ranking de produtos" });
         await expect(lista.getByRole("listitem")).toHaveCount(5);
         await p.getByRole("button", { name: "Próxima página" }).last().click();
@@ -164,6 +209,7 @@ test("loading, falha do ranking e falha da exportação oferecem recuperação",
     const { p, e } = await abrir({ atraso: 600, erroRanking: true });
     try {
         await expect(p.getByText("Consultando vendas do período…", { exact: true })).toBeVisible();
+        await p.getByRole("button", { name: "Consultar ranking de produtos e categorias" }).click();
         await expect(p.getByText("Ranking indisponível. Tente novamente.")).toBeVisible();
         e.erroRanking = false; await p.getByRole("button", { name: "Tentar novamente" }).click();
         await expect(p.getByRole("list", { name: "Ranking de produtos" }).getByRole("listitem")).toHaveCount(5);
@@ -185,6 +231,7 @@ test("análise responsiva preserva informações, teclado e temas sem overflow d
     ]) {
         const { p, e } = await abrir(c);
         try {
+            await p.getByRole("button", { name: "Consultar ranking de produtos e categorias" }).click();
             await expect(p.getByRole("list", { name: "Ranking de produtos" }).getByRole("listitem")).toHaveCount(5);
             await expect(p.getByRole("progressbar", { name: "Sem categoria", exact: true })).toHaveAttribute("aria-valuenow", "40");
             assert.ok(await p.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= innerWidth), `${c.tema} ${c.viewport.width}: overflow horizontal`);
@@ -220,6 +267,7 @@ test("calendário civil, limite do período e comparação não dependem de offs
 test("histórico incompleto é explícito e não apresenta quantidade ou unidade fictícia", async () => {
     const { p, e } = await abrir({ legado: true });
     try {
+        await p.getByRole("button", { name: "Consultar ranking de produtos e categorias" }).click();
         await expect(p.getByText(/Há 2 venda.*sem data de faturamento confiável/)).toBeVisible();
         await expect(p.getByText(/Há 1 item.*sem unidade histórica/)).toBeVisible();
         const lista = p.getByRole("list", { name: "Ranking de produtos" });

@@ -86,11 +86,39 @@ public class AnaliseVendasRepository {
     }
 
     public List<Dia> evolucao(long empresa, LocalDate inicio, LocalDate fim) {
-        Map<LocalDate, BigDecimal> valores = jdbc.query("SELECT cast(v.data_faturamento AS date) dia, sum(v.total) total "
+        Map<LocalDate, Dia> valores = jdbc.query("SELECT cast(v.data_faturamento AS date) dia, sum(v.total) total, count(*) quantidade, sum(v.desconto) descontos "
                         + "FROM vendas v WHERE " + FILTRO + " GROUP BY cast(v.data_faturamento AS date)",
-                parametros(empresa, inicio, fim), (rs, n) -> new Dia(rs.getDate("dia").toLocalDate(), rs.getBigDecimal("total")))
-                .stream().collect(Collectors.toMap(Dia::data, Dia::faturamento));
-        return inicio.datesUntil(fim.plusDays(1)).map(d -> new Dia(d, valores.getOrDefault(d, BigDecimal.ZERO.setScale(2)))).toList();
+                parametros(empresa, inicio, fim), (rs, n) -> new Dia(rs.getDate("dia").toLocalDate(), rs.getBigDecimal("total"), rs.getLong("quantidade"), rs.getBigDecimal("total").divide(BigDecimal.valueOf(rs.getLong("quantidade")), 2, RoundingMode.HALF_UP), rs.getBigDecimal("descontos")))
+                .stream().collect(Collectors.toMap(Dia::data, d -> d));
+        return inicio.datesUntil(fim.plusDays(1)).map(d -> valores.getOrDefault(d, new Dia(d, BigDecimal.ZERO.setScale(2)))).toList();
+    }
+
+    public Pagamentos pagamentos(long empresa, LocalDate inicio, LocalDate fim) {
+        record Linha(String nome, BigDecimal valor, BigDecimal total) {}
+        var dados = jdbc.query("""
+            WITH vendas_periodo AS MATERIALIZED (
+                SELECT v.id, v.empresa_id, v.total, v.valor_prazo FROM vendas v WHERE %s
+            ), meios AS (
+                SELECT nome, sum(valor) valor FROM (
+                    SELECT coalesce(p.configuracao_nome_exibicao, p.forma_pagamento) nome, p.valor
+                    FROM pagamentos p JOIN vendas_periodo v ON v.id=p.venda_id AND v.empresa_id=p.empresa_id
+                    WHERE p.status='REGISTRADO'
+                    UNION ALL SELECT 'A prazo', v.valor_prazo FROM vendas_periodo v WHERE v.valor_prazo>0
+                ) pagamentos_periodo GROUP BY nome
+            ), totais AS (SELECT coalesce(sum(total),0) total FROM vendas_periodo)
+            SELECT meios.nome, meios.valor, totais.total FROM totais LEFT JOIN meios ON true
+            ORDER BY meios.valor DESC, meios.nome
+            """.formatted(FILTRO), parametros(empresa, inicio, fim),
+            (rs, n) -> new Linha(rs.getString("nome"), rs.getBigDecimal("valor"), rs.getBigDecimal("total")));
+        var total = dados.getFirst().total();
+        var linhas = dados.stream().filter(l -> l.nome() != null)
+                .map(l -> new MeioPagamento(l.nome(), l.valor(), BigDecimal.ZERO)).toList();
+        var distribuido = linhas.stream().map(MeioPagamento::valor).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (distribuido.compareTo(total)>0) throw new ResponseStatusException(HttpStatus.CONFLICT, "Pagamentos comerciais excedem o faturamento. Revise os registros.");
+        var resultado = new java.util.ArrayList<MeioPagamento>();
+        for (var l : linhas) resultado.add(new MeioPagamento(l.nome(), l.valor(), participacao(l.valor(), total)));
+        if (distribuido.compareTo(total)<0) resultado.add(new MeioPagamento("Não discriminado no histórico", total.subtract(distribuido), participacao(total.subtract(distribuido), total)));
+        return new Pagamentos(resultado, total);
     }
 
     public void validarItens(long empresa, LocalDate inicio, LocalDate fim) {
@@ -141,6 +169,14 @@ public class AnaliseVendasRepository {
                         + "GROUP BY categoria_id, categoria ORDER BY valor DESC, categoria_id NULLS LAST",
                 parametros(empresa, inicio, fim), (rs, n) -> new Categoria(rs.getObject("categoria_id", Long.class),
                         rs.getString("categoria"), rs.getBigDecimal("valor").setScale(2), participacao(rs.getBigDecimal("valor"), faturamento)));
+    }
+
+    /** Itens já validados: o rateio em centavos reconcilia integralmente o total das vendas. */
+    public Distribuicao distribuicaoCategorias(long empresa, LocalDate inicio, LocalDate fim) {
+        var linhas = categorias(empresa, inicio, fim, BigDecimal.ZERO);
+        var total = linhas.stream().map(Categoria::valorVendido).reduce(BigDecimal.ZERO.setScale(2), BigDecimal::add);
+        return new Distribuicao(linhas.stream().map(c -> new Categoria(c.categoriaId(), c.nome(), c.valorVendido(),
+                participacao(c.valorVendido(), total))).toList(), total);
     }
 
     private BigDecimal participacao(BigDecimal valor, BigDecimal total) {
