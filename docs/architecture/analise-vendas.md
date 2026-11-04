@@ -45,6 +45,20 @@ CSV protege campos textuais iniciados por `=`, `+`, `-` ou `@`, inclusive após 
 
 Validação do terceiro incremento, anterior à V54: 9 testes PostgreSQL reais aprovados, com Flyway V1→V52 e Hibernate validate, cobrindo centavos, misto, isolamento, perfis, paginação, CSV completo/seguro, vazio e histórico inválido. Regressões H2 de Dashboard (2) e paginação (10) aprovadas. Interface com HTTP simulado: 9 testes de análise, 49 regressões da Consulta e 8 testes de data/hora em quatro fusos; capturas em 1440×900, 1024×600, 390×844 e 1024×360, claro/escuro/automático, com corpo e raiz sem overflow externo. Evidência de interface não equivale à integração completa navegador→API→PostgreSQL.
 
+## 5. Dias operados — Sprint 22.5 (local)
+
+Implementação local em 03/11/2026; não publicada. Substitui somente a regra histórica de destaques descrita na seção 4, preservando integralmente os quatro KPIs comerciais, pagamentos e categorias.
+
+O resumo inclui `operacao/operacaoAnterior` (`diasPeriodo`, `diasOperados`, `diasConcluidos`, `faturamentoMedio`, `parcial`, `melhorDia/piorDia`) e `variacaoMediaDiaria`. Cada dia das duas séries inclui `operado/parcial`. Dia operado tem sessão de Caixa/PDV intersectando o dia civil de Brasília ou venda atualmente FATURADA com data de faturamento confiável, mesmo sem sessão. Não depende de faturamento positivo; vendas abertas/canceladas sozinhas não qualificam. A consulta retorna agregados, sem sessões ou vendas individuais.
+
+Sessão fechada usa intervalo `[abertura, fechamento)`, sem incluir o dia seguinte quando fecha exatamente à meia-noite; duração zero reconhece o dia da abertura. Sessão aberta estende-se ao instante capturado da consulta, limitada ao intervalo solicitado. Datas são deduplicadas; múltiplas sessões contam uma vez. Registros deixados abertos podem marcar vários dias: não se presume fechamento nem se altera o Caixa. Ausência de evidência é apresentada como “Sem operação registrada”, sem afirmar fechamento físico.
+
+Hoje é parcial e não disputa os destaques definitivos. Melhor/pior usa dias operados anteriores a hoje, incluindo zero; desempate pela data mais antiga. Sem elegíveis, retorna destaques nulos e a interface informa “Sem dias operados concluídos neste período.” O faturamento acumulado de hoje continua compondo os KPIs integrais.
+
+Média operacional = faturamento comercial integral / todos os dias operados registrados, incluindo hoje quando operado, com rótulo parcial e quantidade de dias concluídos separada. Sem dias, média nula. BigDecimal/HALF_UP, duas casas. A comparação usa a mesma regra nos dois períodos e calcula variação com totais/contagens antes de arredondar as médias; não exibe percentual com período parcial ou sem base anterior válida (inclusive média anterior exibida zero). O bloco compacto fica no card de comparação, sem novos KPIs superiores. Tooltips e tabela diária descrevem os estados atual/anterior, sem remover datas do gráfico. CSV comercial existente preservado.
+
+Mantidas oito consultas por período (resumo 5, pagamentos 1, categorias 2), incorporando sessões nas duas agregações diárias existentes, sem request adicional, polling, cache compartilhado ou migration. Qualificação com duas empresas, 23.866 vendas e 618 sessões; 360 medições HTTP comparativas, snapshots comerciais equivalentes e zero chamadas em 300 segundos ociosos. Os bytes novos são metadados operacionais, não imagens/base64. Laboratório não comprova egress faturável nem p95 produtivo. [Regras, testes, capturas e reprodução](../audits/sprint22-5-dias-operados-analise-vendas.md).
+
 ## Estado local e limitações de validação
 
 Composição vigente em 2026-10-22: V56 cria `vendas.data_faturamento`; V57 adiciona `itens_venda.unidade_medida_venda`, sua restrição de normalização e o índice parcial por empresa/data de faturamento, sem recriar a coluna da Venda. Nenhuma delas faz backfill. A V54 local foi substituída e não integra as fontes nem os artefatos compilados atuais. A sequência Flyway é V1–V53, V55, V56 e V57.

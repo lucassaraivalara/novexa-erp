@@ -12,8 +12,13 @@ export type ResumoAnaliseVendas = {
     anterior: IndicadoresVendas;
     evolucao: DiaAnalise[];
     evolucaoAnterior: DiaAnalise[];
+    operacao?: OperacaoPeriodo;
+    operacaoAnterior?: OperacaoPeriodo;
+    variacaoMediaDiaria?: number | null;
 };
-export type DiaAnalise = { data: string; faturamento: number; quantidadeVendas?: number; ticketMedio?: number; descontos?: number };
+export type DiaAnalise = { data: string; faturamento: number; quantidadeVendas?: number; ticketMedio?: number; descontos?: number; operado?: boolean; parcial?: boolean };
+export type DestaqueOperado = { data: string; faturamento: number; participacao: number };
+export type OperacaoPeriodo = { diasPeriodo: number; diasOperados: number; diasConcluidos: number; faturamentoMedio: number | null; parcial: boolean; melhorDia: DestaqueOperado | null; piorDia: DestaqueOperado | null };
 export type MeioAnalise = { nome: string; valor: number; participacao: number };
 export type PagamentosAnalise = { items: MeioAnalise[]; faturamentoPeriodo: number };
 export const consultarPagamentosAnalise = async (periodo: PeriodoAnalise, signal?: AbortSignal) =>

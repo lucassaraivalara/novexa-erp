@@ -41,7 +41,7 @@ class AnaliseVendasPerformanceTest {
     @Test void volumeHttpSql() throws Exception {
         var root=Path.of("").toAbsolutePath().getParent().getParent();
         var phase=System.getProperty("novexa.perf.phase","after");
-        var out=root.resolve("docs/audits/assets/sprint22-3/"+phase);java.nio.file.Files.createDirectories(out);
+        var out=root.resolve(System.getProperty("novexa.perf.output","docs/audits/assets/sprint22-3/"+phase));java.nio.file.Files.createDirectories(out);
         var e=new EmpresaEntity();e.setRazaoSocial("Performance sintetica A");e.setAtivo(true);e=empresas.saveAndFlush(e);
         String token=AutenticacaoTeste.token(usuarios,jwt,e,PerfilUsuario.ADMIN,"02360684663");
         var u=usuarios.findAll().getFirst();
@@ -65,6 +65,19 @@ class AnaliseVendasPerformanceTest {
             "categories",jdbc.queryForObject("SELECT count(*) FROM categorias_produtos",Long.class),
             "items",jdbc.queryForObject("SELECT count(*) FROM itens_venda",Long.class),
             "payments",jdbc.queryForObject("SELECT count(*) FROM pagamentos",Long.class))));
+        for (var identity : jdbc.queryForList("SELECT empresa_id,min(id) usuario_id FROM usuario GROUP BY empresa_id")) {
+            long eid=((Number)identity.get("empresa_id")).longValue(), uid=((Number)identity.get("usuario_id")).longValue();
+            long cid=jdbc.queryForObject("INSERT INTO caixas(empresa_id,descricao,ativo) VALUES (?,'Performance sintética',true) RETURNING id",Long.class,eid);
+            jdbc.update("""
+                INSERT INTO sessoes_caixa(caixa_id,empresa_id,usuario_abertura_id,usuario_fechamento_id,
+                    saldo_inicial,saldo_final,data_abertura,data_fechamento,status,modalidade_conferencia)
+                SELECT ?,?,?,?,0,0,timestamp '2026-04-26 09:00:00'+g*interval '1 day'+turno*interval '6 hours',
+                       timestamp '2026-04-26 13:00:00'+g*interval '1 day'+turno*interval '6 hours','FECHADO','LEGADA'
+                FROM generate_series(0,179) g CROSS JOIN generate_series(0,1) turno WHERE g%7<>0
+                """,cid,eid,uid,uid);
+            jdbc.update("INSERT INTO sessoes_caixa(caixa_id,empresa_id,usuario_abertura_id,saldo_inicial,data_abertura,status) VALUES (?,?,?,0,timestamp '2026-10-22 22:00:00','ABERTO')",cid,eid,uid);
+        }
+        java.nio.file.Files.writeString(out.resolve("sessions.json"), json.writeValueAsString(jdbc.queryForList("SELECT empresa_id,count(*) sessoes FROM sessoes_caixa GROUP BY empresa_id ORDER BY empresa_id")));
         jdbc.execute("ANALYZE");
         jdbc.execute("CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public");
         var client=java.net.http.HttpClient.newHttpClient();var result=new java.util.ArrayList<Object>();
@@ -78,7 +91,7 @@ class AnaliseVendasPerformanceTest {
                 assertThat(response.statusCode()).isEqualTo(200);
                 var body=json.readTree(response.body());if(route.equals("resumo")){((com.fasterxml.jackson.databind.node.ObjectNode)body.get("periodo")).remove("geradoEm");((com.fasterxml.jackson.databind.node.ObjectNode)body.get("periodoAnterior")).remove("geradoEm");}
                 var snapshot=out.resolve(route+"-"+days+".json");
-                if(i==0){java.nio.file.Files.writeString(snapshot,json.writeValueAsString(body));if(!phase.equals("before"))assertThat(body).isEqualTo(json.readTree(root.resolve("docs/audits/assets/sprint22-3/before/"+route+"-"+days+".json").toFile()));}
+                if(i==0){java.nio.file.Files.writeString(snapshot,json.writeValueAsString(body));if(!phase.equals("before"))assertThat(comercial(body).equals((a,b) -> a.isNumber() && b.isNumber() ? a.decimalValue().compareTo(b.decimalValue()) : a.equals(b) ? 0 : 1, comercial(json.readTree(root.resolve("docs/audits/assets/sprint22-3/before/"+route+"-"+days+".json").toFile())))).as(route+" "+days+" dias: indicadores comerciais equivalentes").isTrue();}
                 var stat=jdbc.queryForMap("SELECT coalesce(sum(calls),0) calls,coalesce(sum(total_exec_time),0) ms FROM public.pg_stat_statements WHERE query NOT ILIKE '%pg_stat_statements%' AND (query ILIKE '%FROM vendas%' OR query ILIKE '%WITH base%')");
                 int expected=route.equals("resumo")?5:route.equals("pagamentos")?(phase.equals("before")?2:1):(phase.equals("before")?3:2);
                 assertThat(((Number)stat.get("calls")).intValue()).isEqualTo(expected);
@@ -92,5 +105,15 @@ class AnaliseVendasPerformanceTest {
         plans.put("categories180",jdbc.queryForList("EXPLAIN (ANALYZE,BUFFERS,FORMAT TEXT) "+rateio+"SELECT categoria_id,categoria,sum(valor) FROM agrupados GROUP BY categoria_id,categoria",String.class));
         java.nio.file.Files.writeString(out.resolve("plans.json"),json.writerWithDefaultPrettyPrinter().writeValueAsString(plans));
         java.nio.file.Files.writeString(out.resolve("measurements.json"),json.writerWithDefaultPrettyPrinter().writeValueAsString(result));
+    }
+
+    private com.fasterxml.jackson.databind.JsonNode comercial(com.fasterxml.jackson.databind.JsonNode original) {
+        var copy=original.deepCopy();
+        if(copy.has("operacao")) {
+            ((com.fasterxml.jackson.databind.node.ObjectNode)copy).remove(java.util.List.of("operacao","operacaoAnterior","variacaoMediaDiaria"));
+            for(String campo:java.util.List.of("evolucao","evolucaoAnterior"))
+                for(var dia:copy.path(campo)) ((com.fasterxml.jackson.databind.node.ObjectNode)dia).remove(java.util.List.of("operado","parcial"));
+        }
+        return copy;
     }
 }

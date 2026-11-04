@@ -26,10 +26,37 @@ public class AnaliseVendasService {
         var agora = TempoNovexa.agora();
         var inicioAnterior = inicio.minusDays(ChronoUnit.DAYS.between(inicio, fim) + 1);
         var fimAnterior = inicio.minusDays(1);
-        return new Resumo(new Periodo(inicio, fim, fim.equals(agora.toLocalDate()), agora),
-                repository.resumo(empresa, inicio, fim), new Periodo(inicioAnterior, fimAnterior, false, agora),
-                repository.resumo(empresa, inicioAnterior, fimAnterior), repository.evolucao(empresa, inicio, fim),
-                repository.evolucao(empresa, inicioAnterior, fimAnterior), repository.vendasSemDataFaturamento(empresa));
+        var atual = repository.resumo(empresa, inicio, fim);
+        var anterior = repository.resumo(empresa, inicioAnterior, fimAnterior);
+        var dias = repository.evolucao(empresa, inicio, fim, agora);
+        var diasAnteriores = repository.evolucao(empresa, inicioAnterior, fimAnterior, agora);
+        var operacao = operacao(dias, atual.faturamento(), fim.equals(agora.toLocalDate()));
+        var operacaoAnterior = operacao(diasAnteriores, anterior.faturamento(), false);
+        BigDecimal variacao = operacao.parcial() || operacao.faturamentoMedio() == null
+                || operacaoAnterior.faturamentoMedio() == null || operacaoAnterior.faturamentoMedio().signum() == 0 ? null
+                : atual.faturamento().multiply(BigDecimal.valueOf(operacaoAnterior.diasOperados()))
+                    .subtract(anterior.faturamento().multiply(BigDecimal.valueOf(operacao.diasOperados())))
+                    .multiply(new BigDecimal("100")).divide(anterior.faturamento().multiply(BigDecimal.valueOf(operacao.diasOperados())),
+                            2, java.math.RoundingMode.HALF_UP);
+        return new Resumo(new Periodo(inicio, fim, operacao.parcial(), agora), atual,
+                new Periodo(inicioAnterior, fimAnterior, false, agora), anterior, dias, diasAnteriores,
+                repository.vendasSemDataFaturamento(empresa), operacao, operacaoAnterior, variacao);
+    }
+
+    private OperacaoPeriodo operacao(List<Dia> dias, BigDecimal total, boolean parcial) {
+        long operados = dias.stream().filter(Dia::operado).count();
+        var elegiveis = dias.stream().filter(d -> d.operado() && !d.parcial()).toList();
+        var menor = java.util.Comparator.comparing(Dia::faturamento).thenComparing(Dia::data);
+        var maior = java.util.Comparator.comparing(Dia::faturamento).reversed().thenComparing(Dia::data);
+        return new OperacaoPeriodo(dias.size(), operados, elegiveis.size(), operados == 0 ? null
+                : total.divide(BigDecimal.valueOf(operados), 2, java.math.RoundingMode.HALF_UP), parcial,
+                elegiveis.stream().min(maior).map(d -> destaque(d, total)).orElse(null),
+                elegiveis.stream().min(menor).map(d -> destaque(d, total)).orElse(null));
+    }
+
+    private DestaqueOperado destaque(Dia dia, BigDecimal total) {
+        return new DestaqueOperado(dia.data(), dia.faturamento(), total.signum() == 0 ? BigDecimal.ZERO
+                : dia.faturamento().multiply(new BigDecimal("100")).divide(total, 2, java.math.RoundingMode.HALF_UP));
     }
 
     private void validarPeriodo(LocalDate inicio, LocalDate fim) {

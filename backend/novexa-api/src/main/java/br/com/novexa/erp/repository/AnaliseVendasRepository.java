@@ -85,12 +85,39 @@ public class AnaliseVendasRepository {
                 });
     }
 
-    public List<Dia> evolucao(long empresa, LocalDate inicio, LocalDate fim) {
-        Map<LocalDate, Dia> valores = jdbc.query("SELECT cast(v.data_faturamento AS date) dia, sum(v.total) total, count(*) quantidade, sum(v.desconto) descontos "
-                        + "FROM vendas v WHERE " + FILTRO + " GROUP BY cast(v.data_faturamento AS date)",
-                parametros(empresa, inicio, fim), (rs, n) -> new Dia(rs.getDate("dia").toLocalDate(), rs.getBigDecimal("total"), rs.getLong("quantidade"), rs.getBigDecimal("total").divide(BigDecimal.valueOf(rs.getLong("quantidade")), 2, RoundingMode.HALF_UP), rs.getBigDecimal("descontos")))
+    public List<Dia> evolucao(long empresa, LocalDate inicio, LocalDate fim, java.time.LocalDateTime agora) {
+        // Expande somente intervalos de sessões que intersectam o período, em uma consulta agregada.
+        Map<LocalDate, Dia> valores = jdbc.query("""
+                WITH vendas_dia AS (
+                    SELECT cast(v.data_faturamento AS date) dia, sum(v.total) total,
+                           count(*) quantidade, sum(v.desconto) descontos
+                    FROM vendas v WHERE %s GROUP BY cast(v.data_faturamento AS date)
+                ), sessoes_dias AS (
+                    SELECT DISTINCT cast(d.dia AS date) dia FROM sessoes_caixa s
+                    CROSS JOIN LATERAL generate_series(
+                        greatest(cast(s.data_abertura AS date), cast(:inicio AS date)),
+                        least(cast(CASE WHEN s.data_fechamento IS NULL THEN :agora
+                                   ELSE greatest(s.data_abertura, s.data_fechamento - interval '1 microsecond') END AS date),
+                              cast(:fim AS date) - 1), interval '1 day') d(dia)
+                    WHERE s.empresa_id=:empresa AND s.data_abertura < :fim AND s.data_abertura <= :agora
+                      AND (s.data_fechamento IS NULL OR s.data_fechamento >= :inicio)
+                )
+                SELECT coalesce(v.dia,s.dia) dia, coalesce(v.total,0) total,
+                       coalesce(v.quantidade,0) quantidade, coalesce(v.descontos,0) descontos
+                FROM vendas_dia v FULL OUTER JOIN sessoes_dias s ON s.dia=v.dia
+                """.formatted(FILTRO), parametros(empresa, inicio, fim).addValue("agora", java.sql.Timestamp.valueOf(agora)),
+                (rs, n) -> {
+                    var dia = rs.getDate("dia").toLocalDate();
+                    long quantidade = rs.getLong("quantidade");
+                    var total = rs.getBigDecimal("total");
+                    return new Dia(dia, total, quantidade, quantidade == 0 ? BigDecimal.ZERO.setScale(2)
+                            : total.divide(BigDecimal.valueOf(quantidade), 2, RoundingMode.HALF_UP),
+                            rs.getBigDecimal("descontos"), true, dia.equals(agora.toLocalDate()));
+                })
                 .stream().collect(Collectors.toMap(Dia::data, d -> d));
-        return inicio.datesUntil(fim.plusDays(1)).map(d -> valores.getOrDefault(d, new Dia(d, BigDecimal.ZERO.setScale(2)))).toList();
+        return inicio.datesUntil(fim.plusDays(1)).map(d -> valores.getOrDefault(d,
+                new Dia(d, BigDecimal.ZERO.setScale(2), 0, BigDecimal.ZERO, BigDecimal.ZERO,
+                        false, d.equals(agora.toLocalDate())))).toList();
     }
 
     public Pagamentos pagamentos(long empresa, LocalDate inicio, LocalDate fim) {

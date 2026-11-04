@@ -78,6 +78,22 @@ async function abrir(opcoes = {}) {
             dados.evolucao = [10, 20, 30, 0, 40, 20, 30].map((faturamento, i) => ({ data: `2026-10-${23+i}`, faturamento, quantidadeVendas: faturamento ? 2 : 0, ticketMedio: faturamento/2, descontos: i === 0 ? 15 : 0 }));
             dados.evolucaoAnterior = [20, 10, 20, 10, 30, 10, 20].map((faturamento, i) => ({ data: `2026-10-${16+i}`, faturamento }));
         }
+        if (u.pathname === "/vendas/analise/resumo" && status === 200 && !e.semMetadadosOperacionais) {
+            const classificar = (dias, parcial) => dias.map((d, i) => ({ ...d, quantidadeVendas: d.quantidadeVendas ?? (d.faturamento > 0 ? 1 : 0), operado: Boolean(d.quantidadeVendas || d.faturamento || e.operadoSemVendas), parcial: parcial && i === dias.length-1 }));
+            if (e.apenasParcial) { dados.evolucao = [{data: dados.periodo.dataFinal, faturamento:0, quantidadeVendas:0, descontos:0}]; dados.atual = {faturamento:0,quantidadeVendas:0,ticketMedio:0,descontos:0}; }
+            dados.evolucao = classificar(dados.evolucao, Boolean(dados.periodo.incompleto));
+            dados.evolucaoAnterior = classificar(dados.evolucaoAnterior, false);
+            const operacao = (dias, total, parcial) => {
+                const operados=dias.filter(d=>d.operado), completos=operados.filter(d=>!d.parcial);
+                const destaque=d=>d ? {data:d.data,faturamento:d.faturamento,participacao:total ? d.faturamento/total*100:0}:null;
+                return {diasPeriodo:dias.length,diasOperados:operados.length,diasConcluidos:completos.length,faturamentoMedio:operados.length ? Number((total/operados.length).toFixed(2)):null,parcial,
+                    melhorDia:destaque([...completos].sort((a,b)=>b.faturamento-a.faturamento||a.data.localeCompare(b.data))[0]),piorDia:destaque([...completos].sort((a,b)=>a.faturamento-b.faturamento||a.data.localeCompare(b.data))[0])};
+            };
+            dados.operacao=operacao(dados.evolucao,dados.atual.faturamento,Boolean(dados.periodo.incompleto));
+            dados.operacaoAnterior=operacao(dados.evolucaoAnterior,dados.anterior.faturamento,false);
+            dados.variacaoMediaDiaria=!dados.operacao.parcial && dados.operacao.faturamentoMedio != null && dados.operacaoAnterior.faturamentoMedio > 0
+                ? Number(((dados.atual.faturamento*dados.operacaoAnterior.diasOperados-dados.anterior.faturamento*dados.operacao.diasOperados)*100/(dados.anterior.faturamento*dados.operacao.diasOperados)).toFixed(2)) : null;
+        }
         if (u.pathname.endsWith("/pagamentos") && status === 200) dados = { items: dados, faturamentoPeriodo: e.vazio ? 0 : 150 };
         await route.fulfill({ status, headers: { "access-control-allow-origin": "*" }, contentType: "application/json", body: JSON.stringify(dados) });
     });
@@ -86,7 +102,8 @@ async function abrir(opcoes = {}) {
 }
 
 test("Sprint22 dashboard completo nas quatro resoluções sem consultas duplicadas", async () => {
-    await mkdir("../docs/audits/assets/sprint22", { recursive: true });
+    const screenshotDir = process.env.NOVEXA_ANALISE_SCREENSHOTS ?? "../docs/audits/assets/sprint22";
+    await mkdir(screenshotDir, { recursive: true });
     for (const width of [1920, 1366, 768, 390]) {
         const { p, e } = await abrir({ painel22: true, query: "?aba=analise&dataInicial=2026-10-23&dataFinal=2026-10-29", tema: "dark", viewport: { width, height: width === 1920 ? 1080 : width === 1366 ? 768 : width === 768 ? 1024 : 844 } });
         try {
@@ -99,7 +116,7 @@ test("Sprint22 dashboard completo nas quatro resoluções sem consultas duplicad
             assert.equal(e.chamadas.filter(c => c.path.endsWith("/categorias")).length, 1);
             assert.equal(e.chamadas.filter(c => c.path.endsWith("/pagamentos")).length, 1);
             assert.equal(e.chamadas.filter(c => c.path.endsWith("/produtos")).length, 0);
-            await p.screenshot({ path: `../docs/audits/assets/sprint22/dashboard-dark-${width}.png`, fullPage: true, animations: "disabled" });
+            await p.screenshot({ path: `${screenshotDir}/dashboard-dark-${width}.png`, fullPage: true, animations: "disabled" });
             assert.deepEqual(e.erros, []);
         } finally { await p.close(); }
     }
@@ -288,4 +305,50 @@ test("somente legado sem data não é anunciado como inexistência de vendas", a
         await expect(p.getByText(/Há 2 venda.*sem data de faturamento confiável/)).toBeVisible();
         await expect(p.getByText("Nenhuma venda faturada neste período.", { exact: true })).toHaveCount(0);
     } finally { await p.close(); }
+});
+
+
+test("22.5 dias operados excluem dia sem operação dos destaques e preservam KPIs", async()=>{
+ const {p,e}=await abrir({painel22:true});try {
+  const destaques=p.getByRole('region',{name:'Destaques do período',exact:true});
+  await expect(destaques.getByText('Melhor dia operado',{exact:true})).toBeVisible();
+  await expect(destaques.getByText('23/10/2026',{exact:true})).toBeVisible();
+  await expect(destaques.getByText('26/10/2026',{exact:true})).toHaveCount(0);
+  const operacao=p.getByRole('region',{name:'Dias operados e produtividade',exact:true});
+  await expect(operacao.getByText('6 de 7 dias',{exact:true})).toBeVisible();
+  await expect(operacao.getByText('R$ 25,00',{exact:true})).toBeVisible();
+  await expect(operacao.getByText(/\+45,8%/)).toBeVisible();
+  await p.locator('summary').click();await expect(p.getByRole('table',{name:'Valores diários da evolução'}).getByText('Sem operação registrada',{exact:true})).toHaveCount(1);
+  assert.equal(e.chamadas.length,3);assert.deepEqual(e.erros,[]);
+ }finally{await p.close()}
+});
+
+test("22.5 operação sem vendas participa e parcial não inventa destaques",async()=>{
+ for(const apenasParcial of [false,true]){const {p,e}=await abrir({vazio:true,operadoSemVendas:true,apenasParcial});try{
+  if(apenasParcial)await expect(p.getByText('Sem dias operados concluídos neste período.',{exact:true})).toBeVisible();
+  else await expect(p.getByText('Pior dia operado',{exact:true})).toBeVisible();
+  const operacao=p.getByRole('region',{name:'Dias operados e produtividade',exact:true});
+  await expect(operacao.getByText('R$ 0,00 · Parcial',{exact:true})).toBeVisible();
+  await p.locator('summary').click();await expect(p.getByRole('table',{name:'Valores diários da evolução'}).getByText('Parcial · Operado sem vendas',{exact:true})).toBeVisible();
+  assert.deepEqual(e.erros,[]);
+ }finally{await p.close()}}
+});
+
+test("22.5 ausência de operação e API antiga têm estado explícito",async()=>{
+ for(const semMetadadosOperacionais of [false,true]){const {p}=await abrir({vazio:true,semMetadadosOperacionais});try{
+  const region=p.getByRole('region',{name:'Dias operados e produtividade',exact:true});
+  if(semMetadadosOperacionais)await expect(region.getByText('Dados operacionais indisponíveis nesta versão da API.')).toBeVisible();
+  else {await expect(region.getByText(/^Sem dados(?: · Parcial)?$/)).toBeVisible();await expect(p.getByText('Sem dias operados concluídos neste período.',{exact:true})).toBeVisible()}
+ }finally{await p.close()}}
+});
+
+
+test("22.5 tooltip operacional cabe no mobile e desktop",async()=>{
+ for(const width of [1366,390]){const {p,e}=await abrir({painel22:true,viewport:{width,height:844}});try{
+  const plot=p.getByRole('img',{name:'Faturamento diário atual e anterior'});await expect(plot).toBeVisible();await plot.scrollIntoViewIfNeeded();
+  const r=await plot.boundingBox();await p.mouse.move(r.x+70+(r.width-85)*.5,r.y+r.height*.55);
+  const tooltip=p.locator('.recharts-tooltip-wrapper').filter({hasText:'Sem operação registrada'});await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText('Operado com vendas');const rect=await tooltip.boundingBox();assert.ok(rect.x>=0 && rect.x+rect.width<=width,JSON.stringify(rect));
+  assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.deepEqual(e.erros,[]);
+ }finally{await p.close()}}
 });

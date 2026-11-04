@@ -16,13 +16,19 @@ public final class AnaliseVendasDTO {
             this(faturamento, quantidadeVendas, ticketMedio, descontos, faturamento.add(descontos).signum() == 0 ? BigDecimal.ZERO : descontos.multiply(new BigDecimal("100")).divide(faturamento.add(descontos), 2, java.math.RoundingMode.HALF_UP));
         }
     }
-    public record Dia(LocalDate data, BigDecimal faturamento, long quantidadeVendas, BigDecimal ticketMedio, BigDecimal descontos) {
-        public Dia(LocalDate data, BigDecimal faturamento) { this(data, faturamento, 0, BigDecimal.ZERO, BigDecimal.ZERO); }
+    public record Dia(LocalDate data, BigDecimal faturamento, long quantidadeVendas, BigDecimal ticketMedio,
+                      BigDecimal descontos, boolean operado, boolean parcial) {
+        public Dia(LocalDate data, BigDecimal faturamento) { this(data, faturamento, 0, BigDecimal.ZERO, BigDecimal.ZERO, false, false); }
     }
+    public record DestaqueOperado(LocalDate data, BigDecimal faturamento, BigDecimal participacao) { }
+    public record OperacaoPeriodo(int diasPeriodo, long diasOperados, long diasConcluidos,
+                                  BigDecimal faturamentoMedio, boolean parcial,
+                                  DestaqueOperado melhorDia, DestaqueOperado piorDia) { }
     public record MeioPagamento(String nome, BigDecimal valor, BigDecimal participacao) { }
     public record Pagamentos(List<MeioPagamento> items, BigDecimal faturamentoPeriodo) { }
     public record Resumo(Periodo periodo, Indicadores atual, Periodo periodoAnterior,
-                         Indicadores anterior, List<Dia> evolucao, List<Dia> evolucaoAnterior, long vendasSemDataFaturamento) { }
+                         Indicadores anterior, List<Dia> evolucao, List<Dia> evolucaoAnterior, long vendasSemDataFaturamento,
+                         OperacaoPeriodo operacao, OperacaoPeriodo operacaoAnterior, BigDecimal variacaoMediaDiaria) { }
     public record Produto(Long produtoId, String nome, String unidade, BigDecimal quantidade,
                           BigDecimal valorVendido, BigDecimal participacao, String categoria) { }
     public record Ranking(PaginaResponseDTO<Produto> pagina, List<String> unidades, BigDecimal faturamentoPeriodo, long itensSemUnidade) { }
