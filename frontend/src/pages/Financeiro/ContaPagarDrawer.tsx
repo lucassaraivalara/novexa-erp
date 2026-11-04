@@ -8,6 +8,8 @@ import FornecedorAutocomplete, { type FornecedorOpcao } from "../../components/f
 import { mensagemContaPagar, salvarContaPagar } from "../../services/contaPagarService";
 import type { ContaPagar, ContaPagarInput } from "../../types/contaPagar";
 
+import PagamentosContaPagar from "./PagamentosContaPagar";
+
 type Props = {
     conta: ContaPagar | null;
     onFechar: () => void;
@@ -68,7 +70,7 @@ export default function ContaPagarDrawer({ conta, onFechar, onSalvo, somenteLeit
                     <Link href={`/estoque?aba=entradas&entradaId=${conta.entradaMercadoriaId}`} target="_blank" rel="noopener noreferrer">Abrir entrada #{conta.entradaMercadoriaId} (nova aba)</Link>
                 </Alert>}
                 {somenteLeitura && conta && <Typography variant="body2">Situação: {conta.status === "PAGA" ? "Paga" : conta.status === "ABERTA" ? "Aberta" : "Cancelada"}</Typography>}
-                {somenteLeitura && conta?.movimentacaoFinanceiraId && <Stack spacing={0.5}>
+                {somenteLeitura && !conta?.pagamentoAtualId && conta?.movimentacaoFinanceiraId && <Stack spacing={0.5}>
                     <Typography variant="subtitle2">Último pagamento{conta.status !== "PAGA" ? " (estornado)" : ""}</Typography>
                     {conta.juros != null && conta.multa != null && conta.desconto != null
                         ? <Typography variant="body2">Juros: {moeda.format(conta.juros)} · Multa: {moeda.format(conta.multa)} · Desconto: {moeda.format(conta.desconto)}</Typography>
@@ -76,6 +78,7 @@ export default function ContaPagarDrawer({ conta, onFechar, onSalvo, somenteLeit
                     {conta.valorPago !== null && <Typography variant="body2">Total pago: {moeda.format(conta.valorPago)}</Typography>}
                     <Typography variant="caption" color="text.secondary">Movimento #{conta.movimentacaoFinanceiraId}. Encargos preservados no extrato financeiro.</Typography>
                 </Stack>}
+                {somenteLeitura && conta && <PagamentosContaPagar contaId={conta.id} />}
                 <Stack component="fieldset" spacing={2} disabled={somenteLeitura || salvando} sx={{ border: 0, m: 0, p: 0, minWidth: 0 }}>
                 <CampoTexto placeholder="Identifique a operação…" autoFocus required fullWidth label="Descrição" name="descricao" value={form.descricao}
                     onChange={(e) => setForm({ ...form, descricao: e.target.value })} slotProps={{ htmlInput: { maxLength: 200 } }} />

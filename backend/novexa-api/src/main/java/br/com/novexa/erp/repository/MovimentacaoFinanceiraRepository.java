@@ -72,6 +72,16 @@ public interface MovimentacaoFinanceiraRepository extends JpaRepository<Moviment
     @Query("select m.contaFinanceira.id from MovimentacaoFinanceiraEntity m where m.id = :id and m.empresa.id = :empresaId")
     Optional<Long> buscarContaId(Long id, Long empresaId);
 
+    @Query("""
+        select new br.com.novexa.erp.dto.OrigemPagamentoContaPagarDTO(p.id,m.id,c.id,c.nome,m.valor,m.estornada)
+        from MovimentacaoFinanceiraEntity m join m.contaFinanceira c join m.pagamentoContaPagar p
+        where m.empresa.id=:empresaId and p.id in :ids order by p.id,c.id
+        """)
+    List<br.com.novexa.erp.dto.OrigemPagamentoContaPagarDTO> origensPagamentosContaPagar(Long empresaId, List<Long> ids);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from MovimentacaoFinanceiraEntity m where m.empresa.id=:empresaId and m.pagamentoContaPagar.id=:pagamentoId order by m.id")
+    List<MovimentacaoFinanceiraEntity> bloquearOrigensPagamento(Long empresaId, Long pagamentoId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select m from MovimentacaoFinanceiraEntity m where m.id = :id and m.empresa.id = :empresaId")
     Optional<MovimentacaoFinanceiraEntity> buscarParaEstornar(Long id, Long empresaId);

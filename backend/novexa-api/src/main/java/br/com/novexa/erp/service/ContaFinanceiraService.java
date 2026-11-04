@@ -126,9 +126,8 @@ public class ContaFinanceiraService {
         entityManager.refresh(conta);
         if (!conta.isAtivo())
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Conta financeira inativa não aceita movimentações.");
-        validarSaldo(conta.getSaldoAtual().subtract(valor));
+        debitar(conta, valor);
         var usuario = buscarUsuario(usuarioId, empresaId);
-        conta.aplicar(valor.negate());
         var movimento = new MovimentacaoFinanceiraEntity(conta, TipoMovimentacaoFinanceira.SAIDA,
                 OrigemMovimentacaoFinanceira.CONTAS_A_PAGAR, descricao, valor, dataPagamento,
                 "Original: " + original.toPlainString() + "; Juros: " + juros.toPlainString()
@@ -184,13 +183,41 @@ public class ContaFinanceiraService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Movimentação deve ser estornada pela sua origem.");
         if (movimento.isEstornada())
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Movimentação já estornada.");
-        var diferenca = movimento.getTipo() == TipoMovimentacaoFinanceira.ENTRADA
-                ? movimento.getValor().negate() : movimento.getValor();
-        validarSaldo(conta.getSaldoAtual().add(diferenca));
-        conta.aplicar(diferenca);
-        movimento.estornar(buscarUsuario(usuarioId, empresaId), motivo);
-        contas.saveAndFlush(conta);
-        return movimentos.saveAndFlush(movimento);
+        if (movimento.getPagamentoContaPagar() != null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Estorne todas as origens pelo pagamento da conta a pagar.");
+        return reverter(conta, movimento, buscarUsuario(usuarioId, empresaId), motivo);
+    }
+
+    private void debitar(ContaFinanceiraEntity conta, BigDecimal valor) {
+        validarSaldo(conta.getSaldoAtual().subtract(valor));
+        conta.aplicar(valor.negate());
+    }
+    private MovimentacaoFinanceiraEntity reverter(ContaFinanceiraEntity conta, MovimentacaoFinanceiraEntity movimento,
+            UsuarioEntity usuario, String motivo) {
+        if (movimento.isEstornada()) throw new ResponseStatusException(HttpStatus.CONFLICT,"Movimentação já estornada.");
+        var diferenca=movimento.getTipo()==TipoMovimentacaoFinanceira.ENTRADA?movimento.getValor().negate():movimento.getValor();
+        validarSaldo(conta.getSaldoAtual().add(diferenca)); conta.aplicar(diferenca);
+        movimento.estornar(usuario,motivo); contas.saveAndFlush(conta); return movimentos.saveAndFlush(movimento);
+    }
+    @Transactional(propagation=org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public MovimentacaoFinanceiraEntity registrarSaidaAgrupada(ContaFinanceiraEntity conta, PagamentoContaPagarEntity pagamento,
+            BigDecimal valor, UsuarioEntity usuario) {
+        if (!conta.isAtivo()) throw new ResponseStatusException(HttpStatus.CONFLICT,"Conta financeira inativa não aceita movimentações.");
+        if (!conta.getEmpresa().getId().equals(pagamento.getEmpresa().getId()) || !conta.getEmpresa().getId().equals(usuario.getEmpresa().getId()))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Origem financeira não encontrada na empresa.");
+        debitar(conta,valor);
+        var movimento=new MovimentacaoFinanceiraEntity(conta,TipoMovimentacaoFinanceira.SAIDA,
+            OrigemMovimentacaoFinanceira.CONTAS_A_PAGAR,"Pagamento conta a pagar #"+pagamento.getContaPagar().getId(),valor,
+            pagamento.getDataPagamento(),"Baixa #"+pagamento.getId()+"; encargos do pagamento (globais): juros "+pagamento.getJuros()
+                +"; multa "+pagamento.getMulta()+"; desconto "+pagamento.getDesconto(),usuario);
+        movimento.vincularPagamentoContaPagar(pagamento); contas.saveAndFlush(conta); return movimentos.saveAndFlush(movimento);
+    }
+    @Transactional(propagation=org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public void estornarSaidaAgrupada(ContaFinanceiraEntity conta,MovimentacaoFinanceiraEntity movimento,UsuarioEntity usuario,String motivo) {
+        if (movimento.getPagamentoContaPagar()==null || movimento.getOrigem()!=OrigemMovimentacaoFinanceira.CONTAS_A_PAGAR
+                || movimento.getTipo()!=TipoMovimentacaoFinanceira.SAIDA || !movimento.getContaFinanceira().getId().equals(conta.getId()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Origem financeira da baixa inconsistente.");
+        reverter(conta,movimento,usuario,motivo);
     }
 
     private ContaBancariaEntity validarVinculo(ContaFinanceiraEntity atual, TipoContaFinanceira tipo,

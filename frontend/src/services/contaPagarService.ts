@@ -1,7 +1,7 @@
 import axios from "axios";
 import api from "./api";
 import type { PaginaResponse } from "../types/paginacao";
-import type { ContaPagar, ContaPagarInput, PagamentoContaPagarInput } from "../types/contaPagar";
+import type { ContaPagar, ContaPagarInput, PagamentoContaPagarInput, PagamentoContaPagar, PagamentoMultiorigemInput } from "../types/contaPagar";
 
 const base = "/financeiro/contas-pagar";
 export const buscarContaPagar = async (id: number, signal?: AbortSignal) =>
@@ -32,6 +32,18 @@ export const cancelarConta = async (id: number) =>
 
 export const estornarConta = async (id: number) =>
     (await api.post<ContaPagar>(`${base}/${id}/estornar`)).data;
+
+export const pagarContaMultiorigem = async (id: number, dados: PagamentoMultiorigemInput) =>
+    (await api.post<PagamentoContaPagar>(`${base}/${id}/pagamentos`, dados)).data;
+
+export const buscarPagamentoPorChave = async (id: number, chave: string) =>
+    (await api.get<PagamentoContaPagar>(`${base}/${id}/pagamentos/por-chave/${chave}`)).data;
+
+export const listarPagamentosConta = async (id: number, page = 0, signal?: AbortSignal) =>
+    (await api.get<PaginaResponse<PagamentoContaPagar>>(`${base}/${id}/pagamentos`, { params: { page, size: 10 }, signal })).data;
+
+export const estornarPagamentoConta = async (id: number, pagamentoId: number, motivoEstorno: string) =>
+    (await api.post<PagamentoContaPagar>(`${base}/${id}/pagamentos/${pagamentoId}/estornar`, { motivoEstorno })).data;
 
 export function mensagemContaPagar(erro: unknown, padrao: string) {
     if (!axios.isAxiosError(erro)) return padrao;

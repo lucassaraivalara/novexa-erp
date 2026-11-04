@@ -68,6 +68,8 @@ public class SecurityConfig {
                             .hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.PATCH, "/financeiro/movimentacoes-financeiras/{id}/estorno")
                             .hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers(HttpMethod.POST, "/financeiro/contas-pagar/{id}/pagamentos/{pagamentoId}/estornar")
+                            .hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.POST, "/financeiro/contas-pagar/{id}/estornar")
                             .hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.POST, "/financeiro/transferencias", "/financeiro/transferencias/**")

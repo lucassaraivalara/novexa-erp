@@ -27,6 +27,9 @@ public class ContaPagarEntity {
     @OneToOne(mappedBy = "contaPagar", fetch = FetchType.LAZY)
     private EntradaMercadoriaEntity entradaMercadoria;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pagamento_atual_id") private PagamentoContaPagarEntity pagamentoAtual;
+
     protected ContaPagarEntity() { }
 
     public ContaPagarEntity(EmpresaEntity empresa) {
@@ -51,7 +54,14 @@ public class ContaPagarEntity {
         dataPagamento = data;
         valorPago = valor;
         movimentacaoFinanceira = movimentacao;
+        pagamentoAtual = null;
     }
+
+    public void pagarAgrupado(PagamentoContaPagarEntity pagamento) {
+        pagar(pagamento.getDataPagamento(), pagamento.getTotalPago(), null);
+        pagamentoAtual = pagamento;
+    }
+    public PagamentoContaPagarEntity getPagamentoAtual() { return pagamentoAtual; }
 
     public void abrir() {
         status = StatusContaPagar.ABERTA;

@@ -8,9 +8,10 @@ public record ContaPagarResponseDTO(Long id, String descricao, String documento,
         String categoria, LocalDate dataEmissao, LocalDate dataVencimento, BigDecimal valor,
         StatusContaPagar status, LocalDate dataPagamento, BigDecimal valorPago, String observacao,
         Long movimentacaoFinanceiraId, Long entradaMercadoriaId, OrigemContaPagarEntrada origemVinculoEntrada,
-        BigDecimal juros, BigDecimal multa, BigDecimal desconto) {
+        BigDecimal juros, BigDecimal multa, BigDecimal desconto, Long pagamentoAtualId) {
     public static ContaPagarResponseDTO de(ContaPagarEntity conta) {
         var fornecedor = conta.getFornecedor();
+        var pagamento = conta.getPagamentoAtual();
         return new ContaPagarResponseDTO(conta.getId(), conta.getDescricao(), conta.getDocumento(),
                 fornecedor == null ? null : fornecedor.getId(),
                 fornecedor == null ? null : fornecedor.getRazaoSocial(),
@@ -20,8 +21,9 @@ public record ContaPagarResponseDTO(Long id, String descricao, String documento,
                         ? null : conta.getMovimentacaoFinanceira().getId(),
                 conta.getEntradaMercadoria() == null ? null : conta.getEntradaMercadoria().getId(),
                 conta.getEntradaMercadoria() == null ? null : conta.getEntradaMercadoria().getOrigemContaPagar(),
-                conta.getMovimentacaoFinanceira() == null ? null : conta.getMovimentacaoFinanceira().getContaPagarJuros(),
-                conta.getMovimentacaoFinanceira() == null ? null : conta.getMovimentacaoFinanceira().getContaPagarMulta(),
-                conta.getMovimentacaoFinanceira() == null ? null : conta.getMovimentacaoFinanceira().getContaPagarDesconto());
+                pagamento != null ? pagamento.getJuros() : conta.getMovimentacaoFinanceira() == null ? null : conta.getMovimentacaoFinanceira().getContaPagarJuros(),
+                pagamento != null ? pagamento.getMulta() : conta.getMovimentacaoFinanceira() == null ? null : conta.getMovimentacaoFinanceira().getContaPagarMulta(),
+                pagamento != null ? pagamento.getDesconto() : conta.getMovimentacaoFinanceira() == null ? null : conta.getMovimentacaoFinanceira().getContaPagarDesconto(),
+                pagamento == null ? null : pagamento.getId());
     }
 }

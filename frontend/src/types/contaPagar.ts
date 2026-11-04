@@ -17,6 +17,7 @@ export type ContaPagar = {
     multa?: number | null;
     desconto?: number | null;
     movimentacaoFinanceiraId?: number;
+    pagamentoAtualId?: number | null;
     observacao: string | null;
     entradaMercadoriaId?: number | null;
     origemVinculoEntrada?: "GERADA" | "PREEXISTENTE" | null;
@@ -32,4 +33,37 @@ export type PagamentoContaPagarInput = {
     juros?: string;
     multa?: string;
     desconto?: string;
+};
+
+export type PagamentoMultiorigemInput = {
+    chaveRequisicao: string;
+    dataPagamento: string;
+    valorPago: string;
+    juros: string;
+    multa: string;
+    desconto: string;
+    origens: { contaFinanceiraId: number; valor: string }[];
+};
+
+export type PagamentoContaPagar = {
+    id: number;
+    contaPagarId: number;
+    chaveRequisicao: string;
+    dataPagamento: string;
+    valorOriginal: number;
+    principalQuitado: number;
+    juros: number;
+    multa: number;
+    desconto: number;
+    totalPago: number;
+    estado: "CONFIRMADO" | "ESTORNADO";
+    usuarioId: number;
+    usuarioNome: string;
+    dataCriacao: string;
+    usuarioEstornoId: number | null;
+    usuarioEstornoNome: string | null;
+    dataEstorno: string | null;
+    motivoEstorno: string | null;
+    origens: { pagamentoId: number; movimentoId: number; contaFinanceiraId: number;
+        contaFinanceiraNome: string; valor: number; estornada: boolean }[];
 };

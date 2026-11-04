@@ -27,7 +27,7 @@ test('centavos exatos, desconto integral quitado e limites financeiros',()=>{
 async function ambiente(t,{mobile=false,theme='light',erro=false,saldo=1000,extrato=false}={}) {
     const page=await browser.newPage({viewport:mobile?{width:390,height:844}:{width:1440,height:1000}});t.after(()=>page.close());
     page.setDefaultTimeout(8000);
-    const chamadas=[],erros=[];page.on('pageerror',e=>erros.push(e.message));
+    const chamadas=[],erros=[]; let pagamentos=[];page.on('pageerror',e=>erros.push(e.message));
     let conta={id:1,descricao:'Compra sintética',valor:645,status:'ABERTA',dataVencimento:'2026-10-01',valorPago:null,documento:null,fornecedorNome:null,categoria:null};
     await page.addInitScript(mode=>{localStorage.setItem('novexa-theme-choice',mode);localStorage.setItem('novexa-auth',JSON.stringify({token:'fixture',perfil:'ADMIN',empresa:{id:1}}));},theme);
     await page.route('http://localhost:8080/**',async route=>{
@@ -35,12 +35,13 @@ async function ambiente(t,{mobile=false,theme='light',erro=false,saldo=1000,extr
         const headers={'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-allow-methods':'*'};
         if(req.method()==='OPTIONS')return route.fulfill({status:204,headers});
         let data=[];
-        if(path.endsWith('/pagar')) {
+        if(path.endsWith('/pagamentos') && req.method()==='POST') {
             const p=req.postDataJSON();chamadas.push(p);
             assert.equal(p.empresaId,undefined); assert.equal(req.headers().authorization,'Bearer fixture');
             if(erro)return route.fulfill({status:500,headers,json:'Falha sintética, tente novamente.'});
-            conta={...conta,status:'PAGA',valorPago:Number(p.valorPago),juros:Number(p.juros),multa:Number(p.multa),desconto:Number(p.desconto),movimentacaoFinanceiraId:42};data=conta;
-        } else if(path==='/financeiro/movimentacoes-financeiras') data={items:[{id:42,contaFinanceiraId:10,tipo:'SAIDA',origem:'CONTAS_A_PAGAR',descricao:'Pagamento conta a pagar #1',valor:660.88,dataMovimento:'2026-10-29',observacao:'Original: 645.00; Juros: 15.88; Multa: 0.00; Desconto: 0.00',usuarioNome:'Sintético',estornada:true,motivoEstorno:'Estorno da baixa da conta a pagar #1',usuarioEstornoNome:'Sintético'}],page:0,size:10,totalItems:1,totalPages:1};
+            conta={...conta,status:'PAGA',valorPago:Number(p.valorPago),juros:Number(p.juros),multa:Number(p.multa),desconto:Number(p.desconto),pagamentoAtualId:42};data={id:42,contaPagarId:1,chaveRequisicao:p.chaveRequisicao,dataPagamento:p.dataPagamento,principalQuitado:645,juros:Number(p.juros),multa:Number(p.multa),desconto:Number(p.desconto),totalPago:Number(p.valorPago),estado:'CONFIRMADO',usuarioNome:'Sintético',dataCriacao:'2026-11-04T12:00:00',origens:[{movimentoId:42,contaFinanceiraNome:'Banco sintético',valor:Number(p.valorPago)}]};pagamentos=[data];
+        } else if(path.endsWith('/pagamentos'))data={items:pagamentos,page:0,size:10,totalItems:pagamentos.length,totalPages:pagamentos.length?1:0};
+        else if(path==='/financeiro/movimentacoes-financeiras') data={items:[{id:42,contaFinanceiraId:10,tipo:'SAIDA',origem:'CONTAS_A_PAGAR',descricao:'Pagamento conta a pagar #1',valor:660.88,dataMovimento:'2026-10-29',observacao:'Original: 645.00; Juros: 15.88; Multa: 0.00; Desconto: 0.00',usuarioNome:'Sintético',estornada:true,motivoEstorno:'Estorno da baixa da conta a pagar #1',usuarioEstornoNome:'Sintético'}],page:0,size:10,totalItems:1,totalPages:1};
         else if(path==='/financeiro/contas-pagar')data={items:[conta],page:0,size:25,totalItems:1,totalPages:1};
         else if(path==='/financeiro/contas-financeiras')data=[{id:10,nome:'Banco sintético',tipo:'BANCO',ativo:true,saldoAtual:saldo}];
         else if(path.endsWith('/resumo'))data=Object.fromEntries(['vencidas','seteDias','trintaDias','emAberto','pagasMes'].map(k=>[k,{total:0,quantidade:0}]));
@@ -62,7 +63,7 @@ for(const theme of ['light','dark'])for(const mobile of [false,true])test(`modal
     assert.ok(await modal.evaluate(el=>el.scrollWidth<=el.clientWidth));
     await page.screenshot({path:`node_modules/encargos-${theme}-${mobile?'mobile':'desktop'}.png`,fullPage:true,animations:'disabled'});
     await modal.getByRole('button',{name:'Confirmar pagamento'}).click();await expect(modal).toHaveCount(0);
-    assert.equal(chamadas.length,1);assert.deepEqual(chamadas[0],{contaFinanceiraId:10,dataPagamento:chamadas[0].dataPagamento,valorPago:'660.88',juros:'15.88',multa:'0.00',desconto:'0.00'});
+    assert.equal(chamadas.length,1);assert.deepEqual(chamadas[0],{chaveRequisicao:chamadas[0].chaveRequisicao,dataPagamento:chamadas[0].dataPagamento,valorPago:'660.88',juros:'15.88',multa:'0.00',desconto:'0.00',origens:[{contaFinanceiraId:10,valor:'660.88'}]});
     await page.getByRole('button',{name:'Consultar conta',exact:true}).click();
     await expect(page.getByText(/Juros:.*15,88/)).toBeVisible();await expect(page.getByText(/Total pago:.*660,88/)).toBeVisible();assert.deepEqual(erros,[]);
 });

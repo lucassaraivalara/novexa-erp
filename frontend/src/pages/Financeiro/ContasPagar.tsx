@@ -1,7 +1,5 @@
-import CampoTexto from "../../components/ui/CampoTexto";
-import { CampoMonetario } from "../../components/ui/CampoDecimal";
 import { hojeBrasilia, formatarData } from "../../utils/dataHora";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
@@ -17,14 +15,14 @@ import PageFilters from "../../components/ui/PageFilters";
 import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
 import FornecedorAutocomplete, { type FornecedorOpcao } from "../../components/fornecedores/FornecedorAutocomplete";
 import { buscarContaPagar, cancelarConta, estornarConta, listarContasPagar,
-    mensagemContaPagar, pagarConta, listarCategoriasContasPagar, resumirContasPagar,
+    mensagemContaPagar, estornarPagamentoConta, listarCategoriasContasPagar, resumirContasPagar,
     type ResumoContasPagar } from "../../services/contaPagarService";
 import { listarContasFinanceiras } from "../../services/contaFinanceiraService";
 import type { ContaPagar, StatusContaPagar } from "../../types/contaPagar";
 import type { ContaFinanceira } from "../../types/contaFinanceira";
-import { rotulosTipoContaFinanceira } from "../../types/contaFinanceira";
 import ContaPagarDrawer from "./ContaPagarDrawer";
-import { calcularPagamento, centavosPagamento, emAberto } from "./contaPagarCalculos";
+import PagamentoContaPagarDialog from "./PagamentoContaPagarDialog";
+import { emAberto } from "./contaPagarCalculos";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const data = formatarData;
@@ -59,9 +57,7 @@ export default function ContasPagar() {
     const [ordenacao, setOrdenacao] = useState({ campo: "dataVencimento", direcao: "asc" as "asc" | "desc" });
     const [editor, setEditor] = useState<{ conta: ContaPagar | null } | null>(null);
     const [pagamento, setPagamento] = useState<ContaPagar | null>(null);
-    const [dataPagamento, setDataPagamento] = useState("");
-    const [encargos, setEncargos] = useState({ juros: "0.00", multa: "0.00", desconto: "0.00" });
-    const [contaFinanceiraId, setContaFinanceiraId] = useState<number | "" >("");
+    const [motivoEstorno, setMotivoEstorno] = useState("");
     const [confirmacao, setConfirmacao] = useState<{ conta: ContaPagar; tipo: "cancelar" | "estornar" } | null>(null);
     const [processando, setProcessando] = useState(false);
 
@@ -140,46 +136,13 @@ export default function ContasPagar() {
 
     function abrirPagamento(conta: ContaPagar) {
         setPagamento(conta);
-        setDataPagamento(hoje());
-        setEncargos({ juros: "0.00", multa: "0.00", desconto: "0.00" });
-        setContaFinanceiraId("");
         setErro("");
     }
 
     function abrirConfirmacao(conta: ContaPagar, tipo: "cancelar" | "estornar") {
         setErro("");
+        setMotivoEstorno("");
         setConfirmacao({ conta, tipo });
-    }
-
-    async function confirmarPagamento(evento: FormEvent<HTMLFormElement>) {
-        evento.preventDefault();
-        if (!pagamento || processando) return;
-        const calculo = calcularPagamento(String(pagamento.valor), encargos.juros, encargos.multa, encargos.desconto);
-        if (!calculo) {
-            setErro("Informe juros, multa e desconto não negativos com até duas casas decimais. O total a pagar deve ser positivo e ter precisão segura.");
-            return;
-        }
-        if (!contaFinanceiraId) {
-            setErro("Selecione uma conta financeira.");
-            return;
-        }
-        const contaSelecionada = contasFinanceiras.find((c) => c.id === contaFinanceiraId);
-        if (!contaSelecionada) {
-            setErro("Conta financeira selecionada não encontrada.");
-            return;
-        }
-        const saldo = centavosPagamento(String(contaSelecionada.saldoAtual));
-        if (saldo === null || saldo < calculo.total) {
-            setErro("Saldo insuficiente na conta financeira selecionada.");
-            return;
-        }
-        setProcessando(true); setErro("");
-        try {
-            await pagarConta(pagamento.id, { contaFinanceiraId, dataPagamento, valorPago: calculo.valorPago, ...encargos });
-            setPagamento(null); setSucesso("Pagamento registrado.");
-            setTentativa((n) => n + 1);
-        } catch (e) { setErro(mensagemContaPagar(e, "Não foi possível registrar o pagamento.")); }
-        finally { setProcessando(false); }
     }
 
     async function confirmarAcao() {
@@ -187,6 +150,7 @@ export default function ContasPagar() {
         setProcessando(true); setErro("");
         try {
             if (confirmacao.tipo === "cancelar") await cancelarConta(confirmacao.conta.id);
+            else if (confirmacao.conta.pagamentoAtualId) await estornarPagamentoConta(confirmacao.conta.id, confirmacao.conta.pagamentoAtualId, motivoEstorno.trim());
             else await estornarConta(confirmacao.conta.id);
             setSucesso(confirmacao.tipo === "cancelar" ? "Conta cancelada." : "Pagamento estornado.");
             setConfirmacao(null);
@@ -226,11 +190,6 @@ export default function ContasPagar() {
         { rotulo: "Estornar", icone: <UndoRoundedIcon fontSize="small" />, onClick: (conta) => abrirConfirmacao(conta, "estornar"),
             desabilitado: (conta) => conta.status !== "PAGA", tooltip: "Estornar pagamento" },
     ];
-
-    const contaFinanceiraSelecionada = contasFinanceiras.find((c) => c.id === contaFinanceiraId);
-    const calculoPagamento = pagamento ? calcularPagamento(String(pagamento.valor), encargos.juros, encargos.multa, encargos.desconto) : null;
-    const saldoSelecionado = contaFinanceiraSelecionada ? centavosPagamento(String(contaFinanceiraSelecionada.saldoAtual)) : null;
-    const saldoInsuficiente = Boolean(calculoPagamento && contaFinanceiraSelecionada && (saldoSelecionado === null || saldoSelecionado < calculoPagamento.total));
 
     return <PageContainer>
         <PageHeader titulo="Contas a Pagar" descricao="Consulte vencimentos e valores em aberto. Pagar registra o pagamento integral na conta financeira de origem."
@@ -285,52 +244,22 @@ export default function ContasPagar() {
         {editor && <ContaPagarDrawer key={editor.conta?.id ?? "nova"} conta={editor.conta}
             onFechar={() => setEditor(null)} onSalvo={() => { setTentativa(n => n + 1); setEditor(null); setSucesso("Conta salva."); }} />}
         {detalhe && <ContaPagarDrawer key={`detalhe-${detalhe.id}`} conta={detalhe} somenteLeitura onFechar={fecharDetalhe} onSalvo={() => {}} />}
-        <Dialog open={pagamento !== null} onClose={processando ? undefined : () => setPagamento(null)} fullWidth maxWidth="xs" aria-labelledby="pagar-conta-titulo">
-            <form onSubmit={(e) => void confirmarPagamento(e)}>
-                <DialogTitle id="pagar-conta-titulo">Pagar conta</DialogTitle>
-                <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
-                    <Typography variant="body2" color="text.secondary">{pagamento?.descricao}</Typography>
-                    <CampoTexto required fullWidth type="date" label="Data do pagamento" value={dataPagamento} disabled={processando}
-                        onChange={(e) => setDataPagamento(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-                    <CampoTexto select required fullWidth label="Conta financeira" value={contaFinanceiraId} disabled={processando}
-                        onChange={(e) => setContaFinanceiraId(e.target.value ? Number(e.target.value) : "")}>
-                        <MenuItem value="">Selecione uma conta financeira</MenuItem>
-                        {contasFinanceiras
-                            .filter((c) => c.ativo)
-                            .map((conta) => (
-                                <MenuItem key={conta.id} value={conta.id}>
-                                    {conta.nome} — {rotulosTipoContaFinanceira[conta.tipo]} — {moeda.format(Number(conta.saldoAtual))}
-                                </MenuItem>
-                            ))}
-                    </CampoTexto>
-                    <Typography variant="body2">Valor original: <strong>{moeda.format(pagamento?.valor ?? 0)}</strong></Typography>
-                    {([ ["juros", "Juros (R$)"], ["multa", "Multa (R$)"], ["desconto", "Desconto (R$)"] ] as const).map(([campo, label]) =>
-                        <CampoMonetario key={campo} canonico required fullWidth label={label} value={encargos[campo]} disabled={processando}
-                            onValueChange={v => setEncargos(atual => ({ ...atual, [campo]: v }))} />)}
-                    <Box role="status" sx={{ borderTop: 1, borderColor: "divider", pt: 1.5 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>Total a pagar: {calculoPagamento ? moeda.format(Number(calculoPagamento.valorPago)) : "Revise os valores"}</Typography>
-                        <Typography variant="caption" color="text.secondary">Este é o valor debitado da conta financeira para quitar a obrigação integralmente.</Typography>
-                    </Box>
-                    {saldoInsuficiente && <Alert severity="warning">Saldo insuficiente na conta financeira selecionada para o total a pagar.</Alert>}
-                    {erro && <Alert severity="error">{erro}</Alert>}
-                </Stack></DialogContent>
-                <DialogActions><Button onClick={() => setPagamento(null)} disabled={processando}>Cancelar</Button>
-                    <Button type="submit" variant="contained" disabled={!!processando || !contaFinanceiraId || saldoInsuficiente || !calculoPagamento}>
-                        {processando ? "Salvando…" : "Confirmar pagamento"}
-                    </Button></DialogActions>
-            </form>
-        </Dialog>
+        {pagamento && <PagamentoContaPagarDialog key={pagamento.id} conta={pagamento} contasFinanceiras={contasFinanceiras}
+            onFechar={() => setPagamento(null)} onConcluido={mensagem => { setPagamento(null); setSucesso(mensagem); setTentativa(n => n + 1); }} />}
         <Dialog open={confirmacao !== null} onClose={processando ? undefined : () => setConfirmacao(null)} aria-labelledby="acao-conta-titulo">
             <DialogTitle id="acao-conta-titulo">{confirmacao?.tipo === "cancelar" ? "Cancelar conta?" : "Estornar pagamento?"}</DialogTitle>
             <DialogContent><Stack spacing={2}>
                 <Typography variant="body2">{confirmacao?.tipo === "cancelar"
                     ? `A conta ${confirmacao.conta.descricao} será cancelada e permanecerá no histórico.`
-                    : "O título voltará a ficar aberto, a movimentação financeira vinculada será estornada e o saldo da conta financeira será recomposto."}</Typography>
+                    : "O título voltará a ficar aberto. Todas as origens do pagamento serão estornadas juntas, recompondo os respectivos saldos financeiros."}</Typography>
+                {confirmacao?.tipo === "estornar" && confirmacao.conta.pagamentoAtualId && <TextField required fullWidth multiline minRows={2}
+                    label="Motivo do estorno" value={motivoEstorno} disabled={processando} onChange={e => setMotivoEstorno(e.target.value)}
+                    slotProps={{ htmlInput: { maxLength: 500 } }} />}
                 {erro && <Alert severity="error">{erro}</Alert>}
             </Stack></DialogContent>
             <DialogActions><Button onClick={() => setConfirmacao(null)} disabled={processando}>Voltar</Button>
                 <Button variant="contained" color={confirmacao?.tipo === "cancelar" ? "error" : "primary"}
-                    onClick={() => void confirmarAcao()} disabled={processando}>{processando ? "Salvando…" : confirmacao?.tipo === "cancelar" ? "Cancelar conta" : "Estornar pagamento"}</Button></DialogActions>
+                    onClick={() => void confirmarAcao()} disabled={processando || (confirmacao?.tipo === "estornar" && !!confirmacao.conta.pagamentoAtualId && !motivoEstorno.trim())}>{processando ? "Salvando…" : confirmacao?.tipo === "cancelar" ? "Cancelar conta" : "Estornar pagamento"}</Button></DialogActions>
         </Dialog>
         <Snackbar open={Boolean(sucesso)} autoHideDuration={4000} onClose={() => setSucesso("")} message={sucesso} />
     </PageContainer>;

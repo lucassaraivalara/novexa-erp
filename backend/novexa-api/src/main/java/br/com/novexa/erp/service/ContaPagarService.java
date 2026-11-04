@@ -23,15 +23,16 @@ public class ContaPagarService {
     private final ContaFinanceiraService financeiro;
     private final EntradaMercadoriaRepository entradas;
     private final EntityManager em;
+    private final PagamentoContaPagarService pagamentos;
 
     public ContaPagarService(ContaPagarRepository contas, EmpresaRepository empresas,
             FornecedorRepository fornecedores, ContaFinanceiraService financeiro,
-            EntradaMercadoriaRepository entradas, EntityManager em) {
+            EntradaMercadoriaRepository entradas, EntityManager em, PagamentoContaPagarService pagamentos) {
         this.contas = contas;
         this.empresas = empresas;
         this.fornecedores = fornecedores;
         this.financeiro = financeiro;
-        this.entradas = entradas; this.em = em;
+        this.entradas = entradas; this.em = em; this.pagamentos=pagamentos;
     }
 
     public ContaPagarResponseDTO buscar(Long id, Long empresaId) {
@@ -128,6 +129,8 @@ public class ContaPagarService {
         var conta = buscarParaAlterar(id, empresaId);
         if (conta.getStatus() != StatusContaPagar.PAGA)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Somente contas pagas podem ser estornadas.");
+        if (pagamentos.estornarAtual(conta, empresaId, usuarioId))
+            return ContaPagarResponseDTO.de(contas.saveAndFlush(conta));
         if (conta.getMovimentacaoFinanceira() != null)
             financeiro.estornarSaidaContaPagar(conta.getMovimentacaoFinanceira().getId(), empresaId, usuarioId,
                     "Estorno da baixa da conta a pagar #" + conta.getId());

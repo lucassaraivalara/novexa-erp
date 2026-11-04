@@ -14,8 +14,12 @@ import java.util.List;
 @RequestMapping("/financeiro/contas-pagar")
 public class ContaPagarController {
     private final ContaPagarService service;
+    private final br.com.novexa.erp.service.PagamentoContaPagarService pagamentos;
 
-    public ContaPagarController(ContaPagarService service) { this.service = service; }
+    public ContaPagarController(ContaPagarService service, br.com.novexa.erp.service.PagamentoContaPagarService pagamentos) {
+        this.service = service;
+        this.pagamentos = pagamentos;
+    }
 
     @GetMapping("/{id}")
     public ContaPagarResponseDTO buscar(@PathVariable Long id, @AuthenticationPrincipal UsuarioAutenticado usuario) {
@@ -66,6 +70,28 @@ public class ContaPagarController {
     public ContaPagarResponseDTO pagar(@PathVariable Long id, @Valid @RequestBody PagamentoContaPagarRequestDTO pedido,
             @AuthenticationPrincipal UsuarioAutenticado usuario) {
         return service.pagar(id, usuario.empresaId(), usuario.usuarioId(), pedido);
+    }
+
+    @PostMapping("/{id}/pagamentos")
+    public PagamentoContaPagarResponseDTO pagarAgrupado(@PathVariable Long id,@Valid @RequestBody PagamentoMultiorigemContaPagarDTO pedido,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return pagamentos.pagar(id,usuario.empresaId(),usuario.usuarioId(),pedido);
+    }
+    @GetMapping("/{id}/pagamentos")
+    public PaginaResponseDTO<PagamentoContaPagarResponseDTO> historico(@PathVariable Long id,
+            @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="10") int size,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return pagamentos.historico(id,usuario.empresaId(),page,size);
+    }
+    @GetMapping("/{id}/pagamentos/por-chave/{chave}")
+    public PagamentoContaPagarResponseDTO buscarPagamento(@PathVariable Long id,@PathVariable java.util.UUID chave,
+            @AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return pagamentos.buscarPorChave(id,usuario.empresaId(),chave);
+    }
+    @PostMapping("/{id}/pagamentos/{pagamentoId}/estornar")
+    public PagamentoContaPagarResponseDTO estornarAgrupado(@PathVariable Long id,@PathVariable Long pagamentoId,
+            @Valid @RequestBody MovimentacaoFinanceiraEstornoDTO pedido,@AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return pagamentos.estornar(id,pagamentoId,usuario.empresaId(),usuario.usuarioId(),pedido);
     }
 
     @PostMapping("/{id}/cancelar")

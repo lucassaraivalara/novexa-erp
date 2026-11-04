@@ -406,6 +406,23 @@ As configurações ficam na área gerencial. A operação comum continua rápida
 
 ## Contas a Pagar — MVP operacional
 
+### Pagamento integral multiorigem — Sprint 23B/23B.1
+
+`POST /financeiro/contas-pagar/{id}/pagamentos` recebe UUID `chaveRequisicao`, data, `valorPago`, juros/multa/desconto e 1–10 origens distintas `{contaFinanceiraId,valor}`. `PagamentoContaPagarEntity` separa principal integral, encargos e desembolso; cada origem é uma SAIDA da infraestrutura existente. Soma das origens = principal + juros + multa − desconto, positiva, em centavos BigDecimal. O original não muda; não há pagamentos parciais.
+
+V62 é aditiva: agregado, vínculo nullable dos movimentos e pagamento atual do título, com FKs compostas por empresa, unicidade de chave e de origem por baixa. Sem backfill ou alterações em migrations antigas. `valorPago` continua sendo desembolso, não amortização de principal. Históricos legados não são reconstruídos por inferência.
+
+Transação única, título antes de todas as contas bloqueadas por ID crescente, saldos relidos sob lock. Conta ativa/do tenant/com saldo é obrigatória; CAIXA existente é explicitamente permitida nesta Sprint e não representa sessão do PDV. ADQUIRENTE é inelegível no novo contrato; o endpoint singular mantém compatibilidade anterior. Nenhuma sangria/retirada de sessão é criada.
+
+UUID persistente por empresa e assinatura canônica impedem duplicação; mesma chave com payload incompatível já confirmado retorna 409. Retry depois do estorno devolve o estado ESTORNADO, sem reativar débito. `GET /{id}/pagamentos` lista histórico paginado e origens em lote; `GET /{id}/pagamentos/por-chave/{chave}` consulta o resultado de uma tentativa, com filtro de empresa/título. Nenhuma dessas consultas comprova que uma requisição ainda em trânsito nunca chegará.
+
+23B.1 permite editar dados após resposta incerta mantendo a chave original. Antes de tentar a correção, consulta a tentativa; se já confirmada/estornada, atualiza o estado da tela e informa o resultado efetivo. Se ainda ausente, a correção usa a mesma chave: a restrição persistente permite somente uma das tentativas concorrentes. Conflito é reconciliado novamente por chave. Não limpar a chave nem presumir cancelamento da tentativa antiga somente por um 404/409.
+
+`POST /{id}/pagamentos/{pagamentoId}/estornar`, ADMIN/GERENTE e motivo obrigatório, reverte todas as origens, audita e reabre o título atomicamente. Repetição do mesmo estorno não credita novamente. Endpoints `/pagar` e `/estornar` antigos seguem compatíveis; o estorno do título reconhece o agregado atual. Pagamento preserva a política autenticada existente, inclusive OPERADOR. O histórico novo não promete completar lacunas dos vínculos legados.
+
+Qualificação da composição: 146 casos backend e 37 frontend, PostgreSQL descartável, rejeição real por constraint diferida na fase COMMIT, resposta HTTP503 injetada após commit comprovado e estorno simultâneo. O banco produtivo exige backup/restauração e recuperação compatível antes da V62. Após existir baixa agrupada, backend anterior à 23B não é rollback seguro: preservar schema, manter binário compatível e recuperar/corrigir progressivamente. A 23C deverá evoluir residual/status/índice de baixa ativa/indicadores sem reinterpretar desembolso como principal.
+
+
 V61: `POST /financeiro/contas-pagar/{id}/pagar` mantém `valorPago` obrigatório e aceita `juros`, `multa`, `desconto` opcionais (BigDecimal, até 2 casas; omissão = zero). A única saída guarda `conta_pagar_valor_original/juros/multa/desconto`, imutáveis, e observação para consulta no extrato. Legado permanece NULL, sem backfill. O estorno mantém o snapshot e reverte o valor do movimento, inclusive quando difere do original; novo pagamento cria outro movimento. Locks, atomicidade, usuário/empresa do JWT e autorização existentes preservados: pagamento autenticado e estorno ADMIN/GERENTE. Mais de duas casas é rejeitado, sem arredondamento implícito. [Evidências e publicação](../audits/correcao-contas-pagar-juros-multas-descontos.md).
 
 Etapa 5, branch `feat/central-configuracoes`, sobre `daf77eb`: Entrada confirmada pode gerar explicitamente uma obrigação ABERTA com valor/vencimento informados, ou vincular uma conta preexistente ABERTA/PAGA, sem baixa ou saída adicional. V37 protege a associação única por origem/empresa; detalhes do contrato em [entradas-mercadoria.md](entradas-mercadoria.md). `GET /financeiro/contas-pagar/{id}` abre o título exato; respostas existentes acrescentam `entradaMercadoriaId` e `origemVinculoEntrada` nulos quando não vinculadas. A listagem busca origem junto das contas, sem requisições por linha.

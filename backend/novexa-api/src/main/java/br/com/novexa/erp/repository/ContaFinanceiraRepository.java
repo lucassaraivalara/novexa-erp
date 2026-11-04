@@ -32,5 +32,9 @@ public interface ContaFinanceiraRepository extends JpaRepository<ContaFinanceira
     @Query("select c from ContaFinanceiraEntity c where c.id = :id and c.empresa.id = :empresaId")
     Optional<ContaFinanceiraEntity> buscarParaAlterar(Long id, Long empresaId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from ContaFinanceiraEntity c where c.empresa.id=:empresaId and c.id in :ids order by c.id")
+    List<ContaFinanceiraEntity> bloquearOrdenadas(Long empresaId, List<Long> ids);
+
     List<ContaFinanceiraEntity> findByEmpresaIdAndTipoAndAtivoTrueOrderByNomeAsc(Long empresaId, br.com.novexa.erp.entity.TipoContaFinanceira tipo);
 }

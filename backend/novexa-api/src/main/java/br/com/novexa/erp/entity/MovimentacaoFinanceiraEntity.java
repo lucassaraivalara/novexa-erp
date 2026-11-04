@@ -28,6 +28,8 @@ public class MovimentacaoFinanceiraEntity {
     private RecebivelEntity recebivel;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "conta_receber_id", updatable = false)
     private ContaReceberEntity contaReceber;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name="pagamento_conta_pagar_id", updatable=false)
+    private PagamentoContaPagarEntity pagamentoContaPagar;
     @Column(updatable = false) private java.util.UUID chaveRequisicao;
     @Column(nullable = false, length = 200, updatable = false) private String descricao;
     @Column(nullable = false, precision = 19, scale = 2, updatable = false) private BigDecimal valor;
@@ -77,6 +79,10 @@ public class MovimentacaoFinanceiraEntity {
     }
     @PrePersist @PreUpdate
     private void validarTransferencia() {
+        if (pagamentoContaPagar != null && (origem != OrigemMovimentacaoFinanceira.CONTAS_A_PAGAR
+                || tipo != TipoMovimentacaoFinanceira.SAIDA
+                || !empresa.getId().equals(pagamentoContaPagar.getEmpresa().getId())))
+            throw new IllegalStateException("Baixa financeira incompatível com a empresa/origem.");
         if ((origem == OrigemMovimentacaoFinanceira.CONTA_RECEBER) != (contaReceber != null)
                 || (contaReceber != null) != (chaveRequisicao != null))
             throw new IllegalStateException("Origem e vinculo de conta a receber incompativeis.");
@@ -149,6 +155,11 @@ public class MovimentacaoFinanceiraEntity {
     }
     public ContaReceberEntity getContaReceber() { return contaReceber; }
     public java.util.UUID getChaveRequisicao() { return chaveRequisicao; }
+    public PagamentoContaPagarEntity getPagamentoContaPagar() { return pagamentoContaPagar; }
+    public void vincularPagamentoContaPagar(PagamentoContaPagarEntity pagamento) {
+        if (id != null) throw new IllegalStateException("Movimento já persistido.");
+        this.pagamentoContaPagar = pagamento;
+    }
     public Long getId() { return id; }
     public EmpresaEntity getEmpresa() { return empresa; }
     public ContaFinanceiraEntity getContaFinanceira() { return contaFinanceira; }

@@ -147,7 +147,7 @@ class ContaPagarEncargosPostgresTest {
         for(String tabela:List.of("empresas","usuario","contas_financeiras","contas_pagar"))
             antes.put(tabela,jdbc.queryForObject("select md5(coalesce(string_agg(row_to_json(t)::text,',' order by id),'')) from "+legado+"."+tabela+" t",String.class));
         var flyway=org.flywaydb.core.Flyway.configure().dataSource(URL+"?currentSchema="+legado,"postgres","")
-                .schemas(legado).defaultSchema(legado).cleanDisabled(true).load();
+                .schemas(legado).defaultSchema(legado).cleanDisabled(true).target("61").load();
         assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1); flyway.validate();
         assertThat(flyway.info().current().getVersion().toString()).isEqualTo("61");
         for(var item:antes.entrySet()) assertThat(jdbc.queryForObject("select md5(coalesce(string_agg(row_to_json(t)::text,',' order by id),'')) from "+legado+"."+item.getKey()+" t",String.class)).isEqualTo(item.getValue());
