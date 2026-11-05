@@ -1,3 +1,7 @@
+## Fechamento 23C/23D/23D.1 — 05/11/2026
+
+Implementação integrada, backend V63 e frontend publicados; fechamento produtivo limitado pelo smoke autenticado pendente. [Estado efetivo](../audits/publicacao-sprint23cd-contas-pagar.md). Não iniciada a Sprint 23E.
+
 # Roadmap do Projeto - Novexa ERP
 
 ## Estoque — sprint 17A/17B (26/10/2026, local)

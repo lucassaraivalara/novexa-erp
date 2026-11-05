@@ -1,0 +1,8 @@
+{
+  "backup": "/var/backups/novexa-postgres/novexa-postgres-20261105T152511Z-2d2d9e8f.dump",
+  "sha256": "326469839afdbfb50eec64c6ede301878a0a767745bb75490eb37f149ab61d0b",
+  "bytes": 1536517,
+  "created_utc": "2026-11-05T15:25:13+00:00",
+  "validation": "archive-read-ok",
+  "retentionDisabled": true
+}

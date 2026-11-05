@@ -1,0 +1,21 @@
+{
+  "partialPaymentRecoveryAndEarlierRefund": "passed",
+  "backup": "/var/backups/novexa-postgres/novexa-postgres-20261105T152511Z-2d2d9e8f.dump",
+  "restore": "passed",
+  "migrationFrom": "62",
+  "migrationTo": "63",
+  "checksumV63": -1070743001,
+  "checksumV61Preserved": true,
+  "legacyTableFingerprintsPreserved": true,
+  "legacyTables": 44,
+  "restoredBusinessDataWriteGuards": true,
+  "newPaymentsInRestoredData": 0,
+  "hibernateValidate": "passed",
+  "candidateImage": "sha256:7ccc3ee323b08383c2b1411b0c4a6990673c3c43a3e3c904b4c7020838541951",
+  "recoveryImage": "novexa-api:sprint23cd-v63-recovery-20261105",
+  "recoveryRestartOnV63": "passed",
+  "syntheticPaymentReplayAfterJvmRestart": "passed",
+  "syntheticRefundAfterJvmRestart": "passed",
+  "network": "none; app shares only isolated DB namespace",
+  "productionMutations": false
+}

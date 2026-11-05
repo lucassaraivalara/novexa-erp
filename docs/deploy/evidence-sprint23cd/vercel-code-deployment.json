@@ -1,0 +1,12 @@
+{
+  "id": "dpl_A1K9eu8qbejfKVMU6gVnVXCFstyr",
+  "url": "https://novexa-bo4l3lgfn-orion-4009.vercel.app",
+  "state": "READY",
+  "target": "production",
+  "sha": "1d29b443380dfea6ae3bfb955e04d4ed0233e070",
+  "aliases": [
+    "novexa-erp.vercel.app",
+    "novexa-erp-orion-4009.vercel.app",
+    "novexa-erp-git-main-orion-4009.vercel.app"
+  ]
+}

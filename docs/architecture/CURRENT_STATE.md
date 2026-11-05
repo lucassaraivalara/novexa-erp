@@ -1,3 +1,7 @@
+## Contas a Pagar — 23C/23D/23D.1 (05/11/2026)
+
+Pagamentos parciais com múltiplas origens, principal/residual separados de desembolso, estorno individual e interface compacta validados na composição integrada. Backend V63 e frontend publicados e saudáveis; smoke autenticado pendente. [Release e evidências](../audits/publicacao-sprint23cd-contas-pagar.md). Registros anteriores abaixo são históricos.
+
 ## Contas a Pagar — juros, multa e desconto (29/10/2026)
 
 Implementação qualificada para publicação: baixa integral por original + juros + multa − desconto, com valor original preservado. V61 adiciona snapshot imutável ao movimento financeiro, incluindo os encargos estornados; uma única saída debita o total. Frontend calcula centavos exatos, informa total e consulta discriminação no detalhe/extrato. Testes sintéticos direcionados, migration V60→V61 e restauração do backup aprovados. Estado da publicação e limites em [relatório financeiro](../audits/correcao-contas-pagar-juros-multas-descontos.md).

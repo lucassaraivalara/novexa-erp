@@ -1,0 +1,44 @@
+{
+  "commit": "1d29b443380dfea6ae3bfb955e04d4ed0233e070",
+  "previousImage": "sha256:cbc3a229239785fcaa0de5121bf90f604ffe81d1cca5110d7d6e1aef81f9d4bf",
+  "image": "sha256:7ccc3ee323b08383c2b1411b0c4a6990673c3c43a3e3c904b4c7020838541951",
+  "previousComposeFiles": [
+    "/home/ubuntu/novexa-erp/backend/novexa-api/compose.prod.yml",
+    "/home/ubuntu/novexa-release20-20261028/compose.sprint20.yml",
+    "/home/ubuntu/novexa-financeiro-encargos-20261029/compose.encargos.yml",
+    "/home/ubuntu/novexa-sprint22-20261103/compose.sprint22.yml",
+    "/home/ubuntu/novexa-sprint225-20261103/compose.sprint225.yml",
+    "/home/ubuntu/novexa-sprint23b1-20261104/compose.sprint23b1.yml"
+  ],
+  "backup": "/var/backups/novexa-postgres/novexa-postgres-20261105T152511Z-2d2d9e8f.dump",
+  "stage": "completed",
+  "schemaRollback": false,
+  "flywayBefore": 62,
+  "flywayAfter": 63,
+  "historyRows": 62,
+  "checksumV61": 1337766711,
+  "checksumV63": -1070743001,
+  "previousFlywayRowsPreserved": true,
+  "legacyDataFingerprintsPreserved": true,
+  "legacyTables": 44,
+  "newPayments": 0,
+  "probes": {
+    "health": {
+      "status": "UP",
+      "groups": [
+        "liveness",
+        "readiness"
+      ]
+    },
+    "health/readiness": {
+      "status": "UP"
+    },
+    "health/liveness": {
+      "status": "UP"
+    }
+  },
+  "restarts": 0,
+  "startedAt": "2026-11-05T15:31:57.464080993Z",
+  "override": "/home/ubuntu/novexa-sprint23cd-20261105/compose.sprint23cd.yml",
+  "recovery": "V63-compatible pinned image qualified; no downgrade permitted"
+}

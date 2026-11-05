@@ -1,0 +1,10 @@
+{
+  "backup": "/var/backups/novexa-postgres/novexa-postgres-20261105T152511Z-2d2d9e8f.dump",
+  "sha256": "326469839afdbfb50eec64c6ede301878a0a767745bb75490eb37f149ab61d0b",
+  "restore": "passed",
+  "flywayVersion": "62",
+  "publicTables": 45,
+  "network": "none",
+  "productionMutations": false,
+  "image": "supabase/postgres:17.6.1.178@sha256:c282d393ae56fd165b7ada2ddbac55e582a601b86f3840aa2bbc112e43d3a570"
+}

@@ -1,3 +1,7 @@
+## Contas a Pagar — parciais e UX 23C/23D/23D.1
+
+Principal, encargos, desembolso e residual devem ser distintos; múltiplas baixas idempotentes e multiorigem são atômicas. Estorno exige seleção explícita da baixa. Cinco indicadores globais distinguem loading/erro/zero; períodos 7/30 são cumulativos. Pagar inicia Ações e aparece apenas para obrigação elegível, sem coluna Pagamento. [Contrato e validação](../audits/publicacao-sprint23cd-contas-pagar.md).
+
 # Requisitos do Sistema - Novexa ERP
 
 ## Controle de estoque empresarial — 17B (implementação local)

@@ -1,0 +1,40 @@
+{
+  "image": "sha256:7ccc3ee323b08383c2b1411b0c4a6990673c3c43a3e3c904b4c7020838541951",
+  "restarts": 0,
+  "startedAt": "2026-11-05T15:31:57.464080993Z",
+  "flyway": {
+    "version": 63,
+    "checksumV61": 1337766711,
+    "failures": 0,
+    "historyRows": 62
+  },
+  "probes": {
+    "health": {
+      "status": "UP",
+      "groups": [
+        "liveness",
+        "readiness"
+      ]
+    },
+    "health/readiness": {
+      "status": "UP"
+    },
+    "health/liveness": {
+      "status": "UP"
+    }
+  },
+  "resources": {
+    "BlockIO": "0B / 0B",
+    "CPUPerc": "0.15%",
+    "Container": "novexa-api",
+    "ID": "733fc4280e7c",
+    "MemPerc": "54.41%",
+    "MemUsage": "1.088GiB / 2GiB",
+    "Name": "novexa-api",
+    "NetIO": "138kB / 42.8kB",
+    "PIDs": "38"
+  },
+  "financialRequests": [],
+  "observedUnexpectedHttp5xx": 0,
+  "supabaseBilledEgress": "not measured"
+}

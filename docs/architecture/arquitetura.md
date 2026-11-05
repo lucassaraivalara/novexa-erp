@@ -1,3 +1,7 @@
+## Baixas parciais — V63
+
+ContaPagar mantém principalQuitado e saldo derivado; cada baixa V62 possui principal próprio, encargos e origens/movimentos existentes. V63 permite várias baixas confirmadas, serializadas pelo lock da obrigação; UUID por empresa e locks ordenados de contas preservados. Sem novo motor ou integração automática com sessão PDV. [Detalhes de release](../audits/publicacao-sprint23cd-contas-pagar.md).
+
 docs/
 └── architecture/
 ├── arquitetura.md

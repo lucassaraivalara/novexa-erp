@@ -1,3 +1,7 @@
+## Publicação 23C/23D/23D.1 — 05/11/2026
+
+Backend funcional `1d29b44`, imagem `sha256:7ccc3ee323b08383c2b1411b0c4a6990673c3c43a3e3c904b4c7020838541951`, V63/checksum `-1070743001`, probes UP, zero reinícios. Aos seis Compose anteriores soma-se `/home/ubuntu/novexa-sprint23cd-20261105/compose.sprint23cd.yml` (target63). Backup completo restaurado, V62→V63 e Hibernate validate qualificados; dados anteriores preservados. Recuperação: imagem compatível fixada `novexa-api:sprint23cd-v63-recovery-20261105`; não usar binário V62 após parciais nem reverter schema/restaurar automaticamente. Smoke autenticado pendente. [Evidências, frontend e estado final](../audits/publicacao-sprint23cd-contas-pagar.md). Procedimentos abaixo são históricos e não substituem a composição vigente.
+
 # Publicacao do Novexa: Oracle Cloud VM / Docker
 
 ## Versão vigente — guardrails 19D, 27/10/2026

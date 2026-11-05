@@ -1,3 +1,7 @@
+## Evolução 23C — pagamentos parciais (05/11/2026)
+
+V63 reutiliza a baixa V62: principal amortizado reduz o residual; desembolso = principal + juros + multa − desconto. Uma ou várias origens geram saídas, sem tocar sessão do PDV. Status PARCIALMENTE_PAGA mantém vencimento; PAGA exige principal integral. Estorno escolhido reverte somente a baixa e restaura seu principal, preservando posteriores. Indicadores em aberto usam residual; pago no mês soma desembolsos confirmados e legados singulares sem duplicação. Interface padrão integral, parcial explícito; detalhes no [release](../audits/publicacao-sprint23cd-contas-pagar.md).
+
 FINANCEIRO NOVEXA
 
 ## Leitura paginada do extrato — Tarefa 14A

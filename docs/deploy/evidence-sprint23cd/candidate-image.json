@@ -1,0 +1,22 @@
+{
+  "commit": null,
+  "previousImage": "sha256:cbc3a229239785fcaa0de5121bf90f604ffe81d1cca5110d7d6e1aef81f9d4bf",
+  "newImage": "sha256:7ccc3ee323b08383c2b1411b0c4a6990673c3c43a3e3c904b4c7020838541951",
+  "testedJarSha256": "d3c72d85140e0335b599a1c27494bfdc482fd489612f1c2c0b0ead13cca535eb",
+  "excludedResource": "application-local.properties",
+  "jarSha256": "7d439fb341f8ef37851eb22dd59873bacb5dfd2965797ee34a2b1f151d08a1ff",
+  "binaryChanges": [
+    "BOOT-INF/classes/br/com/novexa/erp/dto/ContaPagarResponseDTO.class",
+    "BOOT-INF/classes/br/com/novexa/erp/dto/PagamentoMultiorigemContaPagarDTO$Origem.class",
+    "BOOT-INF/classes/br/com/novexa/erp/dto/PagamentoMultiorigemContaPagarDTO.class",
+    "BOOT-INF/classes/br/com/novexa/erp/entity/ContaPagarEntity.class",
+    "BOOT-INF/classes/br/com/novexa/erp/entity/PagamentoContaPagarEntity.class",
+    "BOOT-INF/classes/br/com/novexa/erp/entity/StatusContaPagar.class",
+    "BOOT-INF/classes/br/com/novexa/erp/repository/ContaPagarRepository.class",
+    "BOOT-INF/classes/br/com/novexa/erp/repository/PagamentoContaPagarRepository.class",
+    "BOOT-INF/classes/br/com/novexa/erp/service/ContaPagarService.class",
+    "BOOT-INF/classes/br/com/novexa/erp/service/PagamentoContaPagarService.class",
+    "BOOT-INF/classes/db/migration/V63__contas_pagar_baixas_parciais.sql"
+  ],
+  "librariesUnchanged": true
+}

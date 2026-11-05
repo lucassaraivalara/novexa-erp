@@ -1,3 +1,7 @@
+## Atualização financeira 23C/23D/23D.1
+
+V63 acrescenta pagamentos parciais ao agregado V62 e mantém principal separado de desembolso. Consultar [financeiro.md](financeiro.md) e [release](../audits/publicacao-sprint23cd-contas-pagar.md) para estado produtivo e pendências; notas anteriores de baixa exclusivamente integral são históricas.
+
 # Novexa ERP — Contexto do sistema
 
 - Produto: ERP web para pequenos comércios, com PDV rápido, operação simples e gestão clara.

@@ -1,0 +1,15 @@
+{
+  "mode": "public readonly, unauthenticated",
+  "loginHttp": 200,
+  "entry": "/assets/index-bDNjMEPs.js",
+  "financialChunk": "/assets/ContasPagar-BvnxC47L.js",
+  "financialChunkHttp": 200,
+  "financialChunkBytes": 39726,
+  "financialChunkSha256": "5b2e96275e5b4cecd3fdd327c409d7ae5af8bd112cc048ad258444385857c7a7",
+  "newContractMarkers": true,
+  "healthHttp": 200,
+  "health": "UP",
+  "anonymousFinancialEndpoint": 401,
+  "productivePaymentsOrRefunds": 0,
+  "authenticatedSmoke": "pending; browser host unavailable"
+}
