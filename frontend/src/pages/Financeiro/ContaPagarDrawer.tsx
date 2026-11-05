@@ -75,6 +75,7 @@ export default function ContaPagarDrawer({ conta, onFechar, onSalvo, somenteLeit
                     <Typography variant="body2">{conta.fornecedorNome ?? "Sem fornecedor"} · Vencimento: {formatarData(conta.dataVencimento)}</Typography>
                     <Typography variant="body2">Valor original: {moeda.format(conta.valor)} · Desembolsado: {moeda.format(conta.valorPago ?? 0)}</Typography>
                     <Typography variant="body2">Documento: {conta.documento ?? "Não informado"} · Categoria: {conta.categoria ?? "Não informada"}</Typography>
+                    <Typography variant="body2">Emissão: {conta.dataEmissao ? formatarData(conta.dataEmissao) : "Não informada"}</Typography>
                     {conta.observacao && <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{conta.observacao}</Typography>}
                 </Stack>}
                 {somenteLeitura && conta && <Typography variant="body2">Situação: {conta.status === "PAGA" ? "Paga" : conta.status === "PARCIALMENTE_PAGA" ? "Parcialmente paga" : conta.status === "ABERTA" ? "Aberta" : "Cancelada"}</Typography>}

@@ -118,3 +118,12 @@ A tabela SHALL apresentar o botão textual Pagar como primeira ação de Ações
 - **WHEN** a tabela apresenta uma conta aberta ou parcialmente paga elegível
 - **THEN** Pagar é a primeira ação visível em Ações, sem coluna Pagamento
 - **AND** contas pagas ou canceladas não apresentam Pagar; as demais ações mantêm seus comportamentos
+
+### Requirement: Grid compacto orientado ao saldo pendente
+A tabela SHALL apresentar, nesta ordem: Fornecedor, Documento, Descrição, Vencimento, Status, Saldo pendente, Valor original, Desembolsado e Ações. Categoria e Emissão SHALL permanecer nos detalhes e filtros existentes, sem colunas próprias. Valores monetários SHALL ser alinhados à direita, com saldo pendente destacado e paginação legível.
+
+#### Scenario: Consultar e agir sem alterar regras financeiras
+- **WHEN** o usuário consulta uma obrigação no grid
+- **THEN** Pagar é a ação principal quando elegível; Visualizar e Editar permanecem acessíveis
+- **AND** Cancelar e Estornar são apresentados em menu de três pontos, com os mesmos bloqueios, seleção explícita de baixa e confirmações existentes
+- **AND** alterar o tamanho da página retorna à primeira página, preservando consulta paginada remota

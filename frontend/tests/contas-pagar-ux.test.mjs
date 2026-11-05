@@ -17,14 +17,14 @@ before(async () => {
 });
 after(async()=>{await browser?.close();await vite?.close();});
 
-async function ambiente(t,{width=1366,height=768,theme='dark',falha=0,total=1245.87,saldo=1000,respostaEstornada=false,resumoStatus=200,resumoDelay=0,auxStatus=200}={}) {
+async function ambiente(t,{width=1366,height=768,theme='dark',falha=0,total=1245.87,saldo=1000,respostaEstornada=false,resumoStatus=200,resumoDelay=0,auxStatus=200,contaInicial={},abrirModal=true}={}) {
     const page=await browser.newPage({viewport:{width,height}});t.after(()=>page.close());page.setDefaultTimeout(12000);
     const pagamentos=[],pedidos=[],requests=[],erros=[];let falhas=falha;
     const contas=[{id:10,nome:'Caixa financeiro',tipo:'CAIXA',saldoAtual:saldo,ativo:true},
         {id:20,nome:'Banco Inter sintético',tipo:'BANCO',saldoAtual:1000,ativo:true},
         {id:30,nome:'Terceira origem',tipo:'COFRE',saldoAtual:1000,ativo:true},
         {id:40,nome:'Inativa',tipo:'BANCO',saldoAtual:1000,ativo:false},{id:50,nome:'Adquirente legado',tipo:'ADQUIRENTE',saldoAtual:1000,ativo:true}];
-    let conta={id:1,descricao:'Compra Bebidas — dados sintéticos',valor:total,status:'ABERTA',dataVencimento:'2026-11-10',valorPago:null,documento:null,fornecedorNome:'Fornecedor sintético',categoria:null};
+    let conta={id:1,descricao:'Compra Bebidas — dados sintéticos',valor:total,status:'ABERTA',dataVencimento:'2026-11-10',valorPago:null,documento:null,fornecedorNome:'Fornecedor sintético',categoria:null,...contaInicial};
     page.on('pageerror',e=>erros.push(e.message));
     await page.addInitScript(mode=>{localStorage.setItem('novexa-theme-choice',mode);localStorage.setItem('novexa-auth',JSON.stringify({token:'fixture',perfil:'ADMIN',empresa:{id:1}}));},theme);
     await page.route('http://localhost:8080/**',async route=>{
@@ -57,7 +57,7 @@ async function ambiente(t,{width=1366,height=768,theme='dark',falha=0,total=1245
         else if(path.endsWith('/resumo'))data=Object.fromEntries(['vencidas','seteDias','trintaDias','emAberto','pagasMes'].map(k=>[k,{total:k==='pagasMes'?conta.valorPago??0:0,quantidade:k==='pagasMes'?(pagamentos.filter(p=>p.estado==='CONFIRMADO').length):0}]));
         await route.fulfill({status:200,headers,json:data});
     });
-    await page.goto(url);await page.getByRole('button',{name:'Pagar conta',exact:true}).click();
+    await page.goto(url);if(abrirModal)await page.getByRole('button',{name:'Pagar conta',exact:true}).click();
     const modal=page.getByRole('dialog',{name:'Pagar conta'});
     return {page,modal,pedidos,pagamentos,requests,erros,contas};
 }
@@ -71,6 +71,66 @@ async function duas(modal) {
     await modal.getByRole('button',{name:'Usar restante'}).nth(1).click();
 }
 
+
+test('grid: colunas, ações, permissões e detalhes preservados',async t=>{
+ const {page,requests,erros}=await ambiente(t,{abrirModal:false,contaInicial:{categoria:'Mercadorias',dataEmissao:'2026-10-01'}});
+ await expect(page.getByRole('columnheader')).toHaveText(['Fornecedor','Documento','Descrição','Vencimento','Status','Saldo pendente','Valor original','Desembolsado','Ações']);
+ const acoes=page.getByRole('row').filter({has:page.getByRole('button',{name:'Pagar conta',exact:true})}).getByRole('button');
+ await expect(acoes).toHaveCount(4);await expect(acoes.first()).toHaveAttribute('aria-label','Pagar conta');
+ await expect(page.getByRole('button',{name:'Editar conta aberta',exact:true})).toBeEnabled();
+ await page.getByRole('button',{name:'Mais ações da conta #1',exact:true}).click();
+ const menu=page.getByRole('menu',{name:'Ações secundárias da conta'});
+ await expect(menu.getByRole('menuitem')).toHaveCount(2);
+ await expect(menu.getByRole('menuitem',{name:'Estornar pagamento',exact:true})).toBeDisabled();
+ await menu.getByRole('menuitem',{name:/Cancelar conta/}).click();
+ await expect(page.getByRole('dialog',{name:'Cancelar conta?'})).toBeVisible();
+ assert.equal(requests.filter(r=>r.method==='POST').length,0);
+ await page.getByRole('button',{name:'Voltar',exact:true}).click();
+ await page.getByRole('button',{name:'Mais ações da conta #1',exact:true}).focus();await page.keyboard.press('Enter');
+ await expect(menu).toBeVisible();await page.keyboard.press('Escape');
+ await expect(page.getByRole('button',{name:'Mais ações da conta #1',exact:true})).toBeFocused();
+ await page.getByRole('button',{name:'Consultar conta',exact:true}).click();
+ await expect(page.getByText(/Categoria: Mercadorias/)).toBeVisible();
+ await expect(page.getByText('Emissão: 01/10/2026',{exact:true})).toBeVisible();
+ assert.deepEqual(erros,[]);
+});
+
+for(const situacao of ['PARCIALMENTE_PAGA','PAGA','CANCELADA','GERADA'])test(`grid: ações permitidas ${situacao}`,async t=>{
+ const {page}=await ambiente(t,{abrirModal:false,contaInicial:situacao==='GERADA'?{origemVinculoEntrada:'GERADA',entradaMercadoriaId:12}:{status:situacao,principalQuitado:situacao==='PAGA'?1245.87:situacao==='PARCIALMENTE_PAGA'?500:0,saldoPendente:situacao==='PAGA'?0:situacao==='PARCIALMENTE_PAGA'?745.87:1245.87}});
+ await expect(page.getByRole('button',{name:'Pagar conta',exact:true})).toHaveCount(situacao==='PARCIALMENTE_PAGA'||situacao==='GERADA'?1:0);
+ const editar=page.getByRole('button',{name:'Editar conta aberta',exact:true});
+ if(situacao==='GERADA')await expect(editar).toBeEnabled();else await expect(editar).toBeDisabled();
+ await page.getByRole('button',{name:'Mais ações da conta #1',exact:true}).click();
+ await expect(page.getByRole('menuitem',{name:/Cancelar conta/})).toBeDisabled();
+ const estornar=page.getByRole('menuitem',{name:'Estornar pagamento',exact:true});
+ if(situacao==='PAGA'||situacao==='PARCIALMENTE_PAGA')await expect(estornar).toBeEnabled();else await expect(estornar).toBeDisabled();
+});
+
+test('grid: estorno no menu mantém seleção explícita da baixa',async t=>{
+ const {page,modal,requests}=await ambiente(t);
+ await modal.getByRole('combobox',{name:'Tipo de pagamento',exact:true}).click();await page.getByRole('option',{name:'Pagamento parcial',exact:true}).click();
+ await modal.getByRole('textbox',{name:'Principal a pagar agora (R$)',exact:true}).fill('500');await escolher(modal,1,'Banco Inter');
+ await modal.getByRole('button',{name:'Confirmar pagamento'}).click();await expect(modal).toHaveCount(0);
+ const antes=requests.filter(r=>r.method==='POST').length;
+ await page.getByRole('button',{name:'Mais ações da conta #1',exact:true}).click();
+ await page.getByRole('menuitem',{name:'Estornar pagamento',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Estornar baixa #100',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Estornar baixa #100',exact:true}).click();
+ await expect(page.getByRole('dialog',{name:'Estornar baixa #100?'})).toBeVisible();
+ assert.equal(requests.filter(r=>r.method==='POST').length,antes);
+});
+
+test('grid: paginação preserva consulta e retorna à primeira página ao mudar tamanho',async t=>{
+ const {page}=await ambiente(t,{abrirModal:false});const consultas=[];
+ await page.route('**/financeiro/contas-pagar?**',r=>{const u=new URL(r.request().url());consultas.push(u.searchParams);return r.fulfill({json:{items:[{id:2,descricao:'Outra conta',status:'ABERTA',valor:50,dataVencimento:'2026-11-10'}],page:Number(u.searchParams.get('page')),size:Number(u.searchParams.get('size')),totalItems:61,totalPages:7}});});
+ const tamanho=page.getByRole('combobox',{name:'Itens por página',exact:true});
+ await tamanho.click();await page.getByRole('option',{name:'10',exact:true}).click();
+ await expect(page.getByText('1–10 de 61',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Próxima página',exact:true}).click();await expect(page.getByText('11–20 de 61',{exact:true})).toBeVisible();
+ assert.equal(consultas.at(-1).get('page'),'1');assert.equal(consultas.at(-1).get('size'),'10');
+ await tamanho.click();await page.getByRole('option',{name:'25',exact:true}).click();await expect(page.getByText('1–25 de 61',{exact:true})).toBeVisible();
+ assert.equal(consultas.at(-1).get('page'),'0');assert.equal(consultas.at(-1).get('size'),'25');
+});
 
 test('valores, filtros progressivos e resumo global',async t=>{
  const {page,modal,requests}=await ambiente(t);await modal.getByRole('button',{name:'Cancelar',exact:true}).click();
@@ -105,7 +165,7 @@ for(const [width,height] of [[1366,768],[390,844]])test(`selecao explicita e apr
  await page.locator('.MuiTableContainer-root').evaluateAll(els=>els.forEach(el=>el.scrollLeft=0));
  await page.screenshot({path:`${assets}/lista-${width}.png`,animations:'disabled'});
  const antes=requests.filter(r=>r.method==='POST').length;
- await page.getByRole('button',{name:'Estornar pagamento',exact:true}).click();await expect(page.getByRole('button',{name:'Estornar baixa #100',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Mais ações da conta #1',exact:true}).click();await page.getByRole('menuitem',{name:'Estornar pagamento',exact:true}).click();await expect(page.getByRole('button',{name:'Estornar baixa #100',exact:true})).toBeVisible();
  assert.equal(requests.filter(r=>r.method==='POST').length,antes);
  await page.screenshot({path:`${assets}/detalhe-${width}.png`,animations:'disabled'});
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));

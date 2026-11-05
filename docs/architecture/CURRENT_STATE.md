@@ -1,3 +1,7 @@
+## Contas a Pagar — grid aprovado para release (05/11/2026)
+
+Grid na ordem Fornecedor → Documento → Descrição → Vencimento → Status → Saldo pendente → Valor original → Desembolsado → Ações. Categoria/Emissão nos detalhes; Pagar, consulta e edição acessíveis, Cancelar/Estornar em menu com bloqueios e confirmações preservados. Sete verificações direcionadas, TypeScript e lint aprovados; composição final recebe build próprio. Somente frontend, sem alteração financeira/backend/migration. Referência: seção 9 da change aberta `openspec/changes/sprint23d-contas-pagar-ux-compacta`.
+
 ## Contas a Pagar — 23C/23D/23D.1 (05/11/2026)
 
 Pagamentos parciais com múltiplas origens, principal/residual separados de desembolso, estorno individual e interface compacta validados na composição integrada. Backend V63 e frontend publicados e saudáveis; smoke autenticado pendente. [Release e evidências](../audits/publicacao-sprint23cd-contas-pagar.md). Registros anteriores abaixo são históricos.

@@ -102,7 +102,7 @@ test('três origens, encargos, exclusão e origem única automática',async t=>{
     await expect(modal.getByRole('textbox',{name:'Valor da origem 1 (R$)',exact:true})).toHaveValue('665,00');
     await modal.getByRole('button',{name:'Confirmar pagamento'}).click();await expect(modal).toHaveCount(0);
     assert.deepEqual(pedidos[0].origens,[{contaFinanceiraId:10,valor:'665.00'}]);
-    await page.getByRole('button',{name:'Estornar pagamento',exact:true}).click();await page.getByRole('button',{name:'Estornar baixa #100',exact:true}).click();const estorno=page.getByRole('dialog',{name:'Estornar baixa #100?'});
+    await page.getByRole('button',{name:'Mais ações da conta #1',exact:true}).click();await page.getByRole('menuitem',{name:'Estornar pagamento',exact:true}).click();await page.getByRole('button',{name:'Estornar baixa #100',exact:true}).click();const estorno=page.getByRole('dialog',{name:'Estornar baixa #100?'});
     await expect(estorno.getByRole('button',{name:'Confirmar estorno',exact:true})).toBeDisabled();await estorno.getByRole('textbox',{name:'Motivo do estorno'}).fill('Conferência sintética');
     await estorno.getByRole('button',{name:'Confirmar estorno',exact:true}).click();await expect(estorno).toHaveCount(0);
     await page.getByRole('button',{name:'Fechar formulário',exact:true}).click();await page.getByRole('button',{name:'Pagar conta',exact:true}).click();await escolher(page.getByRole('dialog',{name:'Pagar conta'}),1,'Banco Inter');

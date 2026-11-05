@@ -67,3 +67,11 @@ Product Owner: em http://localhost:5173/financeiro/contas-pagar, conferir Nova c
 - [x] 8.2 Validar a tabela e a composição integrada 23C/23D/23D.1: 32 testes frontend e teste adicional de posição/ausência da coluna; build/TypeScript e lint aprovados. Backend: 74 casos financeiros aprovados, um opt-in não executado, mais dez HTTP aprovados. Fixtures de migração corrigidas para schema único e seleção de dados equivalentes à V62.
 
 Product Owner aprovou a interface com este ajuste final em 05/11/2026 e autorizou VALIDATION/RELEASE condicionado aos gates. A change permanece aberta; publicação e limitações efetivas devem ser consultadas no relatório de release.
+
+## 9. Ajuste local posterior do grid — DEV_FAST
+
+- [x] 9.1 Aplicar ordem Fornecedor → Documento → Descrição → Vencimento → Status → Saldo pendente → Valor original → Desembolsado → Ações; remover Categoria/Emissão somente do grid, mantendo consulta no detalhe.
+- [x] 9.2 Refinar alinhamento, espaçamento, status, residual e paginação apenas na página; manter Pagar/Visualizar/Editar e agrupar Cancelar/Estornar em Menu MUI com regras e confirmações preservadas.
+- [x] 9.3 Verificar sete cenários direcionados do grid, TypeScript e lint dos dois componentes afetados; detector sem achados determinísticos. Um primeiro carregamento da fixture falhou durante otimização/reload do novo ícone no Vite; o caso foi reexecutado com o cache aquecido e passou, sem omitir o erro inicial.
+
+Product Owner aprovou o grid e autorizou seu RELEASE frontend. Composição isolada sobre a main atual; sete cenários aprovados reaproveitados, build final executado no release. Nenhuma regra financeira, contrato, dependência, backend ou migration alterada. A change permanece aberta; nenhuma operação financeira produtiva de teste autorizada.

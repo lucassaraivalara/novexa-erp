@@ -6,8 +6,9 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
+import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-    Collapse, IconButton, Tooltip, Link, MenuItem, Paper, Skeleton, Snackbar, Stack, TextField, Typography } from "@mui/material";
+    Collapse, IconButton, Tooltip, Link, ListItemIcon, ListItemText, Menu, MenuItem, Paper, Skeleton, Snackbar, Stack, TextField, Typography } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import PageFilters from "../../components/ui/PageFilters";
@@ -27,7 +28,7 @@ const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 const data = formatarData;
 const rotulos: Record<StatusContaPagar, string> = { ABERTA: "Aberta", PARCIALMENTE_PAGA: "Parcialmente paga", PAGA: "Paga", CANCELADA: "Cancelada" };
 const hoje = hojeBrasilia;
-const ordemColunas = ["descricao", "dataVencimento", "status", "valor", "valorPago", "id", "acoes", "fornecedorNome", "documento", "categoria", "dataEmissao"];
+const ordemColunas = ["fornecedorNome", "documento", "descricao", "dataVencimento", "status", "id", "valor", "valorPago", "acoes"];
 
 export default function ContasPagar() {
     const [parametros, setParametros] = useSearchParams();
@@ -65,6 +66,7 @@ export default function ContasPagar() {
     const consultandoResumo = carregandoResumo || resumoRevisao !== tentativa;
     const [confirmacao, setConfirmacao] = useState<{ conta: ContaPagar; tipo: "cancelar" | "estornar" } | null>(null);
     const [processando, setProcessando] = useState(false);
+    const [menuAcoes, setMenuAcoes] = useState<{ ancora: HTMLElement; conta: ContaPagar } | null>(null);
 
     useEffect(() => {
         if (contaIdParametro === null) return;
@@ -173,28 +175,29 @@ export default function ContasPagar() {
     }
 
     const colunas: Coluna<ContaPagar>[] = [
-        { campo: "descricao", cabecalho: "Descrição", largura: 240, render: (_, conta) => <Box sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>
+        { campo: "descricao", cabecalho: "Descrição", largura: 220, render: (_, conta) => <Box sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>{conta.descricao}</Typography>
             {conta.entradaMercadoriaId && <Link variant="caption" href={`/estoque?aba=entradas&entradaId=${conta.entradaMercadoriaId}`} target="_blank" rel="noopener noreferrer">
                 {conta.origemVinculoEntrada === "GERADA" ? "Gerada pela entrada" : "Vinculada à entrada"} #{conta.entradaMercadoriaId}
             </Link>}
         </Box> },
-        { campo: "dataVencimento", cabecalho: "Vencimento", largura: 130, render: (valor) => data(String(valor)) },
+        { campo: "dataVencimento", cabecalho: "Vencimento", largura: 125, render: (valor) => <Box component="span" sx={{ fontVariantNumeric: "tabular-nums" }}>{data(String(valor))}</Box> },
         { campo: "id", cabecalho: "Saldo pendente", largura: 150, alinhar: "right", render: (_, conta) =>
-            <Typography component="span" variant="body2" sx={{ fontWeight: 700, color: "primary.main", fontVariantNumeric: "tabular-nums" }}>{moeda.format(emAberto(conta))}</Typography> },
-        { campo: "status", cabecalho: "Status", largura: 170, render: (_, conta) =>
-            <Chip size="small" variant="outlined" label={emAberto(conta) > 0 && conta.dataVencimento < hojeLocal
+            <Typography component="span" variant="body2" sx={{ fontWeight: 700, color: emAberto(conta) > 0 ? "primary.main" : "text.secondary", fontVariantNumeric: "tabular-nums" }}>{moeda.format(emAberto(conta))}</Typography> },
+        { campo: "status", cabecalho: "Status", largura: 165, render: (_, conta) =>
+            <Chip size="small" variant="outlined" sx={{ height: 28, fontWeight: 600 }} label={emAberto(conta) > 0 && conta.dataVencimento < hojeLocal
                 ? conta.status === "PARCIALMENTE_PAGA" ? "Parcial · Vencida" : "Vencida" : rotulos[conta.status]}
                 color={conta.status === "PAGA" ? "success" : conta.status === "CANCELADA" ? "default" : conta.dataVencimento < hojeLocal ? "error" : "warning"} /> },
-        { campo: "fornecedorNome", cabecalho: "Fornecedor", largura: 170, render: (valor) => String(valor ?? "—") },
-        { campo: "documento", cabecalho: "Documento", largura: 135, render: (valor) => String(valor ?? "—") },
-        { campo: "categoria", cabecalho: "Categoria", largura: 130, render: (valor) => String(valor ?? "—") },
-        { campo: "dataEmissao", cabecalho: "Emissão", largura: 125, render: (valor) => data(valor as string | null) },
+        { campo: "fornecedorNome", cabecalho: "Fornecedor", largura: 160, render: (valor) => <Box component="span" sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>{String(valor || "—")}</Box> },
+        { campo: "documento", cabecalho: "Documento", largura: 115, render: (valor) => <Box component="span" sx={{ whiteSpace: "normal", overflowWrap: "anywhere", fontVariantNumeric: "tabular-nums" }}>{String(valor || "—")}</Box> },
         { campo: "valor", cabecalho: "Valor original", largura: 140, alinhar: "right", render: (valor) => <Box component="span" sx={{ fontVariantNumeric: "tabular-nums" }}>{moeda.format(Number(valor))}</Box> },
         { campo: "valorPago", cabecalho: "Desembolsado", largura: 140, alinhar: "right", render: (valor) => <Box component="span" sx={{ fontVariantNumeric: "tabular-nums" }}>{moeda.format(Number(valor ?? 0))}</Box> },
-        { campo: "acoes", cabecalho: "Ações", largura: 240, render: (_, conta) => <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-            {(conta.status === "ABERTA" || conta.status === "PARCIALMENTE_PAGA") && <Button size="small" variant="contained" disableElevation aria-label="Pagar conta" onClick={() => abrirPagamento(conta)}>Pagar</Button>}
-            {acoes.map(acao => <Tooltip key={acao.rotulo} title={acao.tooltip ?? acao.rotulo}><span><IconButton size="small" aria-label={acao.tooltip ?? acao.rotulo} disabled={acao.desabilitado?.(conta)} color={acao.cor ?? "inherit"} onClick={() => acao.onClick(conta)}>{acao.icone}</IconButton></span></Tooltip>)}
+        { campo: "acoes", cabecalho: "Ações", largura: 208, render: (_, conta) => <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", "& .MuiIconButton-root": { width: 32, height: 32, "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } } }}>
+            {(conta.status === "ABERTA" || conta.status === "PARCIALMENTE_PAGA") && <Button size="small" variant="contained" disableElevation sx={{ minWidth: 58 }} aria-label="Pagar conta" onClick={() => abrirPagamento(conta)}>Pagar</Button>}
+            {acoes.slice(0, 2).map(acao => <Tooltip key={acao.rotulo} title={acao.tooltip ?? acao.rotulo}><span><IconButton size="small" aria-label={acao.tooltip ?? acao.rotulo} disabled={acao.desabilitado?.(conta)} color={acao.cor ?? "inherit"} onClick={() => acao.onClick(conta)}>{acao.icone}</IconButton></span></Tooltip>)}
+            <Tooltip title="Mais ações"><IconButton size="small" aria-label={`Mais ações da conta #${conta.id}`} aria-haspopup="menu"
+                aria-controls={menuAcoes?.conta.id === conta.id ? "menu-acoes-conta" : undefined} aria-expanded={menuAcoes?.conta.id === conta.id ? true : undefined}
+                onClick={evento => setMenuAcoes({ ancora: evento.currentTarget, conta })}><MoreVertRoundedIcon fontSize="small" /></IconButton></Tooltip>
         </Stack> },
     ];
     const acoes: AcaoTabela<ContaPagar>[] = [
@@ -255,17 +258,33 @@ export default function ContasPagar() {
             </Button>
         </PageFilters>
         <AppTable colunas={[...colunas].sort((a, b) => ordemColunas.indexOf(String(a.campo)) - ordemColunas.indexOf(String(b.campo))).map(coluna => ({ ...coluna,
-            ordenavel: ["categoria", "dataEmissao", "dataVencimento", "valor", "status"].includes(coluna.campo) }))}
+            ordenavel: ["dataVencimento", "valor", "status"].includes(coluna.campo) }))}
+            sx={{
+                "& tbody .MuiTableCell-root": { py: 1, px: 1.5, verticalAlign: "middle" },
+                "& thead .MuiTableCell-root": { px: 1.5 },
+                "& tbody .MuiTableCell-root:nth-of-type(6)": { bgcolor: "action.hover" },
+                "& > footer": { gap: 1, py: 0.75, alignItems: { xs: "flex-start", sm: "center" } },
+                "& .MuiTablePagination-root": { flex: { xs: "1 1 100%", sm: "0 0 auto" } },
+                "& .MuiTablePagination-actions .MuiIconButton-root": { width: 36, height: 36, border: 1, borderColor: "divider", borderRadius: 1 },
+            }}
             linhas={contas} carregando={carregando}
             ordenacaoRemota
             ordenacao={{ ...ordenacao, onSort: campo => {
                 setPagina(0); setOrdenacao(atual => ({ campo, direcao: atual.campo === campo && atual.direcao === "asc" ? "desc" : "asc" }));
             } }}
-            obterChaveLinha={(conta) => conta.id} minWidth={1540}
+            obterChaveLinha={(conta) => conta.id} minWidth={1423}
             vazio={{ titulo: "Nenhuma conta encontrada", descricao: busca || status !== "todas" || Object.values(filtros).some(Boolean) ? "Ajuste os filtros para consultar outras contas." : "Cadastre a primeira conta a pagar." }}
             paginacao={{ pagina, linhasPorPagina: porPagina, total: totalItems,
                 onPageChange: setPagina, onRowsPerPageChange: (valor) => { setPorPagina(valor); setPagina(0); },
                 opcoesLinhasPorPagina: [10, 25, 50] }} />
+        <Menu id="menu-acoes-conta" anchorEl={menuAcoes?.ancora} open={Boolean(menuAcoes)} onClose={() => setMenuAcoes(null)}
+            slotProps={{ list: { "aria-label": "Ações secundárias da conta" } }}>
+            {menuAcoes && acoes.slice(2).map(acao => <MenuItem key={acao.rotulo} aria-label={acao.tooltip ?? acao.rotulo} title={acao.tooltip ?? acao.rotulo}
+                disabled={acao.desabilitado?.(menuAcoes.conta)} sx={{ color: acao.cor === "error" ? "error.main" : undefined, minHeight: 40 }}
+                onClick={() => { const conta = menuAcoes.conta; setMenuAcoes(null); acao.onClick(conta); }}>
+                <ListItemIcon sx={{ color: "inherit" }}>{acao.icone}</ListItemIcon><ListItemText>{acao.rotulo === "Cancelar" ? "Cancelar conta" : "Estornar pagamento"}</ListItemText>
+            </MenuItem>)}
+        </Menu>
         {editor && <ContaPagarDrawer key={editor.conta?.id ?? "nova"} conta={editor.conta}
             onFechar={() => setEditor(null)} onSalvo={() => { setTentativa(n => n + 1); setEditor(null); setSucesso("Conta salva."); }} />}
         {detalhe && <ContaPagarDrawer key={`detalhe-${detalhe.id}`} conta={detalhe} somenteLeitura onFechar={fecharDetalhe}
