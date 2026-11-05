@@ -70,7 +70,8 @@ public class ContaPagarService {
     }
 
     private ResumoContasPagarDTO.Total total(Long empresaId, StatusContaPagar status, java.time.LocalDate inicio, java.time.LocalDate fim) {
-        var total = contas.totalizar(empresaId, status, inicio, fim);
+        var total = status == StatusContaPagar.PAGA ? contas.desembolsos(empresaId,inicio,fim)
+                : contas.totalizar(empresaId, status, inicio, fim);
         return new ResumoContasPagarDTO.Total(total.getTotal(), total.getQuantidade());
     }
 

@@ -8,7 +8,8 @@ public record ContaPagarResponseDTO(Long id, String descricao, String documento,
         String categoria, LocalDate dataEmissao, LocalDate dataVencimento, BigDecimal valor,
         StatusContaPagar status, LocalDate dataPagamento, BigDecimal valorPago, String observacao,
         Long movimentacaoFinanceiraId, Long entradaMercadoriaId, OrigemContaPagarEntrada origemVinculoEntrada,
-        BigDecimal juros, BigDecimal multa, BigDecimal desconto, Long pagamentoAtualId) {
+        BigDecimal juros, BigDecimal multa, BigDecimal desconto, Long pagamentoAtualId,
+        BigDecimal principalQuitado, BigDecimal saldoPendente) {
     public static ContaPagarResponseDTO de(ContaPagarEntity conta) {
         var fornecedor = conta.getFornecedor();
         var pagamento = conta.getPagamentoAtual();
@@ -24,6 +25,6 @@ public record ContaPagarResponseDTO(Long id, String descricao, String documento,
                 pagamento != null ? pagamento.getJuros() : conta.getMovimentacaoFinanceira() == null ? null : conta.getMovimentacaoFinanceira().getContaPagarJuros(),
                 pagamento != null ? pagamento.getMulta() : conta.getMovimentacaoFinanceira() == null ? null : conta.getMovimentacaoFinanceira().getContaPagarMulta(),
                 pagamento != null ? pagamento.getDesconto() : conta.getMovimentacaoFinanceira() == null ? null : conta.getMovimentacaoFinanceira().getContaPagarDesconto(),
-                pagamento == null ? null : pagamento.getId());
+                pagamento == null ? null : pagamento.getId(), conta.getPrincipalQuitado(), conta.getSaldoPendente());
     }
 }

@@ -15,8 +15,8 @@ export type FiltrosContaPagar = {
 
 const normalizar = (texto: string) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-export const emAberto = (conta: ContaPagar) => conta.status !== "ABERTA" ? 0 :
-    Math.max(0, Number(conta.valor) - Number(conta.valorPago ?? 0));
+export const emAberto = (conta: ContaPagar) => conta.status !== "ABERTA" && conta.status !== "PARCIALMENTE_PAGA" ? 0 :
+    Number(conta.saldoPendente ?? conta.valor);
 
 /** Valores do formulário em centavos inteiros, sem soma monetária em ponto flutuante. */
 export function centavosPagamento(texto: string): bigint | null {
@@ -58,7 +58,7 @@ function somar(contas: ContaPagar[]) {
 
 export function resumirContas(contas: ContaPagar[], hoje: string) {
     const prazo = (dias: number) => somarDias(hoje, dias);
-    const abertas = contas.filter((conta) => conta.status === "ABERTA");
+    const abertas = contas.filter((conta) => conta.status === "ABERTA" || conta.status === "PARCIALMENTE_PAGA");
     const vencidas = abertas.filter((conta) => conta.dataVencimento < hoje);
     const emSeteDias = abertas.filter((conta) => conta.dataVencimento >= hoje && conta.dataVencimento <= prazo(7));
     const emTrintaDias = abertas.filter((conta) => conta.dataVencimento >= hoje && conta.dataVencimento <= prazo(30));

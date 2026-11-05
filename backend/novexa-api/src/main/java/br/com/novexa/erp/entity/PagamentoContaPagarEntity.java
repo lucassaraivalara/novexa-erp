@@ -33,9 +33,13 @@ public class PagamentoContaPagarEntity {
     protected PagamentoContaPagarEntity() { }
     public PagamentoContaPagarEntity(ContaPagarEntity conta, UsuarioEntity usuario, UUID chave, String resumo,
             LocalDate data, BigDecimal juros, BigDecimal multa, BigDecimal desconto, BigDecimal total) {
+        this(conta, usuario, chave, resumo, data, juros, multa, desconto, total, conta.getSaldoPendente());
+    }
+    public PagamentoContaPagarEntity(ContaPagarEntity conta, UsuarioEntity usuario, UUID chave, String resumo,
+            LocalDate data, BigDecimal juros, BigDecimal multa, BigDecimal desconto, BigDecimal total, BigDecimal principal) {
         this.empresa=conta.getEmpresa(); this.contaPagar=conta; this.usuario=usuario;
         this.chaveRequisicao=chave; this.resumoRequisicao=resumo; this.dataPagamento=data;
-        this.valorOriginal=conta.getValor(); this.principalQuitado=conta.getValor();
+        this.valorOriginal=conta.getValor(); this.principalQuitado=principal;
         this.juros=juros; this.multa=multa; this.desconto=desconto; this.totalPago=total;
         this.dataCriacao=TempoNovexa.agora().truncatedTo(ChronoUnit.MICROS); this.estado="CONFIRMADO";
     }

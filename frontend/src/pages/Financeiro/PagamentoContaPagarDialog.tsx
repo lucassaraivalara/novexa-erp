@@ -18,6 +18,8 @@ type Origem = { linha: number; contaFinanceiraId: number | ""; valor: string };
 type Props = { conta: ContaPagar; contasFinanceiras: ContaFinanceira[]; onFechar: () => void; onConcluido: (mensagem: string) => void };
 
 export default function PagamentoContaPagarDialog({ conta, contasFinanceiras, onFechar, onConcluido }: Props) {
+    const [tipo, setTipo] = useState("integral");
+    const [principalParcial, setPrincipalParcial] = useState("");
     const [dataPagamento, setDataPagamento] = useState(hojeBrasilia);
     const [encargos, setEncargos] = useState({ juros: "0.00", multa: "0.00", desconto: "0.00" });
     const [origens, setOrigens] = useState<Origem[]>([{ linha: 1, contaFinanceiraId: "", valor: "" }]);
@@ -28,7 +30,11 @@ export default function PagamentoContaPagarDialog({ conta, contasFinanceiras, on
     const enviando = useRef(false);
     const proximaLinha = useRef(2);
     const bloqueado = processando;
-    const calculo = calcularPagamento(String(conta.valor), encargos.juros, encargos.multa, encargos.desconto);
+    const saldoPrincipal = centavosPagamento(String(conta.saldoPendente ?? conta.valor)) ?? 0n;
+    const principal = tipo === "integral" ? decimalPagamento(saldoPrincipal) : principalParcial;
+    const amortizacao = centavosPagamento(principal);
+    const principalValido = amortizacao !== null && amortizacao > 0n && amortizacao <= saldoPrincipal;
+    const calculo = calcularPagamento(principal, encargos.juros, encargos.multa, encargos.desconto);
     const linhas = origens.map(o => ({ ...o, valor: origens.length === 1 ? calculo?.valorPago ?? "" : o.valor }));
     const distribuido = linhas.reduce((soma, o) => soma + (centavosPagamento(o.valor) ?? 0n), 0n);
     const restante = calculo ? calculo.total - distribuido : null;
@@ -36,7 +42,7 @@ export default function PagamentoContaPagarDialog({ conta, contasFinanceiras, on
         const c = contasFinanceiras.find(c => c.id === o.contaFinanceiraId), valor = centavosPagamento(o.valor);
         return c && valor !== null && (centavosPagamento(String(c.saldoAtual)) ?? -1n) < valor;
     });
-    const valido = !!calculo && !!dataPagamento && restante === 0n && !insuficiente
+    const valido = principalValido && !!calculo && !!dataPagamento && restante === 0n && !insuficiente
         && new Set(linhas.map(o => o.contaFinanceiraId)).size === linhas.length
         && linhas.every(o => o.contaFinanceiraId && (centavosPagamento(o.valor) ?? 0n) > 0n
             && contasFinanceiras.some(c => c.id === o.contaFinanceiraId && c.ativo && c.tipo !== "ADQUIRENTE"));
@@ -52,6 +58,7 @@ export default function PagamentoContaPagarDialog({ conta, contasFinanceiras, on
         evento.preventDefault();
         if (enviando.current || !valido) return;
         const pedido: PagamentoMultiorigemInput = {
+            principalQuitado: decimalPagamento(amortizacao!),
             chaveRequisicao: pendente?.chaveRequisicao ?? chave, dataPagamento, valorPago: calculo!.valorPago, ...encargos,
             origens: linhas.map(o => ({ contaFinanceiraId: Number(o.contaFinanceiraId), valor: decimalPagamento(centavosPagamento(o.valor)!) })),
         };
@@ -83,24 +90,44 @@ export default function PagamentoContaPagarDialog({ conta, contasFinanceiras, on
         } finally { enviando.current = false; setProcessando(false); }
     }
 
-    return <Dialog open fullWidth maxWidth="sm" onClose={bloqueado || pendente ? undefined : onFechar} aria-labelledby="pagar-conta-titulo">
+    return <Dialog open fullWidth maxWidth="md" onClose={bloqueado || pendente ? undefined : onFechar} aria-labelledby="pagar-conta-titulo">
         <Box component="form" onSubmit={evento => void confirmar(evento)} sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
             <DialogTitle id="pagar-conta-titulo">Pagar conta</DialogTitle>
-            <DialogContent dividers><Stack spacing={2}>
+            <DialogContent dividers sx={{ p: { xs: 2, sm: 2.5 }, overscrollBehavior: "contain" }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) minmax(0, 1fr)" }, gap: { xs: 2.5, md: 3 }, alignItems: "start" }}>
+                <Stack spacing={1.5} component="section" aria-label="Valores do pagamento" sx={{ minWidth: 0 }}>
                 <Box><Typography sx={{ fontWeight: 600 }}>{conta.descricao}</Typography>
                     <Typography variant="body2" color="text.secondary">{conta.fornecedorNome ?? "Sem fornecedor"} · Vencimento: {formatarData(conta.dataVencimento)}</Typography></Box>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1.5 }}>
                 <CampoTexto required fullWidth type="date" label="Data do pagamento" value={dataPagamento} disabled={bloqueado}
                     onChange={e => editar(() => setDataPagamento(e.target.value))} slotProps={{ inputLabel: { shrink: true } }} />
+                <CampoTexto select fullWidth label="Tipo de pagamento" value={tipo} disabled={bloqueado}
+                    onChange={e => editar(() => setTipo(e.target.value))}>
+                    <MenuItem value="integral">Quitar integralmente</MenuItem>
+                    <MenuItem value="parcial">Pagamento parcial</MenuItem>
+                </CampoTexto>
+                </Box>
                 <Typography variant="body2">Valor original: <strong>{moeda.format(conta.valor)}</strong></Typography>
+                {(tipo === "parcial" || conta.status === "PARCIALMENTE_PAGA") && <Stack spacing={0.5}>
+                    <Typography variant="body2">Principal já quitado: <strong>{moeda.format(conta.principalQuitado ?? 0)}</strong></Typography>
+                    <Typography variant="body2">Saldo principal pendente: <strong>{moeda.format(Number(decimalPagamento(saldoPrincipal)))}</strong></Typography>
+                </Stack>}
+                {tipo === "parcial" && <CampoMonetario canonico required fullWidth label="Principal a pagar agora (R$)"
+                    value={principalParcial} disabled={bloqueado} onValueChange={v => editar(() => setPrincipalParcial(v))}
+                    error={principalParcial !== "" && !principalValido}
+                    helperText={principalParcial !== "" && !principalValido ? "Informe um principal positivo, até o saldo pendente." : "Este valor amortiza a dívida; encargos e descontos pertencem somente a esta baixa."} />}
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                     {([ ["juros", "Juros (R$)"], ["multa", "Multa (R$)"], ["desconto", "Desconto (R$)"] ] as const).map(([campo, label]) =>
                         <CampoMonetario key={campo} canonico required fullWidth label={label} value={encargos[campo]} disabled={bloqueado}
                             onValueChange={v => editar(() => setEncargos(atual => ({ ...atual, [campo]: v })))} />)}
                 </Stack>
-                <Box role="status" aria-live="polite" sx={{ borderBlock: 1, borderColor: "divider", py: 1.5, fontVariantNumeric: "tabular-nums" }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Total a pagar: {calculo ? moeda.format(Number(calculo.valorPago)) : "Revise os valores"}</Typography>
-                    <Typography variant="caption" color="text.secondary">Quitação integral. Este é o total debitado das contas financeiras.</Typography>
+                <Box role="status" aria-live="polite" sx={{ border: 1, borderColor: "divider", bgcolor: "action.hover", borderRadius: 1, p: 1.5, fontVariantNumeric: "tabular-nums" }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: "1.15rem" }}>Total a pagar: {calculo ? moeda.format(Number(calculo.valorPago)) : "Revise os valores"}</Typography>
+                    <Typography variant="caption" color="text.secondary">{tipo === "integral" ? "Quitação integral do saldo pendente." : "Baixa do principal informado."} Este é o total debitado das contas financeiras.</Typography>
+                    {principalValido && <Typography variant="body2" sx={{ mt: 0.5 }}>Saldo restante após pagamento: <strong>{moeda.format(Number(decimalPagamento(saldoPrincipal - amortizacao!)))}</strong></Typography>}
                 </Box>
+                </Stack>
+                <Stack spacing={1.5} component="section" aria-label="Origens financeiras" sx={{ minWidth: 0 }}>
                 <Typography component="h3" variant="subtitle2">De onde sairá o dinheiro?</Typography>
                 {linhas.map((o, i) => {
                     const selecionada = contasFinanceiras.find(c => c.id === o.contaFinanceiraId);
@@ -142,7 +169,7 @@ export default function PagamentoContaPagarDialog({ conta, contasFinanceiras, on
                 </Box>}
                 {insuficiente && <Alert severity="warning">Saldo insuficiente em uma das contas financeiras selecionadas.</Alert>}
                 {erro && <Alert severity="error">{erro}</Alert>}
-            </Stack></DialogContent>
+                </Stack></Box></DialogContent>
             <DialogActions sx={{ flexWrap: "wrap", gap: 1 }}>
                 <Button disabled={bloqueado || !!pendente} onClick={onFechar}>Cancelar</Button>
                 <Button type="submit" variant="contained" disabled={processando || !valido}>

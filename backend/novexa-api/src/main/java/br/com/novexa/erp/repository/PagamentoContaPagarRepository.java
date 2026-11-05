@@ -7,6 +7,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface PagamentoContaPagarRepository extends JpaRepository<PagamentoContaPagarEntity,Long> {
+    Optional<PagamentoContaPagarEntity> findFirstByContaPagarIdAndEmpresaIdAndEstadoOrderByIdDesc(Long titulo,Long empresa,String estado);
+    long countByContaPagarIdAndEmpresaIdAndEstado(Long titulo,Long empresa,String estado);
     Optional<PagamentoContaPagarEntity> findByEmpresaIdAndChaveRequisicao(Long empresaId,UUID chave);
     Optional<PagamentoContaPagarEntity> findByIdAndContaPagarIdAndEmpresaId(Long id,Long contaPagarId,Long empresaId);
     @EntityGraph(attributePaths={"usuario","usuarioEstorno"})

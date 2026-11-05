@@ -12,7 +12,7 @@ import type { EntradaMercadoria, GerarObrigacaoEntrada, ObrigacaoEntrada } from 
 import type { ContaPagar } from "../../types/contaPagar";
 
 const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const situacoes = { ABERTA: "Aberta", PAGA: "Paga", CANCELADA: "Cancelada" };
+const situacoes = { ABERTA: "Aberta", PARCIALMENTE_PAGA: "Parcialmente paga", PAGA: "Paga", CANCELADA: "Cancelada" };
 
 export default function EntradaObrigacao({ entrada }: { entrada: EntradaMercadoria }) {
     const [obrigacao, setObrigacao] = useState<ObrigacaoEntrada | null>(null);

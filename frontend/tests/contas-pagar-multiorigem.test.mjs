@@ -5,7 +5,7 @@ import { createServer } from 'vite';
 import { chromium, expect } from '@playwright/test';
 
 let vite, browser, url;
-const assets = '../docs/audits/assets/sprint23b';
+const assets = process.env.NOVEXA_TEST_ASSETS ?? '../docs/audits/assets/sprint23b';
 before(async () => {
     const fixture = `import React from 'react';import {createRoot} from 'react-dom/client';import {CssBaseline} from '@mui/material';import {BrowserRouter} from 'react-router-dom';import {ThemeModeProvider} from '/src/theme/ThemeModeProvider.tsx';import ContasPagar from '/src/pages/Financeiro/ContasPagar.tsx';createRoot(document.getElementById('root')).render(React.createElement(ThemeModeProvider,null,React.createElement(CssBaseline),React.createElement(BrowserRouter,null,React.createElement(ContasPagar))));`;
     vite = await createServer({ cacheDir:'node_modules/.vite-multiorigem', server:{host:'127.0.0.1',port:0,hmr:false}, plugins:[{
@@ -83,7 +83,7 @@ test(`duas origens ${width} ${theme}: total, responsividade e histórico`,async 
     await page.screenshot({path:`${assets}/origens-${width}-${theme}.png`,fullPage:false,animations:'disabled'});
     await modal.getByRole('button',{name:'Confirmar pagamento'}).click();await expect(modal).toHaveCount(0);
     assert.equal(pedidos.length,1);assert.deepEqual(pedidos[0].origens,[{contaFinanceiraId:10,valor:'300.00'},{contaFinanceiraId:20,valor:'945.87'}]);
-    assert.match(pedidos[0].chaveRequisicao,/^[a-f0-9-]{36}$/);await expect(page.getByRole('button',{name:'Pagar conta',exact:true})).toBeDisabled();
+    assert.match(pedidos[0].chaveRequisicao,/^[a-f0-9-]{36}$/);await expect(page.getByRole('button',{name:'Pagar conta',exact:true})).toHaveCount(0);
     await page.getByRole('button',{name:'Consultar conta',exact:true}).click();
     const history=page.getByRole('region',{name:'Histórico de pagamentos'});await expect(history.getByText(/Principal quitado:/)).toContainText('1.245,87');
     await expect(history.getByText('Caixa financeiro:',{exact:false})).toContainText('300,00');await expect(history.getByText('Banco Inter sintético:',{exact:false})).toContainText('945,87');
@@ -102,10 +102,10 @@ test('três origens, encargos, exclusão e origem única automática',async t=>{
     await expect(modal.getByRole('textbox',{name:'Valor da origem 1 (R$)',exact:true})).toHaveValue('665,00');
     await modal.getByRole('button',{name:'Confirmar pagamento'}).click();await expect(modal).toHaveCount(0);
     assert.deepEqual(pedidos[0].origens,[{contaFinanceiraId:10,valor:'665.00'}]);
-    await page.getByRole('button',{name:'Estornar pagamento',exact:true}).click();const estorno=page.getByRole('dialog',{name:'Estornar pagamento?'});
-    await expect(estorno.getByRole('button',{name:'Estornar pagamento',exact:true})).toBeDisabled();await estorno.getByRole('textbox',{name:'Motivo do estorno'}).fill('Conferência sintética');
-    await estorno.getByRole('button',{name:'Estornar pagamento',exact:true}).click();await expect(estorno).toHaveCount(0);
-    await page.getByRole('button',{name:'Pagar conta',exact:true}).click();await escolher(page.getByRole('dialog',{name:'Pagar conta'}),1,'Banco Inter');
+    await page.getByRole('button',{name:'Estornar pagamento',exact:true}).click();await page.getByRole('button',{name:'Estornar baixa #100',exact:true}).click();const estorno=page.getByRole('dialog',{name:'Estornar baixa #100?'});
+    await expect(estorno.getByRole('button',{name:'Confirmar estorno',exact:true})).toBeDisabled();await estorno.getByRole('textbox',{name:'Motivo do estorno'}).fill('Conferência sintética');
+    await estorno.getByRole('button',{name:'Confirmar estorno',exact:true}).click();await expect(estorno).toHaveCount(0);
+    await page.getByRole('button',{name:'Fechar formulário',exact:true}).click();await page.getByRole('button',{name:'Pagar conta',exact:true}).click();await escolher(page.getByRole('dialog',{name:'Pagar conta'}),1,'Banco Inter');
     await page.getByRole('button',{name:'Confirmar pagamento',exact:true}).click();await expect(page.getByRole('dialog',{name:'Pagar conta'})).toHaveCount(0);
     assert.notEqual(pedidos[0].chaveRequisicao,pedidos[1].chaveRequisicao);
 });

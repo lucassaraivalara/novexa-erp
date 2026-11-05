@@ -54,10 +54,14 @@ public class PagamentoContaPagarService {
                 var titulo=bloquearTitulo(tituloId,empresaId);
                 var existente=pagamentos.findByEmpresaIdAndChaveRequisicao(empresaId,p.chaveRequisicao());
                 if(existente.isPresent())return replay(existente.get(),assinatura);
-                if(titulo.getStatus()!=StatusContaPagar.ABERTA)throw erro(HttpStatus.CONFLICT,"Somente contas abertas podem ser pagas. Atualize a consulta.");
-                var total=titulo.getValor().add(juros).add(multa).subtract(desconto);
+                if(titulo.getStatus()!=StatusContaPagar.ABERTA && titulo.getStatus()!=StatusContaPagar.PARCIALMENTE_PAGA)
+                    throw erro(HttpStatus.CONFLICT,"Somente contas com saldo pendente podem ser pagas. Atualize a consulta.");
+                var principal=p.principalQuitado()==null ? titulo.getSaldoPendente() : dinheiro(p.principalQuitado());
+                if(principal.signum()<=0 || principal.compareTo(titulo.getSaldoPendente())>0)
+                    throw erro(HttpStatus.CONFLICT,"O principal a quitar excede o saldo pendente. Atualize a conta e revise o pagamento.");
+                var total=principal.add(juros).add(multa).subtract(desconto);
                 if(total.signum()<=0 || total.compareTo(p.valorPago())!=0)
-                    throw erro(HttpStatus.BAD_REQUEST,"O pagamento deve quitar o valor original + juros + multa − desconto. Pagamentos parciais não são permitidos.");
+                    throw erro(HttpStatus.BAD_REQUEST,"O desembolso deve ser positivo e corresponder ao principal a quitar + juros + multa − desconto.");
                 var bloqueadas=bloquearContas(empresaId,origens.stream().map(o->o.contaFinanceiraId()).toList());
                 for(var o:origens) {
                     var c=bloqueadas.get(o.contaFinanceiraId());
@@ -68,7 +72,7 @@ public class PagamentoContaPagarService {
                 }
                 var usuario=usuario(usuarioId,empresaId);
                 var pagamento=pagamentos.saveAndFlush(new PagamentoContaPagarEntity(titulo,usuario,p.chaveRequisicao(),assinatura,
-                    p.dataPagamento(),juros,multa,desconto,total));
+                    p.dataPagamento(),juros,multa,desconto,total,principal));
                 for(var o:origens)financeiro.registrarSaidaAgrupada(bloqueadas.get(o.contaFinanceiraId()),pagamento,o.valor(),usuario);
                 titulo.pagarAgrupado(pagamento); titulos.saveAndFlush(titulo);
                 return resposta(pagamento);
@@ -111,8 +115,9 @@ public class PagamentoContaPagarService {
             if(!p.getMotivoEstorno().equals(motivo))throw erro(HttpStatus.CONFLICT,"Pagamento já estornado com outro motivo.");
             return resposta(p);
         }
-        if(titulo.getStatus()!=StatusContaPagar.PAGA || titulo.getPagamentoAtual()==null || !titulo.getPagamentoAtual().getId().equals(p.getId()))
-            throw erro(HttpStatus.CONFLICT,"O pagamento não corresponde à baixa atual. Atualize a consulta.");
+        if((titulo.getStatus()!=StatusContaPagar.PAGA && titulo.getStatus()!=StatusContaPagar.PARCIALMENTE_PAGA)
+                || titulo.getPrincipalQuitado().compareTo(p.getPrincipalQuitado())<0)
+            throw erro(HttpStatus.CONFLICT,"A obrigação não possui amortização compatível com esta baixa. Atualize a consulta.");
         var origens=movimentos.origensPagamentosContaPagar(empresaId,List.of(p.getId()));
         if(origens.isEmpty() || origens.stream().anyMatch(OrigemPagamentoContaPagarDTO::estornada)
                 || origens.stream().map(OrigemPagamentoContaPagarDTO::valor).reduce(BigDecimal.ZERO,BigDecimal::add).compareTo(p.getTotalPago())!=0)
@@ -122,13 +127,17 @@ public class PagamentoContaPagarService {
         var usuario=usuario(usuarioId,empresaId);
         for(var m:efeitos)financeiro.estornarSaidaAgrupada(bloqueadas.get(m.getContaFinanceira().getId()),m,usuario,motivo);
         p.estornar(usuario,motivo); pagamentos.saveAndFlush(p);
-        titulo.abrir();titulos.saveAndFlush(titulo);
+        var ultima=pagamentos.findFirstByContaPagarIdAndEmpresaIdAndEstadoOrderByIdDesc(tituloId,empresaId,"CONFIRMADO").orElse(null);
+        titulo.atualizarBaixas(titulo.getPrincipalQuitado().subtract(p.getPrincipalQuitado()),titulo.getValorPago().subtract(p.getTotalPago()),ultima);
+        titulos.saveAndFlush(titulo);
         return resposta(p);
     }
 
     @Transactional
     public boolean estornarAtual(ContaPagarEntity titulo,Long empresaId,Long usuarioId) {
         if(titulo.getPagamentoAtual()==null || !titulo.getPagamentoAtual().getEstado().equals("CONFIRMADO"))return false;
+        if(pagamentos.countByContaPagarIdAndEmpresaIdAndEstado(titulo.getId(),empresaId,"CONFIRMADO")!=1)
+            throw erro(HttpStatus.CONFLICT,"Esta obrigação possui várias baixas. Selecione no histórico o pagamento que deseja estornar.");
         estornar(titulo.getId(),titulo.getPagamentoAtual().getId(),empresaId,usuarioId,
             new MovimentacaoFinanceiraEstornoDTO("Estorno da baixa da conta a pagar #"+titulo.getId()));
         return true;
@@ -158,6 +167,8 @@ public class PagamentoContaPagarService {
             BigDecimal juros,BigDecimal multa,BigDecimal desconto) {
         var s=new StringBuilder().append(id).append('|').append(usuario).append('|').append(p.dataPagamento())
             .append('|').append(dinheiro(p.valorPago())).append('|').append(juros).append('|').append(multa).append('|').append(desconto);
+        // Preserva exatamente a assinatura V62 para consumidores que omitem o novo campo.
+        if(p.principalQuitado()!=null)s.append("|principal:").append(dinheiro(p.principalQuitado()));
         origens.forEach(o->s.append('|').append(o.contaFinanceiraId()).append(':').append(dinheiro(o.valor())));
         try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(s.toString().getBytes(StandardCharsets.UTF_8)));}
         catch(java.security.NoSuchAlgorithmException e){throw new IllegalStateException(e);}

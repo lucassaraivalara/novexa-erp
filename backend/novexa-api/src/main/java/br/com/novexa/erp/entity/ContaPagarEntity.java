@@ -21,6 +21,7 @@ public class ContaPagarEntity {
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private StatusContaPagar status;
     private LocalDate dataPagamento;
     @Column(precision = 19, scale = 2) private BigDecimal valorPago;
+    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal principalQuitado = BigDecimal.ZERO;
     @Column(length = 1000) private String observacao;
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "movimentacao_financeira_id") private MovimentacaoFinanceiraEntity movimentacaoFinanceira;
@@ -53,20 +54,33 @@ public class ContaPagarEntity {
         status = StatusContaPagar.PAGA;
         dataPagamento = data;
         valorPago = valor;
+        principalQuitado = this.valor;
         movimentacaoFinanceira = movimentacao;
         pagamentoAtual = null;
     }
 
     public void pagarAgrupado(PagamentoContaPagarEntity pagamento) {
-        pagar(pagamento.getDataPagamento(), pagamento.getTotalPago(), null);
-        pagamentoAtual = pagamento;
+        atualizarBaixas(principalQuitado.add(pagamento.getPrincipalQuitado()),
+                (valorPago == null ? BigDecimal.ZERO : valorPago).add(pagamento.getTotalPago()), pagamento);
     }
+    public void atualizarBaixas(BigDecimal principal, BigDecimal desembolso, PagamentoContaPagarEntity ultima) {
+        principalQuitado = principal;
+        status = principal.signum() == 0 ? StatusContaPagar.ABERTA
+                : principal.compareTo(valor) == 0 ? StatusContaPagar.PAGA : StatusContaPagar.PARCIALMENTE_PAGA;
+        valorPago = principal.signum() == 0 ? null : desembolso;
+        dataPagamento = ultima == null ? null : ultima.getDataPagamento();
+        pagamentoAtual = ultima;
+        movimentacaoFinanceira = null;
+    }
+    public BigDecimal getPrincipalQuitado() { return principalQuitado; }
+    public BigDecimal getSaldoPendente() { return valor.subtract(principalQuitado); }
     public PagamentoContaPagarEntity getPagamentoAtual() { return pagamentoAtual; }
 
     public void abrir() {
         status = StatusContaPagar.ABERTA;
         dataPagamento = null;
         valorPago = null;
+        principalQuitado = BigDecimal.ZERO;
     }
 
     public void cancelar() { status = StatusContaPagar.CANCELADA; }

@@ -1,4 +1,4 @@
-export type StatusContaPagar = "ABERTA" | "PAGA" | "CANCELADA";
+export type StatusContaPagar = "ABERTA" | "PARCIALMENTE_PAGA" | "PAGA" | "CANCELADA";
 
 export type ContaPagar = {
     id: number;
@@ -13,6 +13,8 @@ export type ContaPagar = {
     status: StatusContaPagar;
     dataPagamento: string | null;
     valorPago: number | null;
+    principalQuitado?: number;
+    saldoPendente?: number;
     juros?: number | null;
     multa?: number | null;
     desconto?: number | null;
@@ -36,6 +38,7 @@ export type PagamentoContaPagarInput = {
 };
 
 export type PagamentoMultiorigemInput = {
+    principalQuitado?: string;
     chaveRequisicao: string;
     dataPagamento: string;
     valorPago: string;

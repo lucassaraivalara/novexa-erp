@@ -135,7 +135,7 @@ class ContaPagarEncargosPostgresTest {
         } finally { jdbc.execute("drop trigger falha_encargos_"+titulo+" on contas_pagar"); }
     }
     @Test void migracaoV60V61PreservaLegadoEValida() {
-        String legado=SCHEMA+"_legado";
+        String legado="encargos_legacy_"+UUID.randomUUID().toString().replace("-", "");
         var config=org.flywaydb.core.Flyway.configure().dataSource(URL+"?currentSchema="+legado,"postgres","")
                 .schemas(legado).defaultSchema(legado).cleanDisabled(true);
         config.target("60").load().migrate();
