@@ -69,17 +69,21 @@ export default function ContaReceberBaixaDialog({ conta, onFechar, onSalvo }: Pr
         } finally { emAndamento.current = false; setSalvando(false); }
     }
 
-    return <CadastroDialog aberto variante="compact" titulo="Receber conta" textoSalvar={tentativa ? "Tentar novamente" : "Confirmar recebimento"}
+    return <CadastroDialog aberto variante="full" titulo="Receber conta" textoSalvar={tentativa ? "Tentar novamente" : "Confirmar recebimento"}
         onFechar={onFechar} onSubmit={e => void enviar(e)} salvando={salvando}>
-        <Stack spacing={1.75}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) minmax(0, 1.35fr)" }, gap: 2, alignItems: "start" }}>
+        <Stack spacing={1.5}>
             <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{conta.cliente.nome} · {conta.descricao}</Typography>
-            <Box sx={{ p: 1.5, bgcolor: "primary.light", borderRadius: 1, fontVariantNumeric: "tabular-nums" }}>
-                <Typography sx={{ fontSize: 24, fontWeight: 700, color: "primary.main" }}>Saldo: {moeda.format(conta.saldo)}</Typography>
-                <Stack direction={{ xs: "column", sm: "row" }} sx={{ gap: 0.5, justifyContent: "space-between", mt: 0.75 }}>
+            <Box sx={{ p: 1.5, bgcolor: "background.default", border: 1, borderColor: "divider", borderRadius: 1, fontVariantNumeric: "tabular-nums" }}>
+                <Typography sx={{ fontSize: 24, fontWeight: 700, color: "primary.main" }}>Saldo a receber: {moeda.format(conta.saldo)}</Typography>
+                <Stack sx={{ gap: 0.5, mt: 0.75 }}>
                     <Typography variant="body2" color="text.secondary">Valor original: {moeda.format(conta.valorOriginal)}</Typography>
                     <Typography variant="body2" color="text.secondary">Já recebido: {moeda.format(conta.valorRecebido)}</Typography>
                 </Stack>
             </Box>
+        </Stack>
+        <Stack spacing={1.75}>
+            <Typography component="h3" variant="subtitle2">Onde entrará o dinheiro?</Typography>
             {tentativa && <Alert severity="warning">Há um recebimento aguardando confirmação. Tente novamente com os mesmos dados para evitar duplicidade.</Alert>}
             <CampoMonetario canonico placeholder="Ex.: 1.234,56…" required label="Valor recebido agora (R$)" value={valor} disabled={bloqueado}
                 helperText={valorMonetario(valor) !== null && Number(valorMonetario(valor)) < conta.saldo ? "Recebimento parcial" : undefined}
@@ -90,11 +94,12 @@ export default function ContaReceberBaixaDialog({ conta, onFechar, onSalvo }: Pr
                 onChange={(_, c) => setDestino(c)} onInputChange={(_, texto, motivo) => { if (motivo === "input" || motivo === "clear") setTerm(texto); }}
                 noOptionsText="Nenhuma conta ativa encontrada" loadingText="Buscando contas…"
                 renderInput={params => <CampoTexto {...params} required label="Conta de destino" error={!!erroBusca} helperText={erroBusca} />} />
-            <CampoTexto required type="date" label="Data do recebimento" value={dataRecebimento} disabled={bloqueado}
+            <CampoTexto fullWidth required type="date" label="Data do recebimento" value={dataRecebimento} disabled={bloqueado}
                 onChange={e => setDataRecebimento(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
             <CampoTexto placeholder="Informações adicionais sobre a operação…" multiline minRows={2} label="Observação" value={observacao} disabled={bloqueado}
                 onChange={e => setObservacao(e.target.value)} slotProps={{ htmlInput: { maxLength: 1000 } }} />
             {erro && <Alert severity="error">{erro}</Alert>}
         </Stack>
+        </Box>
     </CadastroDialog>;
 }

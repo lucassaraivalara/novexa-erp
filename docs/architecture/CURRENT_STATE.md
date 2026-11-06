@@ -1,3 +1,7 @@
+## Contas a Receber — UI/UX aprovada para release (06/11/2026)
+
+Consulta, indicadores, formulários, ações e histórico alinhados à UI aprovada `cb80060`, preservando recebimentos e estornos existentes. Quatorze verificações direcionadas, TypeScript e lint aprovados; interface aprovada pelo Product Owner e release frontend autorizado. Sem alteração financeira/backend/migration. Escopo e limites em [frontend.md](frontend.md).
+
 ## Contas a Pagar — grid aprovado para release (05/11/2026)
 
 Grid na ordem Fornecedor → Documento → Descrição → Vencimento → Status → Saldo pendente → Valor original → Desembolsado → Ações. Categoria/Emissão nos detalhes; Pagar, consulta e edição acessíveis, Cancelar/Estornar em menu com bloqueios e confirmações preservados. Sete verificações direcionadas, TypeScript e lint aprovados; composição final recebe build próprio. Somente frontend, sem alteração financeira/backend/migration. Referência: seção 9 da change aberta `openspec/changes/sprint23d-contas-pagar-ux-compacta`.

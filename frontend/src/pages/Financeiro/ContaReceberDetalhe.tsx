@@ -4,20 +4,25 @@ import { Link as RouterLink } from "react-router-dom";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import UndoRoundedIcon from "@mui/icons-material/UndoRounded";
-import { Alert, Box, Button, CircularProgress, Divider, Drawer, IconButton, Link, Stack, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, Skeleton, Divider, Drawer, IconButton, Link, Stack, Tooltip, Typography } from "@mui/material";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import StatusChip from "../../components/ui/StatusChip";
 import { buscarContaReceber, cancelarContaReceber, estornarRecebimentoConta, mensagemContaReceber } from "../../services/contaReceberService";
 import type { ContaReceber } from "../../types/contaReceber";
 import type { MovimentacaoFinanceira } from "../../types/contaFinanceira";
-import { formatarData, moeda, podeCancelarConta, podeEditarConta, podeReceberConta, rotulosStatus } from "./contaReceberUtils";
+import { formatarData, moeda, podeCancelarConta, podeEditarConta, podeReceberConta } from "./contaReceberUtils";
 import { podeExecutarAcaoGerencial } from "../../utils/auth/perfis";
 import { obterSessao } from "../../utils/auth/sessao";
 
-type Props = { id: number; revisao: number; onFechar: () => void; onEditar: (conta: ContaReceber) => void;
+import ContaReceberStatus from "./ContaReceberStatus";
+import type { AlvoDetalheReceber } from "./ContaReceberAcoes";
+
+type Props = { id: number; revisao: number; alvoInicial?: AlvoDetalheReceber; onFechar: () => void; onEditar: (conta: ContaReceber) => void;
     onReceber: (conta: ContaReceber) => void; onAlterada: (mensagem: string) => void };
 
-export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, onReceber, onAlterada }: Props) {
+export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, onReceber, onAlterada, alvoInicial = "detalhe" }: Props) {
+    const alvoPendente = useRef(alvoInicial);
+    const historicoRef = useRef<HTMLHeadingElement>(null);
     const gerencial = podeExecutarAcaoGerencial(obterSessao()?.perfil);
     const [conta, setConta] = useState<ContaReceber | null>(null);
     const [carregando, setCarregando] = useState(true);
@@ -31,11 +36,20 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
     useEffect(() => {
         const controller = new AbortController();
         buscarContaReceber(id, controller.signal).then(resposta => {
-            if (!controller.signal.aborted) { setConta(resposta); setErro(""); }
+            if (!controller.signal.aborted) { setConta(resposta); setErro("");
+                if (alvoPendente.current === "cancelar") {
+                    alvoPendente.current = "detalhe";
+                    if (gerencial && podeCancelarConta(resposta)) setAcao({ tipo: "cancelar" });
+                } }
         }).catch(e => { if (!controller.signal.aborted) setErro(mensagemContaReceber(e, "Não foi possível carregar a conta.")); })
             .finally(() => { if (!controller.signal.aborted) setCarregando(false); });
         return () => controller.abort();
-    }, [id, revisao, tentativa]);
+    }, [id, revisao, tentativa, gerencial]);
+    useEffect(() => {
+        if (conta && alvoPendente.current === "historico") {
+            alvoPendente.current = "detalhe"; historicoRef.current?.scrollIntoView({ block: "start" });
+        }
+    }, [conta]);
 
     async function confirmar() {
         if (!conta || !acao || emAndamento.current) return;
@@ -52,28 +66,28 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
 
     return <>
         <Drawer anchor="right" open onClose={salvando ? undefined : onFechar}
-            slotProps={{ paper: { "aria-labelledby": "conta-receber-detalhe-titulo", sx: { width: { xs: "100%", sm: 600 }, maxWidth: "100vw" } } }}>
+            slotProps={{ paper: { "aria-labelledby": "conta-receber-detalhe-titulo", sx: { width: { xs: "100%", sm: 760 }, maxWidth: "100vw" } } }}>
             <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", p: 2, borderBottom: 1, borderColor: "divider" }}>
                 <Typography id="conta-receber-detalhe-titulo" component="h2" variant="h6">Conta a receber #{id}</Typography>
                 <IconButton aria-label="Fechar detalhe" onClick={onFechar} disabled={salvando}><CloseRoundedIcon /></IconButton>
             </Stack>
-            <Stack spacing={2} sx={{ p: { xs: 2, sm: 2.5 }, flex: 1, overflowY: "auto", minHeight: 0, overflowWrap: "anywhere" }}>
-                {carregando && <CircularProgress size={24} aria-label="Carregando conta" />}
+            <Stack spacing={2} sx={{ p: { xs: 2, sm: 2.5 }, flex: 1, overflowY: "auto", overscrollBehavior: "contain", minHeight: 0, overflowWrap: "anywhere" }}>
+                {carregando && <Skeleton height={120} aria-label="Carregando conta" />}
                 {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => { setCarregando(true); setTentativa(n => n + 1); }}>Tentar novamente</Button>}>{erro}</Alert>}
                 {conta && <>
                     <Stack spacing={0.5}>
                         <Typography variant="h6">{conta.descricao}</Typography>
                         <Typography variant="body2">{conta.cliente.nome}{!conta.cliente.ativo ? " (inativo)" : ""}</Typography>
                         {conta.cliente.cpfCnpj && <Typography variant="caption" color="text.secondary">{conta.cliente.cpfCnpj}</Typography>}
-                        <Box><StatusChip status={conta.status} label={rotulosStatus[conta.status]} /></Box>
+                        <Box><ContaReceberStatus conta={conta} /></Box>
                     </Stack>
                     <Box component="dl" aria-label="Valores da conta" sx={{ m: 0, p: 1.5, bgcolor: "background.default", borderRadius: 1,
                         display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1.5 }}>
-                        {[["Valor original", conta.valorOriginal], ["Já recebido", conta.valorRecebido], ["Saldo", conta.saldo]].map(([titulo, valor]) =>
-                            <Box key={titulo} sx={{ minWidth: 0, gridColumn: titulo === "Saldo" ? "1 / -1" : undefined }}>
+                        {[["Valor original", conta.valorOriginal], ["Já recebido", conta.valorRecebido], ["Saldo a receber", conta.saldo]].map(([titulo, valor]) =>
+                            <Box key={titulo} sx={{ minWidth: 0, gridColumn: titulo === "Saldo a receber" ? "1 / -1" : undefined }}>
                                 <Typography component="dt" variant="caption" color="text.secondary">{titulo}</Typography>
-                                <Typography component="dd" sx={{ m: 0, fontWeight: titulo === "Saldo" ? 700 : 600, fontSize: titulo === "Saldo" ? 24 : 14,
-                                    color: titulo === "Saldo" ? "primary.main" : "text.primary", fontVariantNumeric: "tabular-nums" }}>{moeda.format(Number(valor))}</Typography>
+                                <Typography component="dd" sx={{ m: 0, fontWeight: titulo === "Saldo a receber" ? 700 : 600, fontSize: titulo === "Saldo a receber" ? 24 : 14,
+                                    color: titulo === "Saldo a receber" ? "primary.main" : "text.primary", fontVariantNumeric: "tabular-nums" }}>{moeda.format(Number(valor))}</Typography>
                             </Box>)}
                     </Box>
                     <Box component="dl" sx={{ m: 0, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1.5 }}>
@@ -98,17 +112,17 @@ export default function ContaReceberDetalhe({ id, revisao, onFechar, onEditar, o
                         {gerencial && podeCancelarConta(conta) && <Button color="error" onClick={() => { setErroAcao(""); setAcao({ tipo: "cancelar" }); }}>Cancelar conta</Button>}
                     </Stack>
                     <Divider />
-                    <Typography variant="h6">Histórico de recebimentos</Typography>
+                    <Typography ref={historicoRef} component="h3" variant="subtitle1" sx={{ fontWeight: 700, scrollMarginTop: 16 }}>Histórico de recebimentos</Typography>
                     {!conta.recebimentos.length && <Typography variant="body2" color="text.secondary">Nenhum recebimento registrado.</Typography>}
-                    {conta.recebimentos.map(m => <Stack component="section" aria-label={`Recebimento ${m.id}`} key={m.id} spacing={0.75} sx={{ pb: 1.5, borderBottom: 1, borderColor: "divider" }}>
+                    {[...conta.recebimentos].sort((a, b) => b.dataMovimento.localeCompare(a.dataMovimento) || b.id - a.id).map(m => <Stack component="section" aria-label={`Recebimento ${m.id}`} key={m.id} spacing={0.75} sx={{ pb: 1.5, borderBottom: 1, borderColor: "divider" }}>
                         <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
                             <Box><Typography variant="caption" color="text.secondary">Valor desta baixa</Typography>
                                 <Typography sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moeda.format(m.valor)}</Typography></Box>
                             <StatusChip status={m.estornada ? "CANCELADA" : "RECEBIDA"} label={m.estornada ? "Estornado" : "Recebido"} />
                         </Stack>
                         <Typography variant="body2">Conta destino: {m.contaFinanceiraNome}</Typography>
-                        <Typography variant="body2" color="text.secondary">{formatarData(m.dataMovimento)}</Typography>
-                        <Typography variant="caption" color="text.secondary">#{m.id} · {m.usuarioNome} · {formatarData(m.dataCriacao, true)}</Typography>
+                        <Typography variant="body2" color="text.secondary">Data financeira: {formatarData(m.dataMovimento)}</Typography>
+                        <Typography variant="caption" color="text.secondary">#{m.id} · {m.usuarioNome} · Registrado em {formatarData(m.dataCriacao, true)}</Typography>
                         {m.observacao && <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{m.observacao}</Typography>}
                         {m.estornada ? <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
                             Estorno: {formatarData(m.dataEstorno, true)} · {m.usuarioEstornoNome}<br />{m.motivoEstorno}

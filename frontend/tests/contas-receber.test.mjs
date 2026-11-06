@@ -20,7 +20,7 @@ const resumo = { vencidas: { total: 120, quantidade: 2 }, seteDias: { total: 100
     trintaDias: { total: 210, quantidade: 3 }, emAberto: { total: 330, quantidade: 5 }, recebidasMes: { total: 60, quantidade: 2 } };
 
 before(async () => {
-    server = await createServer({ cacheDir: "node_modules/.vite-contas-receber-tests", server: { host: "127.0.0.1", port: 0, hmr: false },
+    server = await createServer({ optimizeDeps: { include: ["@mui/icons-material/MoreVertRounded", "@mui/icons-material/VisibilityOutlined", "@mui/icons-material/EditOutlined", "@mui/icons-material/CancelOutlined", "@mui/icons-material/UndoRounded"] }, cacheDir: "node_modules/.vite-contas-receber-tests", server: { host: "127.0.0.1", port: 0, hmr: false },
         plugins: [{ name: "contas-receber-fixture",
             resolveId(id) { if (id === "/receber-fixture.js") return "\0receber-fixture.js"; },
             load(id) { if (id === "\0receber-fixture.js") return `
@@ -69,7 +69,7 @@ async function abrir(extras = {}, viewport = { width: 1440, height: 1000 }, opco
                 size: Number(params.size), totalItems: estado.vazio ? 0 : 63, totalPages: estado.vazio ? 0 : 3 };
         } else if (u.pathname === `${base}/resumo`) {
             if (estado.falhaResumo) { status = 400; data = "Requisicao invalida."; }
-            else data = resumo;
+            else { if (estado.atrasoResumo) await new Promise(r => setTimeout(r, estado.atrasoResumo)); data = estado.resumo ?? resumo; }
         }
         else if (u.pathname === "/clientes/buscar") {
             if (params.termo === "antiga") await new Promise(r => setTimeout(r, 1000));
@@ -115,6 +115,7 @@ async function abrir(extras = {}, viewport = { width: 1440, height: 1000 }, opco
     if (estado.falhaListagem) await page.getByText("Listagem de contas: Requisicao invalida.", { exact: true }).waitFor();
     else if (estado.vazio) await page.getByText("Nenhuma conta a receber cadastrada.", { exact: true }).waitFor();
     else await page.getByText(estado.conta.descricao, { exact: true }).first().waitFor();
+    if (viewport.width >= 600 && !opcoes.filtrosRecolhidos) await page.getByRole("button", { name: /Mais filtros/ }).click();
     return { page, estado, errors };
 }
 const chamadas = (e, path) => e.requests.filter(r => r.path === path);
@@ -243,7 +244,7 @@ test("baixa informa original/recebido/saldo e consulta destinos ativos remotamen
         await abrirBaixa(page);
         const dialog = page.getByRole("dialog", { name: "Receber conta" });
         await dialog.getByText(/Valor original:.*100,00/).waitFor(); await dialog.getByText(/Já recebido:.*40,00/).waitFor();
-        await dialog.getByText(/Saldo:.*60,00/).waitFor();
+        await dialog.getByText(/Saldo a receber:.*60,00/).waitFor();
         assert.equal(await dialog.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).inputValue(), "60,00");
         await dialog.getByRole("combobox", { name: "Conta de destino" }).fill("Destino");
         await esperar(() => chamadas(estado, "/financeiro/contas-financeiras/pagina").at(-1)?.params.termo === "Destino");
@@ -407,7 +408,7 @@ test("recebimento inválido bloqueia envio e retry após 503/reload conserva UUI
         assert.equal(chamadas(estado, `${base}/1/receber`).length, 1);
         const payload = chamadas(estado, `${base}/1/receber`)[0].body;
         assert.equal(await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).isDisabled(), true);
-        await page.reload(); await page.getByRole("cell", { name: estado.conta.descricao, exact: true }).waitFor(); await abrirBaixa(page);
+        await page.reload(); await page.getByText(estado.conta.descricao, { exact: true }).first().waitFor(); await abrirBaixa(page);
         assert.equal(await page.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true }).inputValue(), "40,00");
         estado.falhaBaixa = false; await page.getByRole("button", { name: "Tentar novamente", exact: true }).click();
         await page.getByRole("dialog", { name: "Receber conta" }).waitFor({ state: "hidden" });
@@ -443,7 +444,7 @@ test("tentativa antiga já estornada não é reutilizada para um novo recebiment
 test("estorno identifica baixa, exige motivo, mostra conflito e preserva histórico", async () => {
     const { page, estado } = await abrir({ valorRecebido: 100, saldo: 0, status: "RECEBIDA", recebimentos: [movimento(10, 40), movimento(11, 60)] });
     try {
-        await detalhe(page); await page.getByRole("button", { name: /^Estornar recebimento de/ }).last().click();
+        await detalhe(page); await page.getByRole("region", { name: "Recebimento 11", exact: true }).getByRole("button", { name: /^Estornar recebimento de/ }).click();
         const dialog = page.getByRole("dialog", { name: "Estornar recebimento?" });
         await dialog.getByRole("button", { name: "Estornar recebimento", exact: true }).click();
         assert.equal(chamadas(estado, `${base}/1/recebimentos/11/estornar`).length, 0);
@@ -529,13 +530,13 @@ test("mobile usa linhas operacionais, filtros recolhíveis e paginação/ordena�
     try {
         assert.equal(await page.getByRole("table").count(), 0);
         const linha = page.getByRole("article", { name: "Conta 1", exact: true });
-        for (const texto of [cliente.nome, estado.conta.descricao, "Saldo", "R$ 60,00", "Vencimento", "20/10/2026", "Valor original: R$ 100,00", "Recebido: R$ 40,00"])
+        for (const texto of [cliente.nome, estado.conta.descricao, "Saldo a receber", "R$ 60,00", "Vencimento", "20/10/2026", "Valor original: R$ 100,00", "Recebido: R$ 40,00"])
             assert.ok(await linha.getByText(texto, { exact: true }).isVisible());
         for (const nome of ["Receber", "Consultar histórico"]) {
             const bounds = await linha.getByRole("button", { name: nome, exact: true }).boundingBox();
             assert.ok(bounds.height >= 44);
         }
-        assert.equal(await page.getByRole("combobox", { name: "Status", exact: true }).isVisible(), false);
+        assert.equal(await page.getByRole("combobox", { name: "Status", exact: true }).isVisible(), true);
         assert.ok(await page.getByRole("textbox", { name: "Buscar descrição, cliente ou documento", exact: true }).isVisible());
         await page.getByRole("button", { name: "Próxima página" }).click();
         await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.page === "1");
@@ -545,7 +546,7 @@ test("mobile usa linhas operacionais, filtros recolhíveis e paginação/ordena�
         assert.equal(chamadas(estado, `${base}/pagina`).at(-1).params.page, "0");
         await page.getByRole("button", { name: "Ordem crescente", exact: true }).click();
         await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.sort === "valorOriginal,desc");
-        await page.getByRole("button", { name: "Filtros", exact: true }).click();
+        await page.getByRole("button", { name: /Mais filtros/ }).click();
         await page.getByRole("combobox", { name: "Status", exact: true }).click();
         await page.getByRole("option", { name: "Parcial", exact: true }).click();
         await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.status === "PARCIAL");
@@ -572,9 +573,9 @@ test("1440/1024/390 preservam dados, ações e estados financeiros sem overflow"
             assert.equal(await page.getByRole("button", { name: "Receber", exact: true }).nth(4).isDisabled(), true);
             if (width >= 600) {
                 assert.ok(await page.getByRole("table").isVisible());
-                assert.ok(await page.getByRole("columnheader", { name: "Saldo", exact: true }).isVisible());
+                assert.ok(await page.getByRole("columnheader", { name: "Saldo a receber", exact: true }).isVisible());
                 assert.ok(await page.getByRole("columnheader", { name: "Status", exact: true }).isVisible());
-                assert.ok(await page.locator(".MuiTableContainer-root").evaluate(el => el.scrollWidth <= el.clientWidth + 1));
+                assert.ok(await page.locator(".MuiTableContainer-root").evaluate(el => getComputedStyle(el).overflowX === "auto"));
                 assert.ok(await page.getByText("Pendente · Vencida", { exact: true }).evaluate(el => {
                     const chip = el.closest(".MuiChip-root").getBoundingClientRect();
                     const cell = el.closest("td").getBoundingClientRect(); return chip.right <= cell.right - 4;
@@ -586,7 +587,7 @@ test("1440/1024/390 preservam dados, ações e estados financeiros sem overflow"
             const drawer = page.getByRole("dialog", { name: "Conta a receber #1", exact: true });
             await drawer.getByText("Histórico de recebimentos", { exact: true }).waitFor();
             assert.ok(await drawer.getByRole("definition").filter({ hasText: "R$ 100,00" }).count() >= 1);
-            const bounds = await drawer.boundingBox(); assert.equal(Math.round(bounds.width), width < 600 ? width : 600);
+            const bounds = await drawer.boundingBox(); assert.equal(Math.round(bounds.width), width < 600 ? width : 760);
             await page.waitForTimeout(350);
             await page.screenshot({ path: `node_modules/.cache/contas-receber/detalhe-${width}.png` });
             assert.deepEqual(errors, []);
@@ -597,7 +598,7 @@ test("1440/1024/390 preservam dados, ações e estados financeiros sem overflow"
 test("atualizar preserva filtros e resumo enquanto apenas a listagem está carregando", async () => {
     const { page, estado } = await abrir({}, { width: 390, height: 844 });
     try {
-        await page.getByRole("button", { name: "Filtros", exact: true }).click();
+        await page.getByRole("button", { name: /Mais filtros/ }).click();
         await page.getByRole("combobox", { name: "Status", exact: true }).click();
         await page.getByRole("option", { name: "Pendente", exact: true }).click();
         await esperar(() => chamadas(estado, `${base}/pagina`).at(-1).params.status === "PENDENTE");
@@ -634,7 +635,7 @@ test("baixa prioriza saldo e valor recebido, identifica parcial e preserva hist�
             const valor = dialog.getByRole("textbox", { name: "Valor recebido agora (R$)", exact: true });
             const destino = dialog.getByRole("combobox", { name: "Conta de destino", exact: true });
             assert.ok((await valor.boundingBox()).y < (await destino.boundingBox()).y);
-            const saldo = dialog.getByText("Saldo: R$ 60,00", { exact: true });
+            const saldo = dialog.getByText("Saldo a receber: R$ 60,00", { exact: true });
             assert.equal(await saldo.evaluate(el => getComputedStyle(el).fontSize), "24px");
             await valor.fill("20"); await dialog.getByText("Recebimento parcial", { exact: true }).waitFor();
             assert.equal(chamadas(estado, `${base}/1/receber`).length, 0);
@@ -643,4 +644,53 @@ test("baixa prioriza saldo e valor recebido, identifica parcial e preserva hist�
             assert.ok(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1));
         } finally { await page.close(); }
     }
+});
+
+
+test("padronizacao cb80060: grid completo, ações e documento do cliente", async () => {
+    const {page,estado,errors}=await abrir({}, {width:1366,height:900}, {filtrosRecolhidos:true});
+    try {
+        assert.deepEqual(await page.getByRole("columnheader").allTextContents(), ["Cliente","Documento do cliente","Descrição","Vencimento","Status","Saldo a receber","Valor original","Recebido","Ações"]);
+        assert.ok(await page.getByRole("combobox",{name:"Status",exact:true}).isVisible());
+        assert.equal(await page.getByRole("combobox",{name:"Cliente",exact:true}).isVisible(),false);
+        await page.getByRole("button",{name:"Mais ações da conta #1",exact:true}).click();
+        await page.getByRole("menuitem",{name:"Cancelar conta",exact:true}).click();
+        const confirmacao=page.getByRole("dialog",{name:"Cancelar conta?"});
+        await confirmacao.waitFor();
+        assert.equal(chamadas(estado,`${base}/1/cancelar`).length,0);
+        await confirmacao.getByRole("button",{name:"Voltar",exact:true}).click();
+        await page.getByRole("button",{name:"Fechar detalhe",exact:true}).click();
+        await page.getByRole("button",{name:"Editar conta",exact:true}).click();
+        await page.getByRole("dialog",{name:"Editar conta a receber"}).waitFor();
+        assert.deepEqual(errors,[]);
+    } finally {await page.close();}
+});
+
+test("padronizacao cb80060: edição verifica histórico completo sem alterar bloqueio existente",async()=>{
+    const {page,estado}=await abrir({recebimentos:[movimento(10,100,{estornada:true})]});
+    try {
+        await page.getByRole("button",{name:"Editar conta",exact:true}).click();
+        await page.getByText("Histórico de recebimentos",{exact:true}).waitFor();
+        assert.equal(await page.getByRole("dialog",{name:"Editar conta a receber"}).count(),0);
+        assert.equal(estado.requests.filter(r=>r.method==='PUT').length,0);
+    }finally{await page.close();}
+});
+
+test("padronizacao cb80060: indicadores distinguem loading, erro e zero e retry é independente",async()=>{
+    const {page,estado}=await abrir({},undefined,{filtrosRecolhidos:true,atrasoResumo:1300,falhaResumo:false});
+    try {
+        const regiao=page.getByRole('region',{name:'Resumo financeiro de contas a receber'});
+        assert.equal(await regiao.getByLabel('Consultando indicador').count(),5);
+        await regiao.getByText('R$ 330,00',{exact:true}).waitFor();
+        const antes=chamadas(estado,`${base}/pagina`).length;estado.falhaResumo=true;
+        await page.getByRole('button',{name:'Atualizar contas',exact:true}).click();
+        await regiao.getByText('Indisponível',{exact:true}).first().waitFor();
+        assert.equal(await regiao.getByText('Indisponível',{exact:true}).count(),5);
+        await esperar(()=>chamadas(estado,`${base}/pagina`).length>antes);
+        const paginas=chamadas(estado,`${base}/pagina`).length;
+        estado.falhaResumo=false;estado.resumo=Object.fromEntries(Object.keys(resumo).map(k=>[k,{total:0,quantidade:0}]));
+        await regiao.getByRole('button',{name:'Tentar novamente',exact:true}).click();await regiao.getByText('Sem movimento',{exact:true}).first().waitFor();
+        assert.equal(await regiao.getByText('Sem movimento',{exact:true}).count(),5);
+        assert.equal(chamadas(estado,`${base}/pagina`).length,paginas);
+    }finally{await page.close();}
 });

@@ -1,17 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
-import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlineRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
-import FilterAltOffRoundedIcon from "@mui/icons-material/FilterAltOffRounded";
-import FilterListRoundedIcon from "@mui/icons-material/FilterListRounded";
-import { Alert, Box, Button, CircularProgress, IconButton, MenuItem, Paper, Snackbar, TextField, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Collapse, IconButton, MenuItem, Paper, Skeleton, Snackbar, Stack, TextField, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
 import PageFilters from "../../components/ui/PageFilters";
-import AppTable, { type AcaoTabela, type Coluna } from "../../components/ui/AppTable";
-import StatusChip from "../../components/ui/StatusChip";
+import AppTable, { type Coluna } from "../../components/ui/AppTable";
 import ClienteAutocomplete from "../../components/clientes/ClienteAutocomplete";
 import { buscarCliente } from "../../services/clienteService";
 import { buscarContaReceber, listarContasReceber, mensagemContaReceber, resumirContasReceber } from "../../services/contaReceberService";
@@ -21,18 +16,21 @@ import ContaReceberForm from "./ContaReceberForm";
 import ContaReceberDetalhe from "./ContaReceberDetalhe";
 import ContaReceberBaixaDialog from "./ContaReceberBaixaDialog";
 import ContaReceberMobileList from "./ContaReceberMobileList";
-import { formatarData, hoje, moeda, podeReceberConta, rotulosStatus } from "./contaReceberUtils";
+import { formatarData, moeda, podeEditarConta, podeReceberConta, rotulosStatus } from "./contaReceberUtils";
+
+import ContaReceberStatus from "./ContaReceberStatus";
+import ContaReceberAcoes, { type AlvoDetalheReceber } from "./ContaReceberAcoes";
 
 const filtrosVazios = { termo: "", status: "", origem: "", vencimentoDe: "", vencimentoAte: "" };
 export default function ContasReceber() {
     const theme = useTheme();
     const mobile = useMediaQuery(theme.breakpoints.down("sm"));
-    const laptop = useMediaQuery(theme.breakpoints.between("sm", "lg"));
     const [filtrosExpandidos, setFiltrosExpandidos] = useState(false);
     const [parametros] = useSearchParams();
     const [contas, setContas] = useState<ContaReceber[]>([]);
     const [resumo, setResumo] = useState<ResumoContasReceber | null>(null);
     const [erroResumo, setErroResumo] = useState("");
+    const [resumoConcluido, setResumoConcluido] = useState({ revisao: -1, tentativa: -1 });
     const [erro, setErro] = useState("");
     const [erroOperacao, setErroOperacao] = useState("");
     const [sucesso, setSucesso] = useState("");
@@ -53,6 +51,8 @@ export default function ContasReceber() {
         const id = Number(parametros.get("contaId"));
         return Number.isSafeInteger(id) && id > 0 ? id : null;
     });
+    const [alvoDetalhe, setAlvoDetalhe] = useState<AlvoDetalheReceber>("detalhe");
+    const consultandoResumo = resumoConcluido.revisao !== revisao || resumoConcluido.tentativa !== tentativaResumo;
     const [recebimento, setRecebimento] = useState<ContaReceber | null>(null);
     const erroPeriodo = filtros.vencimentoDe && filtros.vencimentoAte && filtros.vencimentoDe > filtros.vencimentoAte
         ? "O vencimento inicial deve ser anterior ou igual ao final." : "";
@@ -61,7 +61,8 @@ export default function ContasReceber() {
     useEffect(() => {
         const controller = new AbortController();
         resumirContasReceber(controller.signal).then(r => { if (!controller.signal.aborted) { setResumo(r); setErroResumo(""); } })
-            .catch(e => { if (!controller.signal.aborted) setErroResumo(mensagemContaReceber(e, "Não foi possível carregar o resumo.")); });
+            .catch(e => { if (!controller.signal.aborted) setErroResumo(mensagemContaReceber(e, "Não foi possível carregar o resumo.")); })
+            .finally(() => { if (!controller.signal.aborted) setResumoConcluido({ revisao, tentativa: tentativaResumo }); });
         return () => controller.abort();
     }, [revisao, tentativaResumo]);
     useEffect(() => {
@@ -84,10 +85,15 @@ export default function ContasReceber() {
 
     function alterarFiltro(campo: keyof typeof filtros, valor: string) { setFiltros(f => ({ ...f, [campo]: valor })); setPagina(0); }
     function alterada(mensagem: string) { setRevisao(n => n + 1); setSucesso(mensagem); }
+    function abrirDetalhe(conta: ContaReceber, alvo: AlvoDetalheReceber = "detalhe") { setAlvoDetalhe(alvo); setDetalhe(conta.id); }
     async function abrirEdicao(conta: ContaReceber) {
         if (abrindoRef.current) return;
         abrindoRef.current = true; setAbrindo(true); setErroOperacao("");
-        try { setEditor({ conta, clienteInicial: await buscarCliente(conta.cliente.id) }); }
+        try {
+            const atual = await buscarContaReceber(conta.id);
+            if (!podeEditarConta(atual)) { abrirDetalhe(atual); return; }
+            setEditor({ conta: atual, clienteInicial: await buscarCliente(atual.cliente.id) });
+        }
         catch (e) { setErroOperacao(mensagemContaReceber(e, "Não foi possível abrir o cadastro.")); }
         finally { abrindoRef.current = false; setAbrindo(false); }
     }
@@ -95,25 +101,23 @@ export default function ContasReceber() {
         if (abrindoRef.current) return;
         abrindoRef.current = true; setAbrindo(true); setErroOperacao("");
         try { const atual = await buscarContaReceber(conta.id); if (podeReceberConta(atual)) setRecebimento(atual);
-            else { setDetalhe(conta.id); setRevisao(n => n + 1); } }
+            else { abrirDetalhe(atual); setRevisao(n => n + 1); } }
         catch (e) { setErroOperacao(mensagemContaReceber(e, "Não foi possível abrir o recebimento.")); }
         finally { abrindoRef.current = false; setAbrindo(false); }
     }
     const colunas: Coluna<ContaReceber>[] = [
-        { campo: "descricao", cabecalho: "Descrição", largura: laptop ? 110 : 210, ordenavel: true },
-        { campo: "cliente.nome", cabecalho: "Cliente", largura: laptop ? 100 : 155 },
-        { campo: "dataVencimento", cabecalho: "Vencimento", largura: 115, ordenavel: true, render: v => formatarData(String(v)) },
-        { campo: "saldo", cabecalho: "Saldo", largura: 100, alinhar: "right", render: v => <Typography component="span" variant="body2" sx={{ fontWeight: 700, color: "primary.main" }}>{moeda.format(Number(v))}</Typography> },
-        { campo: "status", cabecalho: "Status", largura: 160, ordenavel: true, render: (_, c) => <StatusChip status={c.status}
-            label={rotulosStatus[c.status] + ((c.status === "PENDENTE" || c.status === "PARCIAL") && c.dataVencimento < hoje() ? " · Vencida" : "")} /> },
-        ...(!laptop ? [
-            { campo: "valorOriginal", cabecalho: "Valor original", largura: 140, alinhar: "right" as const, ordenavel: true, render: (v: unknown) => moeda.format(Number(v)) },
-            { campo: "valorRecebido", cabecalho: "Recebido", largura: 125, alinhar: "right" as const, ordenavel: true, render: (v: unknown) => moeda.format(Number(v)) },
-        ] : []),
-    ];
-    const acoes: AcaoTabela<ContaReceber>[] = [
-        { rotulo: "Receber", icone: <CheckCircleOutlineRoundedIcon />, onClick: c => void abrirRecebimento(c), cor: "primary", desabilitado: c => abrindo || !podeReceberConta(c) },
-        { rotulo: "Consultar histórico", icone: <HistoryRoundedIcon />, onClick: c => setDetalhe(c.id) },
+        { campo: "cliente.nome", cabecalho: "Cliente", largura: 160, render: (_, c) => <Box sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>{c.cliente.nome}</Box> },
+        { campo: "cliente.cpfCnpj", cabecalho: "Documento do cliente", largura: 175, render: (_, c) => <Box component="span" title="CPF/CNPJ do cliente" sx={{ whiteSpace: "normal", overflowWrap: "anywhere", fontVariantNumeric: "tabular-nums" }}>{c.cliente.cpfCnpj || "—"}</Box> },
+        { campo: "descricao", cabecalho: "Descrição", largura: 220, ordenavel: true, render: (_, c) => <Box sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>{c.descricao}</Typography>
+            <Typography variant="caption" color="text.secondary">{c.origem === "VENDA_A_PRAZO" ? "Venda a prazo" : "Manual"} · Parcela {c.numeroParcela}/{c.totalParcelas}</Typography>
+        </Box> },
+        { campo: "dataVencimento", cabecalho: "Vencimento", largura: 125, ordenavel: true, render: v => formatarData(String(v)) },
+        { campo: "status", cabecalho: "Status", largura: 165, ordenavel: true, render: (_, c) => <ContaReceberStatus conta={c} /> },
+        { campo: "saldo", cabecalho: "Saldo a receber", largura: 150, alinhar: "right", render: v => <Typography component="span" variant="body2" sx={{ fontWeight: 700, color: Number(v) > 0 ? "primary.main" : "text.secondary", fontVariantNumeric: "tabular-nums" }}>{moeda.format(Number(v))}</Typography> },
+        { campo: "valorOriginal", cabecalho: "Valor original", largura: 140, alinhar: "right", ordenavel: true, render: v => moeda.format(Number(v)) },
+        { campo: "valorRecebido", cabecalho: "Recebido", largura: 130, alinhar: "right", ordenavel: true, render: v => moeda.format(Number(v)) },
+        { campo: "acoes", cabecalho: "Ações", largura: 216, render: (_, c) => <ContaReceberAcoes conta={c} abrindo={abrindo} onDetalhe={abrirDetalhe} onEditar={c => void abrirEdicao(c)} onReceber={c => void abrirRecebimento(c)} /> },
     ];
     const resumos = [
         ["vencidas", "Vencidas", "error.main"], ["seteDias", "A vencer em 7 dias", "warning.main"],
@@ -133,52 +137,54 @@ export default function ContasReceber() {
         {erroOperacao && <Alert severity="error" onClose={() => setErroOperacao("")}>{erroOperacao}</Alert>}
         {abrindo && <CircularProgress size={20} aria-label="Abrindo operação" />}
         <Box component="section" aria-label="Resumo financeiro de contas a receber">
-        {erroResumo ? <Alert severity="error" action={<Button color="inherit" onClick={() => setTentativaResumo(n => n + 1)}>Tentar novamente</Button>}>Resumo financeiro: {erroResumo}</Alert>
-            : <Box sx={{ display: "grid", gap: 1.25,
-                gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(5, minmax(0, 1fr))" } }}>
-                {resumos.map(([campo, titulo, cor]) => <Paper variant="outlined" key={campo} sx={{ p: 1.25, minWidth: 0,
+            <Typography variant="caption" component="p" sx={{ mb: 1 }}>Resumo global da empresa · Filtros afetam somente a tabela.</Typography>
+            <Typography variant="caption" component="p" color="text.secondary" sx={{ mb: 1 }}>Prazos cumulativos, incluindo hoje: 30 dias contém 7 dias; não some essas faixas.</Typography>
+            {erroResumo && !consultandoResumo && <Alert severity="error" action={<Button color="inherit" onClick={() => setTentativaResumo(n => n + 1)}>Tentar novamente</Button>}>Resumo financeiro: {erroResumo}</Alert>}
+            <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(5, minmax(0, 1fr))" } }}>
+                {resumos.map(([campo, titulo, cor]) => <Paper variant="outlined" key={campo} sx={{ p: 1.75, minWidth: 0, borderTop: 3, borderTopColor: cor,
                     gridColumn: campo === "recebidasMes" ? { xs: "1 / -1", sm: "auto" } : undefined }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: "block", minHeight: { xs: 34, lg: 17 } }}>{titulo}</Typography>
-                    <Typography sx={{ mt: 0.5, fontSize: 20, lineHeight: 1.25, fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>
-                        {resumo ? moeda.format(resumo[campo].total) : "—"}</Typography>
-                    <Typography variant="caption" color="text.secondary">{resumo ? `${resumo[campo].quantidade} ${campo === "recebidasMes"
-                        ? resumo[campo].quantidade === 1 ? "recebimento" : "recebimentos"
-                        : resumo[campo].quantidade === 1 ? "conta" : "contas"}` : "Carregando…"}</Typography>
+                    <Typography variant="caption" color="text.secondary">{titulo}</Typography>
+                    <Typography sx={{ mt: 0.5, fontSize: "1.05rem", lineHeight: 1.4, fontWeight: 700, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>
+                        {consultandoResumo && !resumo ? <Skeleton aria-label="Consultando indicador" /> : erroResumo && !consultandoResumo ? "Indisponível" : resumo ? moeda.format(resumo[campo].total) : "—"}</Typography>
+                    <Typography variant="caption" color="text.secondary">{consultandoResumo ? resumo ? "Atualizando…" : "Consultando…" : erroResumo ? "Consulta não confirmada" : resumo && resumo[campo].quantidade > 0
+                        ? `${resumo[campo].quantidade} ${campo === "recebidasMes" ? resumo[campo].quantidade === 1 ? "recebimento" : "recebimentos" : resumo[campo].quantidade === 1 ? "conta" : "contas"}` : "Sem movimento"}</Typography>
                 </Paper>)}
-            </Box>}
+            </Box>
         </Box>
         <Box component="section" aria-label="Listagem de contas a receber">
         {erro && <Alert severity="error" sx={{ mb: 1.5 }} action={<Button color="inherit" onClick={() => setTentativaListagem(n => n + 1)}>Tentar novamente</Button>}>Listagem de contas: {erro}</Alert>}
         <PageFilters busca={{ valor: filtros.termo, placeholder: "Buscar descrição, cliente ou documento", onChange: v => alterarFiltro("termo", v) }}>
-            {mobile && <Button size="small" startIcon={<FilterListRoundedIcon />} aria-expanded={filtrosExpandidos} aria-controls="filtros-contas-receber"
-                onClick={() => setFiltrosExpandidos(v => !v)} sx={{ alignSelf: "flex-start" }}>Filtros{temFiltros ? " ativos" : ""}</Button>}
-            <Box id="filtros-contas-receber" sx={{ display: mobile && !filtrosExpandidos ? "none" : "grid", width: "100%", minWidth: 0,
-                gap: 1.25, alignItems: "start", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(3, minmax(0, 1fr))", lg: "145px minmax(180px, 1fr) 135px 165px 165px 40px" } }}>
-            <TextField select size="small" label="Status" value={filtros.status} onChange={e => alterarFiltro("status", e.target.value)}>
+            <TextField select size="small" label="Status" value={filtros.status} sx={{ minWidth: 150 }} onChange={e => alterarFiltro("status", e.target.value)}>
                 <MenuItem value="">Todos</MenuItem>{Object.entries(rotulosStatus).map(([valor, label]) => <MenuItem key={valor} value={valor}>{label}</MenuItem>)}
             </TextField>
-            <ClienteAutocomplete value={cliente} label="Cliente" placeholder="Buscar cliente" size="small" minWidth={0} incluirInativos
-                onChange={c => { setCliente(c); setPagina(0); }} />
-            <TextField select size="small" label="Origem" value={filtros.origem} onChange={e => alterarFiltro("origem", e.target.value)}>
-                <MenuItem value="">Todas</MenuItem><MenuItem value="MANUAL">Manual</MenuItem><MenuItem value="VENDA_A_PRAZO">Venda a prazo</MenuItem>
-            </TextField>
+            <Button size="small" aria-expanded={filtrosExpandidos} aria-controls="filtros-contas-receber" onClick={() => setFiltrosExpandidos(v => !v)}>
+                Mais filtros{cliente || filtros.origem ? " · filtros ativos" : ""}
+            </Button>
+            <Collapse in={filtrosExpandidos} id="filtros-contas-receber" sx={{ width: "100%" }}>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: "start", minWidth: 0 }}>
+                    <ClienteAutocomplete value={cliente} label="Cliente" placeholder="Buscar cliente" size="small" minWidth={0} incluirInativos onChange={c => { setCliente(c); setPagina(0); }} />
+                    <TextField select size="small" label="Origem" value={filtros.origem} sx={{ minWidth: 150, width: { xs: "100%", sm: "auto" } }} onChange={e => alterarFiltro("origem", e.target.value)}>
+                        <MenuItem value="">Todas</MenuItem><MenuItem value="MANUAL">Manual</MenuItem><MenuItem value="VENDA_A_PRAZO">Venda a prazo</MenuItem>
+                    </TextField>
+                </Stack>
+            </Collapse>
             {([ ["vencimentoDe", "Vencimento de"], ["vencimentoAte", "Vencimento até"] ] as const).map(([campo, label]) =>
-                <TextField key={campo} size="small" type="date" label={label} value={filtros[campo]}
+                <TextField key={campo} size="small" type="date" label={label} value={filtros[campo]} sx={{ width: { xs: "100%", sm: 175 } }}
                     error={!!erroPeriodo} helperText={campo === "vencimentoAte" ? erroPeriodo : undefined}
-                    fullWidth onChange={e => alterarFiltro(campo, e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />)}
-            <Tooltip title="Limpar filtros"><IconButton aria-label="Limpar filtros" sx={{ justifySelf: "start" }} onClick={() => { setFiltros(filtrosVazios); setCliente(null); setPagina(0); }}><FilterAltOffRoundedIcon /></IconButton></Tooltip>
-            </Box>
+                    onChange={e => alterarFiltro(campo, e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />)}
+            <Button size="small" onClick={() => { setFiltros(filtrosVazios); setCliente(null); setPagina(0); }}>Limpar filtros</Button>
         </PageFilters>
         {mobile ? <ContaReceberMobileList contas={contas} carregando={carregando && !erroPeriodo} abrindo={abrindo} vazio={vazio}
-            onDetalhe={c => setDetalhe(c.id)} onReceber={c => void abrirRecebimento(c)} paginacao={paginacao}
+            onDetalhe={abrirDetalhe} onEditar={c => void abrirEdicao(c)} onReceber={c => void abrirRecebimento(c)} paginacao={paginacao}
             ordenacao={{ ...ordenacao, onSort: ordenar }} camposOrdenacao={colunas.flatMap(c => c.ordenavel ? [{ campo: String(c.campo), rotulo: c.cabecalho }] : [])} />
-            : <AppTable colunas={colunas} linhas={contas} acoes={acoes} carregando={carregando && !erroPeriodo} minWidth={laptop ? 690 : 1100} compacta
-            sx={{ "& tbody td:first-of-type, & tbody td:nth-of-type(2)": { whiteSpace: "normal", overflowWrap: "anywhere" },
-                ...(laptop ? { "& .MuiTableCell-root": { px: 1 } } : {}) }}
-            obterChaveLinha={c => c.id} onLinhaClick={c => setDetalhe(c.id)} ordenacaoRemota
+            : <AppTable colunas={colunas} linhas={contas} carregando={carregando && !erroPeriodo} minWidth={1481}
+            sx={{ "& tbody .MuiTableCell-root": { py: 1, px: 1.5, verticalAlign: "middle" }, "& thead .MuiTableCell-root": { px: 1.5 },
+                "& tbody .MuiTableCell-root:nth-of-type(6)": { bgcolor: "action.hover" },
+                "& > footer": { gap: 1, py: 0.75 }, "& .MuiTablePagination-actions .MuiIconButton-root": { width: 36, height: 36, border: 1, borderColor: "divider", borderRadius: 1 } }}
+            obterChaveLinha={c => c.id} onLinhaClick={c => abrirDetalhe(c)} ordenacaoRemota
             ordenacao={{ ...ordenacao, onSort: ordenar }} paginacao={paginacao} vazio={vazio} />}
         </Box>
-        {detalhe !== null && <ContaReceberDetalhe key={`detalhe-${detalhe}`} id={detalhe} revisao={revisao} onFechar={() => setDetalhe(null)}
+        {detalhe !== null && <ContaReceberDetalhe key={`detalhe-${detalhe}`} id={detalhe} revisao={revisao} alvoInicial={alvoDetalhe} onFechar={() => setDetalhe(null)}
             onEditar={c => void abrirEdicao(c)} onReceber={c => void abrirRecebimento(c)} onAlterada={alterada} />}
         {editor && <ContaReceberForm key={`editor-${editor.conta?.id ?? "nova"}`} {...editor} onFechar={() => setEditor(null)}
             onSalvo={() => { setEditor(null); alterada("Conta salva."); }} />}

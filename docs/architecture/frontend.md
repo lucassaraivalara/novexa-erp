@@ -1,3 +1,9 @@
+## Contas a Receber — UI/UX aprovada para release (06/11/2026)
+
+Interface alinhada ao Contas a Pagar aprovado em `cb80060`, reutilizando AppTable, CadastroDialog, StatusChip e componentes de cliente/valores. Grid e lista mobile compartilham ações/status; valores principais permanecem disponíveis no notebook, com rolagem contida. Documento do cliente significa CPF/CNPJ disponível no contrato, não documento do título. Filtros progressivos, cinco indicadores globais com loading/erro/zero distintos, cadastro agrupado, recebimento com resumo/destino e histórico cronológico com estorno por movimento preservam os contratos existentes. Edição direta relê o detalhe para respeitar o bloqueio por histórico estornado ausente na projeção da lista; não há consultas por linha.
+
+Quatorze testes frontend direcionados, TypeScript e lint aprovados; layouts 1440/1024/390 verificados com dados sintéticos/HTTP simulado. Sem backend, migrations, dependências ou regras financeiras novas; retry/UUID e payloads de recebimento preservados. Interface aprovada pelo Product Owner; release exclusivamente frontend autorizado. A composição integrada recebe build próprio antes da publicação.
+
 
 ## Caixa — polling da Tarefa 19 (27/10/2026, local)
 

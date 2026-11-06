@@ -2,7 +2,7 @@ import CampoTexto from "../../components/ui/CampoTexto";
 import { numeroDecimal } from "../../utils/numeroFormulario";
 import CampoDecimal, { CampoMonetario } from "../../components/ui/CampoDecimal";
 import { useRef, useState, type FormEvent } from "react";
-import { Alert, Stack, } from "@mui/material";
+import { Alert, Box, Stack, Typography, } from "@mui/material";
 import CadastroDialog from "../../components/ui/CadastroDialog";
 import ClienteAutocomplete from "../../components/clientes/ClienteAutocomplete";
 import type { Cliente } from "../../types/cliente";
@@ -46,24 +46,27 @@ export default function ContaReceberForm({ conta, clienteInicial, onFechar, onSa
         onFechar={onFechar} onSubmit={e => void enviar(e)} salvando={salvando}>
         <Stack spacing={1.75}>
             {erro && <Alert severity="error">{erro}</Alert>}
+            <Typography component="h3" variant="subtitle2">Identificação da conta</Typography>
             <ClienteAutocomplete label="Cliente *" value={cliente} onChange={setCliente} disabled={salvando} />
             {cliente && !cliente.ativo && <Alert severity="warning">O cliente está inativo. Selecione um cliente ativo para salvar.</Alert>}
             <CampoTexto placeholder="Identifique a operação…" required autoFocus label="Descrição" value={form.descricao} disabled={salvando}
                 onChange={e => alterar("descricao", e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <Typography component="h3" variant="subtitle2" sx={{ pt: 1 }}>Valores e datas</Typography>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1.5 }}>
             <CampoMonetario canonico placeholder="Ex.: 1.234,56…" required fullWidth label="Valor original (R$)" value={form.valor} disabled={salvando}
                 onValueChange={v => alterar("valor", v)}  />
                 <CampoTexto required fullWidth type="date" label="Vencimento" value={form.dataVencimento} disabled={salvando}
                     onChange={e => alterar("dataVencimento", e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-            </Stack>
-            <Stack direction="row" spacing={1.5}>
+            <CampoTexto fullWidth type="date" label="Emissão" value={form.dataEmissao} disabled={salvando}
+                onChange={e => alterar("dataEmissao", e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1.5, gridColumn: { sm: "1 / -1" } }}>
                 <CampoDecimal canonico passo="1" minimo={1} casas={0} fullWidth label="Parcela" value={form.numeroParcela} disabled={salvando}
                     onValueChange={v => alterar("numeroParcela", v)}  />
                 <CampoDecimal canonico passo="1" minimo={1} casas={0} fullWidth label="Total de parcelas" value={form.totalParcelas} disabled={salvando}
                     onValueChange={v => alterar("totalParcelas", v)}  />
-            </Stack>
-            <CampoTexto fullWidth type="date" label="Emissão" value={form.dataEmissao} disabled={salvando}
-                onChange={e => alterar("dataEmissao", e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+            </Box>
+            </Box>
+            <Typography component="h3" variant="subtitle2" sx={{ pt: 1 }}>Informações adicionais</Typography>
             <CampoTexto placeholder="Informações adicionais sobre a operação…" multiline minRows={2} label="Observação" value={form.observacao} disabled={salvando}
                 onChange={e => alterar("observacao", e.target.value)} slotProps={{ htmlInput: { maxLength: 1000 } }} />
         </Stack>
