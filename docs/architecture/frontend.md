@@ -413,3 +413,7 @@ página.
 Novos cadastros devem reutilizar `FormActions` e esse fluxo. Não criar outro
 motor genérico, outro loading ou outro padrão de submit sem uma exceção
 intencional do domínio.
+
+## Contas Financeiras — apresentação
+
+A tela separa saldos registrados no ERP, valores previstos a liquidar e dinheiro físico da sessão do PDV. O indicador global mantém a agregação existente, incluindo contas inativas e tipos legados, sem ser reduzido pelos filtros da tabela. O resumo de pendências do Cofre permanece visível recolhido; detalhe e históricos são consultados sob demanda. Estados de carregamento, erro e ausência confirmada são apresentados separadamente. Alteração de apresentação sem mudança de contrato ou regra financeira.
