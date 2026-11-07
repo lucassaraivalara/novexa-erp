@@ -133,3 +133,113 @@ createRoot(document.getElementById('root')).render(
         await vite.close();
     }
 });
+
+test("Caixas Anteriores organiza o detalhe nas três abas sem repetir a consulta", async () => {
+    const fixture = `
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { CssBaseline, ThemeProvider } from '@mui/material';
+import theme from '/src/theme/theme.ts';
+import Caixa from '/src/pages/Financeiro/Caixa.tsx';
+createRoot(document.getElementById('root')).render(
+    React.createElement(ThemeProvider, { theme }, React.createElement(React.Fragment, null,
+        React.createElement(CssBaseline), React.createElement(Caixa)))
+);
+`;
+    const vite = await createServer({
+        cacheDir: "node_modules/.vite-caixa-historico-tests",
+        server: { host: "127.0.0.1", port: 0, hmr: false },
+        plugins: [{
+            name: "caixa-historico-smoke-fixture",
+            resolveId(id) { if (id === "/caixa-historico-fixture.js") return "\0caixa-historico-fixture.js"; },
+            load(id) { if (id === "\0caixa-historico-fixture.js") return fixture; },
+            configureServer(devServer) {
+                devServer.middlewares.use("/__caixa-historico", async (_req, res) => {
+                    res.setHeader("Content-Type", "text/html");
+                    res.end(await devServer.transformIndexHtml("/__caixa-historico", '<div id="root"></div><script type="module" src="/caixa-historico-fixture.js"></script>'));
+                });
+            },
+        }],
+    });
+    await vite.listen();
+    const browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    let consultasDetalhe = 0;
+    let modalidadeConferencia = "POR_FORMA";
+    const sessao = {
+        sessaoId: 42, caixaId: 3, descricaoCaixa: "Caixa principal", status: "FECHADO",
+        dataHoraAbertura: "2026-11-06T08:00:00", operadorAbertura: { id: 7, nome: "Operador" },
+        dataHoraFechamento: "2026-11-06T18:00:00", operadorFechamento: { id: 7, nome: "Operador" },
+        saldoInicial: 100, totalVendas: 250, dinheiroEsperado: 200, valorInformado: 200, diferenca: 0,
+    };
+    const resumo = {
+        sessaoId: 42, caixaId: 3, status: "FECHADO", descricaoCaixa: "Caixa principal",
+        dataHoraAbertura: sessao.dataHoraAbertura, operadorAbertura: sessao.operadorAbertura,
+        saldoInicial: 100, totalVendas: 250, totaisPorFormaPagamento: [
+            { formaPagamentoId: 2, descricao: "PIX", tipo: "PIX", total: 50 },
+        ], suprimentos: 20, sangrias: 10, saldoEsperadoDinheiro: 200, saldoFinalInformado: 200, diferenca: 0,
+    };
+
+    await page.addInitScript(() => localStorage.setItem("novexa-auth", JSON.stringify({
+        token: "token-smoke", perfil: "ADMIN", empresa: { id: 1, nomeFantasia: "Loja" },
+    })));
+    await page.route("http://localhost:8080/**", async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        const headers = {
+            "access-control-allow-origin": "*",
+            "access-control-allow-methods": "GET, OPTIONS",
+            "access-control-allow-headers": "*",
+        };
+        if (route.request().method() === "OPTIONS") {
+            await route.fulfill({ status: 204, headers });
+            return;
+        }
+        if (path === "/financeiro/caixas/sessoes/abertas" || path === "/financeiro/caixas") {
+            await route.fulfill({ status: 200, contentType: "application/json", headers, body: "[]" });
+        } else if (path === "/financeiro/caixas/sessoes/fechadas") {
+            await route.fulfill({ status: 200, contentType: "application/json", headers, body: JSON.stringify([sessao]) });
+        } else if (path === "/financeiro/caixas/sessoes/42/detalhe") {
+            consultasDetalhe++;
+            await route.fulfill({ status: 200, contentType: "application/json", headers, body: JSON.stringify({
+                sessao, resumo, modalidadeConferencia, observacaoFechamento: null,
+                conferencias: [{ escopo: "FORMA_PAGAMENTO", formaPagamentoId: 2, descricao: "PIX", tipo: "PIX", valorEsperado: 50, valorInformado: 50, diferenca: 0 }],
+                movimentacoes: [{ tipo: "SUPRIMENTO", dataHora: "2026-11-06T09:00:00", valor: 20, vendaId: null, observacao: "Troco", usuarioNome: "Operador", origemAutomatica: false }],
+            }) });
+        } else {
+            await route.fulfill({ status: 404, contentType: "application/json", headers, body: "{}" });
+        }
+    });
+
+    try {
+        await page.goto(`http://127.0.0.1:${vite.httpServer.address().port}/__caixa-historico`);
+        await page.getByRole("tab", { name: "Caixas Anteriores" }).click();
+        await page.getByText("Caixa principal", { exact: true }).first().waitFor();
+        await page.getByRole("button", { name: "Ver detalhes da sessão" }).click();
+        const dialog = page.getByRole("dialog", { name: /Caixa principal/ });
+        await dialog.getByRole("tab", { name: "Resumo" }).waitFor();
+        await dialog.getByText("Composição da abertura").waitFor();
+        await dialog.getByRole("tab", { name: "Conferência" }).click();
+        await dialog.getByText("Meios de pagamento").waitFor();
+        await dialog.getByText("PIX", { exact: true }).waitFor();
+        await dialog.getByRole("tab", { name: "Movimentações" }).click();
+        await dialog.getByText("Suprimento").waitFor();
+        assert.equal(consultasDetalhe, 1);
+        assert.equal(await dialog.getByRole("tab").count(), 3);
+        await page.setViewportSize({ width: 390, height: 844 });
+        await dialog.getByRole("tab", { name: "Movimentações" }).waitFor();
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
+        await dialog.getByRole("button", { name: "Fechar detalhe da sessão" }).click();
+        await dialog.waitFor({ state: "detached" });
+        await page.getByRole("tab", { name: "Caixas Anteriores" }).waitFor();
+        modalidadeConferencia = "LEGADA";
+        await page.getByRole("button", { name: "Ver detalhes da sessão" }).click();
+        const dialogLegado = page.getByRole("dialog", { name: /Caixa principal/ });
+        await dialogLegado.getByRole("tab", { name: "Conferência" }).click();
+        await dialogLegado.getByText("Fechamento legado: somente o dinheiro físico foi informado. Os demais meios não têm valores conferidos.").waitFor();
+        assert.equal(consultasDetalhe, 2);
+    } finally {
+        await page.close();
+        await browser.close();
+        await vite.close();
+    }
+});

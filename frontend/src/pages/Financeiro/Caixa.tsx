@@ -22,7 +22,7 @@ import QrCode2RoundedIcon from "@mui/icons-material/QrCode2Rounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import {
-    Alert, alpha, Box, Button, Checkbox, FormControlLabel, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer,
+    Alert, alpha, Box, Button, Checkbox, FormControlLabel, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider,
     FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tab, Tabs, Typography,
 } from "@mui/material";
 import PageContainer from "../../components/layout/PageContainer";
@@ -100,6 +100,7 @@ export default function Caixa() {
     }, [modalFechamento]);
     const [observacaoFechamento, setObservacaoFechamento] = useState("");
     const [detalhe, setDetalhe] = useState<SessaoCaixaHistorico | null>(null);
+    const [abaDetalhe, setAbaDetalhe] = useState(0);
     const [drawerDetalhe, setDrawerDetalhe] = useState<SessaoCaixaDetalhe | null>(null);
     const [drawerCarregando, setDrawerCarregando] = useState(false);
     const [drawerErro, setDrawerErro] = useState("");
@@ -249,6 +250,7 @@ export default function Caixa() {
         setDrawerDetalhe(null);
         setDrawerErro("");
         setDrawerCarregando(true);
+        setAbaDetalhe(0);
         setDetalhe(sessao);
     }
 
@@ -340,6 +342,18 @@ export default function Caixa() {
         { campo: "id", cabecalho: "Código", largura: 90 }, { campo: "descricao", cabecalho: "Descrição" },
         { campo: "ativo", cabecalho: "Ativo", render: (valor) => <Chip size="small" label={valor ? "Sim" : "Não"} color={valor ? "success" : "default"} variant="outlined" /> },
     ];
+    const colunasHistorico: Coluna<SessaoCaixaHistorico>[] = [
+        { campo: "descricaoCaixa", cabecalho: "Caixa", largura: 150, render: (valor) => <Typography variant="body2" sx={{ fontWeight: 650 }}>{String(valor ?? "—")}</Typography> },
+        { campo: "status", cabecalho: "Status", largura: 96, render: () => <Chip size="small" label="Fechado" variant="outlined" /> },
+        { campo: "dataHoraAbertura", cabecalho: "Abertura", largura: 150, render: (valor) => data(valor as string) },
+        { campo: "dataHoraFechamento", cabecalho: "Fechamento", largura: 150, render: (valor) => data(valor as string | null) },
+        { campo: "operadorAbertura.nome", cabecalho: "Operador", largura: 140 },
+        { campo: "saldoInicial", cabecalho: "Saldo inicial", largura: 126, alinhar: "right", render: (valor) => dinheiro(valor as number) },
+        { campo: "totalVendas", cabecalho: "Vendas", largura: 126, alinhar: "right", render: (valor) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{dinheiro(valor as number)}</Typography> },
+        { campo: "dinheiroEsperado", cabecalho: "Esperado", largura: 126, alinhar: "right", render: (valor) => dinheiro(valor as number) },
+        { campo: "valorInformado", cabecalho: "Informado", largura: 126, alinhar: "right", render: (valor) => dinheiro(valor as number | null) },
+        { campo: "diferenca", cabecalho: "Diferença", largura: 126, alinhar: "right", render: (valor) => <Typography variant="body2" color={valor == null ? "text.secondary" : valor === 0 ? "success.main" : "error.main"} sx={{ fontWeight: 700 }}>{dinheiro(valor as number | null)}</Typography> },
+    ];
     const acoesCadastro: AcaoTabela<CaixaResumo>[] = [
         { rotulo: "Editar", icone: <EditOutlinedIcon fontSize="small" />, onClick: (caixa) => void editar(caixa.id), tooltip: "Editar caixa" },
         { rotulo: "Inativar", icone: <BlockRoundedIcon fontSize="small" />, onClick: (caixa) => void inativar(caixa), desabilitado: (caixa) => !caixa.ativo, cor: "error", tooltip: "Inativar caixa" },
@@ -371,14 +385,10 @@ export default function Caixa() {
         {erro && <Alert severity="error" action={<Button color="inherit" onClick={() => void recarregar()}>Tentar novamente</Button>}>{erro}</Alert>}
         <Paper variant="outlined"><Tabs value={aba} onChange={(_, valor) => { if (valor === 1) recarregarHistorico(); setAba(valor); }} aria-label="Sessões do caixa físico" variant="scrollable" scrollButtons="auto" sx={{ minHeight: 44 }}><Tab id="caixa-atual-tab" aria-controls="caixa-atual-painel" label="Caixa Atual" sx={{ minHeight: 44, py: 1 }} /><Tab id="caixas-anteriores-tab" aria-controls="caixas-anteriores-painel" label="Caixas Anteriores" sx={{ minHeight: 44, py: 1 }} /></Tabs></Paper>
         {aba === 0 && (carregando ? <Skeleton variant="rounded" height={300} /> : abertas.length === 0 ? <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Vazio onAbrir={() => setModalAbertura(true)} /></Box> : resumo === null ? <Skeleton variant="rounded" height={300} /> : <Box id="caixa-atual-painel" role="tabpanel" aria-labelledby="caixa-atual-tab"><Atual abertas={abertas} sessaoId={sessaoId} onSessao={setSessaoId} resumo={resumo} timeline={timeline} podeMovimentar={podeMovimentar} podeFechar={podeFecharSessao(usuarioAtual?.perfil, usuarioAtual?.id, resumo.operadorAbertura.id)} onSuprimento={() => { setErroModal(""); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalMovimento("SUPRIMENTO"); }} onSangria={() => { setErroModal(""); setDestinarAoCofre(false); setEntregaCofre(novaEntregaCofre()); setChaveMovimento(chave()); setModalMovimento("SANGRIA"); }} onFechar={() => { setErroModal(""); setObservacaoFechamento(""); setValoresConferidos({}); setDestinarAoCofre(false); setSaldo(""); setEntregaCofre({ ...novaEntregaCofre(), troco: valorEditavel(Math.min(resumo.saldoInicial, Math.max(0, resumo.saldoEsperadoDinheiro))), valor: valorEditavel(Math.max(0, resumo.saldoEsperadoDinheiro - resumo.saldoInicial)) }); setChaveMovimento(chave()); setPoliticaFechamento(null); setErroPolitica(""); setTotalConferido(""); setModalFechamento(true); }} /></Box>)}
-        {aba === 1 && <Box id="caixas-anteriores-painel" role="tabpanel" aria-labelledby="caixas-anteriores-tab">{erroHistorico && <Alert severity="error" action={<Button color="inherit" onClick={recarregarHistorico}>Tentar novamente</Button>}>{erroHistorico}</Alert>}<AppTable colunas={[
-            { campo: "descricaoCaixa", cabecalho: "Caixa", largura: 180 }, { campo: "dataHoraAbertura", cabecalho: "Abertura", largura: 170, render: (valor) => data(valor as string) },
-            { campo: "dataHoraFechamento", cabecalho: "Fechamento", largura: 170, render: (valor) => data(valor as string | null) }, { campo: "operadorAbertura.nome", cabecalho: "Operador", largura: 180 },
-            { campo: "saldoInicial", cabecalho: "Saldo inicial", alinhar: "right", render: (valor) => dinheiro(valor as number) }, { campo: "totalVendas", cabecalho: "Vendas", alinhar: "right", render: (valor) => dinheiro(valor as number) },
-            { campo: "dinheiroEsperado", cabecalho: "Esperado", alinhar: "right", render: (valor) => dinheiro(valor as number) }, { campo: "valorInformado", cabecalho: "Informado", alinhar: "right", render: (valor) => dinheiro(valor as number | null) },
-            { campo: "diferenca", cabecalho: "Diferença", alinhar: "right", render: (valor) => <Typography color={(valor as number | null) === 0 ? "success.main" : "error.main"} sx={{ fontWeight: 700 }}>{dinheiro(valor as number | null)}</Typography> },
-        ]} linhas={historicoPagina} carregando={carregandoHistorico} obterChaveLinha={(sessao) => sessao.sessaoId} minWidth={1100} alturaCorpo={480} linhaCliqueavel onLinhaClick={abrirDetalhe}
+        {aba === 1 && <Box id="caixas-anteriores-painel" role="tabpanel" aria-labelledby="caixas-anteriores-tab">{erroHistorico && <Alert severity="error" action={<Button color="inherit" onClick={recarregarHistorico}>Tentar novamente</Button>}>{erroHistorico}</Alert>}<AppTable colunas={colunasHistorico}
+            linhas={historicoPagina} carregando={carregandoHistorico} obterChaveLinha={(sessao) => sessao.sessaoId} minWidth={1320} alturaCorpo={480} linhaCliqueavel onLinhaClick={abrirDetalhe}
             acoes={[{ rotulo: "Ver detalhes", icone: <VisibilityRoundedIcon fontSize="small" />, onClick: abrirDetalhe, tooltip: "Ver detalhes da sessão" }]}
+            sx={{ "& tbody .MuiTableCell-root": { py: 1.1, px: 1.5, verticalAlign: "middle" }, "& thead .MuiTableCell-root": { px: 1.5 }, "& > footer": { gap: 1, py: 0.75 }, "& .MuiTablePagination-actions .MuiIconButton-root": { width: 36, height: 36, border: 1, borderColor: "divider", borderRadius: 1 } }}
             vazio={{ titulo: "Nenhuma sessão encerrada", descricao: "As sessões fechadas aparecerão aqui." }} paginacao={{
             pagina: paginaHistoricoAtual,
             linhasPorPagina: porPaginaHistorico,
@@ -456,121 +466,128 @@ export default function Caixa() {
                 </DialogActions>
             </Box>
         </Dialog>
-        <Drawer anchor="right" open={detalhe !== null} onClose={() => setDetalhe(null)} slotProps={{ paper: { sx: { width: { xs: "100%", sm: 540 } } } }}>
-            {detalhe && <Box role="dialog" aria-labelledby="caixa-detalhe-titulo" sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-                <Box sx={{ px: 3, py: 2.5, borderBottom: 1, borderColor: "divider", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
-                    <Box>
-                        <Typography id="caixa-detalhe-titulo" variant="h6">{detalhe.descricaoCaixa}</Typography>
-                        <Typography variant="body2" color="text.secondary">Sessão #{detalhe.sessaoId}</Typography>
+        <Dialog open={detalhe !== null} onClose={() => setDetalhe(null)} fullWidth maxWidth="lg" scroll="paper" aria-labelledby="caixa-detalhe-titulo"
+            slotProps={{ paper: { sx: { maxHeight: "calc(100dvh - 32px)", height: { md: "min(760px, calc(100dvh - 32px))" }, borderRadius: 2 } } }}>
+            {detalhe && <>
+                <DialogTitle id="caixa-detalhe-titulo" sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, px: { xs: 2, sm: 3 }, py: 2, borderBottom: 1, borderColor: "divider" }}>
+                    <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>{detalhe.descricaoCaixa}</Typography>
+                        <Typography variant="body2" color="text.secondary">Sessão #{detalhe.sessaoId} · {data(detalhe.dataHoraAbertura)}</Typography>
                     </Box>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexShrink: 0 }}>
                         <Chip size="small" label="Fechado" variant="outlined" />
                         <IconButton aria-label="Fechar detalhe da sessão" onClick={() => setDetalhe(null)}><CloseRoundedIcon fontSize="small" /></IconButton>
                     </Stack>
-                </Box>
-                <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 2.5 }}>
-                    <Stack spacing={3}>
-                        {drawerErro && <Alert severity="error">{drawerErro}</Alert>}
-                        {drawerCarregando && <Skeleton variant="rounded" height={120} />}
-                        <Box component="dl" sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1.5, m: 0 }}>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Abertura</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{data(detalhe.dataHoraAbertura)}</Typography></Box>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Fechamento</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{data(detalhe.dataHoraFechamento)}</Typography></Box>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Operador de abertura</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{detalhe.operadorAbertura.nome}</Typography></Box>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Operador de fechamento</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{detalhe.operadorFechamento?.nome ?? "—"}</Typography></Box>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo inicial</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.saldoInicial)}</Typography></Box>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Total de vendas</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.totalVendas)}</Typography></Box>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Suprimentos</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{drawerDetalhe ? dinheiro(drawerDetalhe.resumo.suprimentos) : "—"}</Typography></Box>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Sangrias</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{drawerDetalhe ? dinheiro(drawerDetalhe.resumo.sangrias) : "—"}</Typography></Box>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo esperado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.dinheiroEsperado)}</Typography></Box>
-                            <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo informado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.valorInformado)}</Typography></Box>
-                        </Box>
-                        {drawerDetalhe && <Box component="section" aria-labelledby="origem-abertura-titulo">
-                            <Typography id="origem-abertura-titulo" variant="subtitle1" component="h3" sx={{ fontWeight: 700, mb: 1 }}>Composição da abertura</Typography>
-                            {drawerDetalhe.composicaoAbertura ? <Stack spacing={1} sx={{ overflowWrap: "anywhere" }}>
-                                {drawerDetalhe.composicaoAbertura.sessaoOrigemTrocoId && <Typography variant="body2">{dinheiro(drawerDetalhe.composicaoAbertura.valorTrocoHerdado)} · Troco herdado da sessão #{drawerDetalhe.composicaoAbertura.sessaoOrigemTrocoId} · {data(drawerDetalhe.composicaoAbertura.dataFechamentoOrigem)}</Typography>}
-                                {drawerDetalhe.composicaoAbertura.contaCofreId && <Typography variant="body2">{dinheiro(drawerDetalhe.composicaoAbertura.valorRetiradoCofre)} · Retirada do {drawerDetalhe.composicaoAbertura.contaCofreNome} · movimento #{drawerDetalhe.composicaoAbertura.movimentoFinanceiroId}</Typography>}
-                                {drawerDetalhe.composicaoAbertura.valorAporteExterno > 0 && <Typography variant="body2">{dinheiro(drawerDetalhe.composicaoAbertura.valorAporteExterno)} · Aporte externo. Motivo: {drawerDetalhe.composicaoAbertura.observacaoAporte}</Typography>}
-                                <Typography variant="caption" color="text.secondary">Confirmada por {drawerDetalhe.composicaoAbertura.operadorAbertura} em {data(drawerDetalhe.composicaoAbertura.dataCriacao)}</Typography>
-                            </Stack> : <Typography variant="body2" color="text.secondary">Abertura legada sem composição de origens registrada.</Typography>}
-                        </Box>}
-                        <Box sx={{ borderLeft: 3, borderColor: !detalhe.diferenca ? "success.main" : "warning.main", bgcolor: "action.hover", px: 2, py: 1.5 }}>
-                            <Typography variant="body2" color="text.secondary">Diferença</Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 750, fontVariantNumeric: "tabular-nums" }}>{dinheiro(detalhe.diferenca)}</Typography>
-                        </Box>
-
-                        <Divider />
-                        <Box>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>Conferência do fechamento</Typography>
-                            <Box component="dl" sx={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 1.5, m: 0 }}>
-                                <Box><Typography component="dt" variant="caption" color="text.secondary">Esperado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.dinheiroEsperado)}</Typography></Box>
-                                <Box><Typography component="dt" variant="caption" color="text.secondary">Informado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.valorInformado)}</Typography></Box>
-                                <Box><Typography component="dt" variant="caption" color="text.secondary">Diferença</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.diferenca)}</Typography></Box>
+                </DialogTitle>
+                <Tabs value={abaDetalhe} onChange={(_, valor) => setAbaDetalhe(valor)} aria-label="Detalhes da sessão encerrada"
+                    variant="scrollable" scrollButtons="auto" sx={{ px: { xs: 1, sm: 2 }, borderBottom: 1, borderColor: "divider" }}>
+                    <Tab id="caixa-detalhe-tab-0" aria-controls="caixa-detalhe-panel-0" label="Resumo" />
+                    <Tab id="caixa-detalhe-tab-1" aria-controls="caixa-detalhe-panel-1" label="Conferência" />
+                    <Tab id="caixa-detalhe-tab-2" aria-controls="caixa-detalhe-panel-2" label="Movimentações" />
+                </Tabs>
+                <DialogContent dividers sx={{ px: { xs: 2, sm: 3 }, py: 2.5, minHeight: 0 }}>
+                    {drawerErro && <Alert severity="error" sx={{ mb: 2 }}>{drawerErro}</Alert>}
+                    {drawerCarregando && <Skeleton variant="rounded" height={96} sx={{ mb: 2 }} />}
+                    <Box role="tabpanel" id="caixa-detalhe-panel-0" aria-labelledby="caixa-detalhe-tab-0" hidden={abaDetalhe !== 0} sx={{ outline: "none" }}>
+                        {abaDetalhe === 0 && <Stack spacing={2.5}>
+                            <Box component="dl" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: { xs: 1.5, sm: 2 }, m: 0 }}>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Abertura</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{data(detalhe.dataHoraAbertura)}</Typography></Box>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Fechamento</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{data(detalhe.dataHoraFechamento)}</Typography></Box>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Operador de abertura</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{detalhe.operadorAbertura.nome}</Typography></Box>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Operador de fechamento</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{detalhe.operadorFechamento?.nome ?? "—"}</Typography></Box>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo inicial</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.saldoInicial)}</Typography></Box>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Total de vendas</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.totalVendas)}</Typography></Box>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Suprimentos</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{drawerDetalhe ? dinheiro(drawerDetalhe.resumo.suprimentos) : "—"}</Typography></Box>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Sangrias</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{drawerDetalhe ? dinheiro(drawerDetalhe.resumo.sangrias) : "—"}</Typography></Box>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo esperado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.dinheiroEsperado)}</Typography></Box>
+                                <Box><Typography component="dt" variant="caption" color="text.secondary">Saldo informado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.valorInformado)}</Typography></Box>
                             </Box>
-                            {drawerDetalhe?.modalidadeConferencia === "LEGADA" && <Alert severity="info" variant="outlined" sx={{ mt: 1.5 }}>
-                                Fechamento legado: somente o dinheiro físico foi informado. Os demais meios não têm valores conferidos.
-                            </Alert>}
-                            {drawerDetalhe?.observacaoFechamento && <Typography variant="body2" sx={{ mt: 1.5 }}>{drawerDetalhe.observacaoFechamento}</Typography>}
-                        </Box>
-
-                        <Divider />
-                        <Box>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>Meios de pagamento</Typography>
-                            {drawerCarregando ? <Skeleton variant="rounded" height={72} /> : drawerDetalhe && <Stack spacing={0} sx={{ overflowX: "auto" }}>
-                                <Box sx={{ display: "grid", minWidth: 430, gridTemplateColumns: "minmax(0, 1fr) repeat(3, 92px)", gap: 1, pb: 1, borderBottom: 1, borderColor: "divider" }}>
-                                    <Typography variant="caption">Forma</Typography><Typography variant="caption" align="right">Esperado</Typography>
-                                    <Typography variant="caption" align="right">Informado</Typography><Typography variant="caption" align="right">Diferença</Typography>
+                            {drawerDetalhe && <Box component="section" aria-labelledby="origem-abertura-titulo">
+                                <Typography id="origem-abertura-titulo" variant="subtitle1" component="h3" sx={{ fontWeight: 700, mb: 1 }}>Composição da abertura</Typography>
+                                {drawerDetalhe.composicaoAbertura ? <Stack spacing={1} sx={{ overflowWrap: "anywhere" }}>
+                                    {drawerDetalhe.composicaoAbertura.sessaoOrigemTrocoId && <Typography variant="body2">{dinheiro(drawerDetalhe.composicaoAbertura.valorTrocoHerdado)} · Troco herdado da sessão #{drawerDetalhe.composicaoAbertura.sessaoOrigemTrocoId} · {data(drawerDetalhe.composicaoAbertura.dataFechamentoOrigem)}</Typography>}
+                                    {drawerDetalhe.composicaoAbertura.contaCofreId && <Typography variant="body2">{dinheiro(drawerDetalhe.composicaoAbertura.valorRetiradoCofre)} · Retirada do {drawerDetalhe.composicaoAbertura.contaCofreNome} · movimento #{drawerDetalhe.composicaoAbertura.movimentoFinanceiroId}</Typography>}
+                                    {drawerDetalhe.composicaoAbertura.valorAporteExterno > 0 && <Typography variant="body2">{dinheiro(drawerDetalhe.composicaoAbertura.valorAporteExterno)} · Aporte externo. Motivo: {drawerDetalhe.composicaoAbertura.observacaoAporte}</Typography>}
+                                    <Typography variant="caption" color="text.secondary">Confirmada por {drawerDetalhe.composicaoAbertura.operadorAbertura} em {data(drawerDetalhe.composicaoAbertura.dataCriacao)}</Typography>
+                                </Stack> : <Typography variant="body2" color="text.secondary">Abertura legada sem composição de origens registrada.</Typography>}
+                            </Box>}
+                            <Box sx={{ borderLeft: 3, borderColor: !detalhe.diferenca ? "success.main" : "warning.main", bgcolor: "action.hover", px: 2, py: 1.5 }}>
+                                <Typography variant="body2" color="text.secondary">Diferença</Typography>
+                                <Typography variant="h6" sx={{ fontWeight: 750, fontVariantNumeric: "tabular-nums" }}>{dinheiro(detalhe.diferenca)}</Typography>
+                            </Box>
+                        </Stack>}
+                    </Box>
+                    <Box role="tabpanel" id="caixa-detalhe-panel-1" aria-labelledby="caixa-detalhe-tab-1" hidden={abaDetalhe !== 1} sx={{ outline: "none" }}>
+                        {abaDetalhe === 1 && <>
+                        {drawerDetalhe && <Stack spacing={2.5}>
+                            <Box component="section" aria-labelledby="caixa-conferencia-fechamento">
+                                <Typography id="caixa-conferencia-fechamento" variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>Conferência do fechamento</Typography>
+                                <Box component="dl" sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 1.5, m: 0 }}>
+                                    <Box><Typography component="dt" variant="caption" color="text.secondary">Esperado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.dinheiroEsperado)}</Typography></Box>
+                                    <Box><Typography component="dt" variant="caption" color="text.secondary">Informado</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.valorInformado)}</Typography></Box>
+                                    <Box><Typography component="dt" variant="caption" color="text.secondary">Diferença</Typography><Typography component="dd" sx={{ m: 0, fontWeight: 700 }}>{dinheiro(detalhe.diferenca)}</Typography></Box>
                                 </Box>
-                                {(drawerDetalhe.modalidadeConferencia === "POR_CONFIGURACAO" || drawerDetalhe.modalidadeConferencia === "TOTAL_MEIOS")
-                                    ? drawerDetalhe.conferencias.map((linha, index) => <Box key={index} sx={{ display: "grid", minWidth: 430, gridTemplateColumns: "minmax(0, 1fr) repeat(3, 92px)", gap: 1, py: 1.25, borderBottom: 1, borderColor: "divider", fontVariantNumeric: "tabular-nums" }}>
-                                        <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{linha.descricao}</Typography>
-                                        <Typography variant="body2" align="right">{dinheiro(linha.valorEsperado)}</Typography>
-                                        <Typography variant="body2" align="right">{linha.valorInformado == null ? "Não informado" : dinheiro(linha.valorInformado)}</Typography>
-                                        <Typography variant="body2" align="right">{linha.diferenca == null ? "—" : dinheiro(linha.diferenca)}</Typography>
-                                    </Box>)
-                                    : [
-                                    { formaPagamentoId: null, descricao: "Dinheiro", total: detalhe.dinheiroEsperado, tipo: "DINHEIRO" },
-                                    ...drawerDetalhe.resumo.totaisPorFormaPagamento.filter((forma) => forma.tipo !== "DINHEIRO"),
-                                ].map((forma) => {
-                                    const conferencia = drawerDetalhe.conferencias.find((linha) => forma.formaPagamentoId === null
-                                        ? linha.escopo === "DINHEIRO_FISICO" : linha.formaPagamentoId === forma.formaPagamentoId);
-                                    const informado = forma.formaPagamentoId === null ? detalhe.valorInformado : conferencia?.valorInformado;
-                                    const diferenca = forma.formaPagamentoId === null ? detalhe.diferenca : conferencia?.diferenca;
-                                    return <Box key={forma.formaPagamentoId ?? "dinheiro"} sx={{ display: "grid", minWidth: 430, gridTemplateColumns: "minmax(0, 1fr) repeat(3, 92px)", gap: 1, py: 1.25, borderBottom: 1, borderColor: "divider", fontVariantNumeric: "tabular-nums" }}>
-                                        <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{forma.formaPagamentoId === null ? "Dinheiro físico" : forma.descricao}</Typography>
-                                        <Typography variant="body2" align="right">{dinheiro(forma.total)}</Typography>
-                                        <Typography variant="body2" align="right">{informado == null ? "—" : dinheiro(informado)}</Typography>
-                                        <Typography variant="body2" align="right" color={diferenca == null ? "text.secondary" : diferenca === 0 ? "success.main" : "error.main"}>{diferenca == null ? "—" : dinheiro(diferenca)}</Typography>
-                                    </Box>;
-                                })}
-                                {drawerDetalhe.resumo.totaisPorFormaPagamento.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ pt: 1.5 }}>Nenhuma venda registrada nesta sessão.</Typography>}
-                                {drawerDetalhe.modalidadeConferencia === "LEGADA" && <Typography role="status" variant="caption" color="text.secondary" sx={{ pt: 1 }}>Sem conferência por forma de pagamento.</Typography>}
-                            </Stack>}
-                        </Box>
-
-                        {!drawerCarregando && drawerDetalhe && <>
+                                {drawerDetalhe.modalidadeConferencia === "LEGADA" && <Alert severity="info" variant="outlined" sx={{ mt: 1.5 }}>Fechamento legado: somente o dinheiro físico foi informado. Os demais meios não têm valores conferidos.</Alert>}
+                                {drawerDetalhe.observacaoFechamento && <Typography variant="body2" sx={{ mt: 1.5 }}>{drawerDetalhe.observacaoFechamento}</Typography>}
+                            </Box>
                             <Divider />
-                            <Box>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>Movimentações</Typography>
-                                <Stack spacing={1.5}>
-                                    {drawerDetalhe.movimentacoes.map((movimento, indice) => <Box key={`${movimento.tipo}-${movimento.vendaId ?? indice}-${indice}`} sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 2 }}>
-                                        <Box>
-                                            <Typography variant="body2">{rotuloMovimentacao[movimento.tipo]}{movimento.vendaId ? ` #${movimento.vendaId}` : ""}</Typography>
-                                            <Typography variant="caption" color="text.secondary">{data(movimento.dataHora)}{movimento.observacao ? ` · ${movimento.observacao}` : ""}</Typography>
-                                            <Typography variant="caption" color="text.secondary">{movimento.usuarioNome ?? "Usuário não identificado"}{movimento.origemAutomatica ? " · registro automático" : ""}</Typography>
-                                        </Box>
-                                        <Typography variant="body2" color={movimento.tipo === "VENDA_CANCELADA" ? "text.secondary" : "text.primary"}
-                                            sx={{ fontWeight: 700, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums",
-                                                textDecoration: movimento.tipo === "VENDA_CANCELADA" ? "line-through" : "none" }}>
-                                            {movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? "−" : ""}{dinheiro(movimento.valor)}
-                                        </Typography>
-                                    </Box>)}
+                            <Box component="section" aria-labelledby="caixa-meios-pagamento">
+                                <Typography id="caixa-meios-pagamento" variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>Meios de pagamento</Typography>
+                                <Stack spacing={0} sx={{ overflowX: "auto" }}>
+                                    <Box sx={{ display: "grid", minWidth: 430, gridTemplateColumns: "minmax(0, 1fr) repeat(3, 92px)", gap: 1, pb: 1, borderBottom: 1, borderColor: "divider" }}>
+                                        <Typography variant="caption">Forma</Typography><Typography variant="caption" align="right">Esperado</Typography>
+                                        <Typography variant="caption" align="right">Informado</Typography><Typography variant="caption" align="right">Diferença</Typography>
+                                    </Box>
+                                    {(drawerDetalhe.modalidadeConferencia === "POR_CONFIGURACAO" || drawerDetalhe.modalidadeConferencia === "TOTAL_MEIOS")
+                                        ? drawerDetalhe.conferencias.map((linha, index) => <Box key={index} sx={{ display: "grid", minWidth: 430, gridTemplateColumns: "minmax(0, 1fr) repeat(3, 92px)", gap: 1, py: 1.25, borderBottom: 1, borderColor: "divider", fontVariantNumeric: "tabular-nums" }}>
+                                            <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{linha.descricao}</Typography>
+                                            <Typography variant="body2" align="right">{dinheiro(linha.valorEsperado)}</Typography>
+                                            <Typography variant="body2" align="right">{linha.valorInformado == null ? "Não informado" : dinheiro(linha.valorInformado)}</Typography>
+                                            <Typography variant="body2" align="right">{linha.diferenca == null ? "—" : dinheiro(linha.diferenca)}</Typography>
+                                        </Box>)
+                                        : [
+                                            { formaPagamentoId: null, descricao: "Dinheiro", total: detalhe.dinheiroEsperado, tipo: "DINHEIRO" },
+                                            ...drawerDetalhe.resumo.totaisPorFormaPagamento.filter((forma) => forma.tipo !== "DINHEIRO"),
+                                        ].map((forma) => {
+                                            const conferencia = drawerDetalhe.conferencias.find((linha) => forma.formaPagamentoId === null
+                                                ? linha.escopo === "DINHEIRO_FISICO" : linha.formaPagamentoId === forma.formaPagamentoId);
+                                            const informado = forma.formaPagamentoId === null ? detalhe.valorInformado : conferencia?.valorInformado;
+                                            const diferenca = forma.formaPagamentoId === null ? detalhe.diferenca : conferencia?.diferenca;
+                                            return <Box key={forma.formaPagamentoId ?? "dinheiro"} sx={{ display: "grid", minWidth: 430, gridTemplateColumns: "minmax(0, 1fr) repeat(3, 92px)", gap: 1, py: 1.25, borderBottom: 1, borderColor: "divider", fontVariantNumeric: "tabular-nums" }}>
+                                                <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{forma.formaPagamentoId === null ? "Dinheiro físico" : forma.descricao}</Typography>
+                                                <Typography variant="body2" align="right">{dinheiro(forma.total)}</Typography>
+                                                <Typography variant="body2" align="right">{informado == null ? "—" : dinheiro(informado)}</Typography>
+                                                <Typography variant="body2" align="right" color={diferenca == null ? "text.secondary" : diferenca === 0 ? "success.main" : "error.main"}>{diferenca == null ? "—" : dinheiro(diferenca)}</Typography>
+                                            </Box>;
+                                        })}
+                                    {drawerDetalhe.resumo.totaisPorFormaPagamento.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ pt: 1.5 }}>Nenhuma venda registrada nesta sessão.</Typography>}
+                                    {drawerDetalhe.modalidadeConferencia === "LEGADA" && <Typography role="status" variant="caption" color="text.secondary" sx={{ pt: 1 }}>Sem conferência por forma de pagamento.</Typography>}
                                 </Stack>
                             </Box>
+                        </Stack>}
+                        {!drawerDetalhe && !drawerCarregando && !drawerErro && <Typography color="text.secondary">Conferência indisponível para esta sessão.</Typography>}
                         </>}
-                    </Stack>
-                </Box>
-            </Box>}
-        </Drawer>
+                    </Box>
+                    <Box role="tabpanel" id="caixa-detalhe-panel-2" aria-labelledby="caixa-detalhe-tab-2" hidden={abaDetalhe !== 2} sx={{ outline: "none" }}>
+                        {abaDetalhe === 2 && <>
+                        {drawerDetalhe ? drawerDetalhe.movimentacoes.length === 0 ? <Typography color="text.secondary">Nenhuma movimentação registrada nesta sessão.</Typography> : <Stack spacing={0}>
+                            {drawerDetalhe.movimentacoes.map((movimento, indice) => <Box key={`${movimento.tipo}-${movimento.vendaId ?? indice}-${indice}`} sx={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 1.5, py: 1.5, borderBottom: 1, borderColor: "divider" }}>
+                                <Box sx={{ minWidth: 0, flex: "1 1 260px" }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{rotuloMovimentacao[movimento.tipo]}{movimento.vendaId ? ` #${movimento.vendaId}` : ""}</Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", overflowWrap: "anywhere" }}>{data(movimento.dataHora)}{movimento.observacao ? ` · ${movimento.observacao}` : ""}</Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{movimento.usuarioNome ?? "Usuário não identificado"}{movimento.origemAutomatica ? " · registro automático" : ""}</Typography>
+                                </Box>
+                                <Typography variant="body2" color={movimento.tipo === "VENDA_CANCELADA" ? "text.secondary" : "text.primary"}
+                                    sx={{ fontWeight: 700, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", textDecoration: movimento.tipo === "VENDA_CANCELADA" ? "line-through" : "none" }}>
+                                    {movimento.tipo === "SANGRIA" || movimento.tipo === "ESTORNO_VENDA" ? "−" : ""}{dinheiro(movimento.valor)}
+                                </Typography>
+                            </Box>)}
+                        </Stack> : !drawerCarregando && !drawerErro && <Typography color="text.secondary">Movimentações indisponíveis para esta sessão.</Typography>}
+                        </>}
+                    </Box>
+                </DialogContent>
+            </>}
+        </Dialog>
         <Dialog open={gerenciando} fullWidth maxWidth="lg" aria-labelledby="caixa-gerenciar-titulo" onClose={() => setGerenciando(false)}><DialogTitle id="caixa-gerenciar-titulo">Cadastro de caixas</DialogTitle><DialogContent dividers><Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Cadastre e edite os caixas físicos. Abertura, fechamento e movimentações pertencem às sessões.</Typography><AppTable colunas={colunasCadastro} linhas={caixasFiltrados} obterChaveLinha={(caixa) => caixa.id} acoes={acoesCadastro} minWidth={600} filtros={<FormControl size="small" sx={{ minWidth: 160 }}><InputLabel id="caixa-situacao-label">Situação</InputLabel><Select labelId="caixa-situacao-label" label="Situação" value={situacaoCadastros} inputProps={{ "aria-label": "Filtrar caixas por situação", name: "situacao" }} onChange={(evento) => setSituacaoCadastros(evento.target.value)}><MenuItem value="todos">Todas</MenuItem><MenuItem value="ativos">Ativos</MenuItem><MenuItem value="inativos">Inativos</MenuItem></Select></FormControl>} vazio={{ titulo: "Nenhum caixa encontrado", descricao: situacaoCadastros !== "todos" ? "Tente ajustar o filtro de situação." : "Cadastre um caixa para habilitar a abertura de sessões." }} /></DialogContent><DialogActions><Button type="button" onClick={() => setGerenciando(false)}>Fechar</Button><Button type="button" variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setEditor({ caixa: null })}>Novo caixa</Button></DialogActions></Dialog>
         {editor && <CaixaForm caixa={editor.caixa} onFechar={() => setEditor(null)} onSalvo={salvo} />}
     </PageContainer>;
