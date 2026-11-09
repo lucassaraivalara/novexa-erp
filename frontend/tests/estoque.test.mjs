@@ -4,7 +4,7 @@ import { createServer } from "vite";
 import { readFile } from "node:fs/promises";
 
 const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
-const { situacaoEstoque, novoSaldoEsperado } = await server.ssrLoadModule("/src/pages/Estoque/estoqueRegras.ts");
+const { situacaoEstoque, novoSaldoEsperado, quantidadeComUnidade, impedimentoMovimentacao } = await server.ssrLoadModule("/src/pages/Estoque/estoqueRegras.ts");
 const { listarProdutosEstoque, registrarEntrada, registrarSaida, registrarAjuste, listarHistoricoProduto, obterMensagemEstoque } = await server.ssrLoadModule("/src/services/estoqueService.ts");
 const apiModule = await server.ssrLoadModule("/src/services/api.ts");
 const { AxiosError } = await server.ssrLoadModule("axios");
@@ -37,6 +37,24 @@ test("calcula entrada, saída e ajuste como novo saldo", () => {
     assert.equal(novoSaldoEsperado("ENTRADA", 10, 5), 15);
     assert.equal(novoSaldoEsperado("SAIDA", 10, 3), 7);
     assert.equal(novoSaldoEsperado("AJUSTE", 15, 12), 12);
+});
+
+test("quantidade mantém unidade, frações e saldo negativo sem presumir UN", () => {
+    assert.equal(quantidadeComUnidade(1.25, "KG"), "1,25 KG");
+    assert.equal(quantidadeComUnidade(-2.125, "UN"), "-2,125 UN");
+    assert.equal(quantidadeComUnidade(0, ""), "0 (unidade não informada)");
+    assert.equal(impedimentoMovimentacao({ ativo: true, controlaEstoque: true }), "");
+    assert.match(impedimentoMovimentacao({ composto: true }), /componentes/);
+    assert.match(impedimentoMovimentacao({ ativo: false }), /Reative/);
+    assert.match(impedimentoMovimentacao({ ativo: true, controlaEstoque: false }), /sem controle/);
+});
+
+test("mensagem estruturada preserva causa funcional e oculta erro interno", () => {
+    const erro = (status, data) => new AxiosError("Falha", "ERR_BAD_RESPONSE", undefined, undefined, { status, data });
+    assert.equal(obterMensagemEstoque(erro(409, { detail: "Saldo insuficiente." }), "Falha"), "Saldo insuficiente.");
+    assert.equal(obterMensagemEstoque(erro(400, { message: "Período inválido." }), "Falha"), "Período inválido.");
+    assert.doesNotMatch(obterMensagemEstoque(erro(500, "SQL stack trace"), "Falha"), /SQL|stack/);
+    assert.match(obterMensagemEstoque(new AxiosError("Network"), "Falha"), /consulte o saldo e o histórico/);
 });
 
 test("serviço usa endpoints oficiais sem enviar empresa ou usuário", async () => {

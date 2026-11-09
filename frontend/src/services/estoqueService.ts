@@ -55,7 +55,10 @@ export async function listarHistoricoProduto(produtoId: number, params: FiltrosH
 
 export function obterMensagemEstoque(erro: unknown, mensagemPadrao: string): string {
     if (!axios.isAxiosError(erro)) return mensagemPadrao;
-    if (typeof erro.response?.data === "string" && erro.response.data.trim()) return erro.response.data;
-    if (!erro.response) return "Não foi possível comunicar com o backend. Verifique se a API está em execução.";
+    if (!erro.response) return "Não foi possível comunicar com a API. Verifique a conexão. Se estava confirmando uma movimentação, consulte o saldo e o histórico antes de enviar novamente.";
+    const { status, data } = erro.response;
+    if (status >= 500) return "A API não concluiu a resposta. Consulte o saldo e o histórico antes de repetir uma movimentação. Se o problema persistir, contate o suporte.";
+    const mensagem = typeof data === "string" ? data : data?.detail ?? data?.message;
+    if (typeof mensagem === "string" && mensagem.trim()) return mensagem.trim().slice(0, 500);
     return mensagemPadrao;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { Alert, Autocomplete, Box, Button, Chip, ClickAwayListener, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, MenuItem, Paper, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination, Tabs, TextField, Tooltip, Typography } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
@@ -21,6 +21,7 @@ import { obterSessao } from "../../utils/auth/sessao";
 import { listarHistoricoProduto, listarProdutosEstoque, obterMensagemEstoque, type MovimentacaoEstoque } from "../../services/estoqueService";
 import { confirmarAjusteLote, previaAjusteLote, previaImportacaoEstoque, type PedidoAjusteLote, type ResultadoAjusteLote, type PreviaImportacaoEstoque } from "../../services/ajusteEstoqueLoteService";
 import type { Produto } from "../../types/produto";
+import { impedimentoMovimentacao, quantidadeComUnidade } from "./estoqueRegras";
 
 const formatar = (v: number | null) => v === null ? "—" : v.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 const decimalPlanilha = (v: string | null) => v == null ? "—" : v.replace(".", ",");
@@ -91,6 +92,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
     const [totalHistorico, setTotalHistorico] = useState(0);
     const [carregandoHistorico, setCarregandoHistorico] = useState(false);
     const [erroHistorico, setErroHistorico] = useState("");
+    const [revisaoHistorico, setRevisaoHistorico] = useState(0);
     const [filtrosHistorico, setFiltrosHistorico] = useState({ tipo: "", origem: "", dataInicial: "", dataFinal: "", sort: "dataHora,desc" });
     const emEnvio = useRef(false);
     const previaConcluida = useRef<ResultadoAjusteLote | null>(null);
@@ -98,6 +100,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
     const telaAnterior = useRef(telaAjuste);
     const admin = obterSessao()?.perfil === "ADMIN";
     const editavel = (!previa || !modoImportacao) && !resultado && !pendente && !enviando;
+    const periodoInvalido = Boolean(filtrosHistorico.dataInicial && filtrosHistorico.dataFinal && filtrosHistorico.dataInicial > filtrosHistorico.dataFinal);
 
     useEffect(() => {
         if (!telaAjuste || !editavel || modoImportacao || !busca.trim()) return;
@@ -112,10 +115,10 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
         return () => { clearTimeout(timer); controller.abort(); };
     }, [telaAjuste, editavel, modoImportacao, busca, pagina]);
 
-    const produtosDoHistorico = Array.from(new Map([...produtosUltimoLote, ...itens.map(i => i.produto)].map(p => [p.id, p])).values());
+    const produtosDoHistorico = useMemo(() => Array.from(new Map([...produtosUltimoLote, ...itens.map(i => i.produto)].map(p => [p.id, p])).values()), [produtosUltimoLote, itens]);
     const produtoHistorico = produtosDoHistorico.find(p => p.id === produtoHistoricoId);
     useEffect(() => {
-        if (!telaAjuste || abaConferencia !== 1 || !produtoHistorico) return;
+        if (!telaAjuste || abaConferencia !== 1 || !produtoHistorico || periodoInvalido) return;
         const controller = new AbortController();
         const timer = window.setTimeout(() => {
             setCarregandoHistorico(true); setErroHistorico("");
@@ -127,7 +130,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                 .finally(() => { if (!controller.signal.aborted) setCarregandoHistorico(false); });
         }, 0);
         return () => { window.clearTimeout(timer); controller.abort(); };
-    }, [telaAjuste, abaConferencia, produtoHistorico, paginaHistorico, sizeHistorico, filtrosHistorico]);
+    }, [telaAjuste, abaConferencia, produtoHistorico, paginaHistorico, sizeHistorico, filtrosHistorico, periodoInvalido, revisaoHistorico]);
 
     function trocarTelaAjuste(aberta: boolean) {
         setTelaAjusteLocal(aberta); onTelaAjusteChange?.(aberta);
@@ -158,7 +161,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
         } catch (e) {
             const status = axios.isAxiosError(e) ? e.response?.status : undefined;
             setErro(status === 413 ? "O arquivo excede 2 MiB ou 200 linhas. Divida a planilha e tente novamente."
-                : "Não foi possível analisar o arquivo. Confira o formato CSV/XLSX e as mensagens de validação.");
+                : obterMensagemEstoque(e, "Não foi possível analisar o arquivo. Confira o formato CSV/XLSX e as mensagens de validação."));
         } finally { emEnvio.current = false; setEnviando(false); }
     }
     async function confirmar() {
@@ -211,7 +214,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
     }
 
     return <>
-        {!telaAjuste && <Stack direction="row" spacing={1}>
+        {!telaAjuste && <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }}>
             <Button ref={gatilhoAjuste} variant="outlined" startIcon={<TuneRoundedIcon />} onClick={() => abrir(false)}>Ajuste em massa</Button>
             <Button variant="outlined" onClick={() => abrir(true)}>Importar planilha</Button>
         </Stack>}
@@ -241,7 +244,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                             {carregando ? <Typography role="status" sx={{ p: 1.5 }}>Pesquisando…</Typography> : produtos.length === 0 ? <Typography sx={{ p: 1.5 }} color="text.secondary">Nenhum produto encontrado.</Typography> :
                                 <Stack component="ul" role="list" divider={<Divider />} sx={{ listStyle: "none", p: 0, m: 0 }}>
                                     {produtos.map(p => <Box component="li" key={p.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, px: 1.5, py: 0.75 }}>
-                                        <Box sx={{ minWidth: 0 }}><Typography variant="body2" noWrap>{p.codigoInterno} · {p.nome}</Typography><Typography variant="caption" color="text.secondary">Saldo: {formatar(p.estoqueAtual)}</Typography></Box>
+                                        <Box sx={{ minWidth: 0 }}><Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{p.codigoInterno} · {p.nome}</Typography><Typography variant="caption" color="text.secondary">Saldo: {quantidadeComUnidade(p.estoqueAtual, p.unidadeMedida)}</Typography>{impedimentoMovimentacao(p) && <Typography variant="caption" sx={{ display: "block" }} color="text.secondary">{impedimentoMovimentacao(p)}</Typography>}</Box>
                                         <Button size="small" startIcon={<AddRoundedIcon />} disabled={!editavel || itens.length >= 200 || itens.some(i => i.produto.id === p.id) || !p.ativo || !p.controlaEstoque || p.composto}
                                             aria-label={`Adicionar ${p.nome}`} onClick={() => { setPrevia(null); setItens(atual => [...atual, { produto: p, valor: "" }]); setProdutoHistoricoId(atual => atual || p.id); }}>
                                             {itens.some(i => i.produto.id === p.id) ? "Adicionado" : "Adicionar"}
@@ -268,7 +271,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                                     <Box sx={{ minWidth: 0, gridColumn: { xs: "1 / -1", sm: "auto" }, [painelEstreito]: { gridColumn: "1 / -1" } }}>
                                         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}><ViewInArOutlinedIcon sx={{ color: "text.secondary", display: { xs: "none", md: "block" } }} /><Box sx={{ minWidth: 0 }}>
                                         <Typography variant="body2" title={i.produto.nome} sx={{ fontWeight: 600, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{i.produto.nome}</Typography>
-                                        <Typography variant="caption" color="text.secondary">{i.produto.codigoInterno}</Typography>
+                                        <Typography variant="caption" color="text.secondary">{i.produto.codigoInterno} · {i.produto.unidadeMedida || "Unidade não informada"}</Typography>
                                         </Box></Stack>
                                     </Box>
                                     <Typography variant="body2" sx={{ textAlign: { xs: "left", sm: "right" }, fontVariantNumeric: "tabular-nums", [painelEstreito]: { textAlign: "left" } }}><Box component="span" sx={{ display: { xs: "inline", sm: "none" }, [painelEstreito]: { display: "inline" } }}>Atual: </Box>{formatar(linha?.saldoAnterior ?? i.produto.estoqueAtual)}</Typography>
@@ -316,9 +319,9 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                                         const l = linhas?.find(x => x.produtoId === i.produto.id);
                                         return <TableRow key={i.produto.id}>
                                             <TableCell><Stack direction="row" spacing={1} sx={{ alignItems: "center" }}><ViewInArOutlinedIcon sx={{ color: "text.secondary" }} /><Box><Typography variant="body2" sx={{ fontWeight: 600 }}>{l?.nome ?? i.produto.nome}</Typography><Typography variant="caption">{i.produto.codigoInterno}</Typography></Box></Stack></TableCell>
-                                            <TableCell align="right">{formatar(l?.saldoAnterior ?? null)}</TableCell>
-                                            <TableCell align="right">{l?.saldoFinal == null ? "—" : l.saldoFinal.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</TableCell>
-                                            <TableCell align="right"><Diferenca valor={l?.diferenca ?? null} /></TableCell>
+                                            <TableCell align="right">{quantidadeComUnidade(l?.saldoAnterior ?? null, l?.unidade ?? i.produto.unidadeMedida)}</TableCell>
+                                            <TableCell align="right">{quantidadeComUnidade(l?.saldoFinal ?? null, l?.unidade ?? i.produto.unidadeMedida)}</TableCell>
+                                            <TableCell align="right"><Diferenca valor={l?.diferenca ?? null} /><Typography variant="caption" sx={{ display: "block" }} color="text.secondary">{l?.unidade ?? i.produto.unidadeMedida ?? "Unidade não informada"}</Typography></TableCell>
                                             <TableCell>{l?.erros.length ? <Typography variant="caption" color="error">{l.erros.join(" ")}</Typography> : l?.status === "SEM_ALTERACAO" ? "Sem alteração" : resultado ? `Aplicado · movimento ${l?.movimentacaoId ?? "—"}` : <Chip size="small" variant="outlined" color="success" label="Válido" />}</TableCell>
                                             <TableCell><DirecaoAjuste valor={l?.diferenca ?? null} /></TableCell>
                                         </TableRow>;
@@ -352,19 +355,24 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                                 <TextField select size="small" label="Ordem" value={filtrosHistorico.sort} onChange={e => { setPaginaHistorico(0); setFiltrosHistorico(f => ({ ...f, sort: e.target.value })); }}>
                                     <MenuItem value="dataHora,desc">Mais recentes</MenuItem><MenuItem value="dataHora,asc">Mais antigas</MenuItem>
                                 </TextField>
+                                {(filtrosHistorico.tipo || filtrosHistorico.origem || filtrosHistorico.dataInicial || filtrosHistorico.dataFinal || filtrosHistorico.sort !== "dataHora,desc") && <Button size="small" onClick={() => { setPaginaHistorico(0); setFiltrosHistorico({ tipo: "", origem: "", dataInicial: "", dataFinal: "", sort: "dataHora,desc" }); }}>Limpar filtros do histórico</Button>}
                             </Stack>
-                            {erroHistorico && <Alert severity="error" role="alert">{erroHistorico}</Alert>}
+                            <Typography variant="caption" color="text.secondary">Unidade: {produtoHistorico.unidadeMedida || "não informada"} · Ajuste informa o saldo físico final.</Typography>
+                            {periodoInvalido && <Alert severity="warning">A data inicial deve ser anterior ou igual à data final. Corrija o período para consultar.</Alert>}
+                            {erroHistorico && !periodoInvalido && <Alert severity="error" role="alert" action={<Button color="inherit" onClick={() => setRevisaoHistorico(r => r + 1)}>Tentar novamente</Button>}>{erroHistorico}</Alert>}
                             <TableContainer tabIndex={0} aria-label="Histórico de movimentações" sx={{ maxHeight: { xs: 360, lg: "clamp(180px, 48vh, 520px)" }, overflow: "auto" }}>
                                 <Table size="small" stickyHeader sx={{ minWidth: 940 }}>
-                                    <TableHead><TableRow><TableCell>Data</TableCell><TableCell>Código</TableCell><TableCell>Produto</TableCell><TableCell>Tipo / origem</TableCell><TableCell>Entrada / saída</TableCell><TableCell align="right">Quantidade</TableCell><TableCell>Motivo</TableCell><TableCell>Usuário</TableCell></TableRow></TableHead>
-                                    <TableBody>{carregandoHistorico ? <TableRow><TableCell colSpan={8}><Typography role="status">Carregando histórico…</Typography></TableCell></TableRow> : historico.length === 0 ? <TableRow><TableCell colSpan={8}>Nenhuma movimentação encontrada.</TableCell></TableRow> : historico.map(m => <TableRow key={m.id}>
+                                    <TableHead><TableRow><TableCell>Data</TableCell><TableCell>Código</TableCell><TableCell>Produto</TableCell><TableCell>Tipo / origem</TableCell><TableCell>Entrada / saída</TableCell><TableCell align="right">Quantidade / saldo físico</TableCell><TableCell align="right">Saldo anterior</TableCell><TableCell align="right">Saldo posterior</TableCell><TableCell>Motivo</TableCell><TableCell>Usuário</TableCell></TableRow></TableHead>
+                                    <TableBody>{periodoInvalido || erroHistorico ? null : carregandoHistorico ? <TableRow><TableCell colSpan={10}><Typography role="status">Carregando histórico…</Typography></TableCell></TableRow> : historico.length === 0 ? <TableRow><TableCell colSpan={10}>Nenhuma movimentação encontrada. Revise os filtros ou consulte outro período.</TableCell></TableRow> : historico.map(m => <TableRow key={m.id}>
                                         <TableCell sx={{ whiteSpace: "nowrap" }}>{formatarDataHora(m.dataHora)}</TableCell><TableCell>{produtoHistorico.codigoInterno}</TableCell><TableCell sx={{ minWidth: 140, maxWidth: 200 }}>{m.produtoNome}</TableCell><TableCell>{m.tipo} · {m.origem}</TableCell>
                                         <TableCell>{m.saldoPosterior > m.saldoAnterior ? "Entrada" : m.saldoPosterior < m.saldoAnterior ? "Saída" : "Sem variação"}</TableCell>
-                                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{formatar(m.quantidade)}</TableCell><TableCell sx={{ minWidth: 140, maxWidth: 220 }}>{m.motivo || "Sem motivo informado"}</TableCell><TableCell>{m.nomeUsuario || "—"}</TableCell>
+                                        <TableCell align="right" sx={{ fontVariantNumeric: "tabular-nums" }}>{quantidadeComUnidade(m.quantidade, produtoHistorico.unidadeMedida)}</TableCell>
+                                        <TableCell align="right">{quantidadeComUnidade(m.saldoAnterior, produtoHistorico.unidadeMedida)}</TableCell><TableCell align="right">{quantidadeComUnidade(m.saldoPosterior, produtoHistorico.unidadeMedida)}</TableCell>
+                                        <TableCell sx={{ minWidth: 140, maxWidth: 220 }}>{m.motivo || "Sem motivo informado"}</TableCell><TableCell>{m.nomeUsuario || "—"}</TableCell>
                                     </TableRow>)}</TableBody>
                                 </Table>
                             </TableContainer>
-                            <TablePagination component="div" count={totalHistorico} page={paginaHistorico} rowsPerPage={sizeHistorico} rowsPerPageOptions={[10, 25, 50]}
+                            <TablePagination component="div" labelRowsPerPage="Itens por página" labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`} count={totalHistorico} page={paginaHistorico} rowsPerPage={sizeHistorico} rowsPerPageOptions={[10, 25, 50]}
                                 onPageChange={(_, p) => setPaginaHistorico(p)} onRowsPerPageChange={e => { setSizeHistorico(Number(e.target.value)); setPaginaHistorico(0); }} />
                         </> : <Typography color="text.secondary">Adicione um produto ao ajuste para consultar as movimentações dele.</Typography>}
                     </Stack>}
@@ -380,6 +388,7 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                     {erro && <Alert severity="error" role="alert">{erro}</Alert>}
                     {resultado && <Alert severity="success" role="status">Lote confirmado: {resultado.alterados} ajustes e {resultado.semAlteracao} produtos sem alteração. Sem diferença não gera movimento.</Alert>}
                     {modoImportacao && <>
+                        <Typography variant="body2" color="text.secondary">Use Código, Produto e Quantidade do modelo. Quantidade é o saldo físico final na unidade do cadastro, com até três casas decimais. A identificação usa o código; a descrição não substitui um código válido. Analisar o arquivo não altera o estoque.</Typography>
                         <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}>
                             <Button onClick={baixarModelo}>Baixar modelo CSV</Button>
                             <Button component="label" variant="outlined" disabled={!editavel}>
@@ -400,11 +409,12 @@ export default function AjusteEstoqueMassa({ onConcluido, telaAjuste: telaAjuste
                                     <TableHead><TableRow><TableCell>Linha / código</TableCell><TableCell>Produto</TableCell><TableCell align="right">Atual</TableCell><TableCell align="right">Importado</TableCell><TableCell align="right">Diferença</TableCell><TableCell>Situação</TableCell></TableRow></TableHead>
                                     <TableBody>{importacao.linhas.slice(paginaImportacao * 25, (paginaImportacao + 1) * 25).map(l => {
                                         const concluida = resultado?.itens.find(i => i.produtoId === l.produtoId);
+                                        const unidade = importacao.lote.itens.find(i => i.produtoId === l.produtoId)?.unidade || "Unidade não informada";
                                         return <TableRow key={l.linha}>
-                                            <TableCell>{l.linha} · {l.codigo}</TableCell><TableCell>{l.produto ?? "Produto não identificado"}{l.descricaoPlanilha ? ` · planilha: ${l.descricaoPlanilha}` : ""}</TableCell>
+                                            <TableCell>{l.linha} · {l.codigo}</TableCell><TableCell>{l.produto ?? "Produto não identificado"}{l.descricaoPlanilha ? ` · planilha: ${l.descricaoPlanilha}` : ""}<Typography variant="caption" sx={{ display: "block" }} color="text.secondary">{unidade}</Typography></TableCell>
                                             <TableCell align="right">{decimalPlanilha(l.saldoAtual)}</TableCell><TableCell align="right">{decimalPlanilha(l.quantidade)}</TableCell>
                                             <TableCell align="right">{decimalPlanilha(l.diferenca)}</TableCell>
-                                            <TableCell>{l.erros.length ? l.erros.join(" ") : concluida ? `Aplicado · movimento ${concluida.movimentacaoId ?? "—"}` : l.situacao === "SEM_ALTERACAO" ? "Sem alteração" : "Válido"}</TableCell>
+                                            <TableCell>{l.erros.length ? <Typography variant="body2" color="error.main">{l.erros.join(" ")}</Typography> : concluida ? concluida.status === "SEM_ALTERACAO" ? "Sem alteração" : `Aplicado · movimento ${concluida.movimentacaoId ?? "—"}` : l.situacao === "SEM_ALTERACAO" ? "Sem alteração" : "Válido"}</TableCell>
                                         </TableRow>;
                                     })}</TableBody>
                                 </Table>

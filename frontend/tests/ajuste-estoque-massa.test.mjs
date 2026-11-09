@@ -126,7 +126,7 @@ test('sucesso libera dois ajustes consecutivos do mesmo produto com nova chave e
     await expect(page.getByRole('textbox', { name: 'Pesquisar produtos', exact: true })).toHaveValue('');
     await expect(page.getByText('0/200', { exact: true })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Saldo físico Produto A', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('cell', { name: '+5,125', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('cell', { name: '+5,125 UN', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Confirmar ajustes', exact: true })).toHaveCount(0);
     await expect(page.getByRole('status')).toContainText('Ajuste realizado com sucesso. 1 produto atualizado.');
     assert.equal(await page.evaluate(() => window.atualizacoes), 1);
@@ -141,7 +141,7 @@ test('sucesso libera dois ajustes consecutivos do mesmo produto com nova chave e
     await page.getByRole('textbox', { name: 'Saldo físico Produto A', exact: true }).fill('20,000');
     await page.getByRole('textbox', { name: 'Motivo do ajuste em massa' }).fill('Segundo ajuste');
     await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
-    await expect(page.getByRole('cell', { name: '+4,875', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: '+4,875 UN', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Confirmar ajustes', exact: true }).click();
     await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('');
     const confirmacoes = pedidos.filter(p => p.path.endsWith('confirmar'));
@@ -165,7 +165,7 @@ for (const status of [400, 422, 500]) test(`confirmação HTTP ${status} preserv
     await page.getByRole('button', { name: 'Confirmar ajustes', exact: true }).click();
     await expect(page.getByRole('alert').filter({ hasText: status === 500 ? 'mesma chave' : 'recusada' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('Contagem de conferência');
-    if (status === 500) await expect(page.getByRole('cell', { name: '15,125', exact: true })).toBeVisible();
+    if (status === 500) await expect(page.getByRole('cell', { name: '15,125 UN', exact: true })).toBeVisible();
     else await expect(page.getByRole('textbox', { name: 'Saldo físico Produto A', exact: true })).toHaveValue('15,125');
     await expect(page.getByRole('textbox', { name: 'Pesquisar produtos', exact: true })).toHaveValue('Produto');
     await expect(page.getByText('1/200', { exact: true })).toBeVisible();
@@ -181,7 +181,7 @@ test('replay idempotente confirmado limpa somente após resposta e não duplica 
     await page.getByRole('button', { name: 'Confirmar ajustes', exact: true }).click();
     await expect(page.getByRole('alert').filter({ hasText: 'mesma chave' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('Contagem de conferência');
-    await expect(page.getByRole('cell', { name: '15,125', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: '15,125 UN', exact: true })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toBeDisabled();
     await expect(page.getByText(/Ajuste realizado com sucesso/)).toHaveCount(0);
     assert.equal(movimentosGerados.length, 1, 'servidor simulado já confirmou antes de perder a resposta');
@@ -214,7 +214,7 @@ test('P014 saldo zero e físico 20,000 envia decimal canônico e mostra entrada 
     await page.getByRole('textbox', { name: 'Saldo físico Bala de Menta', exact: true }).fill('20,000');
     await page.getByRole('textbox', { name: 'Motivo do ajuste em massa' }).fill('teste');
     await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
-    await expect(page.getByRole('cell', { name: '+20,000', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: '+20,000 UN', exact: true })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Entrada', exact: true })).toBeVisible();
     assert.equal(pedidos.length, 1); assert.equal(pedidos[0].itens[0].produtoId, 14); assert.equal(pedidos[0].itens[0].valor, '20.000');
     assert.equal(pedidos[0].motivo, 'teste'); assert.deepEqual(erros, []);
@@ -251,12 +251,12 @@ test('saída, zero e edição invalidam a prévia anterior; lixeira mantém tool
     const input = page.getByRole('textbox', { name: 'Saldo físico Produto A', exact: true });
     await input.fill('7,500');
     await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
-    await expect(page.getByRole('cell', { name: '-2,500', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: '-2,500 UN', exact: true })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Saída', exact: true })).toBeVisible();
     await input.fill('10,000');
     await expect(page.getByRole('button', { name: 'Confirmar ajustes', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Gerar prévia', exact: true }).click();
-    await expect(page.getByRole('cell', { name: '0,000', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: '0,000 UN', exact: true })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Sem alteração', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Remover Produto A', exact: true }).hover();
     await expect(page.getByRole('tooltip', { name: 'Remover Produto A' })).toBeVisible();
@@ -269,7 +269,7 @@ for (const mobile of [false, true]) test(`seleção, fração, prévia e confirm
     await preencher(page);
     await expect(page.getByRole("button", { name: "Adicionar Produto A", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "Gerar prévia", exact: true }).click();
-    await expect(page.getByRole("cell", { name: "+5,125", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "+5,125 UN", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Confirmar ajustes", exact: true })).toBeEnabled();
     assert.equal(pedidos.length, 1); assert.equal(pedidos[0].modo, "SALDO_FINAL");
     await page.screenshot({ path: `node_modules/sprint20c-${mobile ? "mobile" : "desktop"}.png`, fullPage: true, animations: "disabled" });
@@ -328,7 +328,7 @@ test("confirmação em andamento desabilita ações e não apresenta sucesso ant
         await expect(page.getByRole("button", { name: "Revisar dados", exact: true })).toBeDisabled();
         await expect(page.getByText("Ajuste realizado com sucesso", { exact: false })).toHaveCount(0);
         await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('Contagem de conferência');
-        await expect(page.getByRole('cell', { name: '15,125', exact: true })).toBeVisible();
+        await expect(page.getByRole('cell', { name: '15,125 UN', exact: true })).toBeVisible();
         assert.equal(pedidos.filter(p => p.path.endsWith("confirmar")).length, 1);
         liberar(); await expect(page.getByRole("status")).toContainText("Ajuste realizado com sucesso");
         await expect(page.getByRole('textbox', { name: 'Motivo do ajuste em massa' })).toHaveValue('');
@@ -416,7 +416,7 @@ test("valida tema claro/escuro, responsividade e estados visuais da Sprint 20", 
         if (theme === "light") claro = bg; else assert.notEqual(bg, claro, "tema escuro precisa aplicar a paleta escura real");
         await preencher(page);
         await page.getByRole("button", { name: "Gerar prévia", exact: true }).click();
-        await expect(page.getByRole("cell", { name: "+5,125", exact: true })).toBeVisible();
+        await expect(page.getByRole("cell", { name: "+5,125 UN", exact: true })).toBeVisible();
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
         await page.screenshot({ path: `node_modules/sprint20e-${theme}-${size}-previa.png`, fullPage: true, animations: "disabled" });
         await page.getByRole("button", { name: "Confirmar ajustes", exact: true }).click();

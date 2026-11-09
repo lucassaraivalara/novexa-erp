@@ -1,3 +1,16 @@
+## Estoque → Saldo — evolução operacional e visual (09/11/2026, somente local)
+
+Grid com unidades e ações contextualizadas, operações individuais com previsão/erros locais e retorno de foco, histórico com filtros recuperáveis e saldos/unidades, ajuste em massa e importação refinados sobre os fluxos existentes. Preservados contratos, motivo individual opcional, frações de até três casas, política empresarial/produto, permissões, locks, atomicidade e retry idempotente do lote. Sem correção de dados operacionais ou alteração produtiva. Detalhes em [frontend.md](frontend.md#busca-por-coluna-em-produtos-clientes-e-estoque).
+
+Validação direcionada: 42 testes frontend (incluindo desktop/mobile, temas, controle empresarial, lote/importação e densidade até 200 itens) e 69 testes backend, incluindo 29 cenários de lote/importação/isolamento em PostgreSQL temporário local. Sem skips na rodada PostgreSQL final. Validacao visual aprovada pelo Product Owner; isolamento Git preparado separadamente do main. Change OpenSpec aberta, sem commit, push ou deploy.
+
+Empresa ........ funcional
+
+
+Isolamento: teste de lote desacoplado da fixture de Caixa, preservando contagem de consultas/bytes e validacoes. Os 24 cenarios passaram na copia isolada do HEAD com os baselines V59/V60, em PostgreSQL descartavel. TypeScript da composicao isolada aprovado. Sem alteracoes no banco de desenvolvimento.
+
+Candidata de integracao sobre origin/main 96515367: 36 testes frontend e 24 testes backend direcionados aprovados em isolamento, TypeScript/build/lint aprovados. Delta sem alteracao de backend produtivo ou migrations; recuperacao local/V64 excluidas. Publicacao nao executada.
+
 ## Contas a Receber — UI/UX aprovada para release (06/11/2026)
 
 Consulta, indicadores, formulários, ações e histórico alinhados à UI aprovada `cb80060`, preservando recebimentos e estornos existentes. Quatorze verificações direcionadas, TypeScript e lint aprovados; interface aprovada pelo Product Owner e release frontend autorizado. Sem alteração financeira/backend/migration. Escopo e limites em [frontend.md](frontend.md).

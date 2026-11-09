@@ -296,8 +296,30 @@ como filtro próprio. A ordenação é independente do campo ativo da busca e oc
 antes da paginação.
 
 Estoque aplica busca por coluna somente a Produto e Código, mantendo a busca geral
-remota. Estoque atual e Estoque mínimo permitem ordenação no banco; Situação é
-filtro global no backend. O histórico tem paginação e filtros próprios.
+remota e a ordenação de saldo atual/mínimo no banco. Situação é filtro global no
+backend. O grid apresenta unidade junto aos saldos, identifica inativos e Kits e
+explica a indisponibilidade das ações. Filtros ativos têm limpeza e estados vazios
+orientam revisar a consulta. Após movimentar, preserva filtros e página válidos.
+
+Entrada avulsa, saída e ajuste individual mantêm diálogos curtos com produto/código,
+unidade, saldo atual e previsão informativa calculada pelo mesmo leitor decimal do
+envio. Ajuste representa saldo final, inclusive zero; motivo individual permanece
+opcional, até 255 caracteres. Campos e reenvio ficam bloqueados durante confirmação;
+erros ficam no diálogo e sucesso só aparece após resposta válida, com retorno do
+foco ao acionador. Falha de comunicação orienta consultar saldo/histórico antes de
+repetir a escrita individual. Mensagens funcionais texto/detail/message são
+preservadas; falhas internas usam orientação segura.
+
+Histórico individual e do lote mantêm paginação/filtros próprios e unidade atual do
+cadastro, com saldos anterior/posterior e distinção entre quantidade e saldo físico
+informado. Período inválido é orientado no contexto; limpeza e reconsulta não apagam
+o rascunho. Ajuste em massa reaproveita seleção, prévia e confirmação existentes,
+mostrando unidade e diferenças. Importação explica saldo final por código, precisão,
+limites e prévia sem gravação, mostra erros por linha e diferencia itens sem alteração
+no resultado. ADMIN, atomicidade, UUID/payload de retry e conflito por saldo/último
+movimento permanecem. Sem alteração de regras, contratos ou controles empresariais.
+Implementação local da change `estoque-saldo-evolucao-operacional-visual`; validação
+visual do Product Owner pendente.
 
 ## Apresentacao do Login
 
