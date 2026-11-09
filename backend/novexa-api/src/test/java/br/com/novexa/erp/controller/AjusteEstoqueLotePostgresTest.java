@@ -20,6 +20,13 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
+import java.lang.reflect.*;
+import java.sql.*;
+import java.nio.charset.StandardCharsets;
+import javax.sql.DataSource;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import java.util.*;
 import java.util.concurrent.*;
 import static org.assertj.core.api.Assertions.*;
@@ -28,7 +35,7 @@ import static org.assertj.core.api.Assertions.*;
     "spring.jpa.hibernate.ddl-auto=validate","spring.flyway.enabled=true","spring.jpa.open-in-view=false",
     "spring.jpa.show-sql=false","novexa.jwt.secret=01234567890123456789012345678901","novexa.jwt.expiration-ms=600000"})
 @EnabledIfSystemProperty(named="novexa.test.20b.jdbc-url",matches="jdbc:postgresql://127.0.0.1:.*")
-@org.springframework.context.annotation.Import(EgressSupabasePostgresTest.Medicao.class)
+@org.springframework.context.annotation.Import(AjusteEstoqueLotePostgresTest.Medicao.class)
 class AjusteEstoqueLotePostgresTest {
     static final java.util.concurrent.atomic.AtomicLong CPF=new java.util.concurrent.atomic.AtomicLong(73000000000L);
     static final String SCHEMA="ajuste20b_"+UUID.randomUUID().toString().replace("-","");
@@ -163,12 +170,54 @@ class AjusteEstoqueLotePostgresTest {
     @Test void limiteDuzentosItensSemConsultasPorItemNaPrevia() {
         var itens=new ArrayList<Item>();for(int i=0;i<200;i++)itens.add(new Item(produto("P"+i).getId(),new BigDecimal("11"),null,null));
         var p=new Pedido("SALDO_FINAL","Limite testado",null,itens);
-        EgressSupabasePostgresTest.SQL.clear();EgressSupabasePostgresTest.BYTES.set(0);
+        SQL.clear();BYTES.set(0);
         assertThat(lotes.previa(p,auth).itens()).hasSize(200);
-        assertThat(EgressSupabasePostgresTest.SQL).hasSize(2).noneMatch(sql->sql.contains("logomarca") || sql.contains("for update"));
-        assertThat(EgressSupabasePostgresTest.BYTES.get()).isLessThan(128*1024L);
+        assertThat(SQL).hasSize(2).noneMatch(sql->sql.contains("logomarca") || sql.contains("for update"));
+        assertThat(BYTES.get()).isLessThan(128*1024L);
         long inicio=System.nanoTime();assertThat(lotes.confirmar(confirmar(p),auth).alterados()).isEqualTo(200);
         System.out.println("SPRINT20B_200_CONFIRM_MS="+(System.nanoTime()-inicio)/1_000_000);
         assertThat(conta("movimentacoes_estoque")).isEqualTo(200);
+    }
+    static final List<String> SQL = new CopyOnWriteArrayList<>();
+    static final java.util.concurrent.atomic.AtomicLong BYTES = new java.util.concurrent.atomic.AtomicLong();
+    @TestConfiguration(proxyBeanMethods=false) static class Medicao {
+        @Bean static BeanPostProcessor medirJdbc() {
+            return new BeanPostProcessor() {
+                @Override public Object postProcessAfterInitialization(Object bean,String name) {
+                    if(bean instanceof DataSource ds) return proxy(DataSource.class,ds,(method,args,value)->
+                            value instanceof Connection c ? connection(c) : value);
+                    return bean;
+                }
+            };
+        }
+    }
+    interface Depois { Object aplicar(Method method,Object[] args,Object value) throws Throwable; }
+    static <T> T proxy(Class<T> type,T target,Depois depois) {
+        return type.cast(Proxy.newProxyInstance(type.getClassLoader(),new Class<?>[]{type},(p,m,a)->{
+            try { return depois.aplicar(m,a,m.invoke(target,a)); }
+            catch(InvocationTargetException e) {throw e.getCause();}
+        }));
+    }
+    static Connection connection(Connection c) {
+        return proxy(Connection.class,c,(m,a,v)->{
+            if(m.getName().equals("prepareStatement") && v instanceof PreparedStatement ps) {
+                String text=(String)a[0];
+                return proxy(PreparedStatement.class,ps,(pm,pa,pv)->{
+                    if(pm.getName().equals("executeQuery") && pv instanceof ResultSet rs) {
+                        SQL.add(text);
+                        return proxy(ResultSet.class,rs,(rm,ra,rv)->{
+                            if(rm.getName().equals("next") && Boolean.TRUE.equals(rv))
+                                for(int i=1;i<=rs.getMetaData().getColumnCount();i++) {
+                                    String cell=rs.getString(i);
+                                    if(cell!=null) BYTES.addAndGet(cell.getBytes(StandardCharsets.UTF_8).length);
+                                }
+                            return rv;
+                        });
+                    }
+                    return pv;
+                });
+            }
+            return v;
+        });
     }
 }
