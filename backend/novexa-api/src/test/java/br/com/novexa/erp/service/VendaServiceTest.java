@@ -112,6 +112,22 @@ class VendaServiceTest {
     }
 
     @Test
+    void edicaoDeVendaAbertaPreservaTaxaJaPersistida() {
+        var venda = service.criarVendaAberta(autenticado);
+        service.adicionarItem(venda.id(), produto.getId(), new BigDecimal("2"), autenticado);
+        var entity = vendas.findById(venda.id()).orElseThrow();
+        entity.setTaxaEntrega(new BigDecimal("2.50"));
+        entity.setTotal(new BigDecimal("22.50"));
+        vendas.saveAndFlush(entity);
+        var desconto = service.aplicarDesconto(venda.id(), new BigDecimal("1"), autenticado);
+        assertThat(desconto.taxaEntrega()).isEqualByComparingTo("2.50");
+        assertThat(desconto.total()).isEqualByComparingTo("21.50");
+        var item = itensVenda.findByVendaId(venda.id()).getFirst();
+        var quantidade = service.alterarQuantidade(venda.id(), item.getId(), new BigDecimal("3"), autenticado);
+        assertThat(quantidade.total()).isEqualByComparingTo("31.50");
+    }
+
+    @Test
     void precoAtualDoProdutoCopiadoParaItem() {
         var venda = service.criarVendaAberta(autenticado);
         service.adicionarItem(venda.id(), produto.getId(), new BigDecimal("1"), autenticado);

@@ -104,6 +104,84 @@ class VendaHttpTest {
     }
 
     @Test
+    void taxaEntregaIntegraVendaMistaHistoricoRetryECancelamento() throws Exception {
+        var pedido = pedidoMisto(1, 2);
+        pedido.put("desconto", 1);
+        pedido.put("taxaEntrega", new BigDecimal("2.50"));
+        pedido.put("totalEsperado", new BigDecimal("21.50"));
+        parcelas(pedido).get(1).put("valor", new BigDecimal("11.50"));
+        long id = enviar(pedido);
+        assertThat(enviar(pedido)).isEqualTo(id);
+        mvc.perform(get("/vendas/" + id).header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.taxaEntrega").value(2.5))
+                .andExpect(jsonPath("$.subtotal").value(20)).andExpect(jsonPath("$.desconto").value(1))
+                .andExpect(jsonPath("$.total").value(21.5));
+        assertThat(pagamentos.findByEmpresaIdAndVendaIdOrderBySequenciaAsc(empresa.getId(), id))
+                .extracting(PagamentoEntity::getValor).containsExactly(new BigDecimal("10.00"), new BigDecimal("11.50"));
+        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(movimentosFinanceiros.count()).isZero();
+        mvc.perform(post("/vendas/" + id + "/cancelar").header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.taxaEntrega").value(2.5));
+        assertThat(produtos.findById(produto.getId()).orElseThrow().getEstoqueAtual()).isEqualByComparingTo("10");
+        assertThat(pagamentos.count()).isEqualTo(2);
+        assertThat(movimentos.count()).isEqualTo(2);
+        assertThat(movimentosFinanceiros.count()).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {1, 2, 3, 4})
+    void taxaEntregaIntegraCadaMeioDePagamento(long forma) throws Exception {
+        var pedido = pedidoMisto(forma);
+        pedido.put("taxaEntrega", new BigDecimal("1.50"));
+        pedido.put("totalEsperado", new BigDecimal("21.50"));
+        parcelas(pedido).getFirst().put("valor", new BigDecimal("21.50"));
+        long id = enviar(pedido);
+        assertThat(pagamentos.findByEmpresaIdAndVendaIdOrderBySequenciaAsc(empresa.getId(), id))
+                .singleElement().extracting(PagamentoEntity::getValor).isEqualTo(new BigDecimal("21.50"));
+        assertThat(movimentos.count()).isEqualTo(1);
+        assertThat(movimentosFinanceiros.count()).isZero();
+    }
+
+    @Test
+    void faturamentoAbertoAceitaTaxaEConservaIdempotenciaLegada() throws Exception {
+        long id = abrir(); adicionar(id, produto.getId(), 2);
+        var pedido = pagamento();
+        pedido.put("taxaEntrega", new BigDecimal("1.50"));
+        pedido.put("totalEsperado", new BigDecimal("21.50"));
+        pedido.put("valorRecebido", new BigDecimal("21.50"));
+        for (int i = 0; i < 2; i++) mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pedido)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.taxaEntrega").value(1.5))
+                .andExpect(jsonPath("$.total").value(21.5));
+        pedido.put("taxaEntrega", new BigDecimal("1.51"));
+        mvc.perform(post("/vendas/" + id + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(pedido))).andExpect(status().isConflict());
+        var legado = pedido();
+        long legadoId = enviar(legado);
+        legado.put("taxaEntrega", 0);
+        assertThat(enviar(legado)).isEqualTo(legadoId);
+        assertThat(vendas.findById(legadoId).orElseThrow().getTaxaEntrega()).isEqualByComparingTo("0");
+        long aberta = abrir(); adicionar(aberta, produto.getId(), 1);
+        var legadoAberta = pagamento(); legadoAberta.put("totalEsperado", 10); legadoAberta.put("valorRecebido", 10);
+        mvc.perform(post("/vendas/" + aberta + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(legadoAberta))).andExpect(status().isOk());
+        legadoAberta.put("taxaEntrega", 0);
+        mvc.perform(post("/vendas/" + aberta + "/faturar").header(HttpHeaders.AUTHORIZATION, authorization)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(legadoAberta))).andExpect(status().isOk());
+    }
+
+    @Test
+    void taxaInvalidaOuTotalDivergenteNaoProduzEfeitos() throws Exception {
+        for (String taxa : List.of("-1", "1.001")) {
+            var pedido = pedido(); pedido.put("taxaEntrega", new BigDecimal(taxa));
+            assertThat(statusVenda(pedido, authorization)).isEqualTo(400);
+        }
+        var pedido = pedido(); pedido.put("taxaEntrega", new BigDecimal("2.00"));
+        assertThat(statusVenda(pedido, authorization)).isEqualTo(409);
+        exigirMistoSemEfeitos();
+    }
+
+    @Test
     void dinheiroGravaVendaEstoqueEFinanceiroUmaVezMesmoAoRepetir() throws Exception {
         var pedido = pedido();
         pedido.put("desconto", 1);

@@ -17,7 +17,7 @@ export type PagamentoPDV = {
 };
 export type ParcelaPrazoPDV = { valor: string; vencimento: string };
 export type RascunhoPDV = {
-    itens: ItemPDV[]; desconto: string; cliente: Cliente | null; entrega: string; observacoes: string;
+    itens: ItemPDV[]; desconto: string; taxaEntrega: string; cliente: Cliente | null; entrega: string; observacoes: string;
     formaPagamento: FormaPagamento; recebido: string; pendente: VendaInput | null;
     sessaoCaixaId: number | null;
     configuracaoFormaPagamentoId: number | null;
@@ -27,7 +27,7 @@ export type RascunhoPDV = {
     parcelasPrazo?: ParcelaPrazoPDV[];
 };
 export function novoRascunho(sessaoCaixaId: number | null = null): RascunhoPDV {
-    return { itens: [], desconto: "0", cliente: null, entrega: "", observacoes: "",
+    return { itens: [], desconto: "0", taxaEntrega: "0.00", cliente: null, entrega: "", observacoes: "",
         formaPagamento: "DINHEIRO", recebido: "", pendente: null, sessaoCaixaId,
         configuracaoFormaPagamentoId: null, configuracaoNomeExibicao: null, configuracaoTipo: null };
 }
@@ -77,6 +77,13 @@ export function formatarValorMonetario(valor: string): string {
     if (!normalizado) return valor;
     return Number(normalizado).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+export function normalizarCentavos(valor: string): string | null {
+    if (!/^[\d.,]*$/.test(valor)) return null;
+    const digitos = valor.replace(/[.,]/g, "").replace(/^0+/, "") || "0";
+    if (digitos.length > 11) return null;
+    const centavos = digitos.padStart(3, "0");
+    return `${centavos.slice(0, -2)}.${centavos.slice(-2)}`;
+}
 export function subtotalItem(item: ItemPDV): number | null {
     const quantidade = decimal(item.quantidade, 3);
     const preco = Math.round(item.produto.precoVenda * 100);
@@ -89,7 +96,8 @@ export function totais(r: RascunhoPDV) {
     const valores = r.itens.map(subtotalItem);
     const subtotal = valores.reduce<number>((soma, valor) => soma + (valor ?? 0), 0);
     const desconto = decimal(r.desconto, 2);
-    const total = subtotal - (desconto ?? 0);
+    const taxaEntrega = decimal(r.taxaEntrega, 2);
+    const total = subtotal - (desconto ?? 0) + (taxaEntrega ?? 0);
     const pagamentos = pagamentosRascunho(r);
     const usaPrazo = pagamentos.some(p => p.formaPagamento === "A_PRAZO");
     const parcelasPrazo = usaPrazo ? (r.parcelasPrazo ?? []).map(p => ({ ...p,
@@ -120,10 +128,11 @@ export function totais(r: RascunhoPDV) {
         && parcelamentoValido(p)
         && p.valorCentavos !== null && p.valorCentavos > 0 && p.recebidoCentavos !== null && p.recebidoCentavos >= p.valorCentavos)
         && new Set(imediatos.map(p => p.configuracaoFormaPagamentoId)).size === imediatos.length;
-    return { subtotal, desconto, total, totalInformado, totalPrazo, usaPrazo, parcelasPrazo,
+    return { subtotal, desconto, taxaEntrega, total, totalInformado, totalPrazo, usaPrazo, parcelasPrazo,
         totalImediato: totalInformado - totalPrazo, restante: total - totalInformado, parcelas, pagamentosValidos,
         recebido: totalInformado - totalPrazo + troco, troco,
-        valido: valores.every(v => v !== null) && desconto !== null && total > 0 && Number.isSafeInteger(subtotal) };
+        valido: valores.every(v => v !== null) && desconto !== null && desconto < subtotal && taxaEntrega !== null
+            && total > 0 && Number.isSafeInteger(subtotal) && Number.isSafeInteger(total) };
 }
 
 // Rascunhos locais anteriores continuam legiveis; novos pedidos usam sempre pagamentos[].
@@ -139,7 +148,7 @@ export function parcelamentoValido(p: PagamentoPDV, config?: ConfiguracaoFormaPa
 export function criarPedido(r: RascunhoPDV, chave: string): VendaInput {
     const t = totais(r);
     if (!r.itens.length) throw new Error("Adicione um produto para iniciar a venda.");
-    if (!t.valido) throw new Error("Revise as quantidades e o desconto. O total deve ser maior que zero.");
+    if (!t.valido) throw new Error("Revise as quantidades, o desconto e a taxa de entrega. O total deve ser maior que zero.");
     if (t.usaPrazo && !r.cliente) throw new Error("Selecione um cliente para vender a prazo.");
     if (t.parcelas.some(p => p.formaPagamento !== "A_PRAZO" && p.configuracaoFormaPagamentoId === null)) throw new Error("Selecione uma forma de pagamento valida para cada parcela.");
     if (t.parcelas.some(p => p.recebidoCentavos === null || p.recebidoCentavos < (p.valorCentavos ?? 0)))
@@ -150,7 +159,7 @@ export function criarPedido(r: RascunhoPDV, chave: string): VendaInput {
         itens: r.itens.map(i => ({ produtoId: i.produto.id, quantidade: decimal(i.quantidade, 3)! / 1000,
             precoUnitarioEsperado: i.produto.precoVenda,
             ...(i.produto.composto && i.produto.composicaoVersao ? { composicaoVersaoEsperada: i.produto.composicaoVersao } : {}) })),
-        clienteId: r.cliente?.id ?? null, desconto: t.desconto! / 100, totalEsperado: t.total / 100,
+        clienteId: r.cliente?.id ?? null, desconto: t.desconto! / 100, taxaEntrega: t.taxaEntrega! / 100, totalEsperado: t.total / 100,
         pagamentos: t.parcelas.filter(p => p.formaPagamento !== "A_PRAZO").map(p => ({ configuracaoFormaPagamentoId: p.configuracaoFormaPagamentoId!,
             valor: p.valorCentavos! / 100,
             ...(p.formaPagamento === "CARTAO_CREDITO" && (p.parcelasConsumidor ?? 1) > 1 ? { parcelasConsumidor: p.parcelasConsumidor } : {}),

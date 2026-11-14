@@ -24,6 +24,25 @@ class VendaPrazoHttpTest extends VendaHttpTest {
 
     @AfterEach void limparSpiesPrazo() { reset(contasReceber, financeiroService); }
 
+    @Test void taxaEntregaIntegraPrazoECancelamentoSemMovimentoAdicional() throws Exception {
+        var p = pedidoPrazo("1");
+        p.put("taxaEntrega", new BigDecimal("2.50"));
+        p.put("totalEsperado", new BigDecimal("22.50"));
+        p.put("parcelasPrazo", List.of(
+                Map.of("valor", new BigDecimal("10.25"), "vencimento", LocalDate.now().plusDays(30).toString()),
+                Map.of("valor", new BigDecimal("10.25"), "vencimento", LocalDate.now().plusDays(60).toString())));
+        var venda = enviarPrazo(p, 201);
+        assertThat(venda.get("taxaEntrega").decimalValue()).isEqualByComparingTo("2.50");
+        assertThat(venda.get("valorPrazo").decimalValue()).isEqualByComparingTo("20.50");
+        assertThat(contasReceber.count()).isEqualTo(2);
+        assertThat(pagamentos.count()).isEqualTo(1);
+        assertThat(movimentosFinanceiros.count()).isZero();
+        cancelarPrazo(venda.get("id").asLong(), 200);
+        assertThat(contasReceber.findAll()).allSatisfy(c -> assertThat(c.getStatus()).isEqualTo(StatusContaReceber.CANCELADA));
+        assertThat(pagamentos.count()).isEqualTo(1);
+        assertThat(movimentosFinanceiros.count()).isZero();
+    }
+
     @Test void pixPdvSemConfiguracaoRejeitaAntesDoFaturamento() throws Exception {
         var p = pedidoPrazo("");
         p.remove("parcelasPrazo"); p.remove("pagamentos");

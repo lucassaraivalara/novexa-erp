@@ -132,7 +132,7 @@ public class VendaService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Desconto não pode ser maior que o subtotal.");
         }
         venda.setDesconto(desconto);
-        venda.setTotal(subtotal.subtract(desconto).setScale(2, RoundingMode.HALF_UP));
+        venda.setTotal(subtotal.subtract(desconto).add(venda.getTaxaEntrega()).setScale(2, RoundingMode.HALF_UP));
         vendas.save(venda);
         return VendaResponseDTO.de(venda);
     }
@@ -256,7 +256,8 @@ public class VendaService {
         }
         return faturar(venda, new FaturamentoVendaDTO(pedido.chaveRequisicao(), pedido.totalEsperado(),
                 pedido.formaPagamento(), pedido.valorRecebido(), pedido.formaPagamentoId(), pedido.sessaoCaixaId(),
-                pedido.configuracaoFormaPagamentoId(), pedido.pagamentos(), pedido.parcelasPrazo(), pedido.confirmarEstoqueInsuficiente()), autenticado, operador, resumo, produtosMap);
+                pedido.configuracaoFormaPagamentoId(), pedido.pagamentos(), pedido.parcelasPrazo(), pedido.confirmarEstoqueInsuficiente(),
+                pedido.taxaEntrega()), autenticado, operador, resumo, produtosMap);
     }
 
     public VendaResponseDTO faturar(Long vendaId, FaturamentoVendaDTO pedido, UsuarioAutenticado autenticado) {
@@ -322,9 +323,13 @@ public class VendaService {
         if (desconto == null || desconto.signum() < 0 || desconto.compareTo(subtotal) >= 0) {
             throw conflito("O desconto deve ser menor que o subtotal da venda.");
         }
-        BigDecimal total = subtotal.subtract(desconto).setScale(2, RoundingMode.HALF_UP);
-        if (subtotal.compareTo(venda.getSubtotal()) != 0 || total.compareTo(venda.getTotal()) != 0
+        BigDecimal taxaEntrega = validarTaxaEntrega(pedido.taxaEntrega());
+        BigDecimal totalAnterior = subtotal.subtract(desconto).add(venda.getTaxaEntrega()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal total = subtotal.subtract(desconto).add(taxaEntrega).setScale(2, RoundingMode.HALF_UP);
+        if (subtotal.compareTo(venda.getSubtotal()) != 0 || totalAnterior.compareTo(venda.getTotal()) != 0
                 || total.compareTo(pedido.totalEsperado()) != 0) throw conflito("O total mudou. Revise os itens antes de finalizar.");
+        venda.setTaxaEntrega(taxaEntrega);
+        venda.setTotal(total);
         var empresaPolitica = politicasEmpresa.politicaComLock(autenticado.empresaId()).orElseThrow(() -> conflito("Empresa indisponível."));
         entityManager.refresh(empresaPolitica);
         boolean controlaEstoque = Boolean.TRUE.equals(empresaPolitica.getControlaEstoque());
@@ -463,11 +468,19 @@ public class VendaService {
         }
     }
 
+    private BigDecimal validarTaxaEntrega(BigDecimal taxa) {
+        if (taxa == null) return BigDecimal.ZERO.setScale(2);
+        if (taxa.signum() < 0 || taxa.scale() > 2 || taxa.precision() - taxa.scale() > 12)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Taxa de entrega deve ser não negativa e ter até duas casas decimais.");
+        return taxa.setScale(2);
+    }
+
     private void recalcularTotais(VendaEntity venda) {
         BigDecimal subtotal = calcularSubtotal(venda);
         BigDecimal desconto = venda.getDesconto() != null ? venda.getDesconto() : BigDecimal.ZERO;
-        BigDecimal total = subtotal.subtract(desconto).setScale(2, RoundingMode.HALF_UP);
-        if (total.signum() < 0) throw conflito("Revise o desconto antes de reduzir os itens.");
+        BigDecimal valorProdutos = subtotal.subtract(desconto);
+        if (valorProdutos.signum() < 0) throw conflito("Revise o desconto antes de reduzir os itens.");
+        BigDecimal total = valorProdutos.add(venda.getTaxaEntrega()).setScale(2, RoundingMode.HALF_UP);
         venda.setSubtotal(subtotal);
         venda.setTotal(total);
         vendas.save(venda);

@@ -2,12 +2,29 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
 const { criarParametrosVenda, podeCancelarVenda, rotulosStatus } =
     await server.ssrLoadModule("/src/pages/Vendas/centralVendasUtils.ts");
 const { mensagemVenda } = await server.ssrLoadModule("/src/services/vendaService.ts");
+const { default: VendaExpandida } = await server.ssrLoadModule("/src/pages/Vendas/VendaExpandida.tsx");
 await server.close();
+
+test("histórico exibe taxa e total persistidos sem reinterpretar venda legada", () => {
+    const venda = { id: 1, status: "FATURADA", nomeCliente: null };
+    const detalhe = { id: 1, status: "FATURADA", dataHora: "2026-11-13T10:00:00", itens: [],
+        subtotal: 20, desconto: 1, taxaEntrega: 2.5, total: 21.5, troco: 0 };
+    const renderizar = registro => renderToStaticMarkup(React.createElement(VendaExpandida, {
+        venda, cache: new Map([[1, { detalhe: registro, pagamentos: [] }]]), onCarregado() {},
+    }));
+    const atual = renderizar(detalhe);
+    assert.match(atual, /Taxa de entrega:.*2,50/);
+    assert.match(atual, /Total da venda[\s\S]*21,50/);
+    const { taxaEntrega: _taxa, ...legado } = detalhe;
+    assert.doesNotMatch(renderizar(legado), /Taxa de entrega:/);
+});
 
 test("envia somente filtros preenchidos para a listagem", () => {
     assert.deepEqual(criarParametrosVenda({ status: "", dataInicial: "", dataFinal: "", clienteId: "" }), {

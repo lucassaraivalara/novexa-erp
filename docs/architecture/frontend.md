@@ -407,3 +407,7 @@ página.
 Novos cadastros devem reutilizar `FormActions` e esse fluxo. Não criar outro
 motor genérico, outro loading ou outro padrão de submit sem uma exceção
 intencional do domínio.
+
+## Taxa de entrega no PDV
+
+O diálogo de entrega mantém endereço e taxa no rascunho. A taxa começa em zero, usa digitação progressiva em centavos e aparece separadamente no resumo, no pagamento, na finalização e no histórico. O total inclui a taxa após o desconto. Os campos monetários de pagamento e desconto conservam sua interpretação anterior. A publicação depende da migration e do backend correspondentes.

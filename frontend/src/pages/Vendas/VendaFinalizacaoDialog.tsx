@@ -23,6 +23,7 @@ type Props = {
     estado: EstadoFinalizacao;
     quantidadeItens: number;
     total: number;
+    taxaEntrega: number;
     formaPagamento: string;
     troco: number;
     mensagemErro?: string;
@@ -40,6 +41,7 @@ export default function VendaFinalizacaoDialog({
     estado,
     quantidadeItens,
     total,
+    taxaEntrega,
     formaPagamento,
     troco,
     mensagemErro,
@@ -97,6 +99,10 @@ export default function VendaFinalizacaoDialog({
                                 {moeda(total)}
                             </Typography>
                             <Divider sx={{ my: 1.5 }} />
+                            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                                <Typography variant="body2" color="text.secondary">Taxa de entrega</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 650 }}>{moeda(taxaEntrega)}</Typography>
+                            </Stack>
                             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                                 <Typography variant="body2" color="text.secondary">Itens</Typography>
                                 <Typography variant="body2" sx={{ fontWeight: 650 }}>{quantidadeItens}</Typography>

@@ -25,7 +25,7 @@ export type VendaInput = {
     confirmarEstoqueInsuficiente?: boolean;
     chaveRequisicao: string;
     itens: { produtoId: number; quantidade: number; precoUnitarioEsperado: number }[];
-    clienteId: number | null; desconto: number; totalEsperado: number; formaPagamento?: FormaPagamento;
+    clienteId: number | null; desconto: number; taxaEntrega?: number; totalEsperado: number; formaPagamento?: FormaPagamento;
     valorRecebido?: number; entrega: string; observacoes: string;
     pagamentos?: PagamentoVendaInput[];
     parcelasPrazo?: ParcelaPrazoVendaInput[];
@@ -59,6 +59,7 @@ export type VendaDetalhe = {
     dataHora: string;
     subtotal: number;
     desconto: number;
+    taxaEntrega?: number;
     total: number;
     formaPagamento: FormaPagamento | null;
     valorRecebido: number | null;

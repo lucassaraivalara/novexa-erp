@@ -44,6 +44,7 @@ public class VendaEntity {
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private StatusVenda status;
     @Column(precision = 19, scale = 2) private BigDecimal subtotal;
     @Column(precision = 19, scale = 2) private BigDecimal desconto;
+    @Column(nullable = false, precision = 19, scale = 2) private BigDecimal taxaEntrega = BigDecimal.ZERO;
     @Column(precision = 19, scale = 2) private BigDecimal total;
     @Enumerated(EnumType.STRING) @Column(length = 20) private FormaPagamento formaPagamento;
     @ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
@@ -91,6 +92,7 @@ public class VendaEntity {
     public void setStatus(StatusVenda status) { this.status = status; }
     public BigDecimal getSubtotal() { return subtotal; }
     public BigDecimal getDesconto() { return desconto; }
+    public BigDecimal getTaxaEntrega() { return taxaEntrega; }
     public BigDecimal getTotal() { return total; }
     public FormaPagamento getFormaPagamento() { return formaPagamento; }
     public ConfiguracaoFormaPagamentoEmpresaEntity getConfiguracaoFormaPagamento() { return configuracaoFormaPagamento; }
@@ -120,6 +122,7 @@ public class VendaEntity {
     }
     public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }
     public void setDesconto(BigDecimal desconto) { this.desconto = desconto; }
+    public void setTaxaEntrega(BigDecimal taxaEntrega) { this.taxaEntrega = taxaEntrega; }
     public void setTotal(BigDecimal total) { this.total = total; }
     public void setCliente(ClienteEntity cliente) { this.cliente = cliente; }
 }

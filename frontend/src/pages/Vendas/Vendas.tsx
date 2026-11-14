@@ -42,6 +42,7 @@ type Finalizacao = {
     estado: EstadoFinalizacao;
     quantidadeItens: number;
     total: number;
+    taxaEntrega: number;
     formaPagamento: string;
     troco: number;
     mensagemErro?: string;
@@ -334,6 +335,7 @@ export default function Vendas() {
             estado: "processing",
             quantidadeItens: rascunho.itens.length,
             total: t.total,
+            taxaEntrega: Math.round((pedido.taxaEntrega ?? 0) * 100),
             formaPagamento: t.parcelas.length > 1 ? "Pagamento misto"
                 : t.parcelas[0].nomeExibicao ?? rotulosPagamento[t.parcelas[0].formaPagamento],
             troco: t.troco,
@@ -469,6 +471,7 @@ export default function Vendas() {
             estado={finalizacao.estado}
             quantidadeItens={finalizacao.quantidadeItens}
             total={finalizacao.total}
+            taxaEntrega={finalizacao.taxaEntrega}
             formaPagamento={finalizacao.formaPagamento}
             troco={finalizacao.troco}
             mensagemErro={finalizacao.mensagemErro}
@@ -627,6 +630,7 @@ export default function Vendas() {
                 </Stack>
                 <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Subtotal</span><span>{moeda(t.subtotal)}</span></Stack>
                 {!!t.desconto && <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Desconto</span><span>− {moeda(t.desconto)}</span></Stack>}
+                <Stack direction="row" sx={{ justifyContent: "space-between" }}><span>Taxa de entrega</span><span>{t.taxaEntrega === null ? "Valor inválido" : moeda(t.taxaEntrega)}</span></Stack>
                 </Stack>
                 <Stack spacing={1.5} sx={{ mt: { md: "auto !important" }, order: { xs: 6, md: 0 }, position: { xs: "sticky", md: "static" }, bottom: 0, zIndex: 2, bgcolor: "background.paper", p: { xs: 1, md: 0 }, borderTop: 1, borderColor: "divider" }}>
                 <Box sx={{ py: 1, borderBottom: 1, borderColor: "divider" }}><Typography variant="body2" color="text.secondary">Total da venda</Typography><Typography aria-label="Total da venda" sx={{ fontSize: 40, lineHeight: 1.25, fontWeight: 800, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", color: cores.total }}>{moeda(Math.max(0, t.total))}</Typography></Box>
@@ -650,6 +654,12 @@ export default function Vendas() {
                     value={rascunho[opcional]} multiline minRows={2}
                     slotProps={{ htmlInput: { maxLength: opcional === "entrega" ? 500 : 2000 } }}
                     onChange={e => alterar({ [opcional]: e.target.value })} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); setOpcional(null); focarBusca(); } }} />}
+                {opcional === "entrega" && <ValorMonetarioPDV fullWidth entradaCentavos disabled={bloqueado}
+                    label="Taxa de entrega (R$)" value={rascunho.taxaEntrega} sx={{ mt: 2 }}
+                    helperText="Informe zero para entrega gratuita."
+                    slotProps={{ htmlInput: { inputMode: "numeric" } }}
+                    onChange={v => alterar({ taxaEntrega: v })}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); fecharOpcional(); } }} />}
             </DialogContent>
             <DialogActions><Button onClick={fecharOpcional}>Concluir</Button></DialogActions>
         </Dialog>

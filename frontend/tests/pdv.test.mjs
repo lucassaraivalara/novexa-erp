@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 
 const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
-const { novoRascunho, carregarRascunhoSalvo, salvarRascunho, decimal, normalizarValorMonetario, formatarValorMonetario, subtotalItem, totais, criarPedido, encontrarProdutoPorCodigo, decidirSessaoCaixa, moverIndiceProduto, parcelamentoValido } = await server.ssrLoadModule("/src/pages/Vendas/pdv.ts");
+const { novoRascunho, carregarRascunhoSalvo, salvarRascunho, decimal, normalizarValorMonetario, normalizarCentavos, formatarValorMonetario, subtotalItem, totais, criarPedido, encontrarProdutoPorCodigo, decidirSessaoCaixa, moverIndiceProduto, parcelamentoValido } = await server.ssrLoadModule("/src/pages/Vendas/pdv.ts");
 await server.close();
 const fontePDV = await readFile(new URL("../src/pages/Vendas/Vendas.tsx", import.meta.url), "utf8");
 const fonteFinalizacao = await readFile(new URL("../src/pages/Vendas/VendaFinalizacaoDialog.tsx", import.meta.url), "utf8");
@@ -50,9 +50,12 @@ test("storage restaura somente venda em andamento da sessao correta e elimina ra
     const dados = new Map();
     globalThis.sessionStorage = { getItem: chave => dados.get(chave) ?? null, setItem: (chave, valor) => dados.set(chave, valor), removeItem: chave => dados.delete(chave) };
     try {
-        const rascunho = { ...venda(), sessaoCaixaId: 10 };
+        const rascunho = { ...venda(), sessaoCaixaId: 10, taxaEntrega: "1.50" };
         salvarRascunho("atual", rascunho);
         assert.deepEqual(carregarRascunhoSalvo("atual", 10), rascunho);
+        const { taxaEntrega: _taxa, ...legado } = rascunho;
+        dados.set("legado-sem-taxa", JSON.stringify(legado));
+        assert.equal(carregarRascunhoSalvo("legado-sem-taxa", 10).taxaEntrega, "0.00");
         assert.deepEqual(carregarRascunhoSalvo("atual", 11), novoRascunho(11));
         assert.deepEqual(carregarRascunhoSalvo("outra-empresa", 10), novoRascunho(10));
         dados.set("legada", JSON.stringify(rascunho));
@@ -84,6 +87,30 @@ test("entrada monetaria brasileira preserva reais inteiros, centavos e formato e
     for (const entrada of ["-1", "3,501", "3.5010", "1.00,50", "1,2,3", "abc", "1000000000"])
         assert.equal(normalizarValorMonetario(entrada), null);
     assert.equal(decimal("1,125", 3), 1125);
+});
+
+test("taxa usa centavos progressivos, preserva desconto e integra pagamentos", () => {
+    for (const [entrada, valor] of [["1", "0.01"], ["15", "0.15"], ["150", "1.50"], ["", "0.00"]])
+        assert.equal(normalizarCentavos(entrada), valor);
+    assert.equal(normalizarCentavos("0,015"), "0.15");
+    assert.equal(normalizarCentavos("0,150"), "1.50");
+    assert.equal(normalizarCentavos("-1"), null);
+    assert.equal(normalizarCentavos("100000000000"), null);
+    const r = { ...venda(), desconto: "2.20", taxaEntrega: "1.50", pagamentos: [
+        { configuracaoFormaPagamentoId: 1, formaPagamento: "PIX", valor: "10", recebido: "" },
+        { configuracaoFormaPagamentoId: 2, formaPagamento: "DINHEIRO", valor: "", recebido: "10" },
+    ] };
+    const t = totais(r), pedido = criarPedido(r, "chave");
+    assert.equal(t.total, 1950);
+    assert.equal(pedido.taxaEntrega, 1.5);
+    assert.equal(pedido.totalEsperado, 19.5);
+    assert.deepEqual(pedido.pagamentos, [
+        { configuracaoFormaPagamentoId: 1, valor: 10 },
+        { configuracaoFormaPagamentoId: 2, valor: 9.5, valorRecebido: 10 },
+    ]);
+    assert.equal(totais({ ...r, desconto: "20.20" }).valido, false);
+    assert.equal(totais({ ...r, taxaEntrega: "-1" }).valido, false);
+    assert.equal(criarPedido(venda(), "chave").taxaEntrega, 0);
 });
 
 test("venda totalmente a prazo exige cliente e gera parcelas sem PagamentoEntity no contrato", () => {

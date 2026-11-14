@@ -584,6 +584,7 @@ function ConsultaVendas({ ativa, filtrosSolicitados }: { ativa: boolean; filtros
                     <Stack direction="row" spacing={3} sx={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
                         <Typography>Subtotal: <strong>{moedaVenda(detalhe.subtotal)}</strong></Typography>
                         <Typography>Desconto: <strong>{moedaVenda(detalhe.desconto)}</strong></Typography>
+                        {detalhe.taxaEntrega !== undefined && <Typography>Taxa de entrega: <strong>{moedaVenda(detalhe.taxaEntrega)}</strong></Typography>}
                         {!!detalhe.troco && <Typography>Troco: <strong>{moedaVenda(detalhe.troco)}</strong></Typography>}
                     </Stack>
                     </Stack>

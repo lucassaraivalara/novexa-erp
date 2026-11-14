@@ -85,6 +85,7 @@ export default function VendaExpandida({ venda, cache, onCarregado }: Props) {
                     </Table>
                 </TableContainer>
                 {!!detalhe.desconto && <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">Desconto da venda: {moedaVenda(detalhe.desconto)}</Typography>}
+                {detalhe.taxaEntrega !== undefined && <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">Taxa de entrega: {moedaVenda(detalhe.taxaEntrega)}</Typography>}
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>Preços e quantidades registrados na venda.</Typography>
             </Box>
             <Stack spacing={1.5} sx={{ minWidth: 0, alignSelf: "start", p: 1.5, bgcolor: "background.paper", border: 1, borderColor: "divider", borderRadius: 1.5 }}>
